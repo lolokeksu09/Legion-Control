@@ -1,6 +1,14 @@
 name: Legion Control permanently signed APK
 
 on:
+  # Only trusted main-branch changes can access protected signing secrets.
+  push:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - 'rust-core/**'
+      - 'scripts/**'
+      - '.github/workflows/release-apk.yml'
   workflow_dispatch:
 
 permissions:
@@ -45,6 +53,9 @@ jobs:
           python3 scripts/check_backend.py
           python3 scripts/check_release_signing.py
           python3 scripts/check_session_backend.py
+          python3 scripts/check_persistent_history.py
+      - name: Test local CSV and Russian plural formatting before release
+        run: gradle --no-daemon testDebugUnitTest
       - name: Test and build real Rust native libraries
         run: bash scripts/build-native.sh
       - name: Restore private release keystore outside the repository
@@ -70,6 +81,6 @@ jobs:
           python3 scripts/verify_release_apk.py app/build/outputs/apk/release/app-release.apk "$ANDROID_HOME/build-tools/36.0.0/apksigner"
       - uses: actions/upload-artifact@v4
         with:
-          name: Legion-Control-v0.1.0-alpha.3-permanent-release-apk
+          name: Legion-Control-v0.1.0-alpha.4-permanent-release-apk
           path: app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error

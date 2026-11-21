@@ -1,4 +1,4 @@
-# Legion Control backend · v0.1.0-alpha.3
+# Legion Control backend · v0.1.0-alpha.4
 
 ## First working vertical slice
 1. Kotlin Activity reads real battery percentage and temperature from Android ACTION_BATTERY_CHANGED, plus display mode from DisplayManager.
@@ -15,7 +15,7 @@ Packed long: `count<<32 | (signed_temp_delta_as_u16)<<16 | signed_battery_delta_
 Native returns `-1` for invalid sensor input, including out-of-order timestamps. The Rust library uses only primitive JNI types and does not dereference JNI pointers or access hidden APIs.
 
 ## Privacy / safety
-No server, network requests, Root, Shizuku, Motorola Binder calls, thermal writes, boot receiver or telemetry. Data is processed on device. Rust history is *ephemeral* and resets when the process ends. These are individual user-triggered samples, **not** continuous monitoring or a battery health diagnosis.
+No server, network requests, Root, Shizuku, Motorola Binder calls, thermal writes, boot receiver or telemetry. Data is processed on device. Rust's 64-sample computational window is *ephemeral* and resets with the process; since alpha.4, separate Kotlin SQLite data remains in private storage after restarts. These are individual user-triggered samples, **not** continuous monitoring or a battery health diagnosis.
 
 ## Build locally
 Requires Rust stable + `aarch64-linux-android` / `x86_64-linux-android` targets, Android NDK 28.2.13676358, SDK 36, JDK 17, Gradle 9.6.0 (setup-gradle in CI). Build on Linux or macOS:
@@ -52,3 +52,11 @@ See [RELEASE-SIGNING.md](RELEASE-SIGNING.md): a fixed PKCS12 key, certificate pi
 - Kotlin `AndroidPowerSource.read(Context, Intent?)`: Android battery broadcast reports charging status, plugged source and voltage; `BatteryManager.BATTERY_PROPERTY_CURRENT_NOW` provides current where supported, and `PowerManager.isPowerSaveMode` gives power saver state. Every unavailable value remains explicitly unknown. Current sign is manufacturer-specific and **must not** be interpreted as a Bypass switch or measured charging efficiency.
 - Share report: explicit Android `ACTION_SEND`/system chooser for the last successful on-demand snapshot. No background collection, analytics or network access by the app; recipients are chosen by the user. Reset invalidates prior shareable snapshot until next measurement.
 - No new permissions, no JNI pointer dereference, and no hidden Motorola APIs.
+
+## Alpha.4: persistent diagnostic history and sensor discovery
+
+Kotlin uses a private `SQLiteOpenHelper` database, `legion-control-history.db`, with `sessions` and `samples`. A successful Rust sample is recorded transactionally. Duplicate `session_id + elapsed_ms` samples are ignored, missing Android fields remain SQL NULL, and no external-storage permission is requested. There is **no auto-pruning** or destructive upgrade fallback; database schema changes require explicit lossless migrations. Each app process owns a native session through `ActiveSession`, so Rust monotonic timestamps are not mixed across device boots/process restarts.
+
+Android `ACTION_CREATE_DOCUMENT` invokes the user-controlled Storage Access Framework to stream all rows as CSV (UTF-8 with BOM, CRLF, fully quoted values and empty cells for missing readings). No background exports or remote recipients. `SensorManager.getDefaultSensor` reports discoverability only and is not a live sensor recording. Battery temperatures and CPU/GPU temperatures are distinct. All new checks remain public API/read-only.
+
+Source-of-truth: [HISTORY.md](HISTORY.md) and `scripts/check_persistent_history.py`. JVM regressions: `gradle testDebugUnitTest`; physical Android SQLite/SAF behavior requires separate device validation.

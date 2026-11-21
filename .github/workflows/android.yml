@@ -39,6 +39,10 @@ jobs:
         run: python3 scripts/check_release_signing.py
       - name: Verify Kotlin/Rust session and local report contract
         run: python3 scripts/check_session_backend.py
+      - name: Verify persistent history, sensor discovery and CSV export contracts
+        run: python3 scripts/check_persistent_history.py
+      - name: Run pure Kotlin CSV and Russian plural regression tests
+        run: gradle --no-daemon testDebugUnitTest
       - name: Test and compile real Rust backend for Android
         run: bash scripts/build-native.sh
       - name: Build Kotlin Android APK with native Rust library
@@ -84,6 +88,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: success()
         with:
-          name: Legion-Control-v0.1.0-alpha.3-kotlin-rust-debug
+          name: Legion-Control-v0.1.0-alpha.4-kotlin-rust-debug
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
