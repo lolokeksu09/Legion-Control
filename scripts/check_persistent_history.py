@@ -50,8 +50,8 @@ assert "showSavedHistory()\n    }" in activity
 assert "sample()\n    }" not in activity
 assert "SensorManager" in sensors and "getDefaultSensor(type)" in sensors
 assert "registerListener" not in sensors
-assert 'versionCode = 9' in gradle
-assert 'versionName = "0.1.0-alpha.9"' in gradle
+assert 'versionCode = 10' in gradle
+assert 'versionName = "0.1.0-alpha.10"' in gradle
 
 for risky in ("WRITE_SECURE_SETTINGS", "QUERY_ALL_PACKAGES", "ACCESS_NETWORK_STATE",
               "INTERNET", "setprop ", "moto_extend_service", "pointer_speed"):
