@@ -71,3 +71,8 @@ Owner continues requesting new implemented functions before refinement, **withou
 ## Alpha.10 — backend first, new real functions (2026-11-22)
 
 One-shot, user-triggered SensorManager capture (accelerometer, gyroscope, light, proximity), no sampling on startup or in the background. Validate timestamps, accuracy, finite values and dimensions; display missing/registration failure/timeout separately. Commit accepted events to SQLite v3 in a separate table, retaining legacy v1/v2 battery/diagnostic rows; show previous readings across app restarts. The existing 20-column battery CSV and Rust/JNI ABI remain unchanged. Two minimal buttons connect the functionality; no broader UI redesign. All sensor listeners unregister after 3 seconds, capture completion or Activity stop. Physical-device acceptance is separate from CI.
+
+
+## Alpha.11 — большой backend-first патч (2026-11-22)
+
+Цель: исправить недостаточную диагностику события освещённости в alpha.10 без обещания отсутствующих OEM-сигналов. Backend фиксирует timestamp, число полученных и отвергнутых SensorEvent, причину фильтрации, режим датчика и latency. Свету предоставляется один дополнительный 3-секундный интервал; остальные датчики завершаются за 3 с. События не берутся из кэша и не измеряются в фоне. Все завершённые результаты, включая отсутствие событий, атомарно сохраняются в новой SQLite таблице с обновлением v1/v2/v3→v4 без удаления старых данных. Тепловая история использует уже сохранённые ручные диагностические значения, а не создаёт периодическую телеметрию. Прежние 20-колоночный CSV, Rust JNI, разрешения и постоянный сертификат не меняются. Разработку ведём: сначала новые реально работающие backend-функции, потом совместимость/тесты, лишь затем визуал.
