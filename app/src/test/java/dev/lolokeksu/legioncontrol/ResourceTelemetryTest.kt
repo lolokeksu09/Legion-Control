@@ -21,7 +21,7 @@ class ResourceTelemetryTest {
     }
 
     @Test fun readGuardDistinguishesExceptionsAndInvalidManufacturerValues() {
-        val failed = ProbeResult.read({ throw IllegalStateException("OEM failure") },
+        val failed = ProbeResult.read<Int>({ throw IllegalStateException("OEM failure") },
             TelemetryValidation::currentMicroAmps)
         assertEquals(ProbeState.ERROR, failed.state)
         assertNull(failed.value)
