@@ -28,6 +28,15 @@ data class ProbeResult<T : Any> private constructor(
 
         fun <T : Any> rateLimited(): ProbeResult<T> =
             ProbeResult(ProbeState.RATE_LIMITED, null)
+
+        /** Field-level exception containment, testable without Android classes. */
+        fun <T : Any> read(read: () -> T, normalize: (T) -> T?): ProbeResult<T> =
+            try {
+                val validated = normalize(read())
+                if (validated == null) unavailable() else available(validated)
+            } catch (_: Exception) {
+                failure()
+            }
     }
 }
 
