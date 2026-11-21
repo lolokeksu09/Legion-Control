@@ -25,6 +25,14 @@ assert "engine.record(percent, temp, SystemClock.elapsedRealtime())" in activity
 assert "ACTION_BATTERY_CHANGED" in activity
 assert "DisplayManager" in activity
 assert "HISTORY_LIMIT: usize = 64" in rust
+# Second JNI contract: read-only Rust statistics, not Kotlin-calculated mock values.
+assert "private external fun readBatteryWindowStats(): Long" in kotlin
+assert "Java_dev_lolokeksu_legioncontrol_RustEngine_readBatteryWindowStats" in rust
+assert "pub fn statistics(&self)" in rust
+assert "engine.statistics()" in activity
+assert "minTemperatureDeciC" in kotlin
+assert "maxTemperatureDeciC" in kotlin
+assert "meanTemperatureDeciC" in kotlin
 assert "JNIEnv" not in rust and "std::ffi::c_void" in rust
 for banned in (
     "pointer_speed", "moto_extend_service", "Runtime.getRuntime",
