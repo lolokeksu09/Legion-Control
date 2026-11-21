@@ -35,6 +35,37 @@ class RustEngine {
         }
     }
 
+    private external fun resetBatterySession(): Int
+    private external fun readBatterySessionDuration(): Long
+
+    /** Clears only ephemeral native samples; never changes Android device state. */
+    fun resetSession(): Result<Int> {
+        library.getOrElse {
+            return Result.failure(
+                IllegalStateException("Rust JNI unavailable: " + it.javaClass.simpleName)
+            )
+        }
+        return runCatching {
+            val cleared = resetBatterySession()
+            require(cleared >= 0) { "Rust session reset failed" }
+            cleared
+        }
+    }
+
+    /** Milliseconds between oldest and newest samples retained by Rust. */
+    fun durationMs(): Result<Long> {
+        library.getOrElse {
+            return Result.failure(
+                IllegalStateException("Rust JNI unavailable: " + it.javaClass.simpleName)
+            )
+        }
+        return runCatching {
+            val duration = readBatterySessionDuration()
+            require(duration >= 0) { "No Rust session to measure" }
+            duration
+        }
+    }
+
     data class Trend(
         val count: Int,
         val chargeDelta: Int,
