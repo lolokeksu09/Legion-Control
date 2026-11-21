@@ -13,7 +13,7 @@ import java.io.Writer
  * No storage permission, cloud sync, destructive migration or silent pruning.
  */
 class LocalHistoryStore(context: Context) : SQLiteOpenHelper(
-    context.applicationContext, "legion-control-history.db", null, 1
+    context.applicationContext, "legion-control-history.db", null, DiagnosticHistorySchema.VERSION
 ) {
     override fun onConfigure(db: SQLiteDatabase) {
         super.onConfigure(db)
@@ -48,11 +48,22 @@ class LocalHistoryStore(context: Context) : SQLiteOpenHelper(
             )""".trimIndent()
         )
         db.execSQL("CREATE INDEX idx_samples_session ON samples(session_id, recorded_at_ms)")
+        installDiagnostics(db)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+        if (oldVersion == 1 && newVersion == DiagnosticHistorySchema.VERSION) {
+            // SQLiteOpenHelper wraps onUpgrade in a transaction. Never rewrite v1 rows.
+            installDiagnostics(db)
+            return
+        }
         // A missing migration MUST fail loudly rather than delete existing rows.
         throw IllegalStateException("No safe migration from $oldVersion to $newVersion")
+    }
+
+    private fun installDiagnostics(db: SQLiteDatabase) {
+        db.execSQL(DiagnosticHistorySchema.CREATE_TABLE.trimIndent())
+        db.execSQL(DiagnosticHistorySchema.CREATE_INDEX)
     }
 
     fun record(reading: StoredReading): Boolean {
@@ -92,6 +103,70 @@ class LocalHistoryStore(context: Context) : SQLiteOpenHelper(
         } finally {
             db.endTransaction()
         }
+    }
+
+    /** The legacy v1 battery row is inserted first; diagnostics are additive. */
+    fun recordDiagnostic(sample: DiagnosticStoredSample): Boolean {
+        require(sample.sessionId.isNotBlank() && sample.sessionId.length <= 100)
+        require(sample.elapsedMs > 0L && sample.recordedAtMs > 0L)
+        require(sample.batteryPercent == null || sample.batteryPercent in 0..100)
+        require(sample.thermalStatus == null || sample.thermalStatus in 0..6)
+        require(sample.thermalHeadroom == null ||
+            (sample.thermalHeadroom.isFinite() && sample.thermalHeadroom >= 0f))
+        val values = ContentValues().apply {
+            put("session_id", sample.sessionId)
+            put("elapsed_ms", sample.elapsedMs)
+            put("recorded_at_ms", sample.recordedAtMs)
+            putNullable("battery_percent", sample.batteryPercent)
+            putNullable("battery_temperature_deci_c", sample.batteryTemperatureDeciC)
+            putNullable("thermal_status", sample.thermalStatus)
+            if (sample.thermalHeadroom == null) putNull("thermal_headroom")
+            else put("thermal_headroom", sample.thermalHeadroom)
+            putNullable("charge_counter_micro_ah", sample.chargeCounterMicroAh)
+            putNullable("current_now_micro_a", sample.currentNowMicroAmps)
+            putNullable("current_average_micro_a", sample.currentAverageMicroAmps)
+            if (sample.ramAvailableBytes == null) putNull("ram_available_bytes")
+            else put("ram_available_bytes", sample.ramAvailableBytes)
+        }
+        return writableDatabase.insertWithOnConflict(
+            "diagnostic_samples", null, values, SQLiteDatabase.CONFLICT_IGNORE
+        ) != -1L
+    }
+
+    /** Reads only recent accepted samples of this specific Rust/SQLite session. */
+    fun recentDiagnostics(sessionId: String, limit: Int = 5): List<DiagnosticStoredSample> {
+        require(sessionId.isNotBlank() && limit in 1..20)
+        val rows = mutableListOf<DiagnosticStoredSample>()
+        val sql = """
+            SELECT session_id, elapsed_ms, recorded_at_ms, battery_percent,
+                   battery_temperature_deci_c, thermal_status, thermal_headroom,
+                   charge_counter_micro_ah, current_now_micro_a,
+                   current_average_micro_a, ram_available_bytes
+            FROM diagnostic_samples
+            WHERE session_id = ?
+            ORDER BY elapsed_ms DESC
+            LIMIT ?
+        """.trimIndent()
+        readableDatabase.rawQuery(sql, arrayOf(sessionId, limit.toString())).use { cursor ->
+            while (cursor.moveToNext()) {
+                rows += DiagnosticStoredSample(
+                    sessionId = cursor.getString(0),
+                    elapsedMs = cursor.getLong(1),
+                    recordedAtMs = cursor.getLong(2),
+                    batteryPercent = if (cursor.isNull(3)) null else cursor.getInt(3),
+                    batteryTemperatureDeciC =
+                        if (cursor.isNull(4)) null else cursor.getInt(4),
+                    thermalStatus = if (cursor.isNull(5)) null else cursor.getInt(5),
+                    thermalHeadroom = if (cursor.isNull(6)) null else cursor.getFloat(6),
+                    chargeCounterMicroAh = if (cursor.isNull(7)) null else cursor.getInt(7),
+                    currentNowMicroAmps = if (cursor.isNull(8)) null else cursor.getInt(8),
+                    currentAverageMicroAmps =
+                        if (cursor.isNull(9)) null else cursor.getInt(9),
+                    ramAvailableBytes = if (cursor.isNull(10)) null else cursor.getLong(10)
+                )
+            }
+        }
+        return rows.asReversed()
     }
 
     fun endSession(sessionId: String, endedAtMs: Long) {
