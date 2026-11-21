@@ -145,3 +145,9 @@ The new comparison's first accepted reading is explicitly a baseline, not a zero
 `isSustainedPerformanceModeSupported` is a **support** query only, not a read of whether some other game's `Window.setSustainedPerformanceMode` flag is active. Legion Control never requests sustained mode, and reports other-app activation as unavailable. No privilege or special OEM access is assumed. <https://developer.android.com/reference/android/os/PowerManager#isSustainedPerformanceModeSupported()>
 
 `versionCode=7` retains `dev.lolokeksu.legioncontrol`, the permanent signing certificate and native Rust ABI. Migration test executes real SQLite DDL before PR merge; signed release and physical-device update remain separate gates.
+
+## Alpha.8 — actual diagnostics in user-exported CSV
+
+The existing manual CSV export now writes the saved v1 and v2 readings in **one streaming file**, by joining the private `samples` and `diagnostic_samples` tables on their exact `session_id` and `elapsed_ms` composite key. The original 13 fields remain in position, followed by thermal severity code, thermal headroom, OEM-reported charge counter, instantaneous/average current, available RAM and diagnostic capture timestamp. `LEFT JOIN` keeps older records with seven **empty** extension cells. No extra UI controls, sensors, privilege, Shizuku/Root or background tasks. No schema migration is needed beyond v2. The existing report/share text remains unchanged.
+
+The actual query is executed against SQLite in `scripts/check_extended_diagnostics_csv.py`; Kotlin/JUnit cases verify BOM/escaping and mismatched relation rejection. Note: the CSV retains raw units (µAh, µA, bytes); it must not be interpreted as battery capacity/health or CPU/GPU temperature.
