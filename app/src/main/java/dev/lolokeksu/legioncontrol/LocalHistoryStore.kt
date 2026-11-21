@@ -13,7 +13,7 @@ import java.io.Writer
  * No storage permission, cloud sync, destructive migration or silent pruning.
  */
 class LocalHistoryStore(context: Context) : SQLiteOpenHelper(
-    context.applicationContext, "legion-control-history.db", null, DiagnosticHistorySchema.VERSION
+    context.applicationContext, "legion-control-history.db", null, SensorHistorySchema.VERSION
 ) {
     override fun onConfigure(db: SQLiteDatabase) {
         super.onConfigure(db)
@@ -49,21 +49,30 @@ class LocalHistoryStore(context: Context) : SQLiteOpenHelper(
         )
         db.execSQL("CREATE INDEX idx_samples_session ON samples(session_id, recorded_at_ms)")
         installDiagnostics(db)
+        installSensors(db)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        if (oldVersion == 1 && newVersion == DiagnosticHistorySchema.VERSION) {
-            // SQLiteOpenHelper wraps onUpgrade in a transaction. Never rewrite v1 rows.
+        if (oldVersion == 1 && newVersion == SensorHistorySchema.VERSION) {
             installDiagnostics(db)
+            installSensors(db)
             return
         }
-        // A missing migration MUST fail loudly rather than delete existing rows.
+        if (oldVersion == 2 && newVersion == SensorHistorySchema.VERSION) {
+            installSensors(db)
+            return
+        }
         throw IllegalStateException("No safe migration from $oldVersion to $newVersion")
     }
 
     private fun installDiagnostics(db: SQLiteDatabase) {
         db.execSQL(DiagnosticHistorySchema.CREATE_TABLE.trimIndent())
         db.execSQL(DiagnosticHistorySchema.CREATE_INDEX)
+    }
+
+    private fun installSensors(db: SQLiteDatabase) {
+        db.execSQL(SensorHistorySchema.CREATE_TABLE.trimIndent())
+        db.execSQL(SensorHistorySchema.CREATE_INDEX)
     }
 
     fun record(reading: StoredReading): Boolean {
@@ -167,6 +176,73 @@ class LocalHistoryStore(context: Context) : SQLiteOpenHelper(
             }
         }
         return rows.asReversed()
+    }
+
+    /** Capture history is separate from Rust battery sessions. Commit atomically. */
+    fun recordSensorCapture(captureId: String, samples: List<SensorSample>): Int {
+        require(captureId.isNotBlank() && captureId.length <= 100)
+        require(samples.distinctBy { it.kind }.size == samples.size)
+        if (samples.isEmpty()) return 0
+        samples.forEach {
+            require(it.eventTimestampNs > 0 && it.recordedAtMs > 0 && it.accuracy in -1..3)
+            require(it.values.size == it.kind.dimensions &&
+                it.values.all { value -> value.isFinite() })
+        }
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            var count = 0
+            for (sample in samples) {
+                val values = ContentValues().apply {
+                    put("capture_id", captureId)
+                    put("kind", sample.kind.type)
+                    put("recorded_at_ms", sample.recordedAtMs)
+                    put("event_timestamp_ns", sample.eventTimestampNs)
+                    put("accuracy", sample.accuracy)
+                    put("x", sample.values[0])
+                    if (sample.kind.dimensions == 3) {
+                        put("y", sample.values[1])
+                        put("z", sample.values[2])
+                    } else {
+                        putNull("y")
+                        putNull("z")
+                    }
+                }
+                if (db.insertWithOnConflict(
+                        "sensor_samples", null, values, SQLiteDatabase.CONFLICT_IGNORE
+                    ) != -1L) count++
+            }
+            db.setTransactionSuccessful()
+            return count
+        } finally {
+            db.endTransaction()
+        }
+    }
+
+    fun sensorSampleCount(): Long = DatabaseUtils.longForQuery(
+        readableDatabase, "SELECT COUNT(*) FROM sensor_samples", null
+    )
+
+    /** Most recent stored observation per sensor, including previous app processes. */
+    fun lastSensorSamples(): Map<SensorKind, SensorSample> {
+        val last = mutableMapOf<SensorKind, SensorSample>()
+        readableDatabase.rawQuery(
+            """SELECT kind,recorded_at_ms,event_timestamp_ns,accuracy,x,y,z
+               FROM sensor_samples ORDER BY id DESC""", null
+        ).use { cursor ->
+            while (cursor.moveToNext() && last.size < SensorKind.entries.size) {
+                val kind = SensorKind.fromType(cursor.getInt(0)) ?: continue
+                if (kind in last) continue
+                val values = if (kind.dimensions == 3) {
+                    if (cursor.isNull(5) || cursor.isNull(6)) continue
+                    listOf(cursor.getFloat(4), cursor.getFloat(5), cursor.getFloat(6))
+                } else listOf(cursor.getFloat(4))
+                last[kind] = SensorSample(
+                    kind, cursor.getLong(2), cursor.getLong(1), cursor.getInt(3), values
+                )
+            }
+        }
+        return last
     }
 
     fun endSession(sessionId: String, endedAtMs: Long) {
