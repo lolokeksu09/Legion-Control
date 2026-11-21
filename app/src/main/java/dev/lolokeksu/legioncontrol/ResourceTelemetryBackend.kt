@@ -27,7 +27,7 @@ object ResourceTelemetryBackend {
             elapsedRealtimeMs = elapsed,
             systemMemory = readSystemMemory(context),
             appFilesystem = readAppFilesystem(context),
-            onlineProcessorCount = measure(
+            onlineProcessorCount = ProbeResult.read(
                 { Runtime.getRuntime().availableProcessors() },
                 TelemetryValidation::onlineProcessors
             ),
@@ -45,7 +45,7 @@ object ResourceTelemetryBackend {
             ),
             batteryEnergyCounterNanoWh = if (battery == null) {
                 ProbeResult.unavailable()
-            } else measure(
+            } else ProbeResult.read(
                 { battery.getLongProperty(BatteryManager.BATTERY_PROPERTY_ENERGY_COUNTER) },
                 TelemetryValidation::energyCounterNanoWh
             ),
@@ -99,16 +99,7 @@ object ResourceTelemetryBackend {
         manager: BatteryManager?, propertyId: Int, normalize: (Int?) -> Int?
     ): ProbeResult<Int> {
         if (manager == null) return ProbeResult.unavailable()
-        return measure({ manager.getIntProperty(propertyId) }, normalize)
+        return ProbeResult.read({ manager.getIntProperty(propertyId) }, normalize)
     }
 
-    private fun <T : Any> measure(
-        read: () -> T, normalize: (T) -> T?
-    ): ProbeResult<T> = try {
-        val validated = normalize(read())
-        if (validated == null) ProbeResult.unavailable()
-        else ProbeResult.available(validated)
-    } catch (_: Exception) {
-        ProbeResult.failure()
-    }
 }
