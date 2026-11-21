@@ -151,3 +151,13 @@ The new comparison's first accepted reading is explicitly a baseline, not a zero
 The existing manual CSV export now writes the saved v1 and v2 readings in **one streaming file**, by joining the private `samples` and `diagnostic_samples` tables on their exact `session_id` and `elapsed_ms` composite key. The original 13 fields remain in position, followed by thermal severity code, thermal headroom, OEM-reported charge counter, instantaneous/average current, available RAM and diagnostic capture timestamp. `LEFT JOIN` keeps older records with seven **empty** extension cells. No extra UI controls, sensors, privilege, Shizuku/Root or background tasks. No schema migration is needed beyond v2. The existing report/share text remains unchanged.
 
 The actual query is executed against SQLite in `scripts/check_extended_diagnostics_csv.py`; Kotlin/JUnit cases verify BOM/escaping and mismatched relation rejection. Note: the CSV retains raw units (µAh, µA, bytes); it must not be interpreted as battery capacity/health or CPU/GPU temperature.
+
+## Alpha.9: public Android battery-health and charging metadata
+
+The on-demand `BatteryHealthBackend.read(batteryIntent)` uses the **same sticky `ACTION_BATTERY_CHANGED` broadcast** already requested by `MainActivity.sample()`. It reads `EXTRA_HEALTH`, `EXTRA_PRESENT`, `EXTRA_TECHNOLOGY`, `EXTRA_BATTERY_LOW`, plus Android 14+ `EXTRA_CYCLE_COUNT` and `EXTRA_CHARGING_STATUS`. No continuous listener, permission, network, privileged API or OEM controls. Values are validated through pure `BatteryHealthSanitizer`. Missing extras, unknown health codes and out-of-range OEM values are **unknown, not 0**. A reported 0 cycles is allowed but not proof that firmware's gauge is reliable.
+
+The pure `BatteryHealthReport.format()` is **always part of the existing manual report and Sharesheet flow**, even if every new field is missing. `GOOD` is a categorical Android health flag, not `100%` remaining capacity or battery wear percentage. Raw charging-status codes are intentionally not decoded as a vendor-defined charging policy. The optional electrical estimate uses `voltage_mV * current_µA / 10^9` watts, measured/estimated **at the battery terminals** using OEM battery telemetry, not at the USB adapter or wall. It cannot establish adapter rating, bypass charging or charging efficiency.
+
+These new fields are **not yet stored in SQLite or added to the CSV**; they are available in the actual user-triggered report/share. No new migration or change in Rust JNI. Source contract `scripts/check_battery_health_backend.py`, unit tests `BatteryHealthReportTest`, Android debug CI and pinned-certificate release CI.
+
+Official field definitions: https://developer.android.com/reference/android/os/BatteryManager
