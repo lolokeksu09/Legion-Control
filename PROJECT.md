@@ -49,3 +49,8 @@
 ## Постоянное решение владельца — 2026-11-21: backend не должен оставаться мёртвым кодом
 
 Продолжаем **исключительно backend**: без переделки frontend/UX, без Shizuku/Root до отдельной задачи. Каждый новый backend-инкремент должен иметь фактическую точку вызова из приложения (сейчас: существующее ручное действие `MainActivity.sample()`), проверку реально отображаемого/экспортируемого результата и отказов Android API. После успешного CI и разрешённой проверки изменения переносить в **`main`**, а не оставлять функциональность только в черновых PR. Сборки с тем же постоянным ключом должны иметь увеличивающийся `versionCode` и не повреждать SQLite-историю.
+
+
+## Backend-only alpha.6: device identity and reliability
+
+The physical test device is described by its owner as **Legion Y70 (2026)**; the current firmware exposes a Motorola software identity. Never infer physical battery specifications from `Build.MODEL` or hardcode an earlier Y70's nominal capacity. Continue to use only verified Android API measurements, use explicit unavailable states and decode thermal status without claiming raw CPU/GPU thermometry. All new backend functionality must run in the existing manual sample/share scenario, pass CI, then merge into `main`, keeping the same `dev.lolokeksu.legioncontrol` package ID, signing certificate and SQLite schema.
