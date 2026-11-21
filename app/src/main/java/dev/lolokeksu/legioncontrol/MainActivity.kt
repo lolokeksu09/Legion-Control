@@ -342,16 +342,27 @@ class MainActivity : Activity() {
                         // Prevent a previously queued probe from restoring a cleared report.
                         diagnosticRequestId++
                         diagnosticTrends.clear()
-                        val saved = runCatching {
-                            if (previousSession != null) {
-                                history.endSession(previousSession, System.currentTimeMillis())
-                            }
-                        }
                         result.text = "Rust-сеанс завершён. Удалено из памяти: " +
                             RussianQuantity.measurements(discarded) + ".\n" +
-                            if (saved.isSuccess) "Сохранённые записи не удалены."
-                            else "Внимание: не удалось пометить сеанс в базе: " +
-                                saved.exceptionOrNull()?.message
+                            "Сохранённые записи SQLite не удаляются."
+                        // Serialized after pending battery writes; never update a not-yet-inserted row.
+                        diagnosticsExecutor.execute {
+                            val saved = runCatching {
+                                if (previousSession != null) {
+                                    history.endSession(previousSession, System.currentTimeMillis())
+                                }
+                            }
+                            runOnUiThread {
+                                if (!isDestroyed) {
+                                    if (saved.isFailure) Toast.makeText(
+                                        this,
+                                        "Не удалось завершить запись сеанса SQLite",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                    showSavedHistory()
+                                }
+                            }
+                        }
                         showSavedHistory()
                     },
                     onFailure = {
@@ -483,31 +494,10 @@ class MainActivity : Activity() {
         val persisted = rust.fold(
             onSuccess = {
                 val id = ActiveSession.id ?: UUID.randomUUID().toString()
-                runCatching {
-                    history.record(StoredReading(
-                        sessionId = id,
-                        recordedAtMs = recordedAtMs,
-                        elapsedMs = elapsedMs,
-                        percent = percent,
-                        temperatureDeciC = temp,
-                        chargingStatus = power.chargingStatus,
-                        chargingSource = power.chargingSource,
-                        voltageMv = power.voltageMillivolts,
-                        currentUa = power.currentMicroAmps,
-                        powerSaving = power.powerSaving,
-                        refreshRateHz = mode?.refreshRate,
-                        screenWidthPx = mode?.physicalWidth,
-                        screenHeightPx = mode?.physicalHeight
-                    ))
-                }.fold(
-                    onSuccess = { inserted ->
-                        ActiveSession.id = id
-                        if (inserted) diagnosticSessionId = id
-                        if (inserted) "Запись сохранена в SQLite"
-                        else "Повторное измерение с тем же временем не продублировано"
-                    },
-                    onFailure = { "ОШИБКА сохранения SQLite: " + it.message }
-                )
+                // This ID is reserved on UI, but the SQLite write occurs on worker.
+                ActiveSession.id = id
+                diagnosticSessionId = id
+                "Сохранение SQLite: выполняется"
             },
             onFailure = { "Не сохранено: Rust отклонил измерение" }
         )
@@ -612,6 +602,38 @@ class MainActivity : Activity() {
         val requestId = ++diagnosticRequestId
         val acceptedSessionId = diagnosticSessionId
         diagnosticsExecutor.execute {
+            // The legacy row MUST commit before the v2 child diagnostic record:
+            // they share (session_id, elapsed_ms) with an enforced foreign key.
+            val primarySave = if (acceptedSessionId == null) {
+                Pair("Не сохранено: Rust отклонил измерение", false)
+            } else runCatching {
+                history.record(StoredReading(
+                    sessionId = acceptedSessionId,
+                    recordedAtMs = recordedAtMs,
+                    elapsedMs = elapsedMs,
+                    percent = percent,
+                    temperatureDeciC = temp,
+                    chargingStatus = power.chargingStatus,
+                    chargingSource = power.chargingSource,
+                    voltageMv = power.voltageMillivolts,
+                    currentUa = power.currentMicroAmps,
+                    powerSaving = power.powerSaving,
+                    refreshRateHz = mode?.refreshRate,
+                    screenWidthPx = mode?.physicalWidth,
+                    screenHeightPx = mode?.physicalHeight
+                ))
+            }.fold(
+                onSuccess = { inserted ->
+                    Pair(
+                        if (inserted) "Запись сохранена в SQLite"
+                        else "Повторное измерение с тем же временем не продублировано",
+                        inserted
+                    )
+                },
+                onFailure = {
+                    Pair("ОШИБКА сохранения SQLite: " + it.javaClass.simpleName, false)
+                }
+            )
             val diagnostics = runCatching {
                 DeviceDiagnosticsBackend.read(applicationContext)
             }
@@ -619,7 +641,7 @@ class MainActivity : Activity() {
             // request supersedes this result. The DB write is never on UI.
             val historyResult = diagnostics.fold(
                 onSuccess = { current ->
-                    if (acceptedSessionId == null) {
+                    if (acceptedSessionId == null || !primarySave.second) {
                         Pair("SQLite диагностики: основной замер не сохранён", null)
                     } else runCatching {
                         val saved = history.recordDiagnostic(
@@ -662,7 +684,11 @@ class MainActivity : Activity() {
                             "Системная диагностика: ошибка " + it.javaClass.simpleName
                         }
                     )
-                    val complete = snapshot + "\n\n" + diagnosticText +
+                    val savedSnapshot = snapshot.replace(
+                        "Локальная история: " + persisted,
+                        "Локальная история: " + primarySave.first
+                    )
+                    val complete = savedSnapshot + "\n\n" + diagnosticText +
                         "\n\n" + historyResult.first +
                         (historyResult.second?.let { "\n" + it } ?: "")
                     result.text = complete
