@@ -58,3 +58,7 @@ The physical test device is described by its owner as **Legion Y70 (2026)**; the
 ## Alpha.7 — durability without destructive migration
 
 The owner's next backend-only requirement includes longer multi-sample charging/thermal trends and lossless storage of actual diagnostic API values. Implemented in an additional SQLite table (v1→v2), with real SQLite migration tests and the same manual sample/share entry point. The installed release signing identity and app ID remain unchanged; unverified sustained-performance state in another process must stay **unknown**. No permission, Root, Shizuku, UI redesign or nominal capacity constant.
+
+## Alpha.8 — функционал прежде редизайна, без Shizuku
+
+Следующее утверждённое направление: сначала добавить реально работающий функционал, затем исправлять его по реальным аппаратным проверкам. Новая функция: расширенный экспорт CSV из фактической SQLite-диагностики v2, без потери данных v1 и без новой кнопки. Пользователь инициирует экспорт штатным системным выбором файла. Не добавлять Shizuku, Root, скрытые API или UI-редизайн. После CI слить в `main` и собрать APK прежним постоянным ключом.
