@@ -205,25 +205,57 @@ class LocalHistoryStore(context: Context) : SQLiteOpenHelper(
         return result
     }
 
-    /** Export incrementally; even large histories are not copied into app RAM. */
+    /**
+     * Stream every legacy row, joining optional v2 telemetry on its immutable
+     * session_id + elapsed_ms key. Older rows deliberately retain blank fields.
+     * The join is one-to-zero-or-one, never duplicating existing measurements.
+     */
     fun writeCsv(writer: Writer): Int {
-        CsvReport.begin(writer)
+        CsvReport.beginExtended(writer)
         var count = 0
         val sql = """
-            SELECT session_id, recorded_at_ms, elapsed_ms, percent,
-                   temperature_deci_c, charging_status, charging_source,
-                   voltage_mv, current_ua, power_saving, refresh_hz,
-                   width_px, height_px
-            FROM samples ORDER BY recorded_at_ms ASC, id ASC
+            SELECT s.session_id, s.recorded_at_ms, s.elapsed_ms, s.percent,
+                   s.temperature_deci_c, s.charging_status, s.charging_source,
+                   s.voltage_mv, s.current_ua, s.power_saving, s.refresh_hz,
+                   s.width_px, s.height_px,
+                   d.session_id, d.elapsed_ms, d.recorded_at_ms,
+                   d.battery_percent, d.battery_temperature_deci_c,
+                   d.thermal_status, d.thermal_headroom, d.charge_counter_micro_ah,
+                   d.current_now_micro_a, d.current_average_micro_a,
+                   d.ram_available_bytes
+            FROM samples AS s
+            LEFT JOIN diagnostic_samples AS d
+                ON d.session_id = s.session_id AND d.elapsed_ms = s.elapsed_ms
+            ORDER BY s.recorded_at_ms ASC, s.id ASC
         """.trimIndent()
         readableDatabase.rawQuery(sql, null).use { cursor ->
             while (cursor.moveToNext()) {
-                CsvReport.append(writer, cursor.asStoredReading())
+                CsvReport.appendExtended(
+                    writer, cursor.asStoredReading(), cursor.asDiagnosticStoredSampleOrNull()
+                )
                 count++
             }
         }
         writer.flush()
         return count
+    }
+
+    private fun Cursor.asDiagnosticStoredSampleOrNull(): DiagnosticStoredSample? {
+        // A LEFT JOIN with no matching diagnostic yields SQL NULL for all d.* columns.
+        if (isNull(13)) return null
+        return DiagnosticStoredSample(
+            sessionId = getString(13),
+            elapsedMs = getLong(14),
+            recordedAtMs = getLong(15),
+            batteryPercent = if (isNull(16)) null else getInt(16),
+            batteryTemperatureDeciC = if (isNull(17)) null else getInt(17),
+            thermalStatus = if (isNull(18)) null else getInt(18),
+            thermalHeadroom = if (isNull(19)) null else getFloat(19),
+            chargeCounterMicroAh = if (isNull(20)) null else getInt(20),
+            currentNowMicroAmps = if (isNull(21)) null else getInt(21),
+            currentAverageMicroAmps = if (isNull(22)) null else getInt(22),
+            ramAvailableBytes = if (isNull(23)) null else getLong(23)
+        )
     }
 
     private fun Cursor.asStoredReading(): StoredReading = StoredReading(

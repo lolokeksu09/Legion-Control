@@ -232,7 +232,7 @@ class MainActivity : Activity() {
             Toast.makeText(this, "Нет сохранённых измерений", Toast.LENGTH_SHORT).show()
             return
         }
-        val name = "Legion-Control-history-" +
+        val name = "Legion-Control-diagnostics-" +
             SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(Date()) + ".csv"
         val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
             addCategory(Intent.CATEGORY_OPENABLE)
