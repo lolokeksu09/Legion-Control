@@ -60,6 +60,23 @@ class SensorSampleTest {
         assertTrue(output.contains("1.000 / 2.000 / 3.000 м/с²"))
         assertTrue(output.contains("не обнаружен"))
         assertTrue(output.contains("нет нового события"))
-        assertFalse(output.contains("Δ "))
+        assertFalse(output.contains(" · Δ "))
     }
+
+    @Test fun reportShowsActualDeltaOnlyWithPreviousSensorValue() {
+        val previous = requireNotNull(valid()).copy(
+            recordedAtMs = 40L, values = listOf(0f, 2f, 3f)
+        )
+        val next = requireNotNull(valid()).copy(
+            recordedAtMs = 42L, values = listOf(1f, 2f, 3f)
+        )
+        val captured = SensorCaptureResult("capture-2", listOf(
+            SensorProbeOutcome(SensorKind.ACCELEROMETER, SensorProbeState.CAPTURED, next)
+        ))
+        val report = SensorSampleReport.format(
+            captured, mapOf(SensorKind.ACCELEROMETER to previous), 1, 2L
+        )
+        assertTrue(report.contains(" · Δ 1.000 / 0.000 / 0.000 м/с²"))
+    }
+
 }
