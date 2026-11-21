@@ -66,3 +66,8 @@ The owner's next backend-only requirement includes longer multi-sample charging/
 ## Alpha.9 — next real backend capability before design
 
 Owner continues requesting new implemented functions before refinement, **without Shizuku**, Root or frontend changes. Deliver public Android battery health / charging metadata (Android `EXTRA_HEALTH`, API34+ cycles and charge status, technology, battery presence/low) and cautiously labeled battery-terminal electrical power. Integrate with the existing manual sample and share report; keep state genuinely unavailable when OEM hides it. Android categorical `GOOD` must not be converted into a fictional degradation percentage; cycle count must not be interpreted as full capacity. Preserve package ID, pinned release signer and SQLite v2; merge into main only after full CI, then verify signed release.
+
+
+## Alpha.10 — backend first, new real functions (2026-11-22)
+
+One-shot, user-triggered SensorManager capture (accelerometer, gyroscope, light, proximity), no sampling on startup or in the background. Validate timestamps, accuracy, finite values and dimensions; display missing/registration failure/timeout separately. Commit accepted events to SQLite v3 in a separate table, retaining legacy v1/v2 battery/diagnostic rows; show previous readings across app restarts. The existing 20-column battery CSV and Rust/JNI ABI remain unchanged. Two minimal buttons connect the functionality; no broader UI redesign. All sensor listeners unregister after 3 seconds, capture completion or Activity stop. Physical-device acceptance is separate from CI.

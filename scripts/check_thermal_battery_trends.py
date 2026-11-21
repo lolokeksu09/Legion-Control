@@ -32,7 +32,7 @@ assert "DiagnosticTrendTextReport.format(trend)" in activity
 assert "latestReport = reportHeader?.plus(complete)" in activity
 assert "runOnUiThread {" in activity
 assert "!isDestroyed && requestId == diagnosticRequestId" in activity
-assert activity.count("layout.addView(Button(this).apply {") == 6
+assert activity.count("layout.addView(Button(this).apply {") == 8
 for test_name in (
     "firstReadingIsBaselineAndSecondShowsMeasuredChanges",
     "missingDataNeverBecomesAZeroDelta",
@@ -44,9 +44,12 @@ for test_name in (
     "thermalCodesMatchAndroidPlatformDefinitions",
 ):
     assert test_name in tests, test_name
-assert "versionCode = 9" in gradle
-assert 'versionName = "0.1.0-alpha.9"' in gradle
+assert "versionCode = 10" in gradle
+assert 'versionName = "0.1.0-alpha.10"' in gradle
 for unsafe in ("Shizuku.getInstance", "WRITE_SECURE_SETTINGS", "setprop ", "pm grant",
                "QUERY_ALL_PACKAGES", "exec(", "getDeclaredMethod("):
     assert unsafe not in activity + engine + current + text_report, unsafe
 print("PASS: alpha.6 trend engine, real app wiring, no privileges or UI redesign")
+
+assert 'text = "Снять показания датчиков"' in activity
+assert 'text = "Последние показания датчиков"' in activity

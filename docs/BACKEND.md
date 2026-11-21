@@ -161,3 +161,12 @@ The pure `BatteryHealthReport.format()` is **always part of the existing manual 
 These new fields are **not yet stored in SQLite or added to the CSV**; they are available in the actual user-triggered report/share. No new migration or change in Rust JNI. Source contract `scripts/check_battery_health_backend.py`, unit tests `BatteryHealthReportTest`, Android debug CI and pinned-certificate release CI.
 
 Official field definitions: https://developer.android.com/reference/android/os/BatteryManager
+
+
+## Alpha.10 — on-demand SensorManager event backend
+
+SensorCaptureBackend uses public Android SensorManager types 1 (accelerometer, m/s²), 4 (gyroscope, rad/s), 5 (light, lx) and 8 (proximity, cm). One explicit tap subscribes until the first post-request event from each sensor. Event timestamp is checked against SystemClock.elapsedRealtimeNanos, values must be finite and of the proper dimensions, and Android's accuracy code is retained. A sensor absent from the API, rejected registration, or missing event within 3 seconds does not yield a fake measurement. On completion, cancellation or Activity stop, listeners are unregistered. No foreground service, permission prompts, Root, Shizuku, sampling loop, or FPS/CPU/GPU claims.
+
+SensorSampleValidation and SensorSampleComparison are JVM-testable pure functions. The latest saved observation of the same kind supplies a raw per-axis delta (not a gesture or calibration diagnosis). SQLite v3 keeps capture UUID, kind, wall time, boot-relative timestamp, accuracy and real axes. Writes use the existing background executor; the Rust 64-sample battery buffer and 20-column battery CSV are independent.
+
+Acceptance: test JVM cases, additive SQLite upgrade v1/v2→v3, original Kotlin/Rust CI and signed build; then verify fresh events, timeout/cancellation, old data retention and persistence after reopen/reboot on the physical Lenovo Y70. Device acceptance is not inferred from CI.

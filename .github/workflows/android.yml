@@ -53,6 +53,8 @@ jobs:
         run: python3 scripts/check_extended_diagnostics_csv.py
       - name: Verify public battery health integration and cycle semantics
         run: python3 scripts/check_battery_health_backend.py
+      - name: Check lossless sensor SQLite v1/v2 to v3 migrations
+        run: python3 scripts/check_sensor_sqlite_migration.py
       - name: Run pure Kotlin CSV and Russian plural regression tests
         run: gradle --no-daemon testDebugUnitTest
       - name: Test and compile real Rust backend for Android
@@ -100,6 +102,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: success()
         with:
-          name: Legion-Control-v0.1.0-alpha.9-kotlin-rust-debug
+          name: Legion-Control-v0.1.0-alpha.10-kotlin-rust-debug
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error

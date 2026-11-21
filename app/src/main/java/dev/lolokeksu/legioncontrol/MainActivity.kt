@@ -40,6 +40,8 @@ class MainActivity : Activity() {
     private val diagnosticsExecutor = Executors.newSingleThreadExecutor()
     private val diagnosticTrends = DiagnosticTrendEngine()
     private var diagnosticRequestId = 0L
+    private var sensorRequestId = 0L
+    private var sensorCapture: SensorCaptureBackend? = null
 
     companion object {
         private const val REQUEST_EXPORT_CSV = 4001
@@ -59,7 +61,7 @@ class MainActivity : Activity() {
             setTypeface(typeface, Typeface.BOLD)
         })
         layout.addView(TextView(this).apply {
-            text = "Kotlin + Rust · backend alpha.9"
+            text = "Kotlin + Rust · backend alpha.10"
             textSize = 13f
             setTextColor(0xFFA5A5A5.toInt())
             setPadding(0, 8.dp, 0, 12.dp)
@@ -117,6 +119,16 @@ class MainActivity : Activity() {
             minHeight = 48.dp
             setOnClickListener { checkSensors() }
         })
+        layout.addView(Button(this).apply {
+            text = "Снять показания датчиков"
+            minHeight = 48.dp
+            setOnClickListener { startSensorCapture() }
+        })
+        layout.addView(Button(this).apply {
+            text = "Последние показания датчиков"
+            minHeight = 48.dp
+            setOnClickListener { showLastSensorReadings() }
+        })
         setContentView(ScrollView(this).apply {
             isFillViewport = true
             addView(layout)
@@ -166,6 +178,62 @@ class MainActivity : Activity() {
                 }).append('\n')
             }
             append("Обнаружение не означает получение показаний. CPU/GPU датчики не проверяются.")
+        }
+    }
+
+    private fun startSensorCapture() {
+        if (sensorCapture != null) {
+            Toast.makeText(this, "Измерение датчиков уже выполняется", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val requestId = ++sensorRequestId
+        sensorsView.text = "Ожидание новых событий датчиков (до 3 с)…"
+        val capture = SensorCaptureBackend(this) { outcome ->
+            sensorCapture = null
+            // Disk access is serialized off the main/UI thread.
+            diagnosticsExecutor.execute {
+                val report = runCatching {
+                    val before = history.lastSensorSamples()
+                    val samples = outcome.outcomes.mapNotNull { it.sample }
+                    val written = history.recordSensorCapture(outcome.captureId, samples)
+                    val total = history.sensorSampleCount()
+                    SensorSampleReport.format(outcome, before, written, total)
+                }.getOrElse { "Ошибка SQLite датчиков: " + it.javaClass.simpleName }
+                runOnUiThread {
+                    if (!isDestroyed && sensorRequestId == requestId) sensorsView.text = report
+                }
+            }
+        }
+        sensorCapture = capture
+        capture.start()
+    }
+
+    private fun showLastSensorReadings() {
+        val requestId = ++sensorRequestId
+        diagnosticsExecutor.execute {
+            val text = runCatching {
+                val latest = history.lastSensorSamples()
+                val total = history.sensorSampleCount()
+                buildString {
+                    append("ИСТОРИЯ ДАТЧИКОВ SQLite · ").append(total).append(" событий\n")
+                    for (kind in SensorKind.entries) {
+                        append("· ").append(kind.title).append(": ")
+                        val sample = latest[kind]
+                        if (sample == null) append("нет сохранённых событий")
+                        else {
+                            append(sample.values.joinToString(" / ")).append(" ")
+                                .append(kind.unit).append(" · ")
+                                .append(DateFormat.getDateTimeInstance().format(
+                                    Date(sample.recordedAtMs)
+                                ))
+                        }
+                        append('\n')
+                    }
+                }
+            }.getOrElse { "Ошибка истории датчиков: " + it.javaClass.simpleName }
+            runOnUiThread {
+                if (!isDestroyed && sensorRequestId == requestId) sensorsView.text = text
+            }
         }
     }
 
@@ -481,12 +549,24 @@ class MainActivity : Activity() {
         showSavedHistory()
     }
 
-    override fun onDestroy() {
-        diagnosticRequestId++
-        diagnosticsExecutor.shutdownNow()
-        super.onDestroy()
-        if (::historyView.isInitialized) {
-            runCatching { history.close() }
+    override fun onStop() {
+        if (sensorCapture != null) {
+            sensorRequestId++
+            sensorCapture?.cancel()
+            sensorCapture = null
+            if (::sensorsView.isInitialized) sensorsView.text = "Измерение датчиков отменено"
         }
+        super.onStop()
+    }
+
+    override fun onDestroy() {
+        sensorRequestId++
+        diagnosticRequestId++
+        sensorCapture?.cancel()
+        sensorCapture = null
+        // Finish accepted writes before closing the shared SQLite helper.
+        diagnosticsExecutor.execute { runCatching { history.close() } }
+        diagnosticsExecutor.shutdown()
+        super.onDestroy()
     }
 }
