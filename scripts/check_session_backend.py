@@ -33,8 +33,8 @@ for name in ("engine.resetSession()", "engine.durationMs()",
              "AndroidPowerSource.read("):
     assert name in activity, name
 assert "setPositiveButton(" in activity and "setNegativeButton(" in activity
-assert "versionCode = 5" in build
-assert 'versionName = "0.1.0-alpha.5"' in build
+assert "versionCode = 6" in build
+assert 'versionName = "0.1.0-alpha.6"' in build
 for forbidden in ("WRITE_SECURE_SETTINGS", "QUERY_ALL_PACKAGES", "setprop ",
                   "pointer_speed", "moto_extend_service", "Runtime.getRuntime"):
     assert forbidden not in power + activity + rust_api + native

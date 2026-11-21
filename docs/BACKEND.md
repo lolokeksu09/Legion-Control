@@ -120,3 +120,20 @@ A value is present **only** in `AVAILABLE`. `0` is retained where the Android pr
 - On newer requests or an explicitly reset Rust session, stale task results are ignored by `diagnosticRequestId`; executor shutdown occurs in `onDestroy`.
 - `0.1.0-alpha.5` increments `versionCode` to 5 and preserves the original application ID and pinned release signing identity. No SQLite schema, Rust ABI or data-reset change.
 - `DiagnosticsTextReportTest` exercises available, unavailable, API-error and rate-limited values; `scripts/check_diagnostics_integration.py` verifies real wiring into MainActivity. Full CI verifies the APK. Physical Y70 verification must still confirm display/report/share and update compatibility before public distribution.
+
+ 
+## Alpha.6 — verified direction-only trends for manually captured snapshots
+
+The user reports a **Lenovo Legion Y70 (2026)** using a Motorola-identity firmware. The code does **not** infer the physical phone model or nominal battery capacity from `Build.MODEL` and does not hardcode any manufacturer's advertised capacity. Reported display modes are Android's platform modes and must not be treated as in-game FPS.
+
+The existing `MainActivity.sample()` action invokes the public-API diagnostic backend on a dedicated executor, then (only for the latest accepted sample) runs the pure `DiagnosticTrendEngine.record(snapshot, batteryPercent)` on the UI thread before constructing the same existing text/share report. No extra UI controls and no automatic sampling.
+
+- Thermal status codes 0–6 are decoded per Android `PowerManager` definitions, keeping the code for auditing. `MODERATE` does not directly quantify CPU/GPU temperature. A headroom value close to 1.0 is closer to the severe-throttling boundary but does **not** mean a percentage of utilization.
+- The new report compares status, unitless thermal headroom, battery charge counter in microampere-hours and battery percentage between two **actual** readings. Null/RATE_LIMITED/ERROR signals do not become zeros.
+- Only when independent battery % and `BATTERY_PROPERTY_CHARGE_COUNTER` change by meaningful amounts (at least 2 percentage points and 50,000 microampere-hours over at least 60s) does a weak **direction-agreement** check run. This is a heuristic, not proof of gauge accuracy, rated capacity or battery health. Disagreement requests another reading, not a diagnosis.
+- This trend memory is bounded to one preceding accepted snapshot within the current Activity/process and is cleared with an explicit Rust session reset; Android elapsed clock rollback or a gap greater than six hours creates a new baseline.
+- No new SQLite schema, saved battery health metric, Root/Shizuku, OEM writes, background timers or network access.
+
+**Verification:** `DiagnosticTrendEngineTest` checks valid trends, absent input, disagreement, short intervals, clock rollback and reset. `scripts/check_thermal_battery_trends.py` guards the app's actual call path. Android debug CI and permanent signer pipeline run those contracts and JVM tests. A physical Y70 repeat measurement is still required to validate the displayed values and signed APK installation.
+
+The new comparison's first accepted reading is explicitly a baseline, not a zero-delta measurement. Subsequent accepted readings are shown in the same shareable manual report; no historical backfill from the separate SQLite store is assumed. This distinction also makes stale async results harmless after reset.
