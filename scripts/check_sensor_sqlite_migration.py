@@ -68,13 +68,13 @@ for original_version in (1, 2):
             pass
     db.close()
 
-assert "oldVersion == 1 && newVersion == SensorHistorySchema.VERSION" in store
-assert "oldVersion == 2 && newVersion == SensorHistorySchema.VERSION" in store
+assert "oldVersion == 1 && newVersion == SensorDiagnosticsSchema.VERSION" in store
+assert "oldVersion == 2 && newVersion == SensorDiagnosticsSchema.VERSION" in store
 assert "installSensors(db)" in store
 assert "history.recordSensorCapture(" in activity
 assert "SensorCaptureBackend(this)" in activity
 assert "SensorSampleValidation.accept(" in capture
 assert "unregisterListener(this)" in capture
-assert "postDelayed(timeout, 3000L)" in capture
+assert "postDelayed(timeout, SensorCapturePolicy.BASE_TIMEOUT_MS)" in capture
 assert "DROP TABLE" not in store and "DELETE FROM samples" not in store
 print("PASS: real SQLite v1/v2->v3 migrations preserve previous data and validate sensor constraints")

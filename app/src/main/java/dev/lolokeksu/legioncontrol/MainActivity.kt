@@ -35,6 +35,7 @@ class MainActivity : Activity() {
     private lateinit var result: TextView
     private lateinit var historyView: TextView
     private lateinit var sensorsView: TextView
+    private lateinit var thermalView: TextView
     private var latestReport: String? = null
     // New backend probes may call OEM services; never block the Android UI thread.
     private val diagnosticsExecutor = Executors.newSingleThreadExecutor()
@@ -61,7 +62,7 @@ class MainActivity : Activity() {
             setTypeface(typeface, Typeface.BOLD)
         })
         layout.addView(TextView(this).apply {
-            text = "Kotlin + Rust · backend alpha.10"
+            text = "Kotlin + Rust · backend alpha.11"
             textSize = 13f
             setTextColor(0xFFA5A5A5.toInt())
             setPadding(0, 8.dp, 0, 12.dp)
@@ -107,6 +108,19 @@ class MainActivity : Activity() {
             minHeight = 48.dp
             setOnClickListener { showSavedHistory() }
         })
+        layout.addView(Button(this).apply {
+            text = "Тепловая история"
+            minHeight = 48.dp
+            setOnClickListener { showThermalHistory() }
+        })
+        thermalView = TextView(this).apply {
+            textSize = 13f
+            setTextColor(Color.WHITE)
+            setLineSpacing(5f, 1f)
+            setPadding(0, 12.dp, 0, 12.dp)
+            text = "Тепловая история доступна по запросу."
+        }
+        layout.addView(thermalView)
         sensorsView = TextView(this).apply {
             textSize = 13f
             setTextColor(0xFFBFBFBF.toInt())
@@ -181,21 +195,31 @@ class MainActivity : Activity() {
         }
     }
 
+    private fun showThermalHistory() {
+        diagnosticsExecutor.execute {
+            val text = runCatching {
+                ThermalHistoryReport.format(history.recentThermalReadings())
+            }.getOrElse { "Ошибка тепловой истории SQLite: " + it.javaClass.simpleName }
+            runOnUiThread {
+                if (!isDestroyed && ::thermalView.isInitialized) thermalView.text = text
+            }
+        }
+    }
+
     private fun startSensorCapture() {
         if (sensorCapture != null) {
             Toast.makeText(this, "Измерение датчиков уже выполняется", Toast.LENGTH_SHORT).show()
             return
         }
         val requestId = ++sensorRequestId
-        sensorsView.text = "Ожидание новых событий датчиков (до 3 с)…"
+        sensorsView.text = "Сбор событий датчиков: до 3 с, для освещённости до 6 с…"
         val capture = SensorCaptureBackend(this) { outcome ->
             sensorCapture = null
             // Disk access is serialized off the main/UI thread.
             diagnosticsExecutor.execute {
                 val report = runCatching {
                     val before = history.lastSensorSamples()
-                    val samples = outcome.outcomes.mapNotNull { it.sample }
-                    val written = history.recordSensorCapture(outcome.captureId, samples)
+                    val written = history.recordSensorCapture(outcome)
                     val total = history.sensorSampleCount()
                     SensorSampleReport.format(outcome, before, written, total)
                 }.getOrElse { "Ошибка SQLite датчиков: " + it.javaClass.simpleName }
@@ -214,6 +238,7 @@ class MainActivity : Activity() {
             val text = runCatching {
                 val latest = history.lastSensorSamples()
                 val total = history.sensorSampleCount()
+                val attempts = history.lastSensorAttempts()
                 buildString {
                     append("ИСТОРИЯ ДАТЧИКОВ SQLite · ").append(total).append(" событий\n")
                     for (kind in SensorKind.entries) {
@@ -229,6 +254,8 @@ class MainActivity : Activity() {
                         }
                         append('\n')
                     }
+                    append('\n')
+                    append(SensorSampleReport.formatSavedAttempts(attempts))
                 }
             }.getOrElse { "Ошибка истории датчиков: " + it.javaClass.simpleName }
             runOnUiThread {
@@ -532,7 +559,11 @@ class MainActivity : Activity() {
                         onSuccess = { current ->
                             val trend = diagnosticTrends.record(current, percent)
                             DiagnosticsTextReport.format(current) + "\n\n" +
-                                DiagnosticTrendTextReport.format(trend)
+                                DiagnosticTrendTextReport.format(trend) +
+                                (ThermalHistoryReport.warning(
+                                    current.capabilities.thermalStatus,
+                                    current.resources.thermalHeadroom.value
+                                )?.let { "\n\nВНИМАНИЕ · " + it } ?: "")
                         },
                         onFailure = {
                             "Системная диагностика: ошибка " + it.javaClass.simpleName
