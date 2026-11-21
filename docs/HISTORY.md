@@ -32,3 +32,11 @@ Every cell is quoted; quotes are doubled, rows end CRLF, unavailable optional va
 - `bash scripts/build-native.sh` runs native Rust tests and compiles ARM64/x86_64 JNI; debug and release CI compile Kotlin and package binaries; release must verify pinned permanent certificate.
 
 **Physical Lenovo Legion Y70 acceptance (not established by CI):** install same-signer signed alpha.4 over signed alpha.3 (no uninstall), tap «Обновить измерение» twice, close and reopen app, confirm records remain, export CSV to Downloads and inspect headers/2 rows, inspect available sensors, start a new session after confirming Rust reset, ensure previous SQLite history remains. Reboot device and repeat the persistence check. **Do not uninstall** an existing signed release just to test a debug APK.
+
+## Alpha.7 — lossless SQLite v1→v2 diagnostic extension
+
+- The existing `sessions` and `samples` tables and all their rows are retained; `onUpgrade(1, 2)` only creates `diagnostic_samples` plus an index within SQLiteOpenHelper's upgrade transaction. Any unsupported migration still throws, rather than wiping the database.
+- Each valid diagnostic references its **existing** legacy sample through `FOREIGN KEY(session_id, elapsed_ms)` and `PRIMARY KEY(session_id, elapsed_ms)`. Unavailable Android values are SQL NULL, and duplicate accepted manual requests are not counted twice.
+- `LocalHistoryStore.recordDiagnostic` runs on the application's diagnostic executor, never on the UI thread. The existing CSV export remains **v1-compatible and unchanged**; the new diagnostic fields are retained in the private database and displayed in the current shareable report, not yet added to the CSV columns. No silent backfill of unmeasured values in pre-migration records.
+- The last five measurements **within the current process's session** are used to calculate temperature range/change and charge-counter rate over observed time only; no monitoring service, nominal capacity guess or battery health scoring.
+- The actual v1 and v2 DDL is executed against SQLite by `scripts/check_diagnostic_sqlite_migration.py`, verifying preservation, referential integrity, unique keys and out-of-range thermal constraints. Android on-device upgrade and persistence still require an actual device smoke test.

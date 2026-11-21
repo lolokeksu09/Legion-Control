@@ -54,3 +54,7 @@
 ## Backend-only alpha.6: device identity and reliability
 
 The physical test device is described by its owner as **Legion Y70 (2026)**; the current firmware exposes a Motorola software identity. Never infer physical battery specifications from `Build.MODEL` or hardcode an earlier Y70's nominal capacity. Continue to use only verified Android API measurements, use explicit unavailable states and decode thermal status without claiming raw CPU/GPU thermometry. All new backend functionality must run in the existing manual sample/share scenario, pass CI, then merge into `main`, keeping the same `dev.lolokeksu.legioncontrol` package ID, signing certificate and SQLite schema.
+
+## Alpha.7 — durability without destructive migration
+
+The owner's next backend-only requirement includes longer multi-sample charging/thermal trends and lossless storage of actual diagnostic API values. Implemented in an additional SQLite table (v1→v2), with real SQLite migration tests and the same manual sample/share entry point. The installed release signing identity and app ID remain unchanged; unverified sustained-performance state in another process must stay **unknown**. No permission, Root, Shizuku, UI redesign or nominal capacity constant.
