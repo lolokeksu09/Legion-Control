@@ -51,7 +51,7 @@ class LocalHistoryStore(context: Context) : SQLiteOpenHelper(
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        // A missing migration MUST fail loudly, never erase history via DROP TABLE.
+        // A missing migration MUST fail loudly rather than delete existing rows.
         throw IllegalStateException("No safe migration from $oldVersion to $newVersion")
     }
 
