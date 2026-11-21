@@ -1,4 +1,4 @@
-# Legion Control backend · v0.1.0-alpha.1
+# Legion Control backend · v0.1.0-alpha.2
 
 ## First working vertical slice
 1. Kotlin Activity reads real battery percentage and temperature from Android ACTION_BATTERY_CHANGED, plus display mode from DisplayManager.
@@ -30,3 +30,16 @@ CI debug signing is not stable across different runners. An owned release keysto
 
 ## Later, after backend verification
 Compose UI and navigation, improved state management, installed-game discovery and GameTime read-only adapter. Do not transfer stale Java/UI or unsupported OEM switches from `Lenovo-Y70`.
+
+
+## Added in alpha.2 — Rust window statistics
+
+- JNI method: `RustEngine.readBatteryWindowStats(): Long`.
+- Rust symbol: `Java_dev_lolokeksu_legioncontrol_RustEngine_readBatteryWindowStats`.
+- The query is **read-only**, uses exactly the retained 1–64 samples, and returns `-1` for empty history or an unavailable/poisoned lock.
+- Bits: `[count:u16 @48][min_temperature_deci_c:i16 @32][max_temperature_deci_c:i16 @16][mean_temperature_deci_c:i16 @0]`, with integer mean truncation toward zero.
+- Values represent sampled Android **battery** temperature, not CPU/GPU temperature, device thermal status, sensor latency or continuous history. No sampling without an explicit user request.
+
+## Permanent release signing
+
+See [RELEASE-SIGNING.md](RELEASE-SIGNING.md): a fixed PKCS12 key, certificate pin and manual GitHub Actions release workflow. Four GitHub secrets must first be configured by the repository owner. Alpha.1 debug-signed APK cannot be upgraded directly to release-signed alpha.2 without an Android signature mismatch.

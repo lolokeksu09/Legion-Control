@@ -20,6 +20,15 @@ pub struct BatteryTrend {
     pub temperature_delta_deci_c: i16,
 }
 
+/// Statistics for the actual retained window, never inferred battery health.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct BatteryWindowStats {
+    pub count: u16,
+    pub min_temperature_deci_c: i16,
+    pub max_temperature_deci_c: i16,
+    pub mean_temperature_deci_c: i16,
+}
+
 #[derive(Default)]
 pub struct BatteryHistory {
     samples: VecDeque<BatterySample>,
@@ -51,6 +60,25 @@ impl BatteryHistory {
         Ok(self.trend())
     }
 
+    pub fn statistics(&self) -> Option<BatteryWindowStats> {
+        let first = self.samples.front()?;
+        let mut min = first.temperature_deci_c;
+        let mut max = first.temperature_deci_c;
+        let mut total: i64 = 0;
+        for sample in &self.samples {
+            min = min.min(sample.temperature_deci_c);
+            max = max.max(sample.temperature_deci_c);
+            total += i64::from(sample.temperature_deci_c);
+        }
+        let count = self.samples.len();
+        Some(BatteryWindowStats {
+            count: count as u16,
+            min_temperature_deci_c: min as i16,
+            max_temperature_deci_c: max as i16,
+            mean_temperature_deci_c: (total / count as i64) as i16,
+        })
+    }
+
     fn trend(&self) -> BatteryTrend {
         let first = self.samples.front().expect("trend requires a sample");
         let last = self.samples.back().expect("trend requires a sample");
@@ -69,6 +97,15 @@ pub fn encode_trend(trend: BatteryTrend) -> i64 {
     ((trend.count as i64) << 32)
         | (((trend.temperature_delta_deci_c as u16) as i64) << 16)
         | (trend.level_delta_percent as u16) as i64
+}
+
+/// ABI: [count:u16 @48] [min temp:i16 @32] [max temp:i16 @16] [mean temp:i16].
+/// Only actual recorded temperature values are included; -1 represents no samples.
+pub fn encode_window_stats(stats: BatteryWindowStats) -> i64 {
+    ((stats.count as i64) << 48)
+        | ((stats.min_temperature_deci_c as u16 as i64) << 32)
+        | ((stats.max_temperature_deci_c as u16 as i64) << 16)
+        | (stats.mean_temperature_deci_c as u16 as i64)
 }
 
 static HISTORY: OnceLock<Mutex<BatteryHistory>> = OnceLock::new();
@@ -91,6 +128,18 @@ pub extern "system" fn Java_dev_lolokeksu_legioncontrol_RustEngine_recordBattery
         temperature_deci_c,
         timestamp_ms,
     }).map(encode_trend).unwrap_or(INVALID_NATIVE_RESULT)
+}
+
+/// Read-only JNI query: returns -1 if the session has no samples or lock is poisoned.
+#[no_mangle]
+#[allow(non_snake_case)]
+pub extern "system" fn Java_dev_lolokeksu_legioncontrol_RustEngine_readBatteryWindowStats(
+    _env: *mut c_void,
+    _receiver: *mut c_void,
+) -> i64 {
+    let Some(history) = HISTORY.get() else { return INVALID_NATIVE_RESULT };
+    let Ok(guard) = history.lock() else { return INVALID_NATIVE_RESULT };
+    guard.statistics().map(encode_window_stats).unwrap_or(INVALID_NATIVE_RESULT)
 }
 
 #[cfg(test)]
@@ -142,6 +191,45 @@ mod tests {
         assert_eq!((encoded & 0xffff) as u16 as i16, -2);
         assert_eq!(((encoded >> 16) & 0xffff) as u16 as i16, -15);
         assert_eq!(((encoded >> 32) & 0xffff) as u16, 2);
+    }
+
+    #[test]
+    fn empty_history_has_no_statistics() {
+        assert_eq!(BatteryHistory::default().statistics(), None);
+    }
+
+    #[test]
+    fn window_statistics_are_exact_and_read_only() {
+        let mut history = BatteryHistory::default();
+        history.record(sample(60, -100, 1)).unwrap();
+        history.record(sample(60, 200, 2)).unwrap();
+        history.record(sample(59, 300, 3)).unwrap();
+        let before = history.samples.clone();
+        let metrics = history.statistics().unwrap();
+        assert_eq!(metrics, BatteryWindowStats {
+            count: 3, min_temperature_deci_c: -100,
+            max_temperature_deci_c: 300, mean_temperature_deci_c: 133
+        });
+        assert_eq!(history.samples, before);
+        let encoded = encode_window_stats(metrics);
+        assert_eq!(((encoded >> 48) & 0xffff) as u16, 3);
+        assert_eq!(((encoded >> 32) & 0xffff) as u16 as i16, -100);
+        assert_eq!(((encoded >> 16) & 0xffff) as u16 as i16, 300);
+        assert_eq!((encoded & 0xffff) as u16 as i16, 133);
+    }
+
+    #[test]
+    fn window_uses_only_the_last_64_readings() {
+        let mut history = BatteryHistory::default();
+        history.record(sample(50, -100, 1)).unwrap();
+        for time in 2..=65 {
+            history.record(sample(50, 250, time)).unwrap();
+        }
+        let metrics = history.statistics().unwrap();
+        assert_eq!(metrics.count, 64);
+        assert_eq!(metrics.min_temperature_deci_c, 250);
+        assert_eq!(metrics.max_temperature_deci_c, 250);
+        assert_eq!(metrics.mean_temperature_deci_c, 250);
     }
 
     #[test]

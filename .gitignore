@@ -7,3 +7,10 @@ local.properties
 rust-core/target/
 app/src/main/jniLibs/
 .DS_Store
+
+# Never commit Android release signing credentials or private certificates
+*.p12
+*.jks
+*.keystore
+*.pem
+*release-secrets*

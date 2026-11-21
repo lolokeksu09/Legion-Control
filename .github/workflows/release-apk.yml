@@ -1,0 +1,74 @@
+name: Legion Control permanently signed APK
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  signed-release:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify signing secrets are configured
+        env:
+          LEGION_RELEASE_KEYSTORE_B64: ${{ secrets.LEGION_RELEASE_KEYSTORE_B64 }}
+          LEGION_RELEASE_STORE_PASSWORD: ${{ secrets.LEGION_RELEASE_STORE_PASSWORD }}
+          LEGION_RELEASE_KEY_ALIAS: ${{ secrets.LEGION_RELEASE_KEY_ALIAS }}
+          LEGION_RELEASE_KEY_PASSWORD: ${{ secrets.LEGION_RELEASE_KEY_PASSWORD }}
+        shell: bash
+        run: |
+          for variable in LEGION_RELEASE_KEYSTORE_B64 LEGION_RELEASE_STORE_PASSWORD LEGION_RELEASE_KEY_ALIAS LEGION_RELEASE_KEY_PASSWORD; do
+            if [[ -z "${!variable}" ]]; then
+              echo "::error::Missing required signing secret: $variable"
+              exit 1
+            fi
+          done
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,x86_64-linux-android
+      - uses: android-actions/setup-android@v4
+      - name: Install Android SDK platform and NDK
+        run: sdkmanager --install 'platforms;android-36' 'build-tools;36.0.0' 'ndk;28.2.13676358'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.6.0'
+      - name: Verify source contract
+        run: |
+          python3 scripts/check_backend.py
+          python3 scripts/check_release_signing.py
+      - name: Test and build real Rust native libraries
+        run: bash scripts/build-native.sh
+      - name: Restore private release keystore outside the repository
+        env:
+          LEGION_RELEASE_KEYSTORE_B64: ${{ secrets.LEGION_RELEASE_KEYSTORE_B64 }}
+          LEGION_RELEASE_STORE_FILE: ${{ runner.temp }}/legion-control-release.p12
+        shell: bash
+        run: |
+          umask 077
+          printf '%s' "$LEGION_RELEASE_KEYSTORE_B64" | base64 --decode > "$LEGION_RELEASE_STORE_FILE"
+          test -s "$LEGION_RELEASE_STORE_FILE"
+      - name: Build with the permanent release certificate
+        env:
+          LEGION_RELEASE_STORE_FILE: ${{ runner.temp }}/legion-control-release.p12
+          LEGION_RELEASE_STORE_PASSWORD: ${{ secrets.LEGION_RELEASE_STORE_PASSWORD }}
+          LEGION_RELEASE_KEY_ALIAS: ${{ secrets.LEGION_RELEASE_KEY_ALIAS }}
+          LEGION_RELEASE_KEY_PASSWORD: ${{ secrets.LEGION_RELEASE_KEY_PASSWORD }}
+        run: gradle --no-daemon :app:assembleRelease :app:lintRelease
+      - name: Verify APK, native Rust libraries and permanent signing certificate
+        shell: bash
+        run: |
+          python3 scripts/verify_apk.py app/build/outputs/apk/release/app-release.apk
+          python3 scripts/verify_release_apk.py app/build/outputs/apk/release/app-release.apk "$ANDROID_HOME/build-tools/36.0.0/apksigner"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Legion-Control-v0.1.0-alpha.2-permanent-release-apk
+          path: app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
