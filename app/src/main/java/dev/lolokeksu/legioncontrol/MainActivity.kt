@@ -59,7 +59,7 @@ class MainActivity : Activity() {
             setTypeface(typeface, Typeface.BOLD)
         })
         layout.addView(TextView(this).apply {
-            text = "Kotlin + Rust · backend alpha.4"
+            text = "Kotlin + Rust · backend alpha.7"
             textSize = 13f
             setTextColor(0xFFA5A5A5.toInt())
             setPadding(0, 8.dp, 0, 12.dp)
@@ -290,6 +290,7 @@ class MainActivity : Activity() {
         val elapsedMs = SystemClock.elapsedRealtime()
         val recordedAtMs = System.currentTimeMillis()
         val rust = engine.record(percent, temp, elapsedMs)
+        var diagnosticSessionId: String? = null
         val persisted = rust.fold(
             onSuccess = {
                 val id = ActiveSession.id ?: UUID.randomUUID().toString()
@@ -312,6 +313,7 @@ class MainActivity : Activity() {
                 }.fold(
                     onSuccess = { inserted ->
                         ActiveSession.id = id
+                        if (inserted) diagnosticSessionId = id
                         if (inserted) "Запись сохранена в SQLite"
                         else "Повторное измерение с тем же временем не продублировано"
                     },
@@ -415,10 +417,42 @@ class MainActivity : Activity() {
         // Existing manual measurement is the only trigger for the new backend.
         // Snapshot collection runs away from the UI; no background polling.
         val requestId = ++diagnosticRequestId
+        val acceptedSessionId = diagnosticSessionId
         diagnosticsExecutor.execute {
             val diagnostics = runCatching {
                 DeviceDiagnosticsBackend.read(applicationContext)
             }
+            // Persist every successful legacy sample even when a newer UI
+            // request supersedes this result. The DB write is never on UI.
+            val historyResult = diagnostics.fold(
+                onSuccess = { current ->
+                    if (acceptedSessionId == null) {
+                        Pair("SQLite диагностики: основной замер не сохранён", null)
+                    } else runCatching {
+                        val saved = history.recordDiagnostic(
+                            DiagnosticHistorySchema.fromSnapshot(
+                                sessionId = acceptedSessionId,
+                                elapsedMs = elapsedMs,
+                                recordedAtMs = recordedAtMs,
+                                batteryPercent = percent,
+                                batteryTemperatureDeciC = temp,
+                                snapshot = current
+                            )
+                        )
+                        val trend = DiagnosticSessionAnalyzer.analyze(
+                            history.recentDiagnostics(acceptedSessionId)
+                        )
+                        Pair(
+                            if (saved) "SQLite диагностики: запись сохранена"
+                            else "SQLite диагностики: повторная запись пропущена",
+                            DiagnosticSessionSummary.format(trend)
+                        )
+                    }.getOrElse {
+                        Pair("SQLite диагностики: ошибка " + it.javaClass.simpleName, null)
+                    }
+                },
+                onFailure = { Pair("SQLite диагностики: Android API недоступен", null) }
+            )
             runOnUiThread {
                 if (!isDestroyed && requestId == diagnosticRequestId) {
                     val diagnosticText = diagnostics.fold(
@@ -431,7 +465,9 @@ class MainActivity : Activity() {
                             "Системная диагностика: ошибка " + it.javaClass.simpleName
                         }
                     )
-                    val complete = snapshot + "\n\n" + diagnosticText
+                    val complete = snapshot + "\n\n" + diagnosticText +
+                        "\n\n" + historyResult.first +
+                        (historyResult.second?.let { "\n" + it } ?: "")
                     result.text = complete
                     latestReport = reportHeader?.plus(complete)
                 }
