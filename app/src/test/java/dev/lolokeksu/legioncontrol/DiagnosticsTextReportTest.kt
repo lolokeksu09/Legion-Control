@@ -36,6 +36,8 @@ class DiagnosticsTextReportTest {
         assertTrue(text.contains("Тепловой статус Android: 2"))
         assertTrue(text.contains("120.0 Гц"))
         assertTrue(text.contains("Поддержка Sustained Performance Mode: нет"))
+        assertTrue(text.contains("Активность Sustained Performance Mode в других приложениях:"))
+        assertTrue(text.contains("не определяется публичным Android API"))
         assertTrue(text.contains("Процессоров, доступных приложению: 8"))
         assertTrue(text.contains("Ток батареи (мгновенный): -633.0 мА"))
         assertTrue(text.contains("Ток батареи (средний): +0.0 мА"))
