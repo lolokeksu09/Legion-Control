@@ -35,6 +35,8 @@ jobs:
           gradle-version: '9.6.0'
       - name: Verify backend contract and permissions
         run: python3 scripts/check_backend.py
+      - name: Check permanent release signing contract without private keys
+        run: python3 scripts/check_release_signing.py
       - name: Test and compile real Rust backend for Android
         run: bash scripts/build-native.sh
       - name: Build Kotlin Android APK with native Rust library
@@ -44,6 +46,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: success()
         with:
-          name: Legion-Control-v0.1.0-alpha.1-kotlin-rust-debug
+          name: Legion-Control-v0.1.0-alpha.2-kotlin-rust-debug
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
