@@ -27,7 +27,7 @@ object BatteryHealthSanitizer {
     fun technology(value: String?): String? = value
         ?.trim()
         ?.takeIf { it.isNotEmpty() && it.length <= 60 && it.all { ch ->
-            !ch.isISOControl() && ch != '\u2028' && ch != '\u2029'
+            ch.code >= 32 && ch.code != 127 && ch != '\u2028' && ch != '\u2029'
         } }
 
     /**
