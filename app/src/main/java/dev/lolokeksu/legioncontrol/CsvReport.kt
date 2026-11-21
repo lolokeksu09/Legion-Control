@@ -17,8 +17,46 @@ object CsvReport {
         row(writer, header)
     }
 
+    private val diagnosticHeader = listOf(
+        "thermal_status", "thermal_headroom", "charge_counter_micro_ah",
+        "current_now_micro_a", "current_average_micro_a", "ram_available_bytes",
+        "diagnostic_timestamp_utc"
+    )
+
+    /** v2 diagnostics are optional: old v1 rows produce seven blank cells. */
+    fun beginExtended(writer: Writer) {
+        writer.write("\\uFEFF")
+        row(writer, header + diagnosticHeader)
+    }
+
+    fun appendExtended(
+        writer: Writer,
+        reading: StoredReading,
+        diagnostic: DiagnosticStoredSample?
+    ) {
+        require(diagnostic == null || (
+            diagnostic.sessionId == reading.sessionId &&
+                diagnostic.elapsedMs == reading.elapsedMs
+        )) { "Diagnostic belongs to another measurement" }
+        row(writer, legacyCells(reading) + listOf(
+            diagnostic?.thermalStatus?.toString().orEmpty(),
+            diagnostic?.thermalHeadroom?.takeIf { it.isFinite() }?.toString().orEmpty(),
+            diagnostic?.chargeCounterMicroAh?.toString().orEmpty(),
+            diagnostic?.currentNowMicroAmps?.toString().orEmpty(),
+            diagnostic?.currentAverageMicroAmps?.toString().orEmpty(),
+            diagnostic?.ramAvailableBytes?.toString().orEmpty(),
+            diagnostic?.recordedAtMs?.let {
+                Instant.ofEpochMilli(it).toString()
+            }.orEmpty()
+        ))
+    }
+
     fun append(writer: Writer, reading: StoredReading) {
-        row(writer, listOf(
+        row(writer, legacyCells(reading))
+    }
+
+    private fun legacyCells(reading: StoredReading): List<String> =
+        listOf(
             reading.sessionId,
             Instant.ofEpochMilli(reading.recordedAtMs).toString(),
             reading.elapsedMs.toString(),
@@ -32,8 +70,7 @@ object CsvReport {
             reading.refreshRateHz?.toString().orEmpty(),
             reading.screenWidthPx?.toString().orEmpty(),
             reading.screenHeightPx?.toString().orEmpty()
-        ))
-    }
+        )
 
     private fun row(writer: Writer, values: List<String>) {
         writer.write(values.joinToString(",") { value ->
