@@ -16,12 +16,12 @@ class DiagnosticTrendEngineTest {
             systemMemory = ProbeResult.unavailable(),
             appFilesystem = ProbeResult.unavailable(),
             onlineProcessorCount = ProbeResult.unavailable(),
-            batteryChargeCounterMicroAh = counterMicroAh?.let(ProbeResult::available)
+            batteryChargeCounterMicroAh = counterMicroAh?.let { ProbeResult.available(it) }
                 ?: ProbeResult.unavailable(),
             batteryCurrentNowMicroAmps = ProbeResult.unavailable(),
             batteryCurrentAverageMicroAmps = ProbeResult.unavailable(),
             batteryEnergyCounterNanoWh = ProbeResult.unavailable(),
-            thermalHeadroom = headroom?.let(ProbeResult::available)
+            thermalHeadroom = headroom?.let { ProbeResult.available(it) }
                 ?: ProbeResult.unavailable()
         )
     )
