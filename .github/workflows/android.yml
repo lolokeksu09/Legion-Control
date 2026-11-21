@@ -1,0 +1,41 @@
+name: Legion Control backend Kotlin + Rust
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,x86_64-linux-android
+      - uses: android-actions/setup-android@v3
+      - name: Install Android SDK and NDK
+        run: sdkmanager --install 'platforms;android-37' 'build-tools;37.0.0' 'ndk;28.2.13676358'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.6.0'
+      - name: Test and compile real Rust backend for Android
+        run: bash scripts/build-native.sh
+      - name: Build Kotlin Android APK with native Rust library
+        run: gradle --no-daemon assembleDebug lintDebug
+      - name: Validate Kotlin APK contains both Rust JNI libraries
+        run: python3 scripts/verify_apk.py app/build/outputs/apk/debug/app-debug.apk
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: Legion-Control-v0.1.0-alpha.1-kotlin-rust-debug
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
