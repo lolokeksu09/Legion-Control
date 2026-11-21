@@ -54,6 +54,7 @@ jobs:
           python3 scripts/check_release_signing.py
           python3 scripts/check_session_backend.py
           python3 scripts/check_persistent_history.py
+          python3 scripts/check_resource_telemetry.py
       - name: Test local CSV and Russian plural formatting before release
         run: gradle --no-daemon testDebugUnitTest
       - name: Test and build real Rust native libraries
