@@ -79,4 +79,64 @@ class SensorSampleTest {
         assertTrue(report.contains(" · Δ 1.000 / 0.000 / 0.000 м/с²"))
     }
 
+
+    @Test fun identifiesReasonForRejectedEventsWithoutFabricatingMeasurement() {
+        assertEquals(SensorRejectionReason.STALE_EVENT, SensorSampleValidation.rejectionReason(
+            SensorKind.LIGHT, floatArrayOf(50f), 3, 1000, 1000, 1300, 42
+        ))
+        assertEquals(SensorRejectionReason.NON_FINITE, SensorSampleValidation.rejectionReason(
+            SensorKind.LIGHT, floatArrayOf(Float.NaN), 3, 1200, 1000, 1300, 42
+        ))
+        assertEquals(SensorRejectionReason.NEGATIVE_MEASUREMENT,
+            SensorSampleValidation.rejectionReason(
+                SensorKind.LIGHT, floatArrayOf(-2f), 3, 1200, 1000, 1300, 42
+            ))
+        assertEquals(SensorRejectionReason.INVALID_ACCURACY,
+            SensorSampleValidation.rejectionReason(
+                SensorKind.ACCELEROMETER, floatArrayOf(1f, 2f, 3f),
+                9, 1200, 1000, 1300, 42
+            ))
+    }
+
+    @Test fun boundedLightExtensionPreservesExistingBudgetsForOtherSensors() {
+        assertEquals(3000L, SensorCapturePolicy.timeoutFor(SensorKind.GYROSCOPE))
+        assertEquals(6000L, SensorCapturePolicy.timeoutFor(SensorKind.LIGHT))
+        assertTrue(SensorCapturePolicy.extendForLight(setOf(SensorKind.LIGHT)))
+        assertFalse(SensorCapturePolicy.extendForLight(setOf(SensorKind.PROXIMITY)))
+        assertEquals(SensorProbeState.INVALID_DATA, SensorCapturePolicy.stateWhenExpired(2))
+        assertEquals(SensorProbeState.TIMEOUT, SensorCapturePolicy.stateWhenExpired(0))
+    }
+
+    @Test fun distinguishesTimeoutWithoutEventsFromInvalidEventsWithReasons() {
+        val withoutEvent = SensorProbeOutcome(
+            SensorKind.LIGHT, SensorProbeState.TIMEOUT,
+            timeoutMs = 6000L, reportingMode = 1
+        )
+        val rejected = SensorProbeOutcome(
+            SensorKind.GYROSCOPE, SensorProbeState.INVALID_DATA,
+            eventCount = 3, rejectedEvents = 3,
+            rejectionReason = SensorRejectionReason.STALE_EVENT
+        )
+        val result = SensorCaptureResult("id", listOf(withoutEvent, rejected))
+        val report = SensorSampleReport.format(result, emptyMap(), 0, 0L)
+        assertTrue(report.contains("нет нового события за 6 с"))
+        assertTrue(report.contains("режим=по изменению"))
+        assertTrue(report.contains("события получены, но не прошли проверку"))
+        assertTrue(report.contains("отброшено=3"))
+        assertTrue(report.contains("причина=STALE_EVENT"))
+        assertFalse(report.contains(" · Δ "))
+    }
+
+    @Test fun diagnosticOutcomesEnforceStateAndEventCountConsistency() {
+        assertThrows(IllegalArgumentException::class.java) {
+            SensorProbeOutcome(SensorKind.LIGHT, SensorProbeState.CAPTURED)
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            SensorProbeOutcome(
+                SensorKind.LIGHT, SensorProbeState.TIMEOUT,
+                eventCount = 0, rejectedEvents = 1
+            )
+        }
+    }
+
 }
