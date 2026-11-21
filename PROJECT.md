@@ -62,3 +62,7 @@ The owner's next backend-only requirement includes longer multi-sample charging/
 ## Alpha.8 — функционал прежде редизайна, без Shizuku
 
 Следующее утверждённое направление: сначала добавить реально работающий функционал, затем исправлять его по реальным аппаратным проверкам. Новая функция: расширенный экспорт CSV из фактической SQLite-диагностики v2, без потери данных v1 и без новой кнопки. Пользователь инициирует экспорт штатным системным выбором файла. Не добавлять Shizuku, Root, скрытые API или UI-редизайн. После CI слить в `main` и собрать APK прежним постоянным ключом.
+
+## Alpha.9 — next real backend capability before design
+
+Owner continues requesting new implemented functions before refinement, **without Shizuku**, Root or frontend changes. Deliver public Android battery health / charging metadata (Android `EXTRA_HEALTH`, API34+ cycles and charge status, technology, battery presence/low) and cautiously labeled battery-terminal electrical power. Integrate with the existing manual sample and share report; keep state genuinely unavailable when OEM hides it. Android categorical `GOOD` must not be converted into a fictional degradation percentage; cycle count must not be interpreted as full capacity. Preserve package ID, pinned release signer and SQLite v2; merge into main only after full CI, then verify signed release.
