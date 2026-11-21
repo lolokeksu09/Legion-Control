@@ -20,6 +20,20 @@ class ResourceTelemetryTest {
         }
     }
 
+    @Test fun readGuardDistinguishesExceptionsAndInvalidManufacturerValues() {
+        val failed = ProbeResult.read({ throw IllegalStateException("OEM failure") },
+            TelemetryValidation::currentMicroAmps)
+        assertEquals(ProbeState.ERROR, failed.state)
+        assertNull(failed.value)
+        val invalid = ProbeResult.read({ Int.MIN_VALUE },
+            TelemetryValidation::currentMicroAmps)
+        assertEquals(ProbeState.UNAVAILABLE, invalid.state)
+        assertNull(invalid.value)
+        val zero = ProbeResult.read({ 0 }, TelemetryValidation::currentMicroAmps)
+        assertEquals(ProbeState.AVAILABLE, zero.state)
+        assertEquals(0, zero.value)
+    }
+
     @Test fun memoryValidationRejectsInconsistentKernelReports() {
         val valid = TelemetryValidation.memory(
             totalBytes = 16_000L, availableBytes = 4_000L,
