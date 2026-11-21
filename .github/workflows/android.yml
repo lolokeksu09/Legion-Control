@@ -41,6 +41,8 @@ jobs:
         run: python3 scripts/check_session_backend.py
       - name: Verify persistent history, sensor discovery and CSV export contracts
         run: python3 scripts/check_persistent_history.py
+      - name: Verify permission-free resource telemetry and thermal rate guards
+        run: python3 scripts/check_resource_telemetry.py
       - name: Run pure Kotlin CSV and Russian plural regression tests
         run: gradle --no-daemon testDebugUnitTest
       - name: Test and compile real Rust backend for Android
