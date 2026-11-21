@@ -20,7 +20,7 @@ for expected in (
     "SQLiteOpenHelper(", "legion-control-history.db", "CREATE TABLE sessions",
     "CREATE TABLE samples", "db.beginTransaction()", "db.setTransactionSuccessful()",
     "db.endTransaction()", "UNIQUE(session_id, elapsed_ms)", "fun recentSessions(",
-    "fun writeCsv(writer: Writer)", "CsvReport.append(writer, cursor.asStoredReading())",
+    "fun writeCsv(writer: Writer)", "CsvReport.appendExtended(",
     "fun endSession(", 'throw IllegalStateException("No safe migration',
 ):
     assert expected in store, expected
@@ -50,8 +50,8 @@ assert "showSavedHistory()\n    }" in activity
 assert "sample()\n    }" not in activity
 assert "SensorManager" in sensors and "getDefaultSensor(type)" in sensors
 assert "registerListener" not in sensors
-assert 'versionCode = 7' in gradle
-assert 'versionName = "0.1.0-alpha.7"' in gradle
+assert 'versionCode = 8' in gradle
+assert 'versionName = "0.1.0-alpha.8"' in gradle
 
 for risky in ("WRITE_SECURE_SETTINGS", "QUERY_ALL_PACKAGES", "ACCESS_NETWORK_STATE",
               "INTERNET", "setprop ", "moto_extend_service", "pointer_speed"):
