@@ -34,6 +34,20 @@ class ResourceTelemetryTest {
         assertEquals(0, zero.value)
     }
 
+    @Test fun dependentProbesNeverHideMissingOrFailedService() {
+        val absent = ProbeResult.unavailable<Int>()
+        val error = ProbeResult.failure<Int>()
+        val deferred = ProbeResult.rateLimited<Int>()
+        assertEquals(ProbeState.UNAVAILABLE, absent.flatMap { ProbeResult.available(it + 1) }.state)
+        assertEquals(ProbeState.ERROR, error.flatMap { ProbeResult.available(it + 1) }.state)
+        assertEquals(ProbeState.RATE_LIMITED, deferred.flatMap { ProbeResult.available(it + 1) }.state)
+        assertEquals(7, ProbeResult.available(6).flatMap { ProbeResult.available(it + 1) }.value)
+        assertEquals(
+            ProbeState.ERROR,
+            ProbeResult.available(5).flatMap<Int> { error("broken dependency") }.state
+        )
+    }
+
     @Test fun memoryValidationRejectsInconsistentKernelReports() {
         val valid = TelemetryValidation.memory(
             totalBytes = 16_000L, availableBytes = 4_000L,
