@@ -30,6 +30,6 @@ assert "DeviceCapabilitiesBackend.read(context)" in combined
 assert "ResourceTelemetryBackend.read(context)" in combined
 assert "fun successfulReadingsExposeSourcesAndActualUnits()" in tests
 assert "fun unavailableAndErrorsAreNotRenderedAsZero()" in tests
-assert 'versionCode = 5' in build
-assert 'versionName = "0.1.0-alpha.5"' in build
+assert 'versionCode = 6' in build
+assert 'versionName = "0.1.0-alpha.6"' in build
 print("PASS: manual MainActivity wiring, off-UI probes, honest reports, no UI redesign")
