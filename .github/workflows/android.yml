@@ -45,6 +45,8 @@ jobs:
         run: python3 scripts/check_resource_telemetry.py
       - name: Verify alpha.5 existing-screen diagnostic integration
         run: python3 scripts/check_diagnostics_integration.py
+      - name: Verify alpha.6 thermal and battery trend wiring
+        run: python3 scripts/check_thermal_battery_trends.py
       - name: Run pure Kotlin CSV and Russian plural regression tests
         run: gradle --no-daemon testDebugUnitTest
       - name: Test and compile real Rust backend for Android
