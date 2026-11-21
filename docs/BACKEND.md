@@ -135,3 +135,5 @@ The existing `MainActivity.sample()` action invokes the public-API diagnostic ba
 - No new SQLite schema, saved battery health metric, Root/Shizuku, OEM writes, background timers or network access.
 
 **Verification:** `DiagnosticTrendEngineTest` checks valid trends, absent input, disagreement, short intervals, clock rollback and reset. `scripts/check_thermal_battery_trends.py` guards the app's actual call path. Android debug CI and permanent signer pipeline run those contracts and JVM tests. A physical Y70 repeat measurement is still required to validate the displayed values and signed APK installation.
+
+The new comparison's first accepted reading is explicitly a baseline, not a zero-delta measurement. Subsequent accepted readings are shown in the same shareable manual report; no historical backfill from the separate SQLite store is assumed. This distinction also makes stale async results harmless after reset.
