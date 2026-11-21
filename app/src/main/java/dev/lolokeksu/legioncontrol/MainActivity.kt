@@ -72,7 +72,7 @@ class MainActivity : Activity() {
             setOnClickListener { confirmReset() }
         })
         setContentView(ScrollView(this).apply {
-            fillViewport = true
+            isFillViewport = true
             addView(layout)
         })
         sample()
