@@ -38,6 +38,19 @@ data class ProbeResult<T : Any> private constructor(
                 failure()
             }
     }
+
+    /** Preserve unavailable/error state across dependent API reads. */
+    fun <R : Any> flatMap(transform: (T) -> ProbeResult<R>): ProbeResult<R> =
+        when (state) {
+            ProbeState.AVAILABLE -> try {
+                transform(requireNotNull(value))
+            } catch (_: Exception) {
+                failure()
+            }
+            ProbeState.UNAVAILABLE -> unavailable()
+            ProbeState.ERROR -> failure()
+            ProbeState.RATE_LIMITED -> rateLimited()
+        }
 }
 
 /** Device-wide kernel memory figures, not the current game's memory usage. */
