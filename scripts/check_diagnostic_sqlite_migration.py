@@ -88,6 +88,8 @@ assert "DiagnosticHistorySchema.CREATE_INDEX" in source
 assert 'throw IllegalStateException("No safe migration' in source
 assert "DROP TABLE" not in source and "DELETE FROM samples" not in source
 assert "diagnosticsExecutor.execute {" in activity
+assert activity.index("history.recordDiagnostic(") > activity.index("diagnosticsExecutor.execute {")
+assert "acceptedSessionId = diagnosticSessionId" in activity
 assert "history.recordDiagnostic(" in activity
 assert "history.recentDiagnostics(" in activity
 assert "DiagnosticSessionAnalyzer.analyze(" in activity
