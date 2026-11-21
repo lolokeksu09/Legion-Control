@@ -71,12 +71,12 @@ Source-of-truth: [HISTORY.md](HISTORY.md) and `scripts/check_persistent_history.
 - `activeDisplayMode` and `supportedDisplayModes`: modes reported by the primary Android display, with mode ID, physical dimensions and nominal refresh rate. These are **not** measured app FPS, touch sampling rate, or permission to change the display mode. The reported supported modes can be affected by Android version and OEM filtering.
 - Invalid or unavailable OEM values stay unknown/absent; no synthetic fallback is inserted. The pure `CapabilitySanitizer` rejects malformed thermal codes, mode IDs, dimensions and refresh rates and deduplicates reported mode IDs.
 
-The capability probe is **not connected to `MainActivity`**: UI and manual diagnostic flow remain unchanged by owner request. Only the additive Kotlin backend API and its unit tests are in scope. `testDebugUnitTest` runs `CapabilitySnapshotTest`; physical Y70 testing must separately call `DeviceCapabilitiesBackend.read(context)` and inspect the result. No certificate, package ID, versionCode, SQLite schema, CSV format, or Rust ABI changes.
+In alpha.5 the capability probe is connected to the existing manual `MainActivity.sample()` action. Existing layout and buttons remain unchanged; the snapshot is read via the aggregated backend off the UI thread and appended to the existing report. `testDebugUnitTest` runs `CapabilitySnapshotTest`; physical Y70 testing must separately call `DeviceCapabilitiesBackend.read(context)` and inspect the result. No certificate, package ID, versionCode, SQLite schema, CSV format, or Rust ABI changes.
 
 
 ## Resource telemetry backend (stacked on public capability probe; no UI changes)
 
-The additive `ResourceTelemetryBackend.read(context)` performs an **explicit, synchronous, read-only** public-API snapshot. It does not sample in the background, add Android permissions, write hardware settings, invoke Shizuku or Root, or modify local SQLite/CSV. The caller must invoke it off the UI thread when integrating it in a future app layer. It currently has **no `MainActivity` or user-interface integration**.
+The additive `ResourceTelemetryBackend.read(context)` performs an **explicit, synchronous, read-only** public-API snapshot. It does not sample in the background, add Android permissions, write hardware settings, invoke Shizuku or Root, or modify local SQLite/CSV. The caller must invoke it off the UI thread when integrating it in a future app layer. In alpha.5 it is connected to the existing manual sample action without changing the UI layout, and its read occurs on a dedicated executor.
 
 The public, typed `DeviceDiagnosticsBackend.read(context)` combines the previous `DeviceCapabilitiesBackend` with this new resource snapshot. It is a library entry point, **not** proof that the Lenovo Y70 has reported these particular values.
 
@@ -110,3 +110,13 @@ A value is present **only** in `AVAILABLE`. `0` is retained where the Android pr
 - Pure JVM tests: `ResourceTelemetryTest` and `ThermalHeadroomGateTest`; they include invalid values, missing sentinel codes, platform exceptions, repeated calls and clock resets.
 - Source contract: `python3 scripts/check_resource_telemetry.py`, executed in Android CI and release verification alongside the established tests.
 - PR CI must compile and test the changed Android app with JNI plus existing Rust tests. **Physical-device verification remains pending**: call `DeviceDiagnosticsBackend.read(context)` on the Lenovo Y70, inspect each `ProbeState`, inspect battery current sign while charging/discharging and verify that rapid thermal requests return `RATE_LIMITED`. No UI controls, no privilege requests and no device-state changes are introduced.
+
+
+## Alpha.5 — backend integration into the existing diagnostic screen
+
+- User instruction: every subsequent backend addition must be integrated into the app's actual user-triggered execution path, **not just included in the APK**, and delivered to `main` only after verification. Keep frontend/design work out of scope.
+- The existing `Обновить измерение` button still reads battery through Rust and persists its former snapshot to SQLite. It also schedules one `DeviceDiagnosticsBackend.read(applicationContext)` off the main thread.
+- The resulting `DiagnosticsTextReport.format()` output is appended to the existing text report and to the already-existing share flow. No additional buttons, layouts, permissions, background polling or external network calls.
+- On newer requests or an explicitly reset Rust session, stale task results are ignored by `diagnosticRequestId`; executor shutdown occurs in `onDestroy`.
+- `0.1.0-alpha.5` increments `versionCode` to 5 and preserves the original application ID and pinned release signing identity. No SQLite schema, Rust ABI or data-reset change.
+- `DiagnosticsTextReportTest` exercises available, unavailable, API-error and rate-limited values; `scripts/check_diagnostics_integration.py` verifies real wiring into MainActivity. Full CI verifies the APK. Physical Y70 verification must still confirm display/report/share and update compatibility before public distribution.
