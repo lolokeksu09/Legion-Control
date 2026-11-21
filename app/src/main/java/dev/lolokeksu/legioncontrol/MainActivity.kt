@@ -59,7 +59,7 @@ class MainActivity : Activity() {
             setTypeface(typeface, Typeface.BOLD)
         })
         layout.addView(TextView(this).apply {
-            text = "Kotlin + Rust · backend alpha.7"
+            text = "Kotlin + Rust · backend alpha.9"
             textSize = 13f
             setTextColor(0xFFA5A5A5.toInt())
             setPadding(0, 8.dp, 0, 12.dp)
@@ -287,6 +287,7 @@ class MainActivity : Activity() {
             getSystemService(DISPLAY_SERVICE) as? DisplayManager
         )?.getDisplay(Display.DEFAULT_DISPLAY)?.mode
         val power = AndroidPowerSource.read(this, battery)
+        val batteryHealth = BatteryHealthBackend.read(battery)
         val elapsedMs = SystemClock.elapsedRealtime()
         val recordedAtMs = System.currentTimeMillis()
         val rust = engine.record(percent, temp, elapsedMs)
@@ -407,6 +408,10 @@ class MainActivity : Activity() {
         output.append("Длительность окна Rust: ").append(duration).append('\n')
         output.append("Локальная история: ").append(persisted).append("\n\n")
         output.append("Данные только по запросу; нет управления системой или Bypass.")
+        output.append("\n\n")
+        output.append(BatteryHealthReport.format(
+            batteryHealth, power.voltageMillivolts, power.currentMicroAmps
+        ))
         val snapshot = output.toString()
         val reportHeader = if (rust.isSuccess) {
             "Legion Control · локальный отчёт\n" +

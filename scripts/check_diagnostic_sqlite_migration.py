@@ -94,6 +94,6 @@ assert "history.recordDiagnostic(" in activity
 assert "history.recentDiagnostics(" in activity
 assert "DiagnosticSessionAnalyzer.analyze(" in activity
 assert "fun calculatesActualChargeRateFromSeveralManualMeasurements()" in checks
-assert 'versionCode = 8' in gradle
-assert 'versionName = "0.1.0-alpha.8"' in gradle
+assert 'versionCode = 9' in gradle
+assert 'versionName = "0.1.0-alpha.9"' in gradle
 print("PASS: actual SQLite v1→v2 additive migration preserves rows, rejects orphans, validates diagnostics")

@@ -76,7 +76,7 @@ assert "fun extendedCsvRetainsLegacyColumnsAndExportsActualDiagnostics()" in tes
 assert "fun oldRowsHaveEmptyDiagnosticColumnsWithoutFabricatedZero()" in tests
 assert "fun mismatchedDiagnosticCannotBeAttachedToWrongLegacyRow()" in tests
 assert not manifest.findall("uses-permission")
-assert 'versionCode = 8' in build
-assert 'versionName = "0.1.0-alpha.8"' in build
+assert 'versionCode = 9' in build
+assert 'versionName = "0.1.0-alpha.9"' in build
 assert "DROP TABLE" not in store and "DELETE FROM samples" not in store
 print("PASS: extended 20-column export JOIN, v1 blank diagnostics, no row loss/duplicate, no privileges")
