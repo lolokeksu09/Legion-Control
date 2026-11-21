@@ -36,16 +36,20 @@ class MainActivity : Activity() {
     private lateinit var historyView: TextView
     private lateinit var sensorsView: TextView
     private lateinit var thermalView: TextView
+    private lateinit var analyticsView: TextView
     private var latestReport: String? = null
     // New backend probes may call OEM services; never block the Android UI thread.
     private val diagnosticsExecutor = Executors.newSingleThreadExecutor()
     private val diagnosticTrends = DiagnosticTrendEngine()
     private var diagnosticRequestId = 0L
+    private var historyRequestId = 0L
+    private var analyticsRequestId = 0L
     private var sensorRequestId = 0L
     private var sensorCapture: SensorCaptureBackend? = null
 
     companion object {
         private const val REQUEST_EXPORT_CSV = 4001
+        private const val REQUEST_EXPORT_ARCHIVE = 4002
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -62,7 +66,7 @@ class MainActivity : Activity() {
             setTypeface(typeface, Typeface.BOLD)
         })
         layout.addView(TextView(this).apply {
-            text = "Kotlin + Rust · backend alpha.11"
+            text = "Kotlin + Rust · backend alpha.12"
             textSize = 13f
             setTextColor(0xFFA5A5A5.toInt())
             setPadding(0, 8.dp, 0, 12.dp)
@@ -103,6 +107,29 @@ class MainActivity : Activity() {
             setLineSpacing(5f, 1f)
         }
         layout.addView(historyView)
+        analyticsView = TextView(this).apply {
+            textSize = 13f
+            setTextColor(Color.WHITE)
+            setPadding(0, 12.dp, 0, 12.dp)
+            setLineSpacing(5f, 1f)
+            text = "Аналитика по сохранённым данным доступна по запросу."
+        }
+        layout.addView(analyticsView)
+        layout.addView(Button(this).apply {
+            text = "Профиль последнего сеанса"
+            minHeight = 48.dp
+            setOnClickListener { showSessionProfile() }
+        })
+        layout.addView(Button(this).apply {
+            text = "Аналитика датчиков"
+            minHeight = 48.dp
+            setOnClickListener { showSensorQuality() }
+        })
+        layout.addView(Button(this).apply {
+            text = "Экспорт полной диагностики ZIP"
+            minHeight = 48.dp
+            setOnClickListener { exportDiagnosticArchive() }
+        })
         layout.addView(Button(this).apply {
             text = "Обновить список сеансов"
             minHeight = 48.dp
@@ -154,29 +181,63 @@ class MainActivity : Activity() {
     private val Int.dp: Int get() =
         (this * resources.displayMetrics.density + 0.5f).toInt()
 
+    /** No SQLite query on UI: stale worker results cannot replace a newer list. */
     private fun showSavedHistory() {
-        runCatching {
-            val total = history.count()
-            val sessions = history.recentSessions()
-            buildString {
-                append("СОХРАНЁННАЯ ИСТОРИЯ · ").append(RussianQuantity.measurements(total.toInt()))
-                    .append("\n")
-                append("Сеансов: ").append(sessions.size)
-                if (sessions.size == 12) append(" (показаны последние 12)")
-                for (session in sessions) {
-                    append("\n· ")
-                    append(DateFormat.getDateTimeInstance().format(Date(session.startedAtMs)))
-                    append(" · ").append(RussianQuantity.measurements(session.samples))
-                    val durationMs = (session.lastAtMs - session.startedAtMs).coerceAtLeast(0L)
-                    append(" · ").append(String.format(Locale.getDefault(), "%.1f с", durationMs / 1000.0))
-                    if (session.endedAtMs != null) append(" · завершён")
+        val requestId = ++historyRequestId
+        diagnosticsExecutor.execute {
+            val text = runCatching {
+                val total = history.count()
+                val sessions = history.recentSessions()
+                buildString {
+                    append("СОХРАНЁННАЯ ИСТОРИЯ · ")
+                        .append(RussianQuantity.measurements(total.toInt())).append("\n")
+                    append("Сеансов: ").append(sessions.size)
+                    if (sessions.size == 12) append(" (показаны последние 12)")
+                    for (session in sessions) {
+                        append("\n· ")
+                        append(DateFormat.getDateTimeInstance().format(Date(session.startedAtMs)))
+                        append(" · ").append(RussianQuantity.measurements(session.samples))
+                        val durationMs = (session.lastAtMs - session.startedAtMs).coerceAtLeast(0L)
+                        append(" · ").append(String.format(
+                            Locale.getDefault(), "%.1f с", durationMs / 1000.0
+                        ))
+                        if (session.endedAtMs != null) append(" · завершён")
+                    }
+                    append("\nЗаписи остаются после перезапуска приложения.")
                 }
-                append("\nЗаписи остаются после перезапуска приложения.")
+            }.getOrElse { "Ошибка локальной базы: " + it.javaClass.simpleName }
+            runOnUiThread {
+                if (!isDestroyed && requestId == historyRequestId) historyView.text = text
             }
-        }.fold(
-            onSuccess = { historyView.text = it },
-            onFailure = { historyView.text = "Ошибка локальной базы: " + it.message }
-        )
+        }
+    }
+
+    private fun showSensorQuality() {
+        val requestId = ++analyticsRequestId
+        analyticsView.text = "Аналитика датчиков: чтение SQLite…"
+        diagnosticsExecutor.execute {
+            val text = runCatching {
+                SensorQualityAnalytics.format(history.recentSensorAttempts())
+            }.getOrElse { "Ошибка аналитики датчиков: " + it.javaClass.simpleName }
+            runOnUiThread {
+                if (!isDestroyed && requestId == analyticsRequestId) analyticsView.text = text
+            }
+        }
+    }
+
+    private fun showSessionProfile() {
+        val requestId = ++analyticsRequestId
+        analyticsView.text = "Профиль последнего сеанса: чтение SQLite…"
+        diagnosticsExecutor.execute {
+            val text = runCatching {
+                val count = history.latestSessionReadingCount()
+                val points = history.latestSessionReadings()
+                SessionAnalytics.format(SessionAnalytics.analyze(points), count > points.size)
+            }.getOrElse { "Ошибка профиля сеанса: " + it.javaClass.simpleName }
+            runOnUiThread {
+                if (!isDestroyed && requestId == analyticsRequestId) analyticsView.text = text
+            }
+        }
     }
 
     private fun checkSensors() {
@@ -319,23 +380,40 @@ class MainActivity : Activity() {
     }
 
     private fun exportCsv() {
-        val count = runCatching { history.count() }.getOrElse {
-            Toast.makeText(this, "Не удалось прочитать историю: " + it.message, Toast.LENGTH_LONG).show()
-            return
+        // Existing battery CSV format is unchanged; existence check runs off UI.
+        diagnosticsExecutor.execute {
+            val count = runCatching { history.count() }
+            runOnUiThread {
+                if (isDestroyed) return@runOnUiThread
+                count.fold(
+                    onSuccess = {
+                        if (it == 0L) {
+                            Toast.makeText(this, "Нет сохранённых измерений", Toast.LENGTH_SHORT).show()
+                        } else {
+                            openExportPicker(REQUEST_EXPORT_CSV, "text/csv", ".csv")
+                        }
+                    },
+                    onFailure = {
+                        Toast.makeText(this, "Не удалось прочитать историю", Toast.LENGTH_LONG).show()
+                    }
+                )
+            }
         }
-        if (count == 0L) {
-            Toast.makeText(this, "Нет сохранённых измерений", Toast.LENGTH_SHORT).show()
-            return
-        }
+    }
+
+    private fun exportDiagnosticArchive() =
+        openExportPicker(REQUEST_EXPORT_ARCHIVE, "application/zip", ".zip")
+
+    private fun openExportPicker(request: Int, mime: String, extension: String) {
         val name = "Legion-Control-diagnostics-" +
-            SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(Date()) + ".csv"
+            SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(Date()) + extension
         val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
             addCategory(Intent.CATEGORY_OPENABLE)
-            type = "text/csv"
+            type = mime
             putExtra(Intent.EXTRA_TITLE, name)
         }
         @Suppress("DEPRECATION")
-        runCatching { startActivityForResult(intent, REQUEST_EXPORT_CSV) }
+        runCatching { startActivityForResult(intent, request) }
             .onFailure {
                 Toast.makeText(this, "Нет системного выбора файлов: " + it.message, Toast.LENGTH_LONG).show()
             }
@@ -344,23 +422,38 @@ class MainActivity : Activity() {
     @Deprecated("Uses the platform document picker without external storage permissions")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode != REQUEST_EXPORT_CSV || resultCode != RESULT_OK) return
+        if (resultCode != RESULT_OK ||
+            (requestCode != REQUEST_EXPORT_CSV && requestCode != REQUEST_EXPORT_ARCHIVE)
+        ) return
         val uri = data?.data ?: return
-        runCatching {
-            val output = contentResolver.openOutputStream(uri, "wt")
-                ?: error("Android не предоставил поток записи")
-            val count = OutputStreamWriter(output, Charsets.UTF_8).buffered().use { writer ->
-                history.writeCsv(writer)
+        diagnosticsExecutor.execute {
+            val result = runCatching {
+                val output = contentResolver.openOutputStream(uri, "wt")
+                    ?: error("Android не предоставил поток записи")
+                if (requestCode == REQUEST_EXPORT_CSV) {
+                    OutputStreamWriter(output, Charsets.UTF_8).buffered().use { writer ->
+                        "CSV сохранён: " + RussianQuantity.measurements(history.writeCsv(writer))
+                    }
+                } else {
+                    val counts = output.use { history.writeDiagnosticArchive(it) }
+                    "ZIP сохранён: " + counts.battery + " записей батареи, " +
+                        counts.attempts + " попыток датчиков, " +
+                        counts.sensors + " показаний датчиков"
+                }
             }
-            count
-        }.fold(
-            onSuccess = {
-                Toast.makeText(this, "CSV сохранён: " + RussianQuantity.measurements(it), Toast.LENGTH_LONG).show()
-            },
-            onFailure = {
-                Toast.makeText(this, "Ошибка экспорта CSV: " + it.message, Toast.LENGTH_LONG).show()
+            runOnUiThread {
+                if (!isDestroyed) result.fold(
+                    onSuccess = {
+                        Toast.makeText(this, it, Toast.LENGTH_LONG).show()
+                    },
+                    onFailure = {
+                        Toast.makeText(
+                            this, "Ошибка экспорта: " + it.javaClass.simpleName, Toast.LENGTH_LONG
+                        ).show()
+                    }
+                )
             }
-        )
+        }
     }
 
     private fun sample() {
