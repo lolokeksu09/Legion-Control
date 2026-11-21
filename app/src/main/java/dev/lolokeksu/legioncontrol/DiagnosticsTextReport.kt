@@ -13,7 +13,7 @@ object DiagnosticsTextReport {
 
         append("СИСТЕМНАЯ ДИАГНОСТИКА · публичный Android API\n")
         append("Тепловой статус Android: ")
-            .append(capabilities.thermalStatus?.toString() ?: "недоступно").append('\n')
+            .append(ThermalSeverity.describe(capabilities.thermalStatus)).append('\n')
         append("Поддержка Sustained Performance Mode: ").append(
             when (capabilities.sustainedPerformanceSupported) {
                 true -> "да"
