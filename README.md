@@ -11,7 +11,7 @@
 
 См. `rust-core/`, `android-core/`, `docs/BACKEND.md`. Следующие шаги: Rust unit tests в CI, Android JNI сборка, затем легковесный Kotlin-интерфейс. Никаких заявлений об улучшении FPS, сенсорного отклика или Bypass.
 
-Версия backend: `0.1.0-alpha.6`.
+Версия backend: `0.1.0-alpha.7`.
 
 ## Project Workflow Standard v1.0
 
@@ -71,3 +71,12 @@ python3 scripts/check_workflow_integration.py
 ## v0.1.0-alpha.6 — Thermal + Battery Trends (backend)
 
 The existing **Обновить измерение** action now decodes public Android thermal status and compares two accepted manual snapshots for thermal headroom and battery charge changes. The report explicitly separates missing data and contradictory battery gauge directions. No nominal-capacity or battery-health estimates; no Shizuku/Root or UI redesign. The same report is available through the existing share action. See [backend details](docs/BACKEND.md). The Android version is `versionCode=6`; the pinned release signer remains unchanged.
+
+## v0.1.0-alpha.7 — диагностическая SQLite-история без потери данных
+
+- **Обновление SQLite с v1 до v2:** добавляется таблица `diagnostic_samples`, старые сеансы и замеры сохраняются без изменений; нет очистки, удаления или автоподрезки.
+- **Реальные показатели:** thermal status/headroom, заряд батареи и ток, доступная RAM и температура батареи (при наличии) сохраняются после каждого успешного ручного измерения.
+- **Расчёт за несколько замеров:** по последним пяти снимкам того же сеанса вычисляются изменение температуры, диапазон температур, изменение заряда и средний темп изменения счётчика заряда. Это не мощность зарядного устройства и не диагностика износа.
+- **Sustained Performance:** поддержка видна через Android API; текущее состояние чужих игр невозможно достоверно прочитать тем же публичным API, поэтому оно отмечено как неизвестное. Legion Control ничего не активирует.
+- **Без изменений интерфейса и дизайна:** используется прежняя кнопка и текстовый отчёт, новый backend работает вне UI-потока.
+- Сохраняется постоянная подпись; `versionCode=7`. Проверка потерь данных: реальный SQLite-тест `scripts/check_diagnostic_sqlite_migration.py`.
