@@ -11,7 +11,7 @@
 
 См. `rust-core/`, `android-core/`, `docs/BACKEND.md`. Следующие шаги: Rust unit tests в CI, Android JNI сборка, затем легковесный Kotlin-интерфейс. Никаких заявлений об улучшении FPS, сенсорного отклика или Bypass.
 
-Версия backend: `0.1.0-alpha.5`.
+Версия backend: `0.1.0-alpha.6`.
 
 ## Project Workflow Standard v1.0
 
@@ -66,3 +66,8 @@ python3 scripts/check_workflow_integration.py
 ## v0.1.0-alpha.5 — подключение backend к приложению
 
 Новые public-API модули PR #6/#7 подключены к существующему действию «Обновить измерение». Результат диагностики RAM, доступного приложению раздела памяти, батареи, thermal headroom и режимов дисплея формируется вне UI-потока и добавляется в текущий отчёт/системный Sharesheet. Никаких новых экранов или дизайна: backend-first сохраняется. Новые измерения не записываются в старую SQLite-схему, она остаётся совместимой. `versionCode=5`; подпись только прежним релизным ключом, debug APK не заменяет signed release. Подробнее: [контракт backend](docs/BACKEND.md).
+
+
+## v0.1.0-alpha.6 — Thermal + Battery Trends (backend)
+
+The existing **Обновить измерение** action now decodes public Android thermal status and compares two accepted manual snapshots for thermal headroom and battery charge changes. The report explicitly separates missing data and contradictory battery gauge directions. No nominal-capacity or battery-health estimates; no Shizuku/Root or UI redesign. The same report is available through the existing share action. See [backend details](docs/BACKEND.md). The Android version is `versionCode=6`; the pinned release signer remains unchanged.
