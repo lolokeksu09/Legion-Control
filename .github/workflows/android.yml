@@ -43,6 +43,42 @@ jobs:
         run: gradle --no-daemon assembleDebug lintDebug
       - name: Validate Kotlin APK contains both Rust JNI libraries
         run: python3 scripts/verify_apk.py app/build/outputs/apk/debug/app-debug.apk
+      - name: Reject unsigned release attempt when secrets are absent
+        shell: bash
+        run: |
+          if gradle --no-daemon :app:assembleRelease > "$RUNNER_TEMP/unsigned-attempt.log" 2>&1; then
+            echo "::error::Release task incorrectly succeeded without a signing key"
+            exit 1
+          fi
+          if ! grep -Fq 'Release signing secrets missing' "$RUNNER_TEMP/unsigned-attempt.log"; then
+            tail -n 40 "$RUNNER_TEMP/unsigned-attempt.log"
+            exit 1
+          fi
+          echo "PASS: unsigned release build rejected"
+      - name: Verify release signing with a disposable CI-only certificate
+        shell: bash
+        env:
+          LEGION_RELEASE_STORE_FILE: ${{ runner.temp }}/legion-control-ci-only.p12
+          LEGION_RELEASE_STORE_PASSWORD: temporary-ci-only-pass-not-for-distribution
+          LEGION_RELEASE_KEY_ALIAS: ci-temporary-key
+          LEGION_RELEASE_KEY_PASSWORD: temporary-ci-only-pass-not-for-distribution
+        run: |
+          keytool -genkeypair -noprompt -storetype PKCS12 -keystore "$LEGION_RELEASE_STORE_FILE" \
+            -storepass "$LEGION_RELEASE_STORE_PASSWORD" -keypass "$LEGION_RELEASE_KEY_PASSWORD" \
+            -alias "$LEGION_RELEASE_KEY_ALIAS" -keyalg RSA -keysize 2048 \
+            -validity 1 -dname "CN=CI-ONLY, O=Legion Control"
+          gradle --no-daemon :app:assembleRelease
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify \
+            --verbose --print-certs app/build/outputs/apk/release/app-release.apk
+          if python3 scripts/verify_release_apk.py \
+              app/build/outputs/apk/release/app-release.apk \
+              "$ANDROID_HOME/build-tools/36.0.0/apksigner" > "$RUNNER_TEMP/reject-untrusted.log" 2>&1; then
+            echo "::error::Temporary CI certificate passed the pinned release fingerprint check"
+            exit 1
+          fi
+          grep -Fq 'MISMATCH' "$RUNNER_TEMP/reject-untrusted.log"
+          rm -f "$LEGION_RELEASE_STORE_FILE"
+          echo "PASS: disposable release certificate works and is rejected for distribution"
       - uses: actions/upload-artifact@v4
         if: success()
         with:
