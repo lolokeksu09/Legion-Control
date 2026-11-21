@@ -21,6 +21,9 @@ object DiagnosticsTextReport {
                 null -> "неизвестно"
             }
         ).append('\n')
+        append("Активность Sustained Performance Mode в других приложениях: ")
+            .append("не определяется публичным Android API\n")
+        append("Legion Control: Sustained Performance Mode не запрашивался\n")
 
         append("Активный режим дисплея: ")
             .append(capabilities.activeDisplayMode?.let(::mode) ?: "недоступно").append('\n')
