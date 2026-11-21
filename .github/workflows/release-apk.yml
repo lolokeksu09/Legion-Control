@@ -57,6 +57,7 @@ jobs:
           python3 scripts/check_resource_telemetry.py
           python3 scripts/check_diagnostics_integration.py
           python3 scripts/check_thermal_battery_trends.py
+          python3 scripts/check_diagnostic_sqlite_migration.py
       - name: Test local CSV and Russian plural formatting before release
         run: gradle --no-daemon testDebugUnitTest
       - name: Test and build real Rust native libraries
