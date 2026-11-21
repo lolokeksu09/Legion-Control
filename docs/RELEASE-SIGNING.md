@@ -15,7 +15,7 @@ Alias: `legion-control-release`. Keystore: PKCS12, RSA 4096-bit, generated 2026-
    - `LEGION_RELEASE_KEY_ALIAS`: `legion-control-release`.
    - `LEGION_RELEASE_KEY_PASSWORD`: key password (PKCS12 uses same password).
 3. After all four are saved, use `Actions → Legion Control permanently signed APK → Run workflow` **on main**. GitHub Actions restores the keystore to runner temporary storage, builds both Rust JNI targets and Android release APK, then calls `apksigner verify`, checking the pinned public certificate hash.
-4. Download the resulting `Legion-Control-v0.1.0-alpha.5-permanent-release-apk` workflow artifact. Only distribute it after checking device installation and the real functionality; do not replace it with a debug APK in a public release.
+4. Download the resulting `Legion-Control-v0.1.0-alpha.6-permanent-release-apk` workflow artifact. Only distribute it after checking device installation and the real functionality; do not replace it with a debug APK in a public release.
 
 **No release runs on pull requests.** Signed releases run for trusted `main` source pushes and may also be triggered manually on `main`. Ordinary Android pull request CI can build a debug APK with no secrets. If release secrets are not configured, the release workflow fails clearly; `:app:assembleRelease` itself refuses to run unsigned.
 
@@ -23,7 +23,7 @@ Alias: `legion-control-release`. Keystore: PKCS12, RSA 4096-bit, generated 2026-
 
 The previous `0.1.0-alpha.1` APK was **debug signed**, not signed with the permanent certificate. Android does **not** permit updates over a differently signed package. The first release-signed build requires uninstalling the older debug package before installation, potentially deleting its app data. Do this only after preserving desired data; this alpha currently retains only an in-memory Rust history, which is lost at process exit anyway.
 
-After the first permanent-release installation, subsequent releases must use **the same keystore and alias** and increasing `versionCode` (current: 5) for in-place updates. Recreating a new keystore—even using the same alias—changes the certificate and breaks update compatibility. A lost private key cannot be reconstructed from its public SHA-256 fingerprint.
+After the first permanent-release installation, subsequent releases must use **the same keystore and alias** and increasing `versionCode` (current: 6) for in-place updates. Recreating a new keystore—even using the same alias—changes the certificate and breaks update compatibility. A lost private key cannot be reconstructed from its public SHA-256 fingerprint.
 
 If certificate pin verification fails, stop: **never** bypass the check, commit a different keystore or distribute an incompatible APK as an update. Recover the saved original key or explicitly plan a separate package migration.
 
@@ -49,3 +49,8 @@ The owner's alpha.3 release-signed APK was built with the pinned certificate and
 ## Alpha.5 in-place signed update
 
 The `0.1.0-alpha.5` build uses `versionCode=5`, the **same `dev.lolokeksu.legioncontrol` package identity**, and the same pinned release certificate. SQLite remains schema v1; no destructive migration occurs. A signed alpha.5 APK may upgrade an installed alpha.4 **only when both APKs use this same signing identity**. Never uninstall an existing signed APK just to install a debug artifact. A successful GitHub test build is not itself a signed release; the protected `main` workflow must finish and verify `apksigner` before delivery.
+
+
+## Alpha.6 signed update
+
+`0.1.0-alpha.6` advances to `versionCode=6` and retains the original permanent signing certificate and application ID. The private SQLite schema stays unchanged. The mandatory protected `main` workflow must verify the certificate hash and produce the release APK before it may be called an in-place signed upgrade. Debug APKs carry an unrelated identity and cannot replace the owner's signed install without uninstallation/data loss. Public release and Y70 hardware acceptance remain separately gated.
