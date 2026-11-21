@@ -38,6 +38,7 @@ class MainActivity : Activity() {
     private var latestReport: String? = null
     // New backend probes may call OEM services; never block the Android UI thread.
     private val diagnosticsExecutor = Executors.newSingleThreadExecutor()
+    private val diagnosticTrends = DiagnosticTrendEngine()
     private var diagnosticRequestId = 0L
 
     companion object {
@@ -184,6 +185,7 @@ class MainActivity : Activity() {
                         latestReport = null
                         // Prevent a previously queued probe from restoring a cleared report.
                         diagnosticRequestId++
+                        diagnosticTrends.clear()
                         val saved = runCatching {
                             if (previousSession != null) {
                                 history.endSession(previousSession, System.currentTimeMillis())
@@ -414,13 +416,21 @@ class MainActivity : Activity() {
         // Snapshot collection runs away from the UI; no background polling.
         val requestId = ++diagnosticRequestId
         diagnosticsExecutor.execute {
-            val diagnosticText = runCatching {
-                DiagnosticsTextReport.format(DeviceDiagnosticsBackend.read(applicationContext))
-            }.getOrElse {
-                "Системная диагностика: ошибка " + it.javaClass.simpleName
+            val diagnostics = runCatching {
+                DeviceDiagnosticsBackend.read(applicationContext)
             }
             runOnUiThread {
                 if (!isDestroyed && requestId == diagnosticRequestId) {
+                    val diagnosticText = diagnostics.fold(
+                        onSuccess = { current ->
+                            val trend = diagnosticTrends.record(current, percent)
+                            DiagnosticsTextReport.format(current) + "\n\n" +
+                                DiagnosticTrendTextReport.format(trend)
+                        },
+                        onFailure = {
+                            "Системная диагностика: ошибка " + it.javaClass.simpleName
+                        }
+                    )
                     val complete = snapshot + "\n\n" + diagnosticText
                     result.text = complete
                     latestReport = reportHeader?.plus(complete)
