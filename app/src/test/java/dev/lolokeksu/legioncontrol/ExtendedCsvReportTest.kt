@@ -1,6 +1,7 @@
 package dev.lolokeksu.legioncontrol
 
 import java.io.StringWriter
+import java.time.Instant
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
@@ -58,8 +59,7 @@ class ExtendedCsvReportTest {
         assertEquals("\"diagnostic_timestamp_utc\"", columns.last())
         assertTrue(rows[1].contains("\"2\",\"0.92\",\"5531816\",\"3260000\",\"3283000\",\"6000000000\""))
         assertTrue(rows[1].contains("\"Сеть, USB \"\"C\"\"\""))
-        assertTrue(rows[1].contains("\"2027-01-15T08:00:00.100Z\"").not()) // Exact timestamp is derived from source data, not guessed.
-        assertTrue(rows[1].endsWith("\"2027-01-15T08:00:00.100Z\"").not())
+        assertTrue(rows[1].endsWith("\"" + Instant.ofEpochMilli(1_800_000_000_100L) + "\""))
         assertTrue(out.toString().startsWith("\uFEFF"))
     }
 
@@ -68,7 +68,6 @@ class ExtendedCsvReportTest {
         CsvReport.beginExtended(out)
         CsvReport.appendExtended(out, reading(), null)
         val rows = out.toString().split("\r\n").filter { it.isNotEmpty() }
-        val cells = rows[1].split(",")
         // The legacy charging-source field contains a comma; use end-of-row to check nulls.
         assertTrue(rows[1].endsWith(Array(7) { "\"\"" }.joinToString(",")))
         assertFalse(rows[1].contains("\"null\""))
