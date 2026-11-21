@@ -1,0 +1,9 @@
+# Build artifacts and machine-specific files
+.gradle/
+**/build/
+.idea/
+*.iml
+local.properties
+rust-core/target/
+app/src/main/jniLibs/
+.DS_Store
