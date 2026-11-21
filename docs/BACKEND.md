@@ -1,4 +1,4 @@
-# Legion Control backend · v0.1.0-alpha.2
+# Legion Control backend · v0.1.0-alpha.3
 
 ## First working vertical slice
 1. Kotlin Activity reads real battery percentage and temperature from Android ACTION_BATTERY_CHANGED, plus display mode from DisplayManager.
@@ -43,3 +43,12 @@ Compose UI and navigation, improved state management, installed-game discovery a
 ## Permanent release signing
 
 See [RELEASE-SIGNING.md](RELEASE-SIGNING.md): a fixed PKCS12 key, certificate pin and manual GitHub Actions release workflow. Four GitHub secrets must first be configured by the repository owner. Alpha.1 debug-signed APK cannot be upgraded directly to release-signed alpha.2 without an Android signature mismatch.
+
+
+## Alpha.3: power snapshot, native session duration and explicit reset
+
+- Rust JNI `RustEngine.readBatterySessionDuration(): Long`: exact `newest.elapsedRealtime - oldest.elapsedRealtime` in milliseconds among retained 64 user-triggered samples; returns `-1` for no samples/unavailable native state. Not true uptime, monitoring time, FPS, or battery life estimate.
+- Rust JNI `RustEngine.resetBatterySession(): Int`: number of discarded in-memory samples; `-1` on lock failure. The UI requires explicit confirmation first, and the next new sample begins a new session. No persistent data is erased, no Android settings changed.
+- Kotlin `AndroidPowerSource.read(Context, Intent?)`: Android battery broadcast reports charging status, plugged source and voltage; `BatteryManager.BATTERY_PROPERTY_CURRENT_NOW` provides current where supported, and `PowerManager.isPowerSaveMode` gives power saver state. Every unavailable value remains explicitly unknown. Current sign is manufacturer-specific and **must not** be interpreted as a Bypass switch or measured charging efficiency.
+- Share report: explicit Android `ACTION_SEND`/system chooser for the last successful on-demand snapshot. No background collection, analytics or network access by the app; recipients are chosen by the user. Reset invalidates prior shareable snapshot until next measurement.
+- No new permissions, no JNI pointer dereference, and no hidden Motorola APIs.
