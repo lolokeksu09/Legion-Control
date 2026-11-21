@@ -72,3 +72,41 @@ Source-of-truth: [HISTORY.md](HISTORY.md) and `scripts/check_persistent_history.
 - Invalid or unavailable OEM values stay unknown/absent; no synthetic fallback is inserted. The pure `CapabilitySanitizer` rejects malformed thermal codes, mode IDs, dimensions and refresh rates and deduplicates reported mode IDs.
 
 The capability probe is **not connected to `MainActivity`**: UI and manual diagnostic flow remain unchanged by owner request. Only the additive Kotlin backend API and its unit tests are in scope. `testDebugUnitTest` runs `CapabilitySnapshotTest`; physical Y70 testing must separately call `DeviceCapabilitiesBackend.read(context)` and inspect the result. No certificate, package ID, versionCode, SQLite schema, CSV format, or Rust ABI changes.
+
+
+## Resource telemetry backend (stacked on public capability probe; no UI changes)
+
+The additive `ResourceTelemetryBackend.read(context)` performs an **explicit, synchronous, read-only** public-API snapshot. It does not sample in the background, add Android permissions, write hardware settings, invoke Shizuku or Root, or modify local SQLite/CSV. The caller must invoke it off the UI thread when integrating it in a future app layer. It currently has **no `MainActivity` or user-interface integration**.
+
+The public, typed `DeviceDiagnosticsBackend.read(context)` combines the previous `DeviceCapabilitiesBackend` with this new resource snapshot. It is a library entry point, **not** proof that the Lenovo Y70 has reported these particular values.
+
+### Measurements and scope
+
+| Field | Android source | Interpret carefully |
+| --- | --- | --- |
+| `systemMemory` | `ActivityManager.getMemoryInfo` | Kernel-reported total/available RAM and Android low-memory threshold; not game-specific RAM consumption |
+| `appFilesystem` | `StatFs(context.filesDir.absolutePath)` | Available and total bytes on app-private filesystem; not every storage partition or SD card |
+| `onlineProcessorCount` | `Runtime.availableProcessors()` | Process-visible logical processors, **not** guaranteed physical SoC core count |
+| `batteryChargeCounterMicroAh` | `BatteryManager.BATTERY_PROPERTY_CHARGE_COUNTER` | OEM-reported remaining battery charge in µAh; not rated/full design capacity or health |
+| `batteryCurrentNowMicroAmps` | `BATTERY_PROPERTY_CURRENT_NOW` | Signed instantaneous current in µA; no Bypass/wattage claims |
+| `batteryCurrentAverageMicroAmps` | `BATTERY_PROPERTY_CURRENT_AVERAGE` | Signed OEM-reported averaged current; averaging window can vary |
+| `batteryEnergyCounterNanoWh` | `BATTERY_PROPERTY_ENERGY_COUNTER` | Reported remaining energy in nWh; no fabricated value when unavailable |
+| `thermalHeadroom` | `PowerManager.getThermalHeadroom(0)` | Unitless Android headroom. 1.0 denotes severe-throttling threshold, **not 100% CPU/GPU utilization or battery temperature** |
+
+The `thermalHeadroom` query has a **1500 ms process-local minimum interval** because Android advises against calling it more often than about once per second. A too-early request returns `RATE_LIMITED` with no value; a genuine Android `NaN`/invalid result stays `UNAVAILABLE`. The gate also recovers from monotonic-clock resets after reboot. This is not an automatic background loop.
+
+### Explicit field states
+
+Each field has a `ProbeResult<T>` with `state` and nullable `value`:
+- `AVAILABLE`: validated value reported by the source
+- `UNAVAILABLE`: service absent or value missing/invalid
+- `ERROR`: Android getter raised an exception
+- `RATE_LIMITED`: our own thermal gate intentionally skipped the platform query
+
+A value is present **only** in `AVAILABLE`. `0` is retained where the Android property legitimately reports zero; it is never substituted for an absent value. Counter readings do not establish battery wear, battery capacity, FPS, or thermal throttle percentage. The platform can expose incomplete or OEM-filtered information.
+
+### Verification and acceptance
+
+- Pure JVM tests: `ResourceTelemetryTest` and `ThermalHeadroomGateTest`; they include invalid values, missing sentinel codes, platform exceptions, repeated calls and clock resets.
+- Source contract: `python3 scripts/check_resource_telemetry.py`, executed in Android CI and release verification alongside the established tests.
+- PR CI must compile and test the changed Android app with JNI plus existing Rust tests. **Physical-device verification remains pending**: call `DeviceDiagnosticsBackend.read(context)` on the Lenovo Y70, inspect each `ProbeState`, inspect battery current sign while charging/discharging and verify that rapid thermal requests return `RATE_LIMITED`. No UI controls, no privilege requests and no device-state changes are introduced.
