@@ -23,6 +23,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.UUID
+import java.util.concurrent.Executors
 
 /**
  * Read-only Android snapshots -> real Rust JNI -> private SQLite.
@@ -35,6 +36,9 @@ class MainActivity : Activity() {
     private lateinit var historyView: TextView
     private lateinit var sensorsView: TextView
     private var latestReport: String? = null
+    // New backend probes may call OEM services; never block the Android UI thread.
+    private val diagnosticsExecutor = Executors.newSingleThreadExecutor()
+    private var diagnosticRequestId = 0L
 
     companion object {
         private const val REQUEST_EXPORT_CSV = 4001
@@ -178,6 +182,8 @@ class MainActivity : Activity() {
                         val previousSession = ActiveSession.id
                         ActiveSession.id = null
                         latestReport = null
+                        // Prevent a previously queued probe from restoring a cleared report.
+                        diagnosticRequestId++
                         val saved = runCatching {
                             if (previousSession != null) {
                                 history.endSession(previousSession, System.currentTimeMillis())
@@ -398,16 +404,35 @@ class MainActivity : Activity() {
         output.append("Локальная история: ").append(persisted).append("\n\n")
         output.append("Данные только по запросу; нет управления системой или Bypass.")
         val snapshot = output.toString()
-        result.text = snapshot
-        latestReport = if (rust.isSuccess) {
+        val reportHeader = if (rust.isSuccess) {
             "Legion Control · локальный отчёт\n" +
-                DateFormat.getDateTimeInstance().format(Date(recordedAtMs)) + "\n\n" +
-                snapshot
+                DateFormat.getDateTimeInstance().format(Date(recordedAtMs)) + "\n\n"
         } else null
+        latestReport = reportHeader?.plus(snapshot)
+        result.text = snapshot + "\n\nСистемная диагностика: выполняется…"
+        // Existing manual measurement is the only trigger for the new backend.
+        // Snapshot collection runs away from the UI; no background polling.
+        val requestId = ++diagnosticRequestId
+        diagnosticsExecutor.execute {
+            val diagnosticText = runCatching {
+                DiagnosticsTextReport.format(DeviceDiagnosticsBackend.read(applicationContext))
+            }.getOrElse {
+                "Системная диагностика: ошибка " + it.javaClass.simpleName
+            }
+            runOnUiThread {
+                if (!isDestroyed && requestId == diagnosticRequestId) {
+                    val complete = snapshot + "\n\n" + diagnosticText
+                    result.text = complete
+                    latestReport = reportHeader?.plus(complete)
+                }
+            }
+        }
         showSavedHistory()
     }
 
     override fun onDestroy() {
+        diagnosticRequestId++
+        diagnosticsExecutor.shutdownNow()
         super.onDestroy()
         if (::historyView.isInitialized) {
             runCatching { history.close() }
