@@ -137,3 +137,11 @@ The existing `MainActivity.sample()` action invokes the public-API diagnostic ba
 **Verification:** `DiagnosticTrendEngineTest` checks valid trends, absent input, disagreement, short intervals, clock rollback and reset. `scripts/check_thermal_battery_trends.py` guards the app's actual call path. Android debug CI and permanent signer pipeline run those contracts and JVM tests. A physical Y70 repeat measurement is still required to validate the displayed values and signed APK installation.
 
 The new comparison's first accepted reading is explicitly a baseline, not a zero-delta measurement. Subsequent accepted readings are shown in the same shareable manual report; no historical backfill from the separate SQLite store is assumed. This distinction also makes stale async results harmless after reset.
+
+## Alpha.7 diagnostic-history integration and Supported-vs-Active state
+
+`LocalHistoryStore` upgrades the private on-device database from v1 to v2 by adding `diagnostic_samples`, linked to the existing `samples(session_id, elapsed_ms)` unique key. The old schema and data are not rewritten; no empty or unknown values are manufactured. `DiagnosticHistorySchema.fromSnapshot` captures only source-reported Android measurements. The diagnostic executor writes each successful sample and reads the latest five samples of the same session to produce `DiagnosticSessionSummary` alongside the existing report/share output. The original CSV export remains unchanged; diagnostic values are persisted locally and included in the normal share report.
+
+`isSustainedPerformanceModeSupported` is a **support** query only, not a read of whether some other game's `Window.setSustainedPerformanceMode` flag is active. Legion Control never requests sustained mode, and reports other-app activation as unavailable. No privilege or special OEM access is assumed. <https://developer.android.com/reference/android/os/PowerManager#isSustainedPerformanceModeSupported()>
+
+`versionCode=7` retains `dev.lolokeksu.legioncontrol`, the permanent signing certificate and native Rust ABI. Migration test executes real SQLite DDL before PR merge; signed release and physical-device update remain separate gates.
