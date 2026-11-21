@@ -11,7 +11,7 @@
 
 См. `rust-core/`, `android-core/`, `docs/BACKEND.md`. Следующие шаги: Rust unit tests в CI, Android JNI сборка, затем легковесный Kotlin-интерфейс. Никаких заявлений об улучшении FPS, сенсорного отклика или Bypass.
 
-Версия backend: `0.1.0-alpha.7`.
+Версия backend: `0.1.0-alpha.8`.
 
 ## Project Workflow Standard v1.0
 
@@ -80,3 +80,7 @@ The existing **Обновить измерение** action now decodes public A
 - **Sustained Performance:** поддержка видна через Android API; текущее состояние чужих игр невозможно достоверно прочитать тем же публичным API, поэтому оно отмечено как неизвестное. Legion Control ничего не активирует.
 - **Без изменений интерфейса и дизайна:** используется прежняя кнопка и текстовый отчёт, новый backend работает вне UI-потока.
 - Сохраняется постоянная подпись; `versionCode=7`. Проверка потерь данных: реальный SQLite-тест `scripts/check_diagnostic_sqlite_migration.py`.
+
+## v0.1.0-alpha.8 — расширенный CSV-экспорт
+
+Через прежнюю кнопку **«Сохранить историю в CSV»** теперь экспортируются все старые измерения и семь дополнительных полей диагностики: `thermal_status`, `thermal_headroom`, `charge_counter_micro_ah`, `current_now_micro_a`, `current_average_micro_a`, `ram_available_bytes`, `diagnostic_timestamp_utc`. Первые 13 столбцов сохранены в прежнем порядке; старые записи без диагностики получают пустые поля, не нули. Экспорт потоковый, через системный выбор файла и без разрешений на хранилище. SQLite остаётся v2, история не удаляется. Версия APK `0.1.0-alpha.8`, `versionCode=8` с прежней релизной подписью. Новый функционал прежде изменений дизайна; без Shizuku и Root.
