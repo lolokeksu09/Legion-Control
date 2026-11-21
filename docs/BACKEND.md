@@ -18,7 +18,7 @@ Native returns `-1` for invalid sensor input, including out-of-order timestamps.
 No server, network requests, Root, Shizuku, Motorola Binder calls, thermal writes, boot receiver or telemetry. Data is processed on device. Rust history is *ephemeral* and resets when the process ends. These are individual user-triggered samples, **not** continuous monitoring or a battery health diagnosis.
 
 ## Build locally
-Requires Rust stable + `aarch64-linux-android` / `x86_64-linux-android` targets, Android NDK 28.2.13676358, SDK 37, JDK 17, Gradle 9.6.0 (setup-gradle in CI). Build on Linux or macOS:
+Requires Rust stable + `aarch64-linux-android` / `x86_64-linux-android` targets, Android NDK 28.2.13676358, SDK 36, JDK 17, Gradle 9.6.0 (setup-gradle in CI). Build on Linux or macOS:
 
 ```sh
 bash scripts/build-native.sh
