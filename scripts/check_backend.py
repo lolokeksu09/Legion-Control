@@ -21,7 +21,7 @@ rust = (root / "rust-core/src/lib.rs").read_text(encoding="utf-8")
 assert "System.loadLibrary(\"legion_core\")" in kotlin
 assert "private external fun recordBatterySample(" in kotlin
 assert "Java_dev_lolokeksu_legioncontrol_RustEngine_recordBatterySample" in rust
-assert "engine.record(percent, deciC, SystemClock.elapsedRealtime())" in activity
+assert "engine.record(percent, temp, SystemClock.elapsedRealtime())" in activity
 assert "ACTION_BATTERY_CHANGED" in activity
 assert "DisplayManager" in activity
 assert "HISTORY_LIMIT: usize = 64" in rust
