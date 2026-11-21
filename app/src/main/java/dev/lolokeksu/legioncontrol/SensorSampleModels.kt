@@ -165,7 +165,7 @@ object SensorSampleReport {
             }
             append(" · событий=").append(outcome.eventCount)
             append(" · отброшено=").append(outcome.rejectedEvents)
-            outcome.latencyMs?.let { append(" · задержка=").append(it).append(" мс" }
+            outcome.latencyMs?.let { append(" · задержка=").append(it).append(" мс") }
             outcome.rejectionReason?.let { append(" · причина=").append(it.name) }
             append(" · режим=").append(mode(outcome.reportingMode))
             outcome.sensorName?.let { append(" · ").append(it) }
