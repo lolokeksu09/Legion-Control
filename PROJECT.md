@@ -76,3 +76,8 @@ One-shot, user-triggered SensorManager capture (accelerometer, gyroscope, light,
 ## Alpha.11 — большой backend-first патч (2026-11-22)
 
 Цель: исправить недостаточную диагностику события освещённости в alpha.10 без обещания отсутствующих OEM-сигналов. Backend фиксирует timestamp, число полученных и отвергнутых SensorEvent, причину фильтрации, режим датчика и latency. Свету предоставляется один дополнительный 3-секундный интервал; остальные датчики завершаются за 3 с. События не берутся из кэша и не измеряются в фоне. Все завершённые результаты, включая отсутствие событий, атомарно сохраняются в новой SQLite таблице с обновлением v1/v2/v3→v4 без удаления старых данных. Тепловая история использует уже сохранённые ручные диагностические значения, а не создаёт периодическую телеметрию. Прежние 20-колоночный CSV, Rust JNI, разрешения и постоянный сертификат не меняются. Разработку ведём: сначала новые реально работающие backend-функции, потом совместимость/тесты, лишь затем визуал.
+
+
+## Alpha.12 — backend-first extension (2026-11-22)
+
+New functionality: bounded analytics from saved real sensor attempts and battery session readings. No inferred sampling rate, FPS or long-term battery prognosis. Stream a complete user-requested diagnostics ZIP containing original battery CSV, all sensor outcomes, real values and thermal history. No new Android permission, network, background monitoring or SQLite migration (v4 unchanged). All DB reads/exports and legacy battery storage execute on the existing single executor; the main battery insertion precedes the FK-linked diagnostic insertion and Rust session close. Verify with new JVM/SQL tests and existing full CI plus physical Lenovo Y70 acceptance.

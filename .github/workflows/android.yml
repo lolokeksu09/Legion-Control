@@ -57,6 +57,8 @@ jobs:
         run: python3 scripts/check_sensor_sqlite_migration.py
       - name: Validate alpha.11 v1-v3 to v4 SQLite attempt history and thermal integration
         run: python3 scripts/check_alpha11_diagnostics.py
+      - name: Execute alpha.12 SQLite queries and nonblocking diagnostics archive contract
+        run: python3 scripts/check_alpha12_integration.py
       - name: Run pure Kotlin CSV and Russian plural regression tests
         run: gradle --no-daemon testDebugUnitTest
       - name: Test and compile real Rust backend for Android
@@ -104,6 +106,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: success()
         with:
-          name: Legion-Control-v0.1.0-alpha.11-kotlin-rust-debug
+          name: Legion-Control-v0.1.0-alpha.12-kotlin-rust-debug
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error

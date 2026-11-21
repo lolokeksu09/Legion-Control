@@ -179,3 +179,12 @@ The manual SensorManager capture now reports each sensor's Android reporting mod
 SQLite schema v4 adds sensor_probe_attempts while retaining battery sessions, diagnostic_samples, and sensor_samples; one capture transaction writes valid samples and each completed probe outcome. Older v3 sensor events have no manufactured historical attempt records. The existing diagnostic_samples joined to samples supplies the new thermal timeline; ThermalHistoryReport operates on actual recorded battery-temperature/status/headroom values, derives temperature range and bounded comparisons, and marks current SEVERE statuses with a warning. No new thermal read, polling, service, Root/Shizuku, FPS or CPU/GPU temperature claim.
 
 Acceptance: test python3 scripts/check_alpha11_diagnostics.py, JVM SensorSampleTest and ThermalHistoryReportTest, legacy SQLite/CSV checks, native Rust build and signed APK certificate. On target Lenovo Y70 verify 1) one-shot capture and bounded light wait, 2) retained history across in-place update and process restart, 3) saved statuses for timed-out sensors, 4) thermal history drawn from actual manual records, 5) sensor listeners released on Activity stop. On-device checks are separate from CI.
+
+
+## Alpha.12 — saved analytics and diagnostic ZIP
+
+SensorQualityAnalytics groups the newest 400 completed manual sensor attempts, reporting observed successful and failed attempts, rejected events and average latency among successful captures; not sensor hardware uptime. SessionAnalytics compares the last 250 readings of the most recent saved Rust session, reporting measured battery percent and temperature changes, recorded refresh Hz range and power-saver state counts without extrapolation.
+
+DiagnosticArchive writes five ZIP entries via ZipOutputStream: battery.csv (exact existing 20-column format), sensor-attempts.csv, sensor-values.csv, thermal-history.csv and README.txt. Each SQLite cursor streams into its entry; only text from untrusted OEM labels receives formula protection, null numeric values stay empty. Android SAF chooses the output file on user action, no external storage permission, network request or background observer.
+
+MainActivity serializes reads and exports through the existing executor. Main battery persistence now happens on that executor before the FK-dependent diagnostic row, and Rust session completion queues its database update after prior work. Stale UI updates are guarded by request identity and Activity destruction. Existing SQLite v4 schema and Rust JNI unchanged.

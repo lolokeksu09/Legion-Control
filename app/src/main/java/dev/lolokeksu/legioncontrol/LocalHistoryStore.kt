@@ -411,6 +411,139 @@ class LocalHistoryStore(context: Context) : SQLiteOpenHelper(
         return count
     }
 
+    /**
+     * Most recent saved Rust session only; bounded reads prevent growing memory.
+     * Every point came from a manual battery reading, not a sampling service.
+     */
+    fun latestSessionReadings(limit: Int = 250): List<StoredReading> {
+        require(limit in 1..1000)
+        val readings = mutableListOf<StoredReading>()
+        readableDatabase.rawQuery(
+            """SELECT m.session_id,m.recorded_at_ms,m.elapsed_ms,m.percent,
+                      m.temperature_deci_c,m.charging_status,m.charging_source,
+                      m.voltage_mv,m.current_ua,m.power_saving,m.refresh_hz,
+                      m.width_px,m.height_px
+               FROM samples m
+               WHERE m.session_id = (
+                   SELECT id FROM sessions
+                   ORDER BY started_at_ms DESC, rowid DESC LIMIT 1
+               )
+               ORDER BY m.elapsed_ms DESC, m.id DESC
+               LIMIT ?""", arrayOf(limit.toString())
+        ).use { cursor ->
+            while (cursor.moveToNext()) readings += cursor.asStoredReading()
+        }
+        return readings.asReversed()
+    }
+
+    fun latestSessionReadingCount(): Long = DatabaseUtils.longForQuery(
+        readableDatabase,
+        """SELECT COUNT(*) FROM samples WHERE session_id = (
+               SELECT id FROM sessions ORDER BY started_at_ms DESC, rowid DESC LIMIT 1
+           )""",
+        null
+    )
+
+    /** Recent, completed attempts, including failures that produced no measurements. */
+    fun recentSensorAttempts(limit: Int = 400): List<SavedSensorAttempt> {
+        require(limit in 1..2000)
+        val result = mutableListOf<SavedSensorAttempt>()
+        readableDatabase.rawQuery(
+            """SELECT kind,state,recorded_at_ms,event_count,rejected_events,
+                      latency_ms,timeout_ms,reporting_mode,sensor_name,rejection_reason
+               FROM sensor_probe_attempts
+               ORDER BY id DESC LIMIT ?""", arrayOf(limit.toString())
+        ).use { cursor ->
+            while (cursor.moveToNext()) {
+                val kind = SensorKind.fromType(cursor.getInt(0)) ?: continue
+                result += SavedSensorAttempt(
+                    kind = kind,
+                    state = SensorProbeState.valueOf(cursor.getString(1)),
+                    recordedAtMs = cursor.getLong(2),
+                    eventCount = cursor.getInt(3),
+                    rejectedEvents = cursor.getInt(4),
+                    latencyMs = if (cursor.isNull(5)) null else cursor.getLong(5),
+                    timeoutMs = cursor.getLong(6),
+                    reportingMode = if (cursor.isNull(7)) null else cursor.getInt(7),
+                    sensorName = if (cursor.isNull(8)) null else cursor.getString(8),
+                    rejectionReason = if (cursor.isNull(9)) null else cursor.getString(9)
+                )
+            }
+        }
+        return result
+    }
+
+    /** Five self-describing ZIP entries, preserving the original battery CSV. */
+    fun writeDiagnosticArchive(output: java.io.OutputStream): DiagnosticArchiveCounts =
+        DiagnosticArchive.write(
+            output,
+            batteryCsv = ::writeCsv,
+            attemptsCsv = ::writeSensorAttemptsCsv,
+            sensorsCsv = ::writeSensorValuesCsv,
+            thermalCsv = ::writeThermalHistoryCsv
+        )
+
+    private fun writeSensorAttemptsCsv(writer: Writer): Int = streamDiagnosticCsv(
+        writer,
+        listOf(
+            "capture_id", "sensor_type", "recorded_at_ms", "state",
+            "event_count", "rejected_events", "latency_ms", "timeout_ms",
+            "reporting_mode", "sensor_name", "rejection_reason"
+        ),
+        """SELECT capture_id,kind,recorded_at_ms,state,event_count,rejected_events,
+                  latency_ms,timeout_ms,reporting_mode,sensor_name,rejection_reason
+           FROM sensor_probe_attempts ORDER BY id ASC""",
+        untrustedText = setOf(9)
+    )
+
+    private fun writeSensorValuesCsv(writer: Writer): Int = streamDiagnosticCsv(
+        writer,
+        listOf(
+            "capture_id", "sensor_type", "recorded_at_ms", "event_timestamp_ns",
+            "accuracy", "x", "y", "z"
+        ),
+        """SELECT capture_id,kind,recorded_at_ms,event_timestamp_ns,accuracy,x,y,z
+           FROM sensor_samples ORDER BY id ASC"""
+    )
+
+    private fun writeThermalHistoryCsv(writer: Writer): Int = streamDiagnosticCsv(
+        writer,
+        listOf(
+            "session_id", "recorded_at_ms", "battery_temperature_deci_c",
+            "thermal_status", "thermal_headroom"
+        ),
+        """SELECT s.session_id,s.recorded_at_ms,s.temperature_deci_c,
+                  d.thermal_status,d.thermal_headroom
+           FROM samples s
+           LEFT JOIN diagnostic_samples d
+             ON d.session_id=s.session_id AND d.elapsed_ms=s.elapsed_ms
+           ORDER BY s.recorded_at_ms ASC,s.id ASC"""
+    )
+
+    private fun streamDiagnosticCsv(
+        writer: Writer,
+        header: List<String>,
+        sql: String,
+        untrustedText: Set<Int> = emptySet()
+    ): Int {
+        DiagnosticArchiveCsv.begin(writer, header)
+        var count = 0
+        readableDatabase.rawQuery(sql, null).use { cursor ->
+            while (cursor.moveToNext()) {
+                DiagnosticArchiveCsv.append(
+                    writer,
+                    (0 until cursor.columnCount).map { i ->
+                        if (cursor.isNull(i)) "" else cursor.getString(i)
+                    },
+                    untrustedText
+                )
+                count++
+            }
+        }
+        writer.flush()
+        return count
+    }
+
     private fun Cursor.asDiagnosticStoredSampleOrNull(): DiagnosticStoredSample? {
         // A LEFT JOIN with no matching diagnostic yields SQL NULL for all d.* columns.
         if (isNull(13)) return null
