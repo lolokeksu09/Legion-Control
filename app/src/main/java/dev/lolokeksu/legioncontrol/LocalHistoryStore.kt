@@ -13,7 +13,7 @@ import java.io.Writer
  * No storage permission, cloud sync, destructive migration or silent pruning.
  */
 class LocalHistoryStore(context: Context) : SQLiteOpenHelper(
-    context.applicationContext, "legion-control-history.db", null, SensorHistorySchema.VERSION
+    context.applicationContext, "legion-control-history.db", null, SensorDiagnosticsSchema.VERSION
 ) {
     override fun onConfigure(db: SQLiteDatabase) {
         super.onConfigure(db)
@@ -50,16 +50,23 @@ class LocalHistoryStore(context: Context) : SQLiteOpenHelper(
         db.execSQL("CREATE INDEX idx_samples_session ON samples(session_id, recorded_at_ms)")
         installDiagnostics(db)
         installSensors(db)
+        installSensorAttempts(db)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        if (oldVersion == 1 && newVersion == SensorHistorySchema.VERSION) {
+        if (oldVersion == 1 && newVersion == SensorDiagnosticsSchema.VERSION) {
             installDiagnostics(db)
             installSensors(db)
+            installSensorAttempts(db)
             return
         }
-        if (oldVersion == 2 && newVersion == SensorHistorySchema.VERSION) {
+        if (oldVersion == 2 && newVersion == SensorDiagnosticsSchema.VERSION) {
             installSensors(db)
+            installSensorAttempts(db)
+            return
+        }
+        if (oldVersion == 3 && newVersion == SensorDiagnosticsSchema.VERSION) {
+            installSensorAttempts(db)
             return
         }
         throw IllegalStateException("No safe migration from $oldVersion to $newVersion")
@@ -73,6 +80,11 @@ class LocalHistoryStore(context: Context) : SQLiteOpenHelper(
     private fun installSensors(db: SQLiteDatabase) {
         db.execSQL(SensorHistorySchema.CREATE_TABLE.trimIndent())
         db.execSQL(SensorHistorySchema.CREATE_INDEX)
+    }
+
+    private fun installSensorAttempts(db: SQLiteDatabase) {
+        db.execSQL(SensorDiagnosticsSchema.CREATE_TABLE.trimIndent())
+        db.execSQL(SensorDiagnosticsSchema.CREATE_INDEX)
     }
 
     fun record(reading: StoredReading): Boolean {
@@ -178,45 +190,100 @@ class LocalHistoryStore(context: Context) : SQLiteOpenHelper(
         return rows.asReversed()
     }
 
-    /** Capture history is separate from Rust battery sessions. Commit atomically. */
-    fun recordSensorCapture(captureId: String, samples: List<SensorSample>): Int {
-        require(captureId.isNotBlank() && captureId.length <= 100)
-        require(samples.distinctBy { it.kind }.size == samples.size)
-        if (samples.isEmpty()) return 0
-        samples.forEach {
-            require(it.eventTimestampNs > 0 && it.recordedAtMs > 0 && it.accuracy in -1..3)
-            require(it.values.size == it.kind.dimensions &&
-                it.values.all { value -> value.isFinite() })
+    /**
+     * Atomic insert of accepted sensor values AND unsuccessful attempts.
+     * Duplicate capture IDs remain idempotent; no fabricated sample rows.
+     */
+    fun recordSensorCapture(capture: SensorCaptureResult): Int {
+        require(capture.captureId.isNotBlank() && capture.captureId.length <= 100)
+        require(capture.recordedAtMs > 0L)
+        require(capture.outcomes.map { it.kind }.distinct().size == capture.outcomes.size)
+        capture.outcomes.forEach { outcome ->
+            val sample = outcome.sample ?: return@forEach
+            require(sample.eventTimestampNs > 0L && sample.recordedAtMs > 0L)
+            require(sample.accuracy in -1..3)
+            require(sample.values.size == sample.kind.dimensions)
+            require(sample.values.all { it.isFinite() && kotlin.math.abs(it) <= 1_000_000f })
         }
         val db = writableDatabase
         db.beginTransaction()
         try {
             var count = 0
-            for (sample in samples) {
-                val values = ContentValues().apply {
-                    put("capture_id", captureId)
-                    put("kind", sample.kind.type)
-                    put("recorded_at_ms", sample.recordedAtMs)
-                    put("event_timestamp_ns", sample.eventTimestampNs)
-                    put("accuracy", sample.accuracy)
-                    put("x", sample.values[0])
-                    if (sample.kind.dimensions == 3) {
-                        put("y", sample.values[1])
-                        put("z", sample.values[2])
-                    } else {
-                        putNull("y")
-                        putNull("z")
+            for (outcome in capture.outcomes) {
+                outcome.sample?.let { sample ->
+                    val values = ContentValues().apply {
+                        put("capture_id", capture.captureId)
+                        put("kind", sample.kind.type)
+                        put("recorded_at_ms", sample.recordedAtMs)
+                        put("event_timestamp_ns", sample.eventTimestampNs)
+                        put("accuracy", sample.accuracy)
+                        put("x", sample.values[0])
+                        if (sample.kind.dimensions == 3) {
+                            put("y", sample.values[1])
+                            put("z", sample.values[2])
+                        } else {
+                            putNull("y")
+                            putNull("z")
+                        }
                     }
+                    if (db.insertWithOnConflict(
+                            "sensor_samples", null, values, SQLiteDatabase.CONFLICT_IGNORE
+                        ) != -1L) count++
                 }
-                if (db.insertWithOnConflict(
-                        "sensor_samples", null, values, SQLiteDatabase.CONFLICT_IGNORE
-                    ) != -1L) count++
+                val attempt = ContentValues().apply {
+                    put("capture_id", capture.captureId)
+                    put("kind", outcome.kind.type)
+                    put("recorded_at_ms", capture.recordedAtMs)
+                    put("state", outcome.state.name)
+                    put("event_count", outcome.eventCount)
+                    put("rejected_events", outcome.rejectedEvents)
+                    if (outcome.latencyMs == null) putNull("latency_ms")
+                    else put("latency_ms", outcome.latencyMs)
+                    put("timeout_ms", outcome.timeoutMs)
+                    if (outcome.reportingMode == null) putNull("reporting_mode")
+                    else put("reporting_mode", outcome.reportingMode)
+                    if (outcome.sensorName == null) putNull("sensor_name")
+                    else put("sensor_name", outcome.sensorName.take(80))
+                    if (outcome.rejectionReason == null) putNull("rejection_reason")
+                    else put("rejection_reason", outcome.rejectionReason.name)
+                }
+                db.insertWithOnConflict(
+                    "sensor_probe_attempts", null, attempt, SQLiteDatabase.CONFLICT_IGNORE
+                )
             }
             db.setTransactionSuccessful()
             return count
         } finally {
             db.endTransaction()
         }
+    }
+
+    /** Last attempted capture for each sensor, including failed and missing reads. */
+    fun lastSensorAttempts(): Map<SensorKind, SavedSensorAttempt> {
+        val last = mutableMapOf<SensorKind, SavedSensorAttempt>()
+        readableDatabase.rawQuery(
+            """SELECT kind,state,recorded_at_ms,event_count,rejected_events,
+               latency_ms,timeout_ms,reporting_mode,sensor_name,rejection_reason
+               FROM sensor_probe_attempts ORDER BY id DESC""", null
+        ).use { cursor ->
+            while (cursor.moveToNext() && last.size < SensorKind.entries.size) {
+                val kind = SensorKind.fromType(cursor.getInt(0)) ?: continue
+                if (kind in last) continue
+                last[kind] = SavedSensorAttempt(
+                    kind = kind,
+                    state = SensorProbeState.valueOf(cursor.getString(1)),
+                    recordedAtMs = cursor.getLong(2),
+                    eventCount = cursor.getInt(3),
+                    rejectedEvents = cursor.getInt(4),
+                    latencyMs = if (cursor.isNull(5)) null else cursor.getLong(5),
+                    timeoutMs = cursor.getLong(6),
+                    reportingMode = if (cursor.isNull(7)) null else cursor.getInt(7),
+                    sensorName = if (cursor.isNull(8)) null else cursor.getString(8),
+                    rejectionReason = if (cursor.isNull(9)) null else cursor.getString(9)
+                )
+            }
+        }
+        return last
     }
 
     fun sensorSampleCount(): Long = DatabaseUtils.longForQuery(
@@ -243,6 +310,34 @@ class LocalHistoryStore(context: Context) : SQLiteOpenHelper(
             }
         }
         return last
+    }
+
+    /**
+     * Reuses existing v1 battery + v2 diagnostic rows; no invented thermal history
+     * and no new sampling, permissions or extra thermal API calls.
+     */
+    fun recentThermalReadings(limit: Int = 12): List<ThermalHistoryItem> {
+        require(limit in 1..100)
+        val results = mutableListOf<ThermalHistoryItem>()
+        readableDatabase.rawQuery(
+            """SELECT s.recorded_at_ms, s.temperature_deci_c,
+                      d.thermal_status, d.thermal_headroom
+               FROM samples AS s
+               LEFT JOIN diagnostic_samples AS d
+                 ON d.session_id = s.session_id AND d.elapsed_ms = s.elapsed_ms
+               ORDER BY s.recorded_at_ms DESC, s.id DESC
+               LIMIT ?""", arrayOf(limit.toString())
+        ).use { cursor ->
+            while (cursor.moveToNext()) {
+                results += ThermalHistoryItem(
+                    recordedAtMs = cursor.getLong(0),
+                    batteryTemperatureDeciC = if (cursor.isNull(1)) null else cursor.getInt(1),
+                    thermalStatus = if (cursor.isNull(2)) null else cursor.getInt(2),
+                    thermalHeadroom = if (cursor.isNull(3)) null else cursor.getFloat(3)
+                )
+            }
+        }
+        return results
     }
 
     fun endSession(sessionId: String, endedAtMs: Long) {
