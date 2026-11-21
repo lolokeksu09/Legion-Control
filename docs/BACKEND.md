@@ -60,3 +60,15 @@ Kotlin uses a private `SQLiteOpenHelper` database, `legion-control-history.db`, 
 Android `ACTION_CREATE_DOCUMENT` invokes the user-controlled Storage Access Framework to stream all rows as CSV (UTF-8 with BOM, CRLF, fully quoted values and empty cells for missing readings). No background exports or remote recipients. `SensorManager.getDefaultSensor` reports discoverability only and is not a live sensor recording. Battery temperatures and CPU/GPU temperatures are distinct. All new checks remain public API/read-only.
 
 Source-of-truth: [HISTORY.md](HISTORY.md) and `scripts/check_persistent_history.py`. JVM regressions: `gradle testDebugUnitTest`; physical Android SQLite/SAF behavior requires separate device validation.
+
+
+## Public API capability probe (backend-only, pending device acceptance)
+
+`DeviceCapabilitiesBackend.read(context)` collects a snapshot on explicit invocation. It uses only `PowerManager` and `DisplayManager` public APIs, requires **no permissions, Shizuku or Root**, and does not alter device settings or start monitoring.
+
+- `thermalStatus`: Android's reported `getCurrentThermalStatus()` code (0–6), or `null` when unavailable/invalid. This is **not** a CPU/GPU temperature, a throttle percentage, or a guarantee that the OEM exposes every severity transition.
+- `sustainedPerformanceSupported`: Android's read-only `isSustainedPerformanceModeSupported()`, or `null` on failure. This does not enable sustained-performance mode.
+- `activeDisplayMode` and `supportedDisplayModes`: modes reported by the primary Android display, with mode ID, physical dimensions and nominal refresh rate. These are **not** measured app FPS, touch sampling rate, or permission to change the display mode. The reported supported modes can be affected by Android version and OEM filtering.
+- Invalid or unavailable OEM values stay unknown/absent; no synthetic fallback is inserted. The pure `CapabilitySanitizer` rejects malformed thermal codes, mode IDs, dimensions and refresh rates and deduplicates reported mode IDs.
+
+The capability probe is **not connected to `MainActivity`**: UI and manual diagnostic flow remain unchanged by owner request. Only the additive Kotlin backend API and its unit tests are in scope. `testDebugUnitTest` runs `CapabilitySnapshotTest`; physical Y70 testing must separately call `DeviceCapabilitiesBackend.read(context)` and inspect the result. No certificate, package ID, versionCode, SQLite schema, CSV format, or Rust ABI changes.
