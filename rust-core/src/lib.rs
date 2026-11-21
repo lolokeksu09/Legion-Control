@@ -79,6 +79,21 @@ impl BatteryHistory {
         })
     }
 
+    /// Number of user-triggered samples discarded from process-only history.
+    pub fn clear(&mut self) -> usize {
+        let count = self.samples.len();
+        self.samples.clear();
+        count
+    }
+
+    /// Actual duration between the oldest and newest retained monotonic samples.
+    /// No extrapolation or background measurement.
+    pub fn duration_ms(&self) -> Option<i64> {
+        let oldest = self.samples.front()?;
+        let newest = self.samples.back()?;
+        newest.timestamp_ms.checked_sub(oldest.timestamp_ms)
+    }
+
     fn trend(&self) -> BatteryTrend {
         let first = self.samples.front().expect("trend requires a sample");
         let last = self.samples.back().expect("trend requires a sample");
@@ -140,6 +155,31 @@ pub extern "system" fn Java_dev_lolokeksu_legioncontrol_RustEngine_readBatteryWi
     let Some(history) = HISTORY.get() else { return INVALID_NATIVE_RESULT };
     let Ok(guard) = history.lock() else { return INVALID_NATIVE_RESULT };
     guard.statistics().map(encode_window_stats).unwrap_or(INVALID_NATIVE_RESULT)
+}
+
+/// Explicit user-requested reset; only local, in-memory samples are cleared.
+/// A negative return means the lock was unavailable.
+#[no_mangle]
+#[allow(non_snake_case)]
+pub extern "system" fn Java_dev_lolokeksu_legioncontrol_RustEngine_resetBatterySession(
+    _env: *mut c_void,
+    _receiver: *mut c_void,
+) -> i32 {
+    let history = HISTORY.get_or_init(|| Mutex::new(BatteryHistory::default()));
+    let Ok(mut guard) = history.lock() else { return -1 };
+    guard.clear() as i32
+}
+
+/// Read only: returns -1 when there are no recorded samples or lock is unavailable.
+#[no_mangle]
+#[allow(non_snake_case)]
+pub extern "system" fn Java_dev_lolokeksu_legioncontrol_RustEngine_readBatterySessionDuration(
+    _env: *mut c_void,
+    _receiver: *mut c_void,
+) -> i64 {
+    let Some(history) = HISTORY.get() else { return INVALID_NATIVE_RESULT };
+    let Ok(guard) = history.lock() else { return INVALID_NATIVE_RESULT };
+    guard.duration_ms().unwrap_or(INVALID_NATIVE_RESULT)
 }
 
 #[cfg(test)]
@@ -230,6 +270,36 @@ mod tests {
         assert_eq!(metrics.min_temperature_deci_c, 250);
         assert_eq!(metrics.max_temperature_deci_c, 250);
         assert_eq!(metrics.mean_temperature_deci_c, 250);
+    }
+
+    #[test]
+    fn duration_is_based_on_actual_samples_and_reset_removes_them() {
+        let mut history = BatteryHistory::default();
+        assert_eq!(history.duration_ms(), None);
+        assert_eq!(history.clear(), 0);
+        history.record(sample(75, 300, 10_000)).unwrap();
+        assert_eq!(history.duration_ms(), Some(0));
+        history.record(sample(74, 315, 12_500)).unwrap();
+        assert_eq!(history.duration_ms(), Some(2500));
+        assert_eq!(history.clear(), 2);
+        assert_eq!(history.duration_ms(), None);
+        assert_eq!(history.statistics(), None);
+        // After an explicit reset, a new monotonic session can start independently.
+        history.record(sample(60, 270, 1_000)).unwrap();
+        assert_eq!(history.duration_ms(), Some(0));
+        assert_eq!(history.statistics().unwrap().count, 1);
+    }
+
+    #[test]
+    fn duration_uses_only_retained_window_when_older_samples_roll_out() {
+        let mut history = BatteryHistory::default();
+        for seconds in 1..=70 {
+            history.record(sample(50, 250, seconds * 1_000)).unwrap();
+        }
+        assert_eq!(history.statistics().unwrap().count, 64);
+        assert_eq!(history.duration_ms(), Some(63_000));
+        assert_eq!(history.clear(), 64);
+        assert_eq!(history.clear(), 0);
     }
 
     #[test]
