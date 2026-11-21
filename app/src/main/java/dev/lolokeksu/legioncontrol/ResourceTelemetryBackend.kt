@@ -17,10 +17,11 @@ object ResourceTelemetryBackend {
 
     fun read(context: Context): ResourceTelemetrySnapshot {
         val elapsed = SystemClock.elapsedRealtime()
-        val battery = try {
-            context.getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
+        val battery: ProbeResult<BatteryManager> = try {
+            val service = context.getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
+            if (service == null) ProbeResult.unavailable() else ProbeResult.available(service)
         } catch (_: Exception) {
-            null
+            ProbeResult.failure()
         }
 
         return ResourceTelemetrySnapshot(
@@ -43,12 +44,12 @@ object ResourceTelemetryBackend {
                 battery, BatteryManager.BATTERY_PROPERTY_CURRENT_AVERAGE,
                 TelemetryValidation::currentMicroAmps
             ),
-            batteryEnergyCounterNanoWh = if (battery == null) {
-                ProbeResult.unavailable()
-            } else ProbeResult.read(
-                { battery.getLongProperty(BatteryManager.BATTERY_PROPERTY_ENERGY_COUNTER) },
-                TelemetryValidation::energyCounterNanoWh
-            ),
+            batteryEnergyCounterNanoWh = battery.flatMap { service ->
+                ProbeResult.read(
+                    { service.getLongProperty(BatteryManager.BATTERY_PROPERTY_ENERGY_COUNTER) },
+                    TelemetryValidation::energyCounterNanoWh
+                )
+            },
             thermalHeadroom = readThermalHeadroom(context, elapsed)
         )
     }
@@ -96,10 +97,9 @@ object ResourceTelemetryBackend {
     }
 
     private fun batteryProperty(
-        manager: BatteryManager?, propertyId: Int, normalize: (Int?) -> Int?
-    ): ProbeResult<Int> {
-        if (manager == null) return ProbeResult.unavailable()
-        return ProbeResult.read({ manager.getIntProperty(propertyId) }, normalize)
+        service: ProbeResult<BatteryManager>, propertyId: Int,
+        normalize: (Int?) -> Int?
+    ): ProbeResult<Int> = service.flatMap { manager ->
+        ProbeResult.read({ manager.getIntProperty(propertyId) }, normalize)
     }
-
 }
