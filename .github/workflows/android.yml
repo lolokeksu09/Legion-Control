@@ -90,6 +90,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: success()
         with:
-          name: Legion-Control-v0.1.0-alpha.4-kotlin-rust-debug
+          name: Legion-Control-v0.1.0-alpha.5-kotlin-rust-debug
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
