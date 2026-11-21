@@ -363,7 +363,6 @@ class MainActivity : Activity() {
                                 }
                             }
                         }
-                        showSavedHistory()
                     },
                     onFailure = {
                         Toast.makeText(this, "Rust: " + it.message, Toast.LENGTH_LONG).show()
