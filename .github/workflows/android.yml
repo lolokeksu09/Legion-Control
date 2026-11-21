@@ -21,12 +21,16 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-linux-android,x86_64-linux-android
-      - uses: android-actions/setup-android@v3
-      - name: Install Android SDK and NDK
-        run: sdkmanager --install 'platforms;android-37' 'build-tools;37.0.0' 'ndk;28.2.13676358'
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools'
+      - name: Install Android SDK platform and NDK
+        run: sdkmanager --install 'platforms;android-36' 'build-tools;36.0.0' 'ndk;28.2.13676358'
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.6.0'
+      - name: Verify backend contract and permissions
+        run: python3 scripts/check_backend.py
       - name: Test and compile real Rust backend for Android
         run: bash scripts/build-native.sh
       - name: Build Kotlin Android APK with native Rust library

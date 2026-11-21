@@ -2,7 +2,7 @@ plugins { id("com.android.application") }
 
 android {
     namespace = "dev.lolokeksu.legioncontrol"
-    compileSdk = 37
+    compileSdk = 36
     defaultConfig {
         applicationId = "dev.lolokeksu.legioncontrol"
         minSdk = 33
