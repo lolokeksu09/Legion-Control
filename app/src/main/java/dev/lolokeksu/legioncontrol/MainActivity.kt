@@ -91,6 +91,24 @@ class MainActivity : Activity() {
             },
             onFailure = { "Ошибка Rust: " + it.message }
         )
+        val window = rust.fold(
+            onSuccess = {
+                engine.statistics().fold(
+                    onSuccess = { stats ->
+                        String.format(
+                            java.util.Locale.getDefault(),
+                            "%d измерений · мин %.1f °C · макс %.1f °C · средняя %.1f °C",
+                            stats.count,
+                            stats.minTemperatureDeciC / 10f,
+                            stats.maxTemperatureDeciC / 10f,
+                            stats.meanTemperatureDeciC / 10f
+                        )
+                    },
+                    onFailure = { "нет данных Rust: " + it.message }
+                )
+            },
+            onFailure = { "недоступно из-за ошибки замера" }
+        )
         val batteryText = "нет данных"
         val output = StringBuilder()
         output.append("Устройство: ")
@@ -109,7 +127,8 @@ class MainActivity : Activity() {
         output.append("Режим дисплея: ")
             .append(mode?.refreshRate?.let { String.format("%.1f Гц", it) }
                 ?: "нет данных").append('\n')
-        output.append("Rust JNI: ").append(backend).append("\n\n")
+        output.append("Rust JNI: ").append(backend).append('\n')
+        output.append("Температура за историю: ").append(window).append("\n\n")
         output.append("Только измерения по запросу. Системные настройки не изменяются.")
         result.text = output.toString()
     }
