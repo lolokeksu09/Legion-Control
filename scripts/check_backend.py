@@ -12,7 +12,7 @@ build = (root / "app/build.gradle.kts").read_text(encoding="utf-8")
 assert 'applicationId = "dev.lolokeksu.legioncontrol"' in build
 assert 'namespace = "dev.lolokeksu.legioncontrol"' in build
 assert 'targetSdk = 36' in build
-assert 'compileSdk = 37' in build
+assert 'compileSdk = 36' in build
 
 src = android / "java/dev/lolokeksu/legioncontrol"
 kotlin = (src / "RustEngine.kt").read_text(encoding="utf-8")
