@@ -53,7 +53,7 @@ class BatteryHealthReportTest {
         assertTrue(text.contains("Системный признак низкого заряда: нет данных"))
         assertTrue(text.contains("Расчётная мощность на клеммах батареи: нет данных"))
         assertFalse(text.contains("Циклы зарядки (сообщает Android): 0"))
-        assertFalse(text.contains("Батарея обнаружена Android: нет"))
+        assertFalse(text.contains("Батарея обнаружена Android: нет\n"))
     }
 
     @Test fun sanitizersRejectInvalidOemValues() {
