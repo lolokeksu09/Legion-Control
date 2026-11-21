@@ -25,7 +25,7 @@ object CsvReport {
 
     /** v2 diagnostics are optional: old v1 rows produce seven blank cells. */
     fun beginExtended(writer: Writer) {
-        writer.write("\\uFEFF")
+        writer.write("\uFEFF")
         row(writer, header + diagnosticHeader)
     }
 
