@@ -32,7 +32,7 @@ assert "DiagnosticTrendTextReport.format(trend)" in activity
 assert "latestReport = reportHeader?.plus(complete)" in activity
 assert "runOnUiThread {" in activity
 assert "!isDestroyed && requestId == diagnosticRequestId" in activity
-assert activity.count("layout.addView(Button(this).apply {") == 6
+assert activity.count("layout.addView(Button(this).apply {") == 8
 for test_name in (
     "firstReadingIsBaselineAndSecondShowsMeasuredChanges",
     "missingDataNeverBecomesAZeroDelta",
@@ -50,3 +50,6 @@ for unsafe in ("Shizuku.getInstance", "WRITE_SECURE_SETTINGS", "setprop ", "pm g
                "QUERY_ALL_PACKAGES", "exec(", "getDeclaredMethod("):
     assert unsafe not in activity + engine + current + text_report, unsafe
 print("PASS: alpha.6 trend engine, real app wiring, no privileges or UI redesign")
+
+assert 'text = "Снять показания датчиков"' in activity
+assert 'text = "Последние показания датчиков"' in activity

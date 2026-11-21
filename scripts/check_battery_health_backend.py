@@ -32,7 +32,7 @@ assert "val snapshot = output.toString()" in activity
 assert activity.index("BatteryHealthReport.format(") < activity.index("val snapshot = output.toString()")
 assert "latestReport = reportHeader?.plus(snapshot)" in activity
 assert "latestReport = reportHeader?.plus(complete)" in activity
-assert activity.count("layout.addView(Button(this).apply {") == 6, "No new UI controls"
+assert activity.count("layout.addView(Button(this).apply {") == 8, "No new UI controls"
 for test in (
     "androidHealthIsNotDegradationPercentage",
     "missingValuesDoNotBecomeZeroOrFalse",
@@ -47,3 +47,6 @@ for forbidden in ("Shizuku", "WRITE_SECURE_SETTINGS", "setprop ",
 assert 'versionCode = 10' in build
 assert 'versionName = "0.1.0-alpha.10"' in build
 print("PASS: public Android battery health/cycles, honest terminal watts, existing report/share, no Shizuku/UI")
+
+assert 'text = "Снять показания датчиков"' in activity
+assert 'text = "Последние показания датчиков"' in activity

@@ -12,14 +12,14 @@ build = (root / "app/build.gradle.kts").read_text(encoding="utf-8")
 manifest = ET.parse(root / "app/src/main/AndroidManifest.xml").getroot()
 
 assert not manifest.findall("uses-permission"), "No privileges needed"
-assert activity.count("layout.addView(Button(this).apply {") == 6, "Do not add UI controls"
+assert activity.count("layout.addView(Button(this).apply {") == 8, "Do not add UI controls"
 assert "diagnosticsExecutor = Executors.newSingleThreadExecutor()" in activity
 assert "diagnosticsExecutor.execute {" in activity
 assert "DeviceDiagnosticsBackend.read(applicationContext)" in activity
 assert "DiagnosticsTextReport.format(" in activity
 assert "runOnUiThread {" in activity
 assert "!isDestroyed && requestId == diagnosticRequestId" in activity
-assert "diagnosticRequestId++" in activity and "diagnosticsExecutor.shutdownNow()" in activity
+assert "diagnosticRequestId++" in activity and "diagnosticsExecutor.shutdown()" in activity
 assert "latestReport = reportHeader?.plus(complete)" in activity
 assert 'text = "Обновить измерение"' in activity and "setOnClickListener { sample() }" in activity
 assert 'format(snapshot: DeviceDiagnosticSnapshot): String' in report
@@ -33,3 +33,6 @@ assert "fun unavailableAndErrorsAreNotRenderedAsZero()" in tests
 assert 'versionCode = 10' in build
 assert 'versionName = "0.1.0-alpha.10"' in build
 print("PASS: manual MainActivity wiring, off-UI probes, honest reports, no UI redesign")
+
+assert 'text = "Снять показания датчиков"' in activity
+assert 'text = "Последние показания датчиков"' in activity
