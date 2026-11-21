@@ -44,7 +44,7 @@ class ResourceTelemetryTest {
         assertEquals(7, ProbeResult.available(6).flatMap { ProbeResult.available(it + 1) }.value)
         assertEquals(
             ProbeState.ERROR,
-            ProbeResult.available(5).flatMap<Int> { error("broken dependency") }.state
+            ProbeResult.available(5).flatMap<Int> { throw IllegalStateException("broken dependency") }.state
         )
     }
 
