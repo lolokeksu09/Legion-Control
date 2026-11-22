@@ -121,15 +121,31 @@ class CompatibilityLabActivity : Activity() {
 
     private fun runFullReport() {
         execute {
-            listOf(
-                DisplayModeInspector.inspect(display),
-                AudioOutputInspector.inspect(applicationContext),
-                ControllerInventory.format(ControllerInventory.connected()),
-                DrmCapabilityInspector.inspect(),
-                GamingReadinessRules.format(GamingReadinessRules.analyze(
-                    GamingReadinessSnapshot.read(applicationContext,display)
-                ))
-            ).joinToString("\n\n---\n\n", prefix = "LEGION CONTROL · OFFLINE COMPATIBILITY REPORT\n\n")
+            // A broken OEM provider must not erase results from healthy providers.
+            val sections: List<Pair<String, () -> String>> = listOf(
+                "Display" to { DisplayModeInspector.inspect(display) },
+                "Audio" to { AudioOutputInspector.inspect(applicationContext) },
+                "Gamepads" to {
+                    ControllerInventory.format(ControllerInventory.connected())
+                },
+                "DRM" to { DrmCapabilityInspector.inspect() },
+                "Gaming Readiness" to {
+                    GamingReadinessRules.format(GamingReadinessRules.analyze(
+                        GamingReadinessSnapshot.read(applicationContext,display)
+                    ))
+                }
+            )
+            sections.map { (label, read) ->
+                if (Thread.currentThread().isInterrupted) {
+                    throw InterruptedException("Report canceled")
+                }
+                runCatching { read() }.getOrElse {
+                    label + " · сведения недоступны: " + it.javaClass.simpleName
+                }
+            }.joinToString(
+                "\n\n---\n\n",
+                prefix = "LEGION CONTROL · OFFLINE COMPATIBILITY REPORT\n\n"
+            )
         }
     }
 
