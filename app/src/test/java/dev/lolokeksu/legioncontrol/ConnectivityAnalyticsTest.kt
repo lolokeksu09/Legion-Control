@@ -88,7 +88,7 @@ class ConnectivityAnalyticsTest {
         assertEquals(3,s.eligibleConnections)
         val report=ConnectivityAnalytics.render(s)
         assertTrue(report.contains("не равно потерям пакетов"))
-        assertTrue(report.contains("не ping игров"))
+        assertTrue(report.contains("НЕ ping игров"))
     }
 
     @Test fun incompleteRunIsLabelledAndComparisonDoesNotInventMetrics() {

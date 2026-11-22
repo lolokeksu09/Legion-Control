@@ -113,7 +113,7 @@ object ConnectivityAnalytics {
             append("В результатах не найден IPv6-кандидат; отсутствие адреса — не сбой TCP.\n")
         if(s.dnsFailures>0 || s.tcpFailures>0 || s.tlsFailures>0)
             append("Есть ошибки соединения с выбранным публичным узлом; это не равно потерям пакетов в игре.\n")
-        append("Это длительность DNS/TCP/TLS, НЕ FPS, ping игрового сервера, ICMP или скорость передачи.")
+        append("Это длительность DNS/TCP/TLS: НЕ FPS, НЕ ping игрового сервера, НЕ ICMP и НЕ скорость передачи.")
     }
 
     fun compare(a:ConnectivitySummary,b:ConnectivitySummary):String {

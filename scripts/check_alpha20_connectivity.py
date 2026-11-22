@@ -155,7 +155,7 @@ for phrase in ("fun capture(","InetAddress.getAllByName(host)","Inet4Address","I
                "one.one.one.one","dns.google","dns.quad9.net"):
     assert phrase in probe,phrase
 for phrase in ("fun distribution(","fun summarize(","fun compare(","dnsFailures",
-               "ipv6AvailableCycles","eligibleConnections","format","не ping игров"):
+               "ipv6AvailableCycles","eligibleConnections","format","НЕ ping игров"):
     assert phrase in analytics,phrase
 for phrase in ("fun startTest(","onStop()","cancelTest(false)","Future<*>",
                "ACTION_CREATE_DOCUMENT","fun compare()","fun weekReport()",
