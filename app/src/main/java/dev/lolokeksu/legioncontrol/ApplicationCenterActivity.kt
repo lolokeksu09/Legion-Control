@@ -1,6 +1,7 @@
 package dev.lolokeksu.legioncontrol
 
-import android.app.Activity
+import androidx.activity.ComponentActivity
+import androidx.lifecycle.ViewModelProvider
 import android.app.AlertDialog
 import android.content.Intent
 import android.graphics.Color
@@ -19,10 +20,9 @@ import java.util.Date
 import java.util.concurrent.Executors
 
 /** App library. Every app action requires a tap and uses documented Android APIs. */
-class ApplicationCenterActivity:Activity() {
+class ApplicationCenterActivity:ComponentActivity() {
     companion object { private const val EXPORT_CSV=2101 }
-    private val worker=Executors.newSingleThreadExecutor()
-    @Volatile private var visible=false
+    private lateinit var viewModel: ApplicationCenterViewModel
     private lateinit var packageText:EditText
     private lateinit var aliasText:EditText
     private lateinit var categoryText:EditText
@@ -134,7 +134,25 @@ class ApplicationCenterActivity:Activity() {
         }
         root.addView(output)
         setContentView(ScrollView(this).apply { addView(root) })
-        intent.getStringExtra("app_center_package")?.takeIf {
+        viewModel = ViewModelProvider(this)[ApplicationCenterViewModel::class.java]
+        viewModel.state.observe(this) { update ->
+            show(update.message)
+            update.launchable?.let { apps ->
+                viewModel.consumeDialog(update.nonce)
+                showVisibleApps(apps)
+            }
+            update.tracked?.let { entries ->
+                viewModel.consumeDialog(update.nonce)
+                showTrackedApps(entries)
+            }
+        }
+        if (savedInstanceState != null) {
+            packageText.setText(savedInstanceState.getString("pkg").orEmpty())
+            aliasText.setText(savedInstanceState.getString("alias").orEmpty())
+            categoryText.setText(savedInstanceState.getString("category").orEmpty())
+            noteText.setText(savedInstanceState.getString("note").orEmpty())
+            favorite.isChecked = savedInstanceState.getBoolean("favorite",false)
+        } else intent.getStringExtra("app_center_package")?.takeIf {
             ApplicationInventory.isPackageName(it)
         }?.let { packageText.setText(it) }
     }
@@ -150,16 +168,6 @@ class ApplicationCenterActivity:Activity() {
         return pkg
     }
 
-    private fun work(action:()->String) {
-        show("Обработка локальных данных…")
-        worker.execute {
-            val result=runCatching { action() }.getOrElse {
-                "Ошибка: "+it.javaClass.simpleName+" · "+it.message.orEmpty().take(160)
-            }
-            runOnUiThread { if(!isFinishing && !isDestroyed) show(result) }
-        }
-    }
-
     private fun chooseApp() { pickApp(null) }
 
     private fun searchApp() {
@@ -172,56 +180,41 @@ class ApplicationCenterActivity:Activity() {
             .setNegativeButton("Отмена",null).show()
     }
 
-    private fun pickApp(filter:String?) = work {
-        val found=ApplicationInventory.launchable(applicationContext).filter { item ->
-            filter.isNullOrBlank() ||
-                item.label.contains(filter,ignoreCase=true) ||
-                item.packageName.contains(filter,ignoreCase=true)
-        }
-        runOnUiThread {
-            if(!isFinishing && !isDestroyed) {
-                if(found.isEmpty()) show("Android не вернул видимых приложений по запросу.")
-                else AlertDialog.Builder(this).setTitle("Приложения · ${found.size}")
-                    .setItems(found.map { it.label+"\n"+it.packageName }.toTypedArray()) { _,index ->
-                        packageText.setText(found[index].packageName)
-                        aliasText.setText(found[index].label)
-                        categoryText.setText("")
-                        noteText.setText("")
-                        favorite.isChecked=false
-                        show("Выбрано: "+found[index].label+
-                            "\nМожете добавить его в библиотеку.")
-                    }.setNegativeButton("Отмена",null).show()
-            }
-        }
-        "Из доступных Launcher API найдено: ${found.size}"
+    private fun pickApp(filter: String?) = viewModel.pickApp(filter)
+
+    private fun showVisibleApps(found: List<LaunchableApp>) {
+        if (found.isEmpty()) { show("Android не вернул видимых приложений по запросу."); return }
+        AlertDialog.Builder(this).setTitle("Приложения · ${found.size}")
+            .setItems(found.map { it.label + "\n" + it.packageName }.toTypedArray()) { _,index ->
+                packageText.setText(found[index].packageName)
+                aliasText.setText(found[index].label)
+                categoryText.setText("")
+                noteText.setText("")
+                favorite.isChecked=false
+                show("Выбрано: " + found[index].label +
+                    "\nМожете добавить его в библиотеку.")
+            }.setNegativeButton("Отмена",null).show()
     }
 
-    private fun chooseTracked(onlyFavorites:Boolean=false) = work {
-        ApplicationCenterRepository(applicationContext).use { repository ->
-            val entries=repository.list().filter { !onlyFavorites || it.favorite }
-            runOnUiThread {
-                if(!isFinishing && !isDestroyed) {
-                    if(entries.isEmpty()) show("Библиотека пуста — сохраните приложение.")
-                    else AlertDialog.Builder(this).setTitle("Моя библиотека · ${entries.size}")
-                        .setItems(entries.map {
-                            (if(it.favorite)"★ " else "")+
-                                it.alias.ifBlank { it.packageName }+
-                                (if(it.category.isBlank())"" else " · "+it.category)+
-                                "\n"+it.packageName
-                        }.toTypedArray()) { _,index ->
-                            val item=entries[index]
-                            packageText.setText(item.packageName)
-                            aliasText.setText(item.alias)
-                            categoryText.setText(item.category)
-                            noteText.setText(item.note)
-                            favorite.isChecked=item.favorite
-                            show("Выбрано: "+item.packageName+
-                                "\nНаблюдение: "+item.lastSeenStatus)
-                        }.setNegativeButton("Отмена",null).show()
-                }
-            }
-            "Отслеживаемых: ${entries.size}"
-        }
+    private fun chooseTracked(onlyFavorites: Boolean=false) = viewModel.chooseTracked(onlyFavorites)
+
+    private fun showTrackedApps(entries: List<TrackedApplication>) {
+        if (entries.isEmpty()) { show("Библиотека пуста — сохраните приложение."); return }
+        AlertDialog.Builder(this).setTitle("Моя библиотека · ${entries.size}")
+            .setItems(entries.map {
+                (if (it.favorite) "★ " else "") +
+                    it.alias.ifBlank { it.packageName } +
+                    (if (it.category.isBlank()) "" else " · " + it.category) +
+                    "\n" + it.packageName
+            }.toTypedArray()) { _,index ->
+                val item=entries[index]
+                packageText.setText(item.packageName)
+                aliasText.setText(item.alias)
+                categoryText.setText(item.category)
+                noteText.setText(item.note)
+                favorite.isChecked=item.favorite
+                show("Выбрано: " + item.packageName + "\nНаблюдение: " + item.lastSeenStatus)
+            }.setNegativeButton("Отмена",null).show()
     }
 
     private fun save() {
@@ -234,66 +227,22 @@ class ApplicationCenterActivity:Activity() {
             show("Лимиты: название 100, категория 40, заметка 1000 символов.")
             return
         }
-        work {
-            ApplicationCenterRepository(applicationContext).use { repository ->
-                repository.save(pkg,alias,category,note,selected)
-            }
-            "Сохранено: $pkg · избранное: $selected. "+
-                "Запустите отдельную проверку версии, когда она нужна."
-        }
+        viewModel.save(pkg,alias,category,note,selected)
     }
 
     private fun scanOne() {
         val pkg=selectedPackage() ?: return
-        work {
-            val observation=ApplicationInventory.inspect(applicationContext,pkg)
-            ApplicationCenterRepository(applicationContext).use { repo ->
-                val result=repo.audit(pkg,observation)
-                "Проверено: $pkg\n"+result.description+"\n"+
-                    "Событие: "+(result.event?.name ?: "нет")+
-                    "\n\n"+observation.report()
-            }
-        }
+        viewModel.scanOne(pkg)
     }
 
-    private fun scanAll() = work {
-        val tracked=ApplicationCenterRepository(applicationContext).use { repo ->
-            repo.list()
-        }
-        if(tracked.isEmpty()) return@work "Библиотека пуста — нечего проверять."
-        var changed=0
-        var errors=0
-        var checked=0
-        for(item in tracked) {
-            if(!visible || Thread.currentThread().isInterrupted) break
-            checked++
-            runCatching {
-                val observation=ApplicationInventory.inspect(applicationContext,item.packageName)
-                ApplicationCenterRepository(applicationContext).use { repository ->
-                    if(repository.audit(item.packageName,observation).event!=null) changed++
-                }
-            }.onFailure { errors++ }
-        }
-        "Проверено по запросу: $checked из ${tracked.size} записей. "+
-            "Событий: $changed · ошибок Android/SQLite: $errors. "+
-            "Недоступность пакета НЕ означает удаление."
-    }
+    private fun scanAll() = viewModel.scanAll()
 
     private fun inspect() {
         val pkg=selectedPackage() ?: return
-        work { ApplicationInventory.inspect(applicationContext,pkg).report() }
+        viewModel.inspect(pkg)
     }
 
-    private fun showEvents() = work {
-        ApplicationCenterRepository(applicationContext).use { repository ->
-            val events=repository.events(limit=80)
-            if(events.isEmpty()) "История изменений пока пуста."
-            else events.joinToString("\n\n") { e ->
-                DateFormat.getDateTimeInstance().format(Date(e.recordedAtMs))+
-                    " · "+e.packageName+"\n"+e.kind+" · "+e.details
-            }
-        }
-    }
+    private fun showEvents() = viewModel.showEvents()
 
     private fun confirmRemove() {
         val pkg=selectedPackage() ?: return
@@ -302,19 +251,13 @@ class ApplicationCenterActivity:Activity() {
                 "и события наблюдения для $pkg. Само приложение и игровые сессии "+
                 "останутся нетронутыми.")
             .setPositiveButton("Удалить") { _,_ ->
-                work {
-                    val removed=ApplicationCenterRepository(applicationContext).use {
-                        it.remove(pkg)
-                    }
-                    if(removed) "Удалено из локальной библиотеки: $pkg."
-                    else "Пакет не найден в библиотеке."
-                }
+                viewModel.remove(pkg)
             }.setNegativeButton("Отмена",null).show()
     }
 
     private fun usage(days:Int) {
         val pkg=selectedPackage() ?: return
-        work { ApplicationUsageInspector.report(applicationContext,pkg,days) }
+        viewModel.usage(pkg,days)
     }
 
     private fun openSystem(intent:Intent) {
@@ -347,33 +290,25 @@ class ApplicationCenterActivity:Activity() {
         super.onActivityResult(requestCode,resultCode,data)
         if(requestCode!=EXPORT_CSV || resultCode!=RESULT_OK) return
         val uri=data?.data ?: return
-        work {
-            ApplicationCenterRepository(applicationContext).use { repository ->
-                (contentResolver.openOutputStream(uri,"w")
-                    ?: error("Не удалось открыть документ для записи")).use { stream ->
-                    OutputStreamWriter(stream,Charsets.UTF_8).use { writer ->
-                        repository.writeCsv(writer)
-                    }
-                }
-            }
-            "Библиотека и события сохранены в CSV по выбранному пути. "+
-                "Содержимое заметок стоит проверить перед публикацией."
-        }
+        viewModel.exportCsv(uri)
     }
 
     override fun onStart() {
         super.onStart()
-        visible=true
+        viewModel.setVisible(true)
     }
 
     override fun onStop() {
-        visible=false // Manual library scan stops when user leaves this screen.
+        viewModel.setVisible(false) // Manual scan stops at screen exit.
         super.onStop()
     }
 
-    override fun onDestroy() {
-        visible=false
-        worker.shutdown()
-        super.onDestroy()
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putString("pkg",packageText.text.toString())
+        outState.putString("alias",aliasText.text.toString())
+        outState.putString("category",categoryText.text.toString())
+        outState.putString("note",noteText.text.toString())
+        outState.putBoolean("favorite",favorite.isChecked)
+        super.onSaveInstanceState(outState)
     }
 }

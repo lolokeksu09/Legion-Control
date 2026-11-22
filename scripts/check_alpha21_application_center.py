@@ -11,6 +11,7 @@ schema=(src/"ApplicationCenterSchema.kt").read_text(encoding="utf-8")
 inventory=(src/"ApplicationInventory.kt").read_text(encoding="utf-8")
 repository=(src/"ApplicationCenterRepository.kt").read_text(encoding="utf-8")
 activity=(src/"ApplicationCenterActivity.kt").read_text(encoding="utf-8")
+viewmodel=(src/"ApplicationCenterViewModel.kt").read_text(encoding="utf-8")
 rules=(src/"ApplicationAuditRules.kt").read_text(encoding="utf-8")
 usage=(src/"ApplicationUsageInspector.kt").read_text(encoding="utf-8")
 gradle=(root/"app/build.gradle.kts").read_text(encoding="utf-8")
@@ -155,4 +156,8 @@ for phrase in ("ACTION_CREATE_DOCUMENT","fun scanAll(","fun scanOne(","fun inspe
                "fun chooseTracked(","fun usage(","fun confirmRemove()"):
     assert phrase in activity,phrase
 assert "startForegroundService" not in activity
+assert "ViewModelProvider(this)[ApplicationCenterViewModel::class.java]" in activity
+for term in ("ApplicationInventory.inspect(", "ApplicationCenterRepository(getApplication<Application>())",
+             "visible.get()", "fun scanAll(", "exportCsv(uri", "onCleared()"):
+    assert term in viewmodel,term
 print("PASS alpha21: SQLite v9→v10 preserves all 13 previous tables; FK, checks and Android public-API contracts")
