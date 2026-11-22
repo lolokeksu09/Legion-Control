@@ -83,6 +83,12 @@ class SmartProfilesActivity : Activity() {
         action("Удалить профиль (с подтверждением)") { confirmDelete() }
         note("Правила оцениваются каждые ~15 секунд только во время явно запущенной записи. " +
             "Если изменить правила в ходе записи, новые настройки применятся в следующей сессии.")
+        action("EXPERIMENT LAB · A/B сравнения для выбранного приложения") {
+            val pkg=packageNameInput()
+            startActivity(Intent(this,ExperimentLabActivity::class.java).apply {
+                if(SmartProfilesRepository.validatePackage(pkg)) putExtra("experiment_package",pkg)
+            })
+        }
         action("Сводка по выбранному приложению · 24 часа") { insights(1) }
         action("Сводка · 7 дней") { insights(7) }
         action("Сводка · 30 дней") { insights(30) }
