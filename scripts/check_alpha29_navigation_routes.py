@@ -16,7 +16,6 @@ expected={
     "GameToolboxActivity": "gameToolboxDestination",
     "CaptureStudioActivity": "captureStudioDestination",
     "ExperimentLabActivity": "experimentLabDestination",
-    "ConnectivityLabActivity": "connectivityLabDestination",
     "GamingDiagnosticsActivity": "gamingDiagnosticsDestination",
     "HardwareLabActivity": "hardwareLabDestination",
     "CompatibilityLabActivity": "compatibilityLabDestination",
@@ -37,7 +36,7 @@ for node in nodes:
 assert ids==set(expected)
 assert not any(n.get(android+"id")=="@+id/gameSessionFragment" for n in nodes)
 frags={n.get(android+"id"):n for n in nav.findall("fragment")}
-assert len(frags)==11 and "@+id/gameSessionFragment" in frags
+assert len(frags)==12 and "@+id/gameSessionFragment" in frags
 assert frags["@+id/applicationCenterDestination"].get(android+"name").endswith(".ApplicationCenterFragment")
 assert "ApplicationCenterActivity::class.java to R.id.applicationCenterDestination" in mapping
 assert ".ApplicationCenterActivity" in registered
@@ -53,6 +52,10 @@ assert frags["@+id/hapticLabDestination"].get(android+"name").endswith(".HapticL
 assert "HapticLabActivity::class.java to R.id.hapticLabDestination" in mapping
 assert ".HapticLabActivity" in registered
 assert "HapticLabFragment()" in (src/"HapticLabActivity.kt").read_text()
+assert frags["@+id/connectivityLabDestination"].get(android+"name").endswith(".ConnectivityLabFragment")
+assert "ConnectivityLabActivity::class.java to R.id.connectivityLabDestination" in mapping
+assert ".ConnectivityLabActivity" in registered
+assert "ConnectivityLabFragment()" in (src/"ConnectivityLabActivity.kt").read_text()
 assert "ApplicationCenterFragment()" in (src/"ApplicationCenterActivity.kt").read_text()
 assert frags["@+id/gameSessionFragment"].get(android+"name").endswith(".GameSessionFragment")
 game=(src/"GameSessionFragment.kt").read_text()
@@ -72,4 +75,4 @@ assert "GameSessionActivity::class.java" in hub
 assert ".GameSessionActivity" in registered
 assert nav.get("{http://schemas.android.com/apk/res-auto}startDestination")=="@id/homeFragment"
 assert "QUERY_ALL_PACKAGES" not in (root/"app/src/main/AndroidManifest.xml").read_text()
-print("PASS alpha29: 10 ActivityNavigator routes and five real module Fragments with explicit-intent compatibility")
+print("PASS alpha29: 9 ActivityNavigator routes and six real module Fragments with explicit-intent compatibility")

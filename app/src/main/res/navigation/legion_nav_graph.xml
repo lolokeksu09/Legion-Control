@@ -71,9 +71,10 @@
     <activity
         android:id="@+id/experimentLabDestination"
         android:name="dev.lolokeksu.legioncontrol.ExperimentLabActivity" />
-    <activity
+    <fragment
         android:id="@+id/connectivityLabDestination"
-        android:name="dev.lolokeksu.legioncontrol.ConnectivityLabActivity" />
+        android:name="dev.lolokeksu.legioncontrol.ConnectivityLabFragment"
+        android:label="Connectivity Observatory" />
     <fragment
         android:id="@+id/audioLabDestination"
         android:name="dev.lolokeksu.legioncontrol.AudioLabFragment"

@@ -11,7 +11,8 @@ schema=(src/"ConnectivitySchema.kt").read_text(encoding="utf-8")
 repo=(src/"ConnectivityRepository.kt").read_text(encoding="utf-8")
 probe=(src/"ConnectivityProbe.kt").read_text(encoding="utf-8")
 analytics=(src/"ConnectivityAnalytics.kt").read_text(encoding="utf-8")
-ui=(src/"ConnectivityLabActivity.kt").read_text(encoding="utf-8")
+ui=(src/"ConnectivityLabFragment.kt").read_text(encoding="utf-8")
+compat=(src/"ConnectivityLabActivity.kt").read_text(encoding="utf-8")
 viewmodel=(src/"ConnectivityLabViewModel.kt").read_text(encoding="utf-8")
 gradle=(root/"app/build.gradle.kts").read_text(encoding="utf-8")
 
@@ -166,5 +167,6 @@ for phrase in ("Future<*>", "ConnectivityProbe.capture(", "ConnectivityRepositor
                "fun cancelTest()", "onCleared()", "LiveData"):
     assert phrase in viewmodel,phrase
 assert "startForegroundService" not in ui
+assert "ConnectivityLabFragment()" in compat and "state.observe(viewLifecycleOwner)" in ui
 assert "startActivityForResult" in ui
 print("PASS: real SQLite v8→v9 migration preserves all historic tables, FK, constraints, privacy and diagnosis contracts")
