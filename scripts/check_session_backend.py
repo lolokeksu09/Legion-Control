@@ -14,7 +14,10 @@ ns = "{http://schemas.android.com/apk/res/android}"
 
 assert set(x.attrib["{http://schemas.android.com/apk/res/android}name"] for x in manifest.findall("uses-permission")) == {
     "android.permission.INTERNET", "android.permission.ACCESS_NETWORK_STATE",
-    "android.permission.ACCESS_WIFI_STATE", "android.permission.PACKAGE_USAGE_STATS"
+    "android.permission.ACCESS_WIFI_STATE", "android.permission.PACKAGE_USAGE_STATS",
+    "android.permission.FOREGROUND_SERVICE",
+    "android.permission.FOREGROUND_SERVICE_SPECIAL_USE",
+    "android.permission.POST_NOTIFICATIONS"
 }, "No privileged permissions for battery telemetry"
 for name in ("private external fun resetBatterySession(): Int",
              "private external fun readBatterySessionDuration(): Long",
@@ -36,8 +39,8 @@ for name in ("engine.resetSession()", "engine.durationMs()",
              "AndroidPowerSource.read("):
     assert name in activity, name
 assert "setPositiveButton(" in activity and "setNegativeButton(" in activity
-assert "versionCode = 16" in build
-assert 'versionName = "0.1.0-alpha.16"' in build
+assert "versionCode = 17" in build
+assert 'versionName = "0.1.0-alpha.17"' in build
 for forbidden in ("WRITE_SECURE_SETTINGS", "QUERY_ALL_PACKAGES", "setprop ",
                   "pointer_speed", "moto_extend_service", "Runtime.getRuntime"):
     assert forbidden not in power + activity + rust_api + native

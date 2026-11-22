@@ -1,17 +1,35 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
-    <!-- Only normal connectivity permissions and optional user-granted Usage Access. -->
+    <!-- Network diagnostics, optional Usage Access and explicitly user-started game recording. -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
         tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+    </queries>
     <application
         android:allowBackup="false"
         android:label="Legion Control"
         android:theme="@android:style/Theme.Material.NoActionBar"
         android:usesCleartextTraffic="false">
+        <service
+            android:name=".GameSessionRecorderService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Explicit user-initiated local device telemetry during another app session" />
+        </service>
+        <activity android:name=".GameSessionActivity" android:exported="false" />
         <activity android:name=".CompatibilityLabActivity" android:exported="false" />
         <activity android:name=".GamepadLiveActivity" android:exported="false" />
         <activity android:name=".HardwareLabActivity" android:exported="false" />

@@ -20,7 +20,10 @@ android = "{http://schemas.android.com/apk/res/android}"
 perms = {e.attrib.get(android+"name") for e in manifest.findall("uses-permission")}
 expected = {
     "android.permission.INTERNET", "android.permission.ACCESS_NETWORK_STATE",
-    "android.permission.ACCESS_WIFI_STATE", "android.permission.PACKAGE_USAGE_STATS"
+    "android.permission.ACCESS_WIFI_STATE", "android.permission.PACKAGE_USAGE_STATS",
+    "android.permission.FOREGROUND_SERVICE",
+    "android.permission.FOREGROUND_SERVICE_SPECIAL_USE",
+    "android.permission.POST_NOTIFICATIONS"
 }
 assert perms == expected, (perms, expected)
 for forbidden in (
@@ -63,9 +66,9 @@ assert "worker.shutdownNow()" in activity and "onStop()" in activity
 assert "task?.cancel(true)" in activity
 assert "frameCapture?.stop(false)" in activity
 assert 'android:exported="false"' in (root / "app/src/main/AndroidManifest.xml").read_text()
-assert "SQLiteOpenHelper" in store and "TimedBatterySchema.VERSION" in store
-assert 'versionCode = 16' in gradle
-assert 'versionName = "0.1.0-alpha.16"' in gradle
+assert "SQLiteOpenHelper" in store and "GameSessionSchema.VERSION" in store
+assert 'versionCode = 17' in gradle
+assert 'versionName = "0.1.0-alpha.17"' in gradle
 
 # The actual repo session query must be runnable with escaped bind values,
 # not interpolated into a SQL string.
