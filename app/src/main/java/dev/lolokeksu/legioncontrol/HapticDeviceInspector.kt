@@ -62,11 +62,11 @@ object HapticDeviceInspector {
         }.getOrDefault("неизвестно")
         val primitives=runCatching {
             val names=listOf("CLICK","TICK")
-            val codes=intArrayOf(
+            val supports=vibrator.arePrimitivesSupported(
                 VibrationEffect.Composition.PRIMITIVE_CLICK,
                 VibrationEffect.Composition.PRIMITIVE_TICK
             )
-            names.zip(vibrator.arePrimitivesSupported(*codes).toList())
+            names.zip(supports.toList())
                 .joinToString(" · ") { (name,supported) ->
                     name+"="+(if(supported)"YES" else "NO")
                 }
