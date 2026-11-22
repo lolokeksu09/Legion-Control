@@ -20,7 +20,7 @@ expected={
     "android.permission.ACCESS_WIFI_STATE","android.permission.PACKAGE_USAGE_STATS",
     "android.permission.FOREGROUND_SERVICE","android.permission.FOREGROUND_SERVICE_SPECIAL_USE",
     "android.permission.POST_NOTIFICATIONS","android.permission.MODIFY_AUDIO_SETTINGS",
-    "android.permission.ACCESS_NOTIFICATION_POLICY","android.permission.WRITE_SETTINGS"
+    "android.permission.ACCESS_NOTIFICATION_POLICY","android.permission.WRITE_SETTINGS","android.permission.VIBRATE"
 }
 assert perms==expected,(perms,expected)
 assert not ({"android.permission.QUERY_ALL_PACKAGES","android.permission.ACCESS_FINE_LOCATION",
@@ -34,10 +34,10 @@ assert qs[0].get(ns+"exported")=="true"
 assert "startActivityAndCollapse(pending)" in (src/"LegionQuickTileService.kt").read_text(encoding="utf-8")
 assert "SmartProfilesActivity::class.java" in (src/"MainActivity.kt").read_text(encoding="utf-8")
 assert "const val VERSION = 7" in schema
-assert 'versionCode = 22' in (root/"app/build.gradle.kts").read_text(encoding="utf-8")
-assert 'versionName = "0.1.0-alpha.22"' in (root/"app/build.gradle.kts").read_text(encoding="utf-8")
-assert 'oldVersion !in 1..10' in history
-assert 'newVersion != AudioLabSchema.VERSION' in history
+assert 'versionCode = 23' in (root/"app/build.gradle.kts").read_text(encoding="utf-8")
+assert 'versionName = "0.1.0-alpha.23"' in (root/"app/build.gradle.kts").read_text(encoding="utf-8")
+assert 'oldVersion !in 1..11' in history
+assert 'newVersion != HapticLabSchema.VERSION' in history
 assert 'if (oldVersion <= 5) GameSessionSchema.install(db)' in history
 assert history.count("SmartProfilesSchema.install(db)")==2
 assert "DROP TABLE" not in history and "DELETE FROM samples" not in history
