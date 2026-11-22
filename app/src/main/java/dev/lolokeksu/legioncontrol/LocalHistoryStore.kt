@@ -111,11 +111,13 @@ class LocalHistoryStore(context: Context) : SQLiteOpenHelper(
                 }
             }
             val temperatures = firstAndLast.map { it.second }
-            val thermalCode = DatabaseUtils.longForQuery(
-                db,
+            val thermalCode = db.rawQuery(
                 """SELECT MAX(thermal_status) FROM diagnostic_samples WHERE session_id=?""",
                 arrayOf(test.sessionId)
-            )
+            ).use { cursor ->
+                if (cursor.moveToFirst() && !cursor.isNull(0)) cursor.getInt(0)
+                else null
+            }
             val values = ContentValues().apply {
                 put("test_id", test.testId)
                 put("session_id", test.sessionId)
@@ -136,8 +138,8 @@ class LocalHistoryStore(context: Context) : SQLiteOpenHelper(
                     putNull("min_temp_deci_c")
                     putNull("max_temp_deci_c")
                 }
-                if (thermalCode < 0) putNull("max_thermal_status")
-                else put("max_thermal_status", thermalCode.toInt())
+                if (thermalCode == null) putNull("max_thermal_status")
+                else put("max_thermal_status", thermalCode)
             }
             val rowId = db.insertWithOnConflict(
                 "timed_battery_tests", null, values, SQLiteDatabase.CONFLICT_IGNORE
