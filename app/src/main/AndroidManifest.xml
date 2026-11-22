@@ -27,20 +27,20 @@
         android:theme="@android:style/Theme.Material.NoActionBar"
         android:usesCleartextTraffic="false">
         <service
-            android:name=".GameToolboxService"
-            android:exported="false"
-            android:foregroundServiceType="specialUse">
-            <property
-                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Explicit user-started non-focusable overlay for manual game toolbox actions" />
-        </service>
-        <service
             android:name=".GameSessionRecorderService"
             android:exported="false"
             android:foregroundServiceType="specialUse">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Explicit user-initiated local device telemetry during another app session" />
+        </service>
+        <service
+            android:name=".GameToolboxService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Explicit user-started non-focusable overlay for manual game toolbox actions" />
         </service>
         <service
             android:name=".LegionQuickTileService"
