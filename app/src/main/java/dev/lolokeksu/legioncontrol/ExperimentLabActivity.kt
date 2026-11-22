@@ -93,6 +93,7 @@ class ExperimentLabActivity : Activity() {
         }
         layout.addView(noteInput)
         action("Сохранить тег и заметку") { saveAnnotation() }
+        action("Сравнить две последние сессии этого приложения") { compareLastTwo() }
         action("Качество и диагностика выбранной сессии") { showEvidence() }
         title("2 · A/B эксперимент")
         subtitle("Один эксперимент объединяет сессии ОДНОГО приложения. "+
@@ -107,6 +108,7 @@ class ExperimentLabActivity : Activity() {
         action("Назначить выбранную сессию → A") { assign("A") }
         action("Назначить выбранную сессию → B") { assign("B") }
         action("Убрать выбранную сессию из эксперимента") { unassign() }
+        action("Показать состав A/B и метки сессий") { showTrialRoster() }
         action("Показать сравнение A/B") { compare() }
         action("Экспортировать A/B данные CSV") { exportCsv() }
         action("Поделиться сравнением текстом") { shareComparison() }
@@ -217,6 +219,56 @@ class ExperimentLabActivity : Activity() {
                 ExperimentAnalytics.formatEvidence(repo.evidence(id))+
                     "\n\nМетка: "+(annotation?.tag?.ifBlank { "—" } ?: "—")+
                     "\nЗаметка: "+(annotation?.note?.ifBlank { "—" } ?: "—")
+            }
+        }
+    }
+
+    private fun compareLastTwo() {
+        val pkg=currentPackage() ?: return display("Выберите пакет приложения для сравнения.")
+        work {
+            ExperimentRepository(applicationContext).use { repo ->
+                val last=repo.recentSessions(pkg,2)
+                if(last.size<2) "Нужно как минимум две записанные сессии этого приложения."
+                else {
+                    val newer=repo.evidence(last[0].id)
+                    val older=repo.evidence(last[1].id)
+                    val trials=listOf(
+                        ExperimentTrial("A",last[1],"","",older),
+                        ExperimentTrial("B",last[0],"","",newer)
+                    )
+                    ExperimentAnalytics.formatComparison(
+                        "Две последние сессии · "+pkg,
+                        "Наблюдательное сравнение по истории",
+                        ExperimentAnalytics.armSummary("A","Предыдущая",trials),
+                        ExperimentAnalytics.armSummary("B","Последняя",trials)
+                    )+"\n\nПРЕДЫДУЩАЯ:\n"+ExperimentAnalytics.formatEvidence(older)+
+                    "\n\nПОСЛЕДНЯЯ:\n"+ExperimentAnalytics.formatEvidence(newer)
+                }
+            }
+        }
+    }
+
+    private fun showTrialRoster() {
+        val id=selectedExperiment ?: return display("Выберите эксперимент.")
+        work {
+            ExperimentRepository(applicationContext).use { repo ->
+                val exp=repo.experiment(id) ?: error("Эксперимент не найден")
+                val selected=repo.trials(id)
+                if(selected.isEmpty()) "У эксперимента пока нет назначенных сессий."
+                else buildString {
+                    append(exp.name).append(" · ").append(exp.packageName).append('\n')
+                    append("A: ").append(exp.labelA).append(" / B: ").append(exp.labelB).append('\n')
+                    for(trial in selected) {
+                        append("\n").append(trial.arm).append(" · ")
+                            .append(DateFormat.getDateTimeInstance().format(Date(trial.session.startedAtMs)))
+                            .append(" · ").append(trial.session.endReason ?: "НЕ ЗАВЕРШЕНА")
+                        append("\nТег: ").append(trial.tag.ifBlank { "—" })
+                        append("\nЗаметка: ").append(trial.note.ifBlank { "—" })
+                        append("\nЗамеров: ").append(trial.evidence.samples)
+                        append(" · пропусков >45 с: ").append(trial.evidence.gapsOver45s)
+                        append("\nID: ").append(trial.session.id).append('\n')
+                    }
+                }
             }
         }
     }
