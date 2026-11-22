@@ -104,8 +104,10 @@ for file,targets in (
 ):
     content=(src/file).read_text()
     for target in targets:
-        assert f"ModuleNavigation.open(this,{target}::class.java)" in content or \\
-            f"ModuleNavigation.open(this, {target}::class.java" in content, (file,target)
+        assert (
+            f"ModuleNavigation.open(this,{target}::class.java)" in content or
+            f"ModuleNavigation.open(this, {target}::class.java" in content
+        ), (file,target)
 assert "REQUEST_EXPORT" not in routing and "startForegroundService" not in routing
 assert "QUERY_ALL_PACKAGES" not in (root/"app/src/main/AndroidManifest.xml").read_text()
 print("PASS alpha29: 5 ActivityNavigator routes and ten real module Fragments with explicit-intent compatibility")
