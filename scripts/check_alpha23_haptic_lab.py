@@ -185,7 +185,7 @@ for name,rows in before.items():
     assert list(db.execute("SELECT * FROM "+name))==rows,name
 db.close()
 
-for phrase in ("fun build(","fun withoutAmplitudeControl(","35..1_800","160",
+for phrase in ("fun build(","fun withoutAmplitudeControl(","35L..1_800L","160",
                "fun csvCell(","val kinds","val levels","const val caveat"):
     assert phrase in pattern,phrase
 for phrase in ("VibratorManager","VibrationEffect.createWaveform",
