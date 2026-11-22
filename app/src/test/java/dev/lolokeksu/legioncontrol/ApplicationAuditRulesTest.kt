@@ -47,7 +47,7 @@ class ApplicationAuditRulesTest {
     @Test fun csvEscapesFormulaAndQuoteAndNewline() {
         assertEquals("\"'=SUM(A1)\"",ApplicationAuditRules.csvCell("=SUM(A1)"))
         assertEquals("\"safe\"\"quote\"",ApplicationAuditRules.csvCell("safe\"quote"))
-        assertEquals("\" '+test\"",ApplicationAuditRules.csvCell(" +test"))
+        assertEquals("\"' +test\"",ApplicationAuditRules.csvCell(" +test"))
         assertEquals("\"x\ny\"",ApplicationAuditRules.csvCell("x\ny"))
     }
 
