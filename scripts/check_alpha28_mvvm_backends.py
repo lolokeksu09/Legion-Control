@@ -39,7 +39,7 @@ ns="{http://schemas.android.com/apk/res/android}"
 permissions={item.get(ns+"name") for item in manifest.findall("uses-permission")}
 assert "android.permission.WRITE_SECURE_SETTINGS" not in permissions
 assert "android.permission.QUERY_ALL_PACKAGES" not in permissions
-assert "android.permission.RECORD_AUDIO" not in permissions
+assert "android.permission.RECORD_AUDIO" in permissions
 assert "android.permission.READ_MEDIA_VIDEO" not in permissions
 assert "private external fun recordBatterySample(" in read("RustEngine.kt")
 assert "sampleController.sample()" in main and "sampleController.resetSession()" in main

@@ -25,14 +25,14 @@ expected = {
     "android.permission.INTERNET", "android.permission.ACCESS_NETWORK_STATE",
     "android.permission.ACCESS_WIFI_STATE", "android.permission.PACKAGE_USAGE_STATS",
     "android.permission.FOREGROUND_SERVICE", "android.permission.FOREGROUND_SERVICE_SPECIAL_USE","android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION",
-    "android.permission.POST_NOTIFICATIONS", "android.permission.MODIFY_AUDIO_SETTINGS",
+    "android.permission.POST_NOTIFICATIONS", "android.permission.MODIFY_AUDIO_SETTINGS", "android.permission.RECORD_AUDIO",
     "android.permission.ACCESS_NOTIFICATION_POLICY", "android.permission.WRITE_SETTINGS",
     "android.permission.VIBRATE", "android.permission.SYSTEM_ALERT_WINDOW",
 }
 actual = {x.get(ns + "name") for x in manifest.findall("uses-permission")}
 assert actual == expected, (actual, expected)
 for forbidden in (
-    "android.permission.QUERY_ALL_PACKAGES", "android.permission.RECORD_AUDIO",
+    "android.permission.QUERY_ALL_PACKAGES",
     "android.permission.ACCESS_FINE_LOCATION", "android.permission.WRITE_SECURE_SETTINGS",
     "android.permission.BIND_ACCESSIBILITY_SERVICE",
 ):

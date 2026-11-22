@@ -32,10 +32,10 @@ assert permissions=={
     "android.permission.INTERNET","android.permission.ACCESS_NETWORK_STATE",
     "android.permission.ACCESS_WIFI_STATE","android.permission.PACKAGE_USAGE_STATS",
     "android.permission.FOREGROUND_SERVICE","android.permission.FOREGROUND_SERVICE_SPECIAL_USE","android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION",
-    "android.permission.POST_NOTIFICATIONS","android.permission.MODIFY_AUDIO_SETTINGS",
+    "android.permission.POST_NOTIFICATIONS","android.permission.MODIFY_AUDIO_SETTINGS", "android.permission.RECORD_AUDIO",
     "android.permission.ACCESS_NOTIFICATION_POLICY","android.permission.WRITE_SETTINGS","android.permission.VIBRATE","android.permission.SYSTEM_ALERT_WINDOW"
 }
-assert "android.permission.RECORD_AUDIO" not in permissions
+assert "android.permission.RECORD_AUDIO" in permissions
 assert "android.permission.QUERY_ALL_PACKAGES" not in permissions
 assert any(a.get(ns+"name")==".AudioLabActivity" and a.get(ns+"exported")=="false"
            for a in manifest.findall("./application/activity"))

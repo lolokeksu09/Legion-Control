@@ -10,7 +10,7 @@ manifest = ET.parse(root / "app/src/main/AndroidManifest.xml").getroot()
 ns = "{http://schemas.android.com/apk/res/android}"
 perms = {x.get(ns+"name") for x in manifest.findall("uses-permission")}
 assert "android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" in perms
-for forbidden in ("android.permission.RECORD_AUDIO", "android.permission.READ_MEDIA_IMAGES",
+for forbidden in ("android.permission.READ_MEDIA_IMAGES",
                   "android.permission.READ_MEDIA_VIDEO", "android.permission.MANAGE_EXTERNAL_STORAGE",
                   "android.permission.QUERY_ALL_PACKAGES", "android.permission.WRITE_SECURE_SETTINGS"):
     assert forbidden not in perms

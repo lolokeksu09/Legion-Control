@@ -40,7 +40,7 @@ assert permissions == {
     "android.permission.ACCESS_WIFI_STATE", "android.permission.PACKAGE_USAGE_STATS",
     "android.permission.FOREGROUND_SERVICE", "android.permission.FOREGROUND_SERVICE_SPECIAL_USE",
     "android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION",
-    "android.permission.POST_NOTIFICATIONS", "android.permission.MODIFY_AUDIO_SETTINGS",
+    "android.permission.POST_NOTIFICATIONS", "android.permission.MODIFY_AUDIO_SETTINGS", "android.permission.RECORD_AUDIO",
     "android.permission.ACCESS_NOTIFICATION_POLICY", "android.permission.WRITE_SETTINGS",
     "android.permission.VIBRATE", "android.permission.SYSTEM_ALERT_WINDOW",
 }, permissions
@@ -169,7 +169,7 @@ assert "HubNavigationRulesTest" in tests and tests.count("@Test") >= 5
 
 assert "QUERY_ALL_PACKAGES" not in str(permissions)
 assert "WRITE_SECURE_SETTINGS" not in str(permissions)
-assert "RECORD_AUDIO" not in str(permissions)
+assert "RECORD_AUDIO" in str(permissions)
 assert "AccessibilityService" not in activity + repo + vm + view + detail
 assert "Shizuku" not in repo + vm
 print("PASS alpha26: only new launcher, 5 real NavHost tabs+detail, MVVM, original Rust/SQLite and permission isolation")

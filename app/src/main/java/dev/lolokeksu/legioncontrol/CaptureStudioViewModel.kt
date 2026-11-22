@@ -42,6 +42,19 @@ class CaptureStudioViewModel(application: Application) : AndroidViewModel(applic
     private val settingsMutable = MutableLiveData(repository.config())
     val settings: LiveData<CaptureConfig> = settingsMutable
 
+    private val playbackAudioMutable = MutableLiveData(repository.playbackAudioEnabled())
+    val playbackAudio: LiveData<Boolean> = playbackAudioMutable
+
+    fun playbackAudioEnabled(): Boolean = repository.playbackAudioEnabled()
+
+    fun choosePlaybackAudio(enabled: Boolean) {
+        runCatching { repository.choosePlaybackAudio(enabled) }
+            .onSuccess { playbackAudioMutable.value = it }
+            .onFailure {
+                messageMutable.value = "Не удалось изменить режим звука: " + it.javaClass.simpleName
+            }
+    }
+
     fun config(): CaptureConfig = repository.config()
     fun status(): String = repository.status()
 

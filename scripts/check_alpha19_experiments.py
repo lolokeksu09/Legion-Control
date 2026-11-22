@@ -32,7 +32,7 @@ assert permissions=={
     "android.permission.INTERNET","android.permission.ACCESS_NETWORK_STATE",
     "android.permission.ACCESS_WIFI_STATE","android.permission.PACKAGE_USAGE_STATS",
     "android.permission.FOREGROUND_SERVICE","android.permission.FOREGROUND_SERVICE_SPECIAL_USE","android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION",
-    "android.permission.POST_NOTIFICATIONS","android.permission.MODIFY_AUDIO_SETTINGS",
+    "android.permission.POST_NOTIFICATIONS","android.permission.MODIFY_AUDIO_SETTINGS", "android.permission.RECORD_AUDIO",
     "android.permission.ACCESS_NOTIFICATION_POLICY","android.permission.WRITE_SETTINGS","android.permission.VIBRATE","android.permission.SYSTEM_ALERT_WINDOW"
 }
 assert any(x.get(ns+"name")==".ExperimentLabActivity" and x.get(ns+"exported")=="false"
