@@ -7,6 +7,7 @@ root = Path(__file__).resolve().parents[1]
 source = (root / "app/src/main/java/dev/lolokeksu/legioncontrol/LocalHistoryStore.kt").read_text(encoding="utf-8")
 models = (root / "app/src/main/java/dev/lolokeksu/legioncontrol/DiagnosticHistoryModels.kt").read_text(encoding="utf-8")
 activity = (root / "app/src/main/java/dev/lolokeksu/legioncontrol/MainActivity.kt").read_text(encoding="utf-8")
+controller = (root / "app/src/main/java/dev/lolokeksu/legioncontrol/RustSampleController.kt").read_text(encoding="utf-8")
 checks = (root / "app/src/test/java/dev/lolokeksu/legioncontrol/DiagnosticSessionSummaryTest.kt").read_text(encoding="utf-8")
 gradle = (root / "app/build.gradle.kts").read_text(encoding="utf-8")
 
@@ -87,12 +88,13 @@ assert "DiagnosticHistorySchema.CREATE_TABLE" in source
 assert "DiagnosticHistorySchema.CREATE_INDEX" in source
 assert 'throw IllegalStateException("No safe migration' in source
 assert "DROP TABLE" not in source and "DELETE FROM samples" not in source
-assert "diagnosticsExecutor.execute {" in activity
-assert activity.index("history.recordDiagnostic(") > activity.index("diagnosticsExecutor.execute {")
-assert "acceptedSessionId = diagnosticSessionId" in activity
-assert "history.recordDiagnostic(" in activity
-assert "history.recentDiagnostics(" in activity
-assert "DiagnosticSessionAnalyzer.analyze(" in activity
+assert "writer.execute {" in controller
+assert "sampleController.sample()" in activity
+assert controller.index("history.recordDiagnostic(") > controller.index("writer.execute {")
+assert "acceptedSessionId = diagnosticSessionId" in controller
+assert "history.recordDiagnostic(" in controller
+assert "history.recentDiagnostics(" in controller
+assert "DiagnosticSessionAnalyzer.analyze(" in controller
 assert "fun calculatesActualChargeRateFromSeveralManualMeasurements()" in checks
 assert 'versionCode = 27' in gradle
 assert 'versionName = "0.1.0-alpha.27"' in gradle
