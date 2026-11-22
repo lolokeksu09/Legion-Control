@@ -13,8 +13,8 @@ analytics=(src/"ExperimentAnalytics.kt").read_text(encoding="utf-8")
 activity=(src/"ExperimentLabActivity.kt").read_text(encoding="utf-8")
 build=(root/"app/build.gradle.kts").read_text(encoding="utf-8")
 
-assert 'versionCode = 23' in build
-assert 'versionName = "0.1.0-alpha.23"' in build
+assert 'versionCode = 24' in build
+assert 'versionName = "0.1.0-alpha.24"' in build
 assert 'minSdk = 33' in build
 assert 'const val VERSION = 8' in schema
 assert 'newVersion != HapticLabSchema.VERSION' in history
@@ -32,7 +32,7 @@ assert permissions=={
     "android.permission.ACCESS_WIFI_STATE","android.permission.PACKAGE_USAGE_STATS",
     "android.permission.FOREGROUND_SERVICE","android.permission.FOREGROUND_SERVICE_SPECIAL_USE",
     "android.permission.POST_NOTIFICATIONS","android.permission.MODIFY_AUDIO_SETTINGS",
-    "android.permission.ACCESS_NOTIFICATION_POLICY","android.permission.WRITE_SETTINGS","android.permission.VIBRATE"
+    "android.permission.ACCESS_NOTIFICATION_POLICY","android.permission.WRITE_SETTINGS","android.permission.VIBRATE","android.permission.SYSTEM_ALERT_WINDOW"
 }
 assert any(x.get(ns+"name")==".ExperimentLabActivity" and x.get(ns+"exported")=="false"
     for x in manifest.findall("./application/activity"))
