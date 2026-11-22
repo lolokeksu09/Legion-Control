@@ -328,7 +328,7 @@ class CaptureStudioActivity : ComponentActivity() {
         for (shot in shots) {
             val size = String.format(Locale.US, "%.1f", shot.bytes / 1048576.0)
             shotsContainer.addView(Button(this).apply {
-                text = "${shot.name}\\n${size} МиБ"
+                text = "${shot.name}\n${size} МиБ"
                 isAllCaps = false
                 minHeight = 48.dp
                 setOnClickListener { screenshotActions(shot) }
