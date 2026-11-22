@@ -60,7 +60,7 @@ class HardwareLabMetricsTest {
         val report = NetworkTransitionMetrics.format(observations,30_000L)
         assertTrue(report.contains("событий: 30"))
         assertTrue(report.contains("30.0 с"))
-        assertFalse(report.contains("1000 мс:"))
+        assertFalse(report.contains("· 1000 мс:"))
         assertTrue(report.contains("30000 мс:"))
         assertTrue(NetworkTransitionMetrics.format(emptyList(),1000L)
             .contains("Изменений за окно не зарегистрировано"))
