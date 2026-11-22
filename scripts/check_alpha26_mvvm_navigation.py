@@ -76,14 +76,15 @@ for old in (
 assert graph.tag == "navigation"
 assert graph.get(res+"startDestination") == "@id/homeFragment"
 nodes = graph.findall("fragment")
-assert len(nodes) == 15
+assert len(nodes) == 16
 assert {n.get(android+"id") for n in nodes} == {
     "@+id/homeFragment", "@+id/gamesFragment", "@+id/toolsFragment",
     "@+id/historyFragment", "@+id/settingsFragment", "@+id/gameDetailFragment", "@+id/gameSessionFragment",
     "@+id/applicationCenterDestination", "@+id/smartProfilesDestination",
     "@+id/audioLabDestination", "@+id/hapticLabDestination",
     "@+id/connectivityLabDestination", "@+id/experimentLabDestination",
-    "@+id/compatibilityLabDestination", "@+id/hardwareLabDestination"
+    "@+id/compatibilityLabDestination", "@+id/hardwareLabDestination",
+    "@+id/gamingDiagnosticsDestination"
 }
 for node in nodes:
     assert node.get(android+"name") in {
@@ -97,14 +98,15 @@ for node in nodes:
         "dev.lolokeksu.legioncontrol.ConnectivityLabFragment",
         "dev.lolokeksu.legioncontrol.ExperimentLabFragment",
         "dev.lolokeksu.legioncontrol.CompatibilityLabFragment",
-        "dev.lolokeksu.legioncontrol.HardwareLabFragment"
+        "dev.lolokeksu.legioncontrol.HardwareLabFragment",
+        "dev.lolokeksu.legioncontrol.GamingDiagnosticsFragment"
     }
     if node.get(android+"id") == "@+id/gameSessionFragment":
         assert [x.get(android+"name") for x in node.findall("argument")] == [
             "smart_package", "smart_label", "smart_tcp"]
     elif node.get(android+"id") in ("@+id/audioLabDestination","@+id/hapticLabDestination",
                                   "@+id/connectivityLabDestination","@+id/compatibilityLabDestination",
-                                  "@+id/hardwareLabDestination"):
+                                  "@+id/hardwareLabDestination", "@+id/gamingDiagnosticsDestination"):
         assert len(node.findall("argument")) == 0
     else:
         assert len(node.findall("argument")) == 1

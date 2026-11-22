@@ -6,7 +6,8 @@ import sqlite3
 
 root = Path(__file__).resolve().parents[1]
 src = root / "app/src/main/java/dev/lolokeksu/legioncontrol"
-activity = (src / "GamingDiagnosticsActivity.kt").read_text(encoding="utf-8")
+activity = (src / "GamingDiagnosticsFragment.kt").read_text(encoding="utf-8")
+wrapper = (src / "GamingDiagnosticsActivity.kt").read_text(encoding="utf-8")
 viewmodel = (src / "GamingDiagnosticsViewModel.kt").read_text(encoding="utf-8")
 main = (src / "MainActivity.kt").read_text(encoding="utf-8")
 network = (src / "NetworkDiagnostics.kt").read_text(encoding="utf-8")
@@ -38,8 +39,10 @@ for forbidden in (
     assert forbidden not in str(perms)
 assert 'android.permission.PACKAGE_USAGE_STATS' in perms
 assert "AppOpsManager.OPSTR_GET_USAGE_STATS" in usage
+assert "GamingDiagnosticsFragment()" in wrapper
+assert "report.observe(viewLifecycleOwner)" in activity
 assert "Settings.ACTION_USAGE_ACCESS_SETTINGS" in activity
-assert "hasUsageAccess(this)" in activity
+assert "hasUsageAccess(requireContext())" in activity
 assert "GameUsageDiagnostics.DEFAULT_PACKAGE" in activity
 
 for n,label in enumerate((
