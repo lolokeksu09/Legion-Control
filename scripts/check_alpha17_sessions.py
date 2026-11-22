@@ -11,6 +11,7 @@ schema=(src/"GameSessionSchema.kt").read_text(encoding="utf-8")
 repository=(src/"GameSessionRepository.kt").read_text(encoding="utf-8")
 service=(src/"GameSessionRecorderService.kt").read_text(encoding="utf-8")
 activity=(src/"GameSessionActivity.kt").read_text(encoding="utf-8")
+fragment=(src/"GameSessionFragment.kt").read_text(encoding="utf-8")
 viewmodel=(src/"GameSessionViewModel.kt").read_text(encoding="utf-8")
 capture=(src/"GameSessionTelemetry.kt").read_text(encoding="utf-8")
 analysis=(src/"GameSessionAnalysis.kt").read_text(encoding="utf-8")
@@ -121,7 +122,7 @@ for term in ("ACTION_MAIN","CATEGORY_LAUNCHER","startRecording()","stopRecording
  "GameSessionRecorderService.start","GameSessionRecorderService.stop",
  "Intent.ACTION_CREATE_DOCUMENT","ViewModelProvider(this)[GameSessionViewModel::class.java]",
  "GameSessionRecorderService.start","GameSessionRecorderService.stop"):
-    assert term in activity,term
+    assert term in fragment,term
 for term in ("GameSessionAnalysis.render","GameSessionAnalysis.compare",
              "exportZip","writeCsv(writer", "GameSessionRepository(getApplication())",
              "onCleared()", "LiveData", "latest.get() == request"):
@@ -131,7 +132,8 @@ for term in ("fun writeCsv(","fun exportZip(","fun recent(","fun points(","fun e
     assert term in repository,term
 assert "warnings(s)" in analysis
 assert "GameSessionActivity::class.java" in (src/"MainActivity.kt").read_text(encoding="utf-8")
+assert "GameSessionFragment()" in activity and "state.observe(viewLifecycleOwner)" in fragment
 for forbidden in ("ACCESS_FINE_LOCATION","QUERY_ALL_PACKAGES","WRITE_SECURE_SETTINGS",
  "Runtime.getRuntime().exec","setprop ","ShizukuService"):
-    assert forbidden not in service+capture+activity+repository
+    assert forbidden not in service+capture+activity+fragment+repository
 print("PASS: real v5→v6 preservation, FK/constraints and universal user-started service/export wiring")

@@ -76,17 +76,22 @@ for old in (
 assert graph.tag == "navigation"
 assert graph.get(res+"startDestination") == "@id/homeFragment"
 nodes = graph.findall("fragment")
-assert len(nodes) == 6
+assert len(nodes) == 7
 assert {n.get(android+"id") for n in nodes} == {
     "@+id/homeFragment", "@+id/gamesFragment", "@+id/toolsFragment",
-    "@+id/historyFragment", "@+id/settingsFragment", "@+id/gameDetailFragment"
+    "@+id/historyFragment", "@+id/settingsFragment", "@+id/gameDetailFragment", "@+id/gameSessionFragment"
 }
 for node in nodes:
     assert node.get(android+"name") in {
         "dev.lolokeksu.legioncontrol.HubPageFragment",
-        "dev.lolokeksu.legioncontrol.GameDetailFragment"
+        "dev.lolokeksu.legioncontrol.GameDetailFragment",
+        "dev.lolokeksu.legioncontrol.GameSessionFragment"
     }
-    assert len(node.findall("argument")) == 1
+    if node.get(android+"id") == "@+id/gameSessionFragment":
+        assert [x.get(android+"name") for x in node.findall("argument")] == [
+            "smart_package", "smart_label", "smart_tcp"]
+    else:
+        assert len(node.findall("argument")) == 1
 detail_node = [n for n in nodes if n.get(android+"id") == "@+id/gameDetailFragment"][0]
 assert detail_node.find("argument").get(android+"name") == "gamePackage"
 
@@ -110,8 +115,8 @@ assert "HapticLabActivity::class.java" in view and "AudioLabActivity::class.java
 assert "setOnClickListener" in view and "onResume()" in view
 
 assert "toggleFavorite(pkg, app.label)" in detail
-assert "GameSessionActivity::class.java" in detail
-assert 'putExtra("smart_package", pkg)' in detail
+assert "R.id.gameSessionFragment" in detail
+assert 'putString("smart_package",pkg)' in detail
 assert 'putExtra("app_center_package", pkg)' in detail
 assert "getLaunchIntentForPackage(pkg)" in detail
 

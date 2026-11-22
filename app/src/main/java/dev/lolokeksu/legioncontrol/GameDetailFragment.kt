@@ -150,10 +150,12 @@ class GameDetailFragment : Fragment() {
             open(GameToolboxActivity::class.java)
         }
         addAction("Game Session", "Открыть запись сессии с заранее выбранным пакетом") {
-            open(GameSessionActivity::class.java) {
-                it.putExtra("smart_package", pkg)
-                it.putExtra("smart_label", app.label)
-            }
+            NavHostFragment.findNavController(this).navigate(
+                R.id.gameSessionFragment, Bundle().apply {
+                    putString("smart_package",pkg)
+                    putString("smart_label",app.label)
+                }
+            )
         }
         addAction("Smart Profiles", "Профиль и предупреждения именно этого приложения") {
             open(SmartProfilesActivity::class.java) {

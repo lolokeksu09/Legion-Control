@@ -8,7 +8,8 @@ src=root/"app/src/main/java/dev/lolokeksu/legioncontrol"
 read=lambda name: (src/name).read_text(encoding="utf-8")
 main=read("MainActivity.kt")
 rust=read("RustSampleController.kt")
-game=read("GameSessionActivity.kt")
+game=read("GameSessionFragment.kt")
+gameActivity=read("GameSessionActivity.kt")
 gamevm=read("GameSessionViewModel.kt")
 profiles=read("SmartProfilesActivity.kt")
 profilevm=read("SmartProfilesViewModel.kt")
@@ -48,8 +49,9 @@ for vm in (gamevm, profilevm, appvm, audiovm, hapticvm):
     assert "AlertDialog" not in vm
     assert "startActivity(" not in vm
 
-assert "GameSessionRecorderService.start(this" in game
-assert "GameSessionRecorderService.stop(this)" in game
+assert "GameSessionRecorderService.start(requireContext()," in game
+assert "GameSessionFragment()" in gameActivity
+assert "GameSessionRecorderService.stop(requireContext())" in game
 assert "Intent.ACTION_CREATE_DOCUMENT" in game
 assert "GameSessionRepository(getApplication())" in gamevm
 assert "GameSessionAnalysis.compare(" in gamevm
@@ -76,11 +78,14 @@ assert "backend.perform(waveform)" in hapticvm and "backend.stop()" in hapticvm
 assert "HapticLabRepository(" not in haptic
 assert "viewModel.stopPlayback()" in haptic
 assert "setPositiveButton(\"Удалить\")" in haptic
-for activity in (game,profiles,apps,audio,haptic):
+assert "ViewModelProvider(this)" in game and "state.observe(viewLifecycleOwner)" in game
+for activity in (profiles,apps,audio,haptic):
     assert "ViewModelProvider(this)" in activity
     assert "state.observe(this)" in activity
 
 # Stage 3 does NOT falsely claim a completed all-Fragment migration.
 assert "homeFragment" in graph and "gameDetailFragment" in graph
 assert "NavigationHostActivity" in read("NavigationHostActivity.kt")
+assert "gameSessionFragment" in graph and "GameSessionFragment" in game
+assert "navigate(R.id.gameSessionFragment,extras)" in read("HubPageFragment.kt")
 print("PASS alpha28: explicit native recorder + five real lifecycle backends, permissions, cancellation, consent")

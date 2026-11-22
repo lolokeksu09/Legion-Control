@@ -132,6 +132,15 @@ class HubPageFragment : Fragment() {
     }
 
     private fun <T> open(cls: Class<T>, extras: Bundle? = null) {
+        if (cls == GameSessionActivity::class.java) {
+            runCatching { NavHostFragment.findNavController(this).navigate(R.id.gameSessionFragment,extras) }
+                .onFailure { error ->
+                    AlertDialog.Builder(requireContext()).setTitle("Не удалось открыть Game Session")
+                        .setMessage(error.javaClass.simpleName)
+                        .setPositiveButton("Понятно",null).show()
+                }
+            return
+        }
         runCatching {
             startActivity(Intent(requireContext(), cls).apply {
                 if (extras != null) putExtras(extras)
