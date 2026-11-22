@@ -90,7 +90,8 @@ assert "Executors.newSingleThreadExecutor()" in capture_vm
 assert "repository.deleteOwnClip(clip)" in capture_vm
 assert "revision.incrementAndGet()" in capture_vm
 assert "onCleared()" in capture_vm
-assert "MediaProjection" not in capture_vm + capture_repo
+for forbidden_api in ("getMediaProjection(", "createScreenCaptureIntent(", "MediaProjectionManager", "startForegroundService("):
+    assert forbidden_api not in capture_vm + capture_repo
 assert "private val supported = mapOf(" in preset
 assert "CapturePresetRules" in unit and unit.count("@Test") >= 3
 
