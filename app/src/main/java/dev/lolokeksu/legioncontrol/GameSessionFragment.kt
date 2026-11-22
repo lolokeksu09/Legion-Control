@@ -107,6 +107,16 @@ class GameSessionFragment : Fragment() {
             "Обычные изменения сети и показания батареи записываются только локально. " +
             "Запись не включает настоящий FPS, ping игрового сервера или перехват трафика."
         ))
+        // Keep action feedback in the same visible region as the recording controls.
+        reportView = TextView(requireContext()).apply {
+            text="Выберите приложение, нажмите «НАЧАТЬ ЗАПИСЬ», затем откройте игру. " +
+                "При завершении нажмите «ОСТАНОВИТЬ ЗАПИСЬ» в приложении или уведомлении."
+            textSize=14f
+            setTextColor(Color.WHITE)
+            setLineSpacing(4f,1f)
+            setPadding(0,14.dp,0,20.dp)
+        }
+        root.addView(reportView)
         action("НАЧАТЬ ЗАПИСЬ") { startRecording() }
         action("Открыть выбранное приложение") { openSelectedApp() }
         action("ОСТАНОВИТЬ ЗАПИСЬ") { stopRecording() }
@@ -127,15 +137,6 @@ class GameSessionFragment : Fragment() {
             "не стартует после перезагрузки и не передаёт историю на сервер. " +
             "Android может остановить службу из-за ограничений прошивки."
         ))
-        reportView = TextView(requireContext()).apply {
-            text="Выберите приложение, нажмите «НАЧАТЬ ЗАПИСЬ», затем откройте игру. " +
-                "При завершении нажмите «ОСТАНОВИТЬ ЗАПИСЬ» в приложении или уведомлении."
-            textSize=14f
-            setTextColor(Color.WHITE)
-            setLineSpacing(4f,1f)
-            setPadding(0,14.dp,0,20.dp)
-        }
-        root.addView(reportView)
         timeline = GameSessionTimelineView(requireContext())
         root.addView(timeline, LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, 240.dp))

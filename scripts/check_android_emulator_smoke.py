@@ -59,6 +59,37 @@ def expect(needle: str, seconds: int = 35) -> None:
     raise AssertionError(f"Never visible: {needle}")
 
 
+
+def expect_scrolling(needle: str, seconds: int = 30) -> None:
+    width,height = dimensions()
+    deadline=time.monotonic()+seconds
+    step=0
+    while time.monotonic() < deadline:
+        if visible(needle):
+            print("PASS report:",needle,flush=True)
+            return
+        y1,y2=(int(height*.3),int(height*.78)) if step%2==0 else (int(height*.78),int(height*.3))
+        adb("shell","input","swipe",str(width//2),str(y1),str(width//2),str(y2),"300")
+        step+=1
+        time.sleep(.65)
+    raise AssertionError(f"Report not found even after scrolling: {needle}")
+
+
+def service_running() -> bool:
+    # Service state, not a UI string, verifies an actual foreground recorder instance.
+    return "GameSessionRecorderService" in adb("shell","dumpsys","activity","services",PACKAGE,timeout=30)
+
+
+def expect_service(active:bool, seconds:int=18) -> None:
+    deadline=time.monotonic()+seconds
+    while time.monotonic() < deadline:
+        if service_running() is active:
+            print("PASS active recorder service:",active,flush=True)
+            return
+        time.sleep(.75)
+    raise AssertionError(f"Actual GameSessionRecorderService active state is not {active}")
+
+
 def dimensions() -> tuple[int, int]:
     size = adb("shell", "wm", "size")
     match = re.search(r"(\d+)x(\d+)", size)
@@ -157,13 +188,15 @@ def main() -> None:
 
     # Recorder can only start from this explicit tap; network test remains unchecked.
     click("НАЧАТЬ ЗАПИСЬ")
-    expect("Запрошен запуск записи", seconds=16)
+    expect_service(True)
+    expect_scrolling("Запрошен запуск записи", seconds=17)
     time.sleep(3)
     click("ОСТАНОВИТЬ ЗАПИСЬ")
-    expect("Отправлена команда остановки", seconds=16)
+    expect_service(False)
+    expect_scrolling("Отправлена команда остановки", seconds=17)
     time.sleep(2)
     click("Обновить и показать последние сессии")
-    expect("ПОСЛЕДНИЕ СЕССИИ", seconds=25)
+    expect_scrolling("ПОСЛЕДНИЕ СЕССИИ", seconds=35)
     capture("05-recorded-session-history")
     back_until("LEGION CONTROL · SMART PROFILES")
     back_until("Инструменты")
