@@ -41,6 +41,7 @@ class CaptureRecordingService : Service() {
         const val EXTRA_MBIT = "capture_mbit"
         const val EXTRA_MINUTES = "capture_minutes"
         const val EXTRA_PLAYBACK_AUDIO = "capture_playback_audio"
+        const val EXTRA_AUDIO_GAME = "capture_audio_game"
         const val PREFS = "legion-capture-studio"
         const val LAST_RESULT = "last_result"
         private const val CHANNEL = "legion-capture-recording"
@@ -79,6 +80,7 @@ class CaptureRecordingService : Service() {
     private var pendingUri: Uri? = null
     private var playbackAudio: PlaybackAudioCapture? = null
     private var playbackAudioRequested = false
+    private var selectedGameUid: Int? = null
     private var playbackAudioProblem: String? = null
     private var videoStartedAtMs = 0L
     private var recorderStarted = false
@@ -119,6 +121,23 @@ class CaptureRecordingService : Service() {
             writeStatus("Нет разрешения на захват внутреннего звука. Выберите режим без звука либо выдайте разрешение.")
             stopSelfResult(startId)
             return START_NOT_STICKY
+        }
+        if (playbackAudioRequested) {
+            val pkg = intent.getStringExtra(EXTRA_AUDIO_GAME)
+            val uid = if (pkg != null && ApplicationInventory.isPackageName(pkg) &&
+                packageManager.getLaunchIntentForPackage(pkg) != null) {
+                runCatching {
+                    packageManager.getApplicationInfo(
+                        pkg, PackageManager.ApplicationInfoFlags.of(0L)
+                    ).uid
+                }.getOrNull()
+            } else null
+            if (uid == null || uid <= 0) {
+                writeStatus("Выбранная игра не найдена. Сначала выберите её в Game Toolbox.")
+                stopSelfResult(startId)
+                return START_NOT_STICKY
+            }
+            selectedGameUid = uid
         }
         try {
             // Android 14+: user consent must precede foreground mediaProjection service.
@@ -288,7 +307,7 @@ class CaptureRecordingService : Service() {
         paused = false
         if (playbackAudioRequested) {
             runCatching {
-                PlaybackAudioCapture(this, capture).also {
+                PlaybackAudioCapture(this, capture, requireNotNull(selectedGameUid)).also {
                     it.start(videoStartedAtMs)
                     playbackAudio = it
                 }
