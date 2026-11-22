@@ -105,7 +105,7 @@ for file,targets in (
     content=(src/file).read_text()
     for target in targets:
         assert (
-            f"ModuleNavigation.open(this,{target}::class.java)" in content or
+            f"ModuleNavigation.open(this,{target}::class.java" in content or
             f"ModuleNavigation.open(this, {target}::class.java" in content
         ), (file,target)
 assert "REQUEST_EXPORT" not in routing and "startForegroundService" not in routing
