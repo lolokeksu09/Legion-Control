@@ -10,6 +10,13 @@ class CaptureStudioRepository(context: Context) {
     private val app = context.applicationContext
     private val prefs = app.getSharedPreferences(CaptureRecordingService.PREFS, Context.MODE_PRIVATE)
 
+    fun playbackAudioEnabled(): Boolean = prefs.getBoolean("playback_audio", false)
+
+    fun choosePlaybackAudio(enabled: Boolean): Boolean {
+        check(prefs.edit().putBoolean("playback_audio", enabled).commit())
+        return playbackAudioEnabled()
+    }
+
     fun config(): CaptureConfig = CaptureConfig.fromOptions(
         prefs.getInt("edge", 1280), prefs.getInt("fps", 30),
         prefs.getInt("mbit", 4), prefs.getInt("minutes", 5)
