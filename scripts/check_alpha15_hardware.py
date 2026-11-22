@@ -49,6 +49,7 @@ for call in (
 assert "startActivity(Intent.createChooser(" in activity
 assert "runningJob?.cancel(true)" in activity
 assert "networkEvents?.stop(false)" in activity
+assert "completed = {\n                networkEvents = null" in activity, "30s completion must allow another test"
 assert "motion?.stop(false)" in activity
 assert "worker.shutdownNow()" in activity
 assert "override fun onStop()" in activity

@@ -159,7 +159,10 @@ class HardwareLabActivity : Activity() {
         val capture = ForegroundNetworkEvents(
             applicationContext,
             update = { if (visible) report(it) },
-            completed = { if (visible) report(it) }
+            completed = {
+                networkEvents = null
+                if (visible) report(it)
+            }
         )
         if (capture.start()) {
             networkEvents = capture
