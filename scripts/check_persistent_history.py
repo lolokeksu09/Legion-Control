@@ -47,7 +47,8 @@ for expected in (
     assert expected in activity, expected
 # No startup sample: manual measurement only (also no passive sensor listeners).
 assert "showSavedHistory()" in activity and "private fun manualSample()" in activity
-assert "sample()\n    }" not in activity
+on_create = activity.split("override fun onCreate(", 1)[1].split("override fun onStart()", 1)[0]
+assert "sample()" not in on_create, "No battery capture on Activity startup"
 assert "SensorManager" in sensors and "getDefaultSensor(type)" in sensors
 assert "registerListener" not in sensors
 assert 'versionCode = 13' in gradle
