@@ -10,7 +10,8 @@ history=(src/"LocalHistoryStore.kt").read_text(encoding="utf-8")
 schema=(src/"ExperimentSchema.kt").read_text(encoding="utf-8")
 repository=(src/"ExperimentRepository.kt").read_text(encoding="utf-8")
 analytics=(src/"ExperimentAnalytics.kt").read_text(encoding="utf-8")
-activity=(src/"ExperimentLabActivity.kt").read_text(encoding="utf-8")
+activity=(src/"ExperimentLabFragment.kt").read_text(encoding="utf-8")
+compat=(src/"ExperimentLabActivity.kt").read_text(encoding="utf-8")
 build=(root/"app/build.gradle.kts").read_text(encoding="utf-8")
 
 assert 'versionCode = 27' in build
@@ -134,6 +135,7 @@ for term in ("Intent.ACTION_CREATE_DOCUMENT","fun confirmDelete()",
              "ViewModelProvider(this)"):
     assert term in activity,term
 assert "ExperimentRepository(applicationContext)" not in activity
+assert "ExperimentLabFragment()" in compat and "state.observe(viewLifecycleOwner)" in activity
 for term in ("ExperimentRepository(getApplication<Application>())","fun selectSession(",
              "fun createExperiment(", "fun assign(", "fun exportCsv(", "onCleared()",
              "ExperimentAnalytics.formatComparison(", "it.annotate("):

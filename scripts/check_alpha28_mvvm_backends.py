@@ -25,6 +25,8 @@ hapticCompat=read("HapticLabActivity.kt")
 hapticvm=read("HapticLabViewModel.kt")
 connectivity=read("ConnectivityLabFragment.kt")
 connectivityVm=read("ConnectivityLabViewModel.kt")
+experiment=read("ExperimentLabFragment.kt")
+experimentVm=read("ExperimentLabViewModel.kt")
 graph=(root/"app/src/main/res/navigation/legion_nav_graph.xml").read_text(encoding="utf-8")
 manifest=ET.parse(root/"app/src/main/AndroidManifest.xml").getroot()
 ns="{http://schemas.android.com/apk/res/android}"
@@ -95,6 +97,8 @@ assert "ViewModelProvider(this)" in haptic and "state.observe(viewLifecycleOwner
 assert "HapticLabFragment()" in hapticCompat
 assert "ViewModelProvider(this)" in connectivity and "state.observe(viewLifecycleOwner)" in connectivity
 assert "ConnectivityProbe.capture(" in connectivityVm and "fun cancelTest()" in connectivityVm
+assert "ViewModelProvider(this)" in experiment and "state.observe(viewLifecycleOwner)" in experiment
+assert "ExperimentRepository(getApplication<Application>())" in experimentVm and "onCleared()" in experimentVm
 
 # Stage 3 does NOT falsely claim a completed all-Fragment migration.
 assert "homeFragment" in graph and "gameDetailFragment" in graph

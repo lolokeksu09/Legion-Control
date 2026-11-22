@@ -68,9 +68,12 @@
         android:label="Application Center">
         <argument android:name="app_center_package" app:argType="string" android:defaultValue=""/>
     </fragment>
-    <activity
+    <fragment
         android:id="@+id/experimentLabDestination"
-        android:name="dev.lolokeksu.legioncontrol.ExperimentLabActivity" />
+        android:name="dev.lolokeksu.legioncontrol.ExperimentLabFragment"
+        android:label="Experiment Lab">
+        <argument android:name="experiment_package" app:argType="string" android:defaultValue=""/>
+    </fragment>
     <fragment
         android:id="@+id/connectivityLabDestination"
         android:name="dev.lolokeksu.legioncontrol.ConnectivityLabFragment"
