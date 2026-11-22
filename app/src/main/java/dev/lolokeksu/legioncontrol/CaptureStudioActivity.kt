@@ -107,6 +107,26 @@ class CaptureStudioActivity : ComponentActivity() {
 
         heading("Запись")
         action("НАЧАТЬ ЗАПИСЬ ЭКРАНА") { askConsent() }
+        action("ПОСТАВИТЬ ЗАПИСЬ НА ПАУЗУ") {
+            if (CaptureRecordingService.recording && !CaptureRecordingService.paused) {
+                runCatching { CaptureRecordingService.pause(this) }
+                    .onSuccess { status.text = "Пауза запрошена. Состояние обновится в уведомлении." }
+                    .onFailure { status.text = "Пауза недоступна: " + it.javaClass.simpleName }
+            } else {
+                status.text = if (CaptureRecordingService.paused) "Запись уже на паузе."
+                    else "Активной записи нет."
+            }
+        }
+        action("ВОЗОБНОВИТЬ ЗАПИСЬ") {
+            if (CaptureRecordingService.recording && CaptureRecordingService.paused) {
+                runCatching { CaptureRecordingService.resume(this) }
+                    .onSuccess { status.text = "Возобновление запрошено. Проверьте уведомление." }
+                    .onFailure { status.text = "Возобновление недоступно: " + it.javaClass.simpleName }
+            } else {
+                status.text = if (CaptureRecordingService.recording) "Запись уже идёт."
+                    else "Активной записи нет."
+            }
+        }
         action("ОСТАНОВИТЬ ЗАПИСЬ") {
             if (CaptureRecordingService.recording) {
                 CaptureRecordingService.stop(this)
@@ -137,6 +157,9 @@ class CaptureStudioActivity : ComponentActivity() {
         action("ОТКРЫТЬ БИБЛИОТЕКУ СНИМКОВ") { viewModel.refreshScreenshots() }
         shotsContainer = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         root.addView(shotsContainer)
+        note("Пауза и продолжение сохраняют один MP4. Время паузы не расходует лимит " +
+            "активной записи. Через 5 минут непрерывной паузы запись останавливается. " +
+            "Если кодек отклонит команду, захват будет завершён.")
         note("Каждый запуск требует нового согласия Android. " +
             "После подтверждения перейдите в игру — остановить запись можно из постоянного " +
             "уведомления или этого экрана. Ограничение качества/частоты зависит от кодека и прошивки.")
