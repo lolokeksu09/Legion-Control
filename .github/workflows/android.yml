@@ -103,6 +103,8 @@ jobs:
         run: python3 scripts/check_alpha33_game_launch_profiles.py
       - name: Validate alpha.34 consented screenshot service and owned PNG library
         run: python3 scripts/check_alpha34_screenshots.py
+      - name: Validate alpha.35 MediaRecorder pause/resume state and time accounting
+        run: python3 scripts/check_alpha35_capture_pause_resume.py
       - name: Run pure Kotlin CSV and Russian plural regression tests
         run: gradle --no-daemon testDebugUnitTest
       - name: Test and compile real Rust backend for Android
