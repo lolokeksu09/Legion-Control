@@ -61,7 +61,7 @@ class GamingDiagnosticsActivity : Activity() {
             setTextColor(Color.WHITE)
             setLineSpacing(5f, 1f)
             setPadding(4.dp, 12.dp, 4.dp, 20.dp)
-            isTextSelectable = true
+            setTextIsSelectable(true)
         }
         root.addView(resultView)
 
