@@ -1,6 +1,7 @@
 package dev.lolokeksu.legioncontrol
 
-import android.app.Activity
+import androidx.activity.ComponentActivity
+import androidx.lifecycle.ViewModelProvider
 import android.app.AlertDialog
 import android.content.Intent
 import android.graphics.Color
@@ -16,19 +17,16 @@ import android.widget.TextView
 import java.text.DateFormat
 import java.util.Date
 import java.util.Locale
-import java.util.concurrent.Executors
 
 /**
  * Video-only user-consented screen capture and app-owned clip library.
  * No background scan, recording without system consent, microphone or cloud upload.
  */
-class CaptureStudioActivity : Activity() {
+class CaptureStudioActivity : ComponentActivity() {
     companion object { private const val REQUEST_CAPTURE = 25001 }
 
-    private val prefs by lazy {
-        getSharedPreferences(CaptureRecordingService.PREFS, MODE_PRIVATE)
-    }
-    private val executor = Executors.newSingleThreadExecutor()
+    private val viewModel by lazy { ViewModelProvider(this)[CaptureStudioViewModel::class.java] }
+    private lateinit var clipsContainer: LinearLayout
     private lateinit var status: TextView
     private lateinit var choices: TextView
     private val Int.dp: Int get() = (this * resources.displayMetrics.density).toInt()
@@ -119,10 +117,24 @@ class CaptureStudioActivity : Activity() {
             "Здесь показываются только клипы, сохранённые самим Legion Control. " +
             "Никакие чужие видео приложение не читает.")
         action("ОТКРЫТЬ БИБЛИОТЕКУ КЛИПОВ") { browseClips() }
+        clipsContainer = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        root.addView(clipsContainer)
         note("Каждый запуск требует нового согласия Android. " +
             "После подтверждения перейдите в игру — остановить запись можно из постоянного " +
             "уведомления или этого экрана. Ограничение качества/частоты зависит от кодека и прошивки.")
         setContentView(ScrollView(this).apply { addView(root) })
+        viewModel.settings.observe(this) { refreshChoices() }
+        viewModel.message.observe(this) { status.text = it }
+        viewModel.library.observe(this) { state ->
+            when (state) {
+                CaptureLibraryState.Idle -> Unit
+                CaptureLibraryState.Loading -> {
+                    status.text = "Читаю список собственных MP4 из MediaStore…"
+                }
+                is CaptureLibraryState.Ready -> showClipList(state.clips)
+                is CaptureLibraryState.Error -> status.text = state.message
+            }
+        }
         refreshChoices()
         refreshStatus()
     }
@@ -133,31 +145,20 @@ class CaptureStudioActivity : Activity() {
     }
 
     private fun refreshChoices() {
-        val config = currentConfig()
+        val config = viewModel.config()
         choices.text = "Сторона до ${config.maxEdge} px · ${config.fps} FPS запрошено\n" +
             "${config.videoBitrate / 1_000_000} Мбит/с · " +
             "${config.maxDurationMs / 60_000} мин максимум"
     }
 
-    private fun currentConfig() = CaptureConfig.fromOptions(
-        prefs.getInt("edge", 1280),
-        prefs.getInt("fps", 30),
-        prefs.getInt("mbit", 4),
-        prefs.getInt("minutes", 5)
-    )
-
     private fun selectOption(title: String, name: String, values: IntArray, labels: Array<String>) {
         AlertDialog.Builder(this).setTitle(title).setItems(labels) { _, index ->
-            prefs.edit().putInt(name, values[index]).apply()
-            refreshChoices()
+            viewModel.setOption(name, values[index])
         }.setNegativeButton("Отмена", null).show()
     }
 
     private fun refreshStatus() {
-        val running = CaptureRecordingService.recording
-        val last = prefs.getString(CaptureRecordingService.LAST_RESULT,
-            "Клипов ещё нет. Для первой записи нажмите «Начать» и подтвердите запрос Android.")
-        status.text = (if (running) "ЗАПИСЬ АКТИВНА\n" else "Запись не активна\n") + last
+        status.text = viewModel.status()
     }
 
     private fun askConsent() {
@@ -182,7 +183,7 @@ class CaptureStudioActivity : Activity() {
             status.text = "Вы отказали в записи. MediaProjection и файлы не создавались."
             return
         }
-        val config = currentConfig()
+        val config = viewModel.config()
         val intent = Intent(this, CaptureRecordingService::class.java).apply {
             action = CaptureRecordingService.ACTION_START
             putExtra(CaptureRecordingService.EXTRA_RESULT, resultCode)
@@ -214,34 +215,24 @@ class CaptureStudioActivity : Activity() {
     }
 
     private fun browseClips() {
-        status.text = "Читаю список собственных MP4 из MediaStore…"
-        executor.execute {
-            val result = runCatching { CaptureClipLibrary.listOwn(applicationContext) }
-            runOnUiThread {
-                if (!isFinishing && !isDestroyed) {
-                    result.onSuccess { clips ->
-                        if (clips.isEmpty()) status.text = "В папке пока нет готовых MP4."
-                        else showClipList(clips)
-                    }.onFailure {
-                        status.text = "Не удалось прочитать библиотеку: " + it.javaClass.simpleName
-                    }
-                }
-            }
-        }
+        viewModel.refresh()
     }
 
+    /** Inline screen state, not a popup re-triggered by Activity recreation. */
     private fun showClipList(clips: List<CaptureClip>) {
-        status.text = "Найдено клипов: ${clips.size}"
-        val names = clips.map {
-            val size = String.format(Locale.US, "%.1f", it.bytes / 1048576.0)
-            val length = if (it.durationMs > 0) " · ${it.durationMs / 1000} с" else ""
-            "${it.name}\n${size} МиБ${length}"
-        }.toTypedArray()
-        AlertDialog.Builder(this)
-            .setTitle("Мои видео · ${clips.size}")
-            .setItems(names) { _, index -> clipActions(clips[index]) }
-            .setNegativeButton("Закрыть", null)
-            .show()
+        clipsContainer.removeAllViews()
+        status.text = if (clips.isEmpty()) "В папке пока нет готовых MP4."
+            else "Найдено клипов: ${clips.size}"
+        for (clip in clips) {
+            val size = String.format(Locale.US, "%.1f", clip.bytes / 1048576.0)
+            val length = if (clip.durationMs > 0) " · ${clip.durationMs / 1000} с" else ""
+            clipsContainer.addView(Button(this).apply {
+                text = "${clip.name}\n${size} МиБ${length}"
+                isAllCaps = false
+                minHeight = 48.dp
+                setOnClickListener { clipActions(clip) }
+            })
+        }
     }
 
     private fun clipActions(clip: CaptureClip) {
@@ -282,24 +273,8 @@ class CaptureStudioActivity : Activity() {
             .setMessage("Будет удалён только выбранный файл ${clip.name}. " +
                 "История сессий, диагностика и другие клипы сохранятся.")
             .setPositiveButton("Удалить") { _, _ ->
-                executor.execute {
-                    val result = runCatching {
-                        CaptureClipLibrary.delete(applicationContext, clip.uri)
-                    }
-                    runOnUiThread {
-                        if (!isFinishing && !isDestroyed) {
-                            status.text = result.fold(
-                                { if (it) "Видео удалено." else "Файл не удалён или уже отсутствует." },
-                                { "Удаление не удалось: " + it.javaClass.simpleName }
-                            )
-                        }
-                    }
-                }
+                viewModel.deleteConfirmed(clip)
             }.setNegativeButton("Отмена", null).show()
     }
 
-    override fun onDestroy() {
-        executor.shutdownNow()
-        super.onDestroy()
-    }
 }
