@@ -149,7 +149,10 @@ class CaptureRecordingService : Service() {
         }
         output = file
 
-        val mediaRecorder = MediaRecorder(this).apply {
+        val mediaRecorder = MediaRecorder(this)
+        // Assign before prepare(): failed codec initialization must still release native resources.
+        recorder = mediaRecorder
+        mediaRecorder.apply {
             setVideoSource(MediaRecorder.VideoSource.SURFACE)
             setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
             setVideoEncoder(MediaRecorder.VideoEncoder.H264)
@@ -162,7 +165,6 @@ class CaptureRecordingService : Service() {
             }
             prepare()
         }
-        recorder = mediaRecorder
         // A single createVirtualDisplay call per MediaProjection object (Android 14+).
         virtualDisplay = capture.createVirtualDisplay(
             "LegionCaptureStudio", width, height, dpi,
