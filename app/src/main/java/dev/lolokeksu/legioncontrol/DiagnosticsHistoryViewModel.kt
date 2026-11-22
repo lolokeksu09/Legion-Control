@@ -8,6 +8,7 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicIntegerArray
+import java.util.concurrent.atomic.AtomicBoolean
 
 /** A single response directed to a specific visible diagnostics pane. */
 data class DiagnosticsReadResult(
@@ -25,6 +26,7 @@ class DiagnosticsHistoryViewModel(application: Application) : AndroidViewModel(a
     private val mainHandler = Handler(Looper.getMainLooper())
     private val worker = Executors.newSingleThreadExecutor()
     private val generations = AtomicIntegerArray(5)
+    private val cleared = AtomicBoolean(false)
     private val mutableReport = MutableLiveData<DiagnosticsReadResult>()
     val report: LiveData<DiagnosticsReadResult> = mutableReport
 
@@ -38,19 +40,22 @@ class DiagnosticsHistoryViewModel(application: Application) : AndroidViewModel(a
     }
 
     fun request(kind: DiagnosticsReadKind) {
+        if (cleared.get()) return
         val index = slot(kind.pane)
         val generation = generations.incrementAndGet(index)
-        worker.execute {
-            val report = runCatching { repository.read(kind) }.getOrElse {
-                "Ошибка чтения SQLite (${kind.name}): " + it.javaClass.simpleName
-            }
-            // postValue() coalesces results across panes; one main-queue event per pane is required.
-            mainHandler.post {
-                if (generations.get(index) == generation) {
-                    mutableReport.value = DiagnosticsReadResult(kind.pane, report)
+        runCatching {
+            worker.execute {
+                val report = runCatching { repository.read(kind) }.getOrElse {
+                    "Ошибка чтения SQLite (${kind.name}): " + it.javaClass.simpleName
+                }
+                // postValue() coalesces pane events; dispatch each one on main separately.
+                mainHandler.post {
+                    if (!cleared.get() && generations.get(index) == generation) {
+                        mutableReport.value = DiagnosticsReadResult(kind.pane, report)
+                    }
                 }
             }
-        }
+        } // An Activity write callback may outlive a cleared ViewModel during recreation.
     }
 
     fun invalidate(pane: String) {
@@ -58,6 +63,7 @@ class DiagnosticsHistoryViewModel(application: Application) : AndroidViewModel(a
     }
 
     override fun onCleared() {
+        cleared.set(true)
         for (index in 0..4) generations.incrementAndGet(index)
         worker.execute { runCatching { repository.close() } }
         worker.shutdown()
