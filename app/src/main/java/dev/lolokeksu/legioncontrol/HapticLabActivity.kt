@@ -1,6 +1,7 @@
 package dev.lolokeksu.legioncontrol
 
-import android.app.Activity
+import androidx.activity.ComponentActivity
+import androidx.lifecycle.ViewModelProvider
 import android.app.AlertDialog
 import android.content.Intent
 import android.graphics.Color
@@ -23,10 +24,9 @@ import java.util.Date
 import java.util.concurrent.Executors
 
 /** Manual Haptic Lab; no privileged controls, telemetry service or background vibration. */
-class HapticLabActivity:Activity() {
+class HapticLabActivity:ComponentActivity() {
     companion object { private const val REQUEST_CSV=2301 }
-    private val worker=Executors.newSingleThreadExecutor()
-    private lateinit var backend:HapticPlaybackBackend
+    private lateinit var viewModel: HapticLabViewModel
     private lateinit var patternSpinner:Spinner
     private lateinit var levelSpinner:Spinner
     private lateinit var output:TextView
@@ -34,14 +34,10 @@ class HapticLabActivity:Activity() {
     private lateinit var stopButton:Button
     private var visible=false
     private var playing=false
-    private var selectedRunId:String?=null
-    private var lastReport:String?=null
-    private var latestCapabilities:HapticCapabilitySnapshot?=null
     private val Int.dp:Int get()=(this*resources.displayMetrics.density).toInt()
 
     override fun onCreate(savedInstanceState:Bundle?) {
         super.onCreate(savedInstanceState)
-        backend=HapticPlaybackBackend(applicationContext)
         val root=LinearLayout(this).apply {
             orientation=LinearLayout.VERTICAL
             setBackgroundColor(Color.BLACK)
@@ -113,7 +109,7 @@ class HapticLabActivity:Activity() {
         action("Три импульса") { startTest("TRIPLE_PULSE","MEDIUM") }
         action("Медленная последовательность") { startTest("SLOW_PULSE","GENTLE") }
         stopButton=action("ОСТАНОВИТЬ ВИБРАЦИЮ") {
-            backend.stop()
+            viewModel.stopPlayback()
             show("Запрошена остановка. Результат будет отмечен CANCELLED.")
         }
         stopButton.isEnabled=false
@@ -145,6 +141,20 @@ class HapticLabActivity:Activity() {
         }
         root.addView(output)
         setContentView(ScrollView(this).apply { addView(root) })
+        viewModel = ViewModelProvider(this)[HapticLabViewModel::class.java]
+        viewModel.state.observe(this) { state ->
+            playing = state.playing
+            buttons()
+            show(state.message)
+            state.runs?.let { runs ->
+                viewModel.consumePicker(state.nonce)
+                chooseRunDialog(runs)
+            }
+        }
+        if (savedInstanceState != null) {
+            patternSpinner.setSelection(savedInstanceState.getInt("pattern",0).coerceIn(0,4))
+            levelSpinner.setSelection(savedInstanceState.getInt("level",0).coerceIn(0,2))
+        }
     }
 
     private fun show(text:String) { if(::output.isInitialized) output.text=text }
@@ -162,99 +172,30 @@ class HapticLabActivity:Activity() {
     }
 
     private fun startTest(kind:String,level:String) {
-        if(!visible || playing) return
-        val waveform=runCatching { HapticPattern.build(kind,level) }.getOrElse {
-            show("Недопустимый шаблон вибрации.");return
-        }
-        playing=true
-        backend.arm()
-        buttons()
-        show("Запрос Android: $kind / $level · ${waveform.durationMs} мс…")
-        worker.execute {
-            var runId:String?=null
-            val message=runCatching {
-                HapticLabRepository(applicationContext).use { repo ->
-                    val id=repo.start(waveform)
-                    runId=id
-                    val response=backend.perform(waveform)
-                    repo.finish(id,response)
-                    repo.render(id)
-                }
-            }.getOrElse { e ->
-                "Ошибка Haptic Lab: "+e.javaClass.simpleName+
-                    " · "+e.message.orEmpty().take(140)
-            }
-            runOnUiThread {
-                playing=false
-                if(!isDestroyed && visible) {
-                    buttons()
-                    selectedRunId=runId
-                    lastReport=message
-                    show(message)
-                }
-            }
-        }
+        if (!visible || playing) return
+        viewModel.startTest(kind, level)
     }
 
-    private fun local(run:()->String) {
-        if(playing) return show("Остановите текущую вибрацию перед следующей операцией.")
-        show("Чтение локальных данных…")
-        worker.execute {
-            val result=runCatching { run() }.getOrElse { e ->
-                "Ошибка: "+e.javaClass.simpleName+" · "+e.message.orEmpty().take(140)
-            }
-            runOnUiThread {
-                if(!isDestroyed && visible) {
-                    lastReport=result
-                    show(result)
-                }
-            }
-        }
-    }
+    private fun inspect() = viewModel.inspect()
 
-    private fun inspect()=local {
-        val snapshot=HapticDeviceInspector.capture(applicationContext)
-        latestCapabilities=snapshot
-        snapshot.report()
-    }
+    private fun saveCapabilities() = viewModel.saveCapabilities()
 
-    private fun saveCapabilities()=local {
-        val measured=latestCapabilities
-            ?: return@local "Сначала нажмите «Проверить Android Vibra-capabilities»."
-        HapticLabRepository(applicationContext).use { it.saveSnapshot(measured) }
-        "Сохранён локальный снимок возможностей Android.\n"+measured.report()
-    }
+    private fun savedCapabilities() = viewModel.savedCapabilities()
 
-    private fun savedCapabilities()=local {
-        HapticLabRepository(applicationContext).use {
-            it.latestSnapshot()?.report() ?: "Снимков возможностей пока нет."
-        }
-    }
+    private fun chooseRun() = viewModel.chooseRun()
 
-    private fun chooseRun()=local {
-        HapticLabRepository(applicationContext).use { repo ->
-            val tests=repo.runs()
-            runOnUiThread {
-                if(!isDestroyed && visible) {
-                    if(tests.isEmpty())show("История тактильных тестов пуста.")
-                    else AlertDialog.Builder(this).setTitle("История Haptic Lab · ${tests.size}")
-                        .setItems(tests.map { r ->
-                            DateFormat.getDateTimeInstance().format(Date(r.startedAtMs))+
-                                " · "+r.pattern+" · "+r.level+" · "+r.result
-                        }.toTypedArray()) { _,i ->
-                            selectedRunId=tests[i].id
-                            local {
-                                HapticLabRepository(applicationContext).use { it.render(tests[i].id) }
-                            }
-                        }.setNegativeButton("Отмена",null).show()
-                }
-            }
-            "Найдено сохранённых тестов: ${tests.size}."
-        }
+    private fun chooseRunDialog(runs: List<HapticTestRun>) {
+        if (runs.isEmpty()) { show("История тактильных тестов пуста."); return }
+        AlertDialog.Builder(this).setTitle("История Haptic Lab · ${runs.size}")
+            .setItems(runs.map { r ->
+                DateFormat.getDateTimeInstance().format(Date(r.startedAtMs)) +
+                    " · " + r.pattern + " · " + r.level + " · " + r.result
+            }.toTypedArray()) { _,i -> viewModel.selectRun(runs[i].id) }
+            .setNegativeButton("Отмена",null).show()
     }
 
     private fun chooseRating() {
-        val id=selectedRunId ?: return show("Сначала выберите тест из истории или выполните новый.")
+        val id=viewModel.selectedRunId ?: return show("Сначала выберите тест из истории или выполните новый.")
         if(playing) return show("Нельзя оценивать тест до его завершения.")
         val note=EditText(this).apply {
             hint="Необязательная заметка · до 200 символов"
@@ -271,21 +212,14 @@ class HapticLabActivity:Activity() {
                 val value=ratings[index].substringBefore(" ")
                 val text=note.text.toString()
                 if(text.length>200)show("Заметка не должна превышать 200 символов.")
-                else local {
-                    HapticLabRepository(applicationContext).use { repo ->
-                        repo.rate(id,value,text)
-                        repo.render(id)
-                    }
-                }
+                else viewModel.rate(id,value,text)
             }.setNegativeButton("Отмена",null).show()
     }
 
-    private fun compare()=local {
-        HapticLabRepository(applicationContext).use { it.compareRecent() }
-    }
+    private fun compare()=viewModel.compare()
 
     private fun share() {
-        val text=lastReport ?: return show("Сначала сформируйте отчёт.")
+        val text=viewModel.lastReport ?: return show("Сначала сформируйте отчёт.")
         runCatching {
             startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
                 type="text/plain";putExtra(Intent.EXTRA_TEXT,text)
@@ -305,19 +239,13 @@ class HapticLabActivity:Activity() {
     }
 
     private fun confirmDelete() {
-        val id=selectedRunId ?: return show("Сначала выберите тест из истории.")
+        val id=viewModel.selectedRunId ?: return show("Сначала выберите тест из истории.")
         if(playing)return show("Остановите тест перед удалением.")
         AlertDialog.Builder(this).setTitle("Удалить выбранный тактильный тест?")
             .setMessage("Удалится только локальная запись этого тактильного запроса "+
                 "и ваша субъективная оценка. Другие модули сохранят данные.")
             .setPositiveButton("Удалить") { _,_ ->
-                local {
-                    val removed=HapticLabRepository(applicationContext).use { it.delete(id) }
-                    if(removed) {
-                        selectedRunId=null
-                        "Тактильная запись удалена. Другие данные остались."
-                    } else "Запись уже отсутствует."
-                }
+                viewModel.delete(id)
             }.setNegativeButton("Отмена",null).show()
     }
 
@@ -325,31 +253,23 @@ class HapticLabActivity:Activity() {
         super.onActivityResult(requestCode,resultCode,data)
         if(requestCode!=REQUEST_CSV || resultCode!=RESULT_OK)return
         val uri=data?.data ?: return
-        local {
-            HapticLabRepository(applicationContext).use { repo ->
-                (contentResolver.openOutputStream(uri,"w") ?: error("No document stream")).use { stream ->
-                    OutputStreamWriter(stream,Charsets.UTF_8).use { writer ->
-                        repo.exportCsv(writer)
-                    }
-                }
-            }
-            "Экспорт выполнен в выбранный CSV, без фоновой передачи данных."
-        }
+        viewModel.exportCsv(uri)
     }
 
     override fun onStart() {
-        super.onStart();visible=true;buttons()
+        super.onStart();visible=true;viewModel.setVisible(true);buttons()
     }
 
     override fun onStop() {
         visible=false
-        backend.stop()
+        viewModel.setVisible(false)
+        viewModel.stopPlayback()
         super.onStop()
     }
 
-    override fun onDestroy() {
-        backend.stop()
-        worker.shutdown()
-        super.onDestroy()
+    override fun onSaveInstanceState(outState:Bundle) {
+        outState.putInt("pattern",patternSpinner.selectedItemPosition)
+        outState.putInt("level",levelSpinner.selectedItemPosition)
+        super.onSaveInstanceState(outState)
     }
 }
