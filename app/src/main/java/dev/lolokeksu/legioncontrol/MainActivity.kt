@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.os.BatteryManager
 import android.os.Build
 import android.os.SystemClock
+import android.os.PowerManager
 import android.content.Intent
 import android.content.IntentFilter
 import android.graphics.Color
@@ -37,6 +38,7 @@ class MainActivity : Activity() {
     private lateinit var sensorsView: TextView
     private lateinit var thermalView: TextView
     private lateinit var analyticsView: TextView
+    private lateinit var timedView: TextView
     private var latestReport: String? = null
     // New backend probes may call OEM services; never block the Android UI thread.
     private val diagnosticsExecutor = Executors.newSingleThreadExecutor()
@@ -46,6 +48,8 @@ class MainActivity : Activity() {
     private var analyticsRequestId = 0L
     private var sensorRequestId = 0L
     private var sensorCapture: SensorCaptureBackend? = null
+    private var timedTest: ForegroundBatteryTest? = null
+    private var timedVisible = false
 
     companion object {
         private const val REQUEST_EXPORT_CSV = 4001
@@ -66,7 +70,7 @@ class MainActivity : Activity() {
             setTypeface(typeface, Typeface.BOLD)
         })
         layout.addView(TextView(this).apply {
-            text = "Kotlin + Rust · backend alpha.12"
+            text = "Kotlin + Rust · backend alpha.13"
             textSize = 13f
             setTextColor(0xFFA5A5A5.toInt())
             setPadding(0, 8.dp, 0, 12.dp)
@@ -77,13 +81,36 @@ class MainActivity : Activity() {
             setLineSpacing(5f, 1f)
             setPadding(0, 16.dp, 0, 20.dp)
             text = "Нажмите «Обновить измерение» для записи показаний.\n" +
-                "Автоматических или фоновых измерений нет."
+                "Только ручные замеры или явно запущенный 60-секундный тест на экране."
         }
         layout.addView(result)
+        timedView = TextView(this).apply {
+            textSize = 13f
+            setTextColor(Color.WHITE)
+            setLineSpacing(5f, 1f)
+            setPadding(0, 12.dp, 0, 12.dp)
+            text = "Тест батареи: не запускался. Выполняется только на открытом экране."
+        }
+        layout.addView(timedView)
+        layout.addView(Button(this).apply {
+            text = "Тест батареи · 60 секунд"
+            minHeight = 48.dp
+            setOnClickListener { startTimedBatteryTest() }
+        })
+        layout.addView(Button(this).apply {
+            text = "Остановить тест батареи"
+            minHeight = 48.dp
+            setOnClickListener { stopTimedBatteryTest() }
+        })
+        layout.addView(Button(this).apply {
+            text = "История тестов батареи"
+            minHeight = 48.dp
+            setOnClickListener { showTimedBatteryHistory() }
+        })
         layout.addView(Button(this).apply {
             text = "Обновить измерение"
             minHeight = 52.dp
-            setOnClickListener { sample() }
+            setOnClickListener { manualSample() }
         })
         layout.addView(Button(this).apply {
             text = "Поделиться последним отчётом"
@@ -176,6 +203,112 @@ class MainActivity : Activity() {
         })
         // Persisted history is visible after a restart without generating a new sample.
         showSavedHistory()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        timedVisible = true
+    }
+
+    private fun manualSample() {
+        if (timedTest?.isActive == true) {
+            Toast.makeText(this, "Сначала завершите тест батареи", Toast.LENGTH_SHORT).show()
+        } else sample()
+    }
+
+    private fun startTimedBatteryTest() {
+        if (!timedVisible || timedTest?.isActive == true) {
+            Toast.makeText(this, "Тест уже выполняется или приложение неактивно",
+                Toast.LENGTH_SHORT).show()
+            return
+        }
+        // Separate SQLite session from manual measurements; keep the old Rust
+        // in-memory window untouched (we do NOT reset or erase it).
+        val previousSession = ActiveSession.id
+        val id = UUID.randomUUID().toString()
+        ActiveSession.id = id
+        if (previousSession != null) {
+            diagnosticsExecutor.execute {
+                runCatching { history.endSession(previousSession, System.currentTimeMillis()) }
+            }
+        }
+        val controller = ForegroundBatteryTest(
+            testId = id,
+            sessionId = id,
+            sample = { sample() },
+            onProgress = { attempted, accepted ->
+                timedView.text = "Тест батареи · попыток: $attempted · принято Rust: $accepted\n" +
+                    "Остановится через 60 с, при серьёзном нагреве или закрытии экрана."
+            },
+            onFinished = { completed ->
+                timedTest = null
+                if (ActiveSession.id == completed.sessionId) ActiveSession.id = null
+                timedView.text = TimedBatterySummary.format(completed) +
+                    "\nСохранение итога SQLite: выполняется…"
+                // All earlier sample jobs must finish before the test summary.
+                diagnosticsExecutor.execute {
+                    val persisted = runCatching {
+                        history.recordTimedBatteryTest(completed)
+                    }
+                    runOnUiThread {
+                        if (!isDestroyed && ::timedView.isInitialized) {
+                            timedView.text = TimedBatterySummary.format(completed) + "\n" +
+                                persisted.fold(
+                                    onSuccess = {
+                                        if (it) "Итог теста сохранён в SQLite."
+                                        else "Повторная запись итогов пропущена."
+                                    },
+                                    onFailure = {
+                                        "Ошибка сохранения теста: " + it.javaClass.simpleName
+                                    }
+                                )
+                            showSavedHistory()
+                        }
+                    }
+                }
+            }
+        )
+        timedTest = controller
+        controller.start()
+    }
+
+    private fun stopTimedBatteryTest() {
+        if (timedTest?.isActive != true) {
+            Toast.makeText(this, "Активного теста нет", Toast.LENGTH_SHORT).show()
+            return
+        }
+        timedTest?.stop(TimedBatteryStopReason.USER_STOP)
+    }
+
+    private fun showTimedBatteryHistory() {
+        timedView.text = "Чтение сохранённых тестов…"
+        diagnosticsExecutor.execute {
+            val report = runCatching {
+                val tests = history.recentTimedBatteryTests()
+                if (tests.isEmpty()) "ИСТОРИЯ ТЕСТОВ БАТАРЕИ · сохранённых тестов нет"
+                else buildString {
+                    append("ИСТОРИЯ ТЕСТОВ БАТАРЕИ · последние ")
+                        .append(tests.size).append('\n')
+                    for (t in tests) {
+                        append("· ")
+                            .append(DateFormat.getDateTimeInstance().format(Date(t.startedAtMs)))
+                            .append(" · ").append(t.reason.name)
+                            .append(" · SQLite ").append(t.successfulReads)
+                            .append("/").append(t.attemptedReads).append(" замеров")
+                        if (t.firstBatteryPercent != null && t.lastBatteryPercent != null) {
+                            append(" · заряд ").append(
+                                String.format(Locale.US, "%+d п.п.",
+                                    t.lastBatteryPercent - t.firstBatteryPercent)
+                            )
+                        }
+                        append('\n')
+                    }
+                }
+            }.getOrElse { "Ошибка истории тестов: " + it.javaClass.simpleName }
+            runOnUiThread {
+                if (!isDestroyed && timedTest?.isActive != true) timedView.text = report
+            }
+        }
     }
 
     private val Int.dp: Int get() =
@@ -326,6 +459,10 @@ class MainActivity : Activity() {
     }
 
     private fun confirmReset() {
+        if (timedTest?.isActive == true) {
+            Toast.makeText(this, "Сначала остановите тест батареи", Toast.LENGTH_SHORT).show()
+            return
+        }
         AlertDialog.Builder(this)
             .setTitle("Завершить сеанс Rust?")
             .setMessage(
@@ -466,7 +603,7 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun sample() {
+    private fun sample(): TimedBatteryPoint? {
         @Suppress("DEPRECATION")
         val battery = runCatching {
             registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
@@ -486,6 +623,9 @@ class MainActivity : Activity() {
         )?.getDisplay(Display.DEFAULT_DISPLAY)?.mode
         val power = AndroidPowerSource.read(this, battery)
         val batteryHealth = BatteryHealthBackend.read(battery)
+        val thermalStatus = runCatching {
+            (getSystemService(POWER_SERVICE) as? PowerManager)?.currentThermalStatus
+        }.getOrNull()?.takeIf { it in 0..6 }
         val elapsedMs = SystemClock.elapsedRealtime()
         val recordedAtMs = System.currentTimeMillis()
         val rust = engine.record(percent, temp, elapsedMs)
@@ -696,9 +836,22 @@ class MainActivity : Activity() {
             }
         }
         showSavedHistory()
+        return if (rust.isSuccess && percent in 0..100 && temp in -400..1200) {
+            TimedBatteryPoint(
+                elapsedRealtimeMs = elapsedMs,
+                recordedAtMs = recordedAtMs,
+                batteryPercent = percent,
+                temperatureDeciC = temp,
+                currentMicroAmps = power.currentMicroAmps,
+                voltageMillivolts = power.voltageMillivolts,
+                thermalStatus = thermalStatus
+            )
+        } else null
     }
 
     override fun onStop() {
+        timedVisible = false
+        timedTest?.stop(TimedBatteryStopReason.APP_BACKGROUND)
         if (sensorCapture != null) {
             sensorRequestId++
             sensorCapture?.cancel()
@@ -709,6 +862,7 @@ class MainActivity : Activity() {
     }
 
     override fun onDestroy() {
+        timedTest?.stop(TimedBatteryStopReason.APP_BACKGROUND)
         sensorRequestId++
         diagnosticRequestId++
         sensorCapture?.cancel()
