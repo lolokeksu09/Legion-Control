@@ -94,9 +94,20 @@ object CaptureMp4Muxer {
             val sampleUs = extractor.sampleTime
             require(sampleUs >= 0)
             if (firstTimestamp == -1L) firstTimestamp = sampleUs
+            val sampleFlags = extractor.sampleFlags
+            // MediaExtractor sample flags and MediaCodec buffer flags are not the
+            // same enum: translate explicitly, never forward encrypted samples.
+            check(sampleFlags and MediaExtractor.SAMPLE_FLAG_ENCRYPTED == 0) {
+                "Зашифрованный медиасэмпл нельзя объединить"
+            }
+            val codecFlags =
+                (if (sampleFlags and MediaExtractor.SAMPLE_FLAG_SYNC != 0)
+                    MediaCodec.BUFFER_FLAG_KEY_FRAME else 0) or
+                (if (sampleFlags and MediaExtractor.SAMPLE_FLAG_PARTIAL_FRAME != 0)
+                    MediaCodec.BUFFER_FLAG_PARTIAL_FRAME else 0)
             info.set(0, n,
                 PlaybackAudioTrackPolicy.muxPtsUs(sampleUs, firstTimestamp, startOffsetUs),
-                extractor.sampleFlags)
+                codecFlags)
             buffer.position(0)
             buffer.limit(n)
             mux.writeSampleData(targetTrack, buffer, info)
