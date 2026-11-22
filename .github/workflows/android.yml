@@ -61,6 +61,8 @@ jobs:
         run: python3 scripts/check_alpha12_integration.py
       - name: Verify SQLite v1-v4 to v5 and bounded foreground battery test wiring
         run: python3 scripts/check_alpha13_timed_battery.py
+      - name: Validate alpha.14 ten gaming diagnostics and exact permission allowlist
+        run: python3 scripts/check_alpha14_gaming.py
       - name: Run pure Kotlin CSV and Russian plural regression tests
         run: gradle --no-daemon testDebugUnitTest
       - name: Test and compile real Rust backend for Android
@@ -108,6 +110,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: success()
         with:
-          name: Legion-Control-v0.1.0-alpha.13-kotlin-rust-debug
+          name: Legion-Control-v0.1.0-alpha.14-kotlin-rust-debug
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
