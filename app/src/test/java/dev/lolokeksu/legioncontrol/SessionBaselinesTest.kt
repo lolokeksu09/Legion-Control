@@ -99,6 +99,15 @@ class SessionBaselinesTest {
         assertFalse(SessionBaselines.render(report).contains("FPS:"))
     }
 
+    @Test fun batteryTemperatureShownInCelsiusButCsvRetainsRawDeciC() {
+        val result=SessionBaselines.compare("com.example.game",7,now,
+            listOf(capture("a",5,330),capture("b",4,350),capture("c",3,340),
+                capture("current",1,390)))
+        val text=SessionBaselines.render(result)
+        assertTrue(text.contains("39.00 / медиана 34.00 °C"))
+        assertTrue(SessionBaselines.csv(result).contains(",390,1,"))
+    }
+
     @Test fun unknownTemperatureIsNotCountedAsZero() {
         val good=capture("prev",2)
         val missing=capture("current",1).let {

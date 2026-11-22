@@ -158,21 +158,21 @@ object SessionBaselines {
                 recent.exclusions.forEach { append("• ").append(it).append('\n') }
             }
         }
-        fun line(title:String, unit:String, m:BaselineMetric?) {
+        fun line(title:String, unit:String, m:BaselineMetric?, scale:Double=1.0) {
             append(title).append(": ")
             if(m==null) {
                 append("н/д — нужно минимум 3 предыдущие сопоставимые сессии и ")
                     .append("качественная последняя запись.\n")
                 return
             }
-            append(format(m.latest)).append(" / медиана ")
-                .append(format(m.median)).append(unit).append(" · Δ ")
-                .append(if(m.delta>0) "+" else "").append(format(m.delta))
+            append(format(m.latest/scale)).append(" / медиана ")
+                .append(format(m.median/scale)).append(unit).append(" · Δ ")
+                .append(if(m.delta>0) "+" else "").append(format(m.delta/scale))
                 .append(unit).append(" · предыдущих: ").append(m.referenceCount).append('\n')
             if(m.aboveBaseline)append("НАБЛЮДЕНИЕ: значение выше исторической медианы")
                 .append(" по заданному порогу; причина не установлена.\n")
         }
-        line("Пик температуры БАТАРЕИ"," дец. °C",r.temperature)
+        line("Пик температуры БАТАРЕИ"," °C",r.temperature,scale=10.0)
         line("Разряд"," п.п./час",r.discharge)
         append("Разные яркость, сеть, зарядка, охлаждение и активность телефона ")
             .append("делают записи несопоставимыми даже при полном покрытии. ")

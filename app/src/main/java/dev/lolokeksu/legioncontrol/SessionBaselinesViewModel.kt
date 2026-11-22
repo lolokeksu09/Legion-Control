@@ -78,12 +78,14 @@ class SessionBaselinesViewModel(app:Application):AndroidViewModel(app) {
                 SessionBaselinesUiState("История пока пуста. Начните запись через Game Session.",request=token)
             } else {
                 selectedPackage=pkg
-                val captures=repo.recentForPackage(pkg,SessionBaselines.MAX_SESSIONS+1)
-                    .map { header ->
-                        val points=repo.points(header.id,SessionBaselines.MAX_POINTS_PER_SESSION)
-                        BaselineCapture(header,points,
-                            truncated=points.size==SessionBaselines.MAX_POINTS_PER_SESSION)
-                    }
+                val captures=ArrayList<BaselineCapture>()
+                for(header in repo.recentForPackage(pkg,SessionBaselines.MAX_SESSIONS+1)) {
+                    if(closed.get() || generation.get()!=token)
+                        return@submit SessionBaselinesUiState("Чтение отменено.",request=token)
+                    val points=repo.points(header.id,SessionBaselines.MAX_POINTS_PER_SESSION)
+                    captures += BaselineCapture(header,points,
+                        truncated=points.size==SessionBaselines.MAX_POINTS_PER_SESSION)
+                }
                 val summary=SessionBaselines.compare(pkg,days,System.currentTimeMillis(),captures)
                 lastReport=summary
                 SessionBaselinesUiState(SessionBaselines.render(summary),summary,request=token)
