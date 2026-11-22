@@ -51,6 +51,10 @@ class GameSessionRecorderService : Service() {
     private val worker = Executors.newSingleThreadScheduledExecutor()
     private var ticker: ScheduledFuture<*>? = null
     private var storage: GameSessionRepository? = null
+    private var smartStorage: SmartProfilesRepository? = null
+    private var smartRules: List<SmartRule> = emptyList()
+    private val smartEngine=SmartRulesEngine()
+    private var recordingPackage: String = ""
     @Volatile private var started = false
     @Volatile private var stopping = false
     private var activeId: String? = null
@@ -66,8 +70,10 @@ class GameSessionRecorderService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
-            .createNotificationChannel(NotificationChannel(CHANNEL,"Запись игровой сессии",NotificationManager.IMPORTANCE_LOW))
+        (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).apply {
+            createNotificationChannel(NotificationChannel(CHANNEL,"Запись игровой сессии",NotificationManager.IMPORTANCE_LOW))
+            createNotificationChannel(NotificationChannel("smart-rule-alerts","Предупреждения профиля",NotificationManager.IMPORTANCE_DEFAULT))
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -101,6 +107,9 @@ class GameSessionRecorderService : Service() {
                 storage = repository
                 val id = repository.start(pkg,label,tcpAllowed)
                 activeId = id
+                recordingPackage=pkg
+                smartStorage = SmartProfilesRepository(applicationContext)
+                smartRules=smartStorage?.rules(pkg).orEmpty()
                 repository.event(id,"START","Запись запущена пользователем")
                 observeNetwork()
                 observeThermal()
@@ -180,6 +189,13 @@ class GameSessionRecorderService : Service() {
         try {
             val point = GameSessionTelemetry.snapshot(applicationContext)
             storage?.record(id,point)
+            for(alert in smartEngine.evaluate(point,smartRules)) {
+                runCatching {
+                    smartStorage?.logAlert(id,recordingPackage,alert)
+                    storage?.event(id,"SMART_RULE",alert.description,point.timeMs)
+                    notifySmartRule(alert)
+                }.onFailure { Log.w("LegionSession","Rule event not saved",it) }
+            }
             val net = point.networkType+":"+(point.networkValidated?.toString() ?: "?")
             if (net != lastNetwork) {
                 lastNetwork = net
@@ -210,6 +226,20 @@ class GameSessionRecorderService : Service() {
             runCatching { storage?.event(id,"API_ERROR","Sample: "+e.javaClass.simpleName) }
         }
     }
+    private fun notifySmartRule(alert: SmartRuleAlert) {
+        if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) !=
+            android.content.pm.PackageManager.PERMISSION_GRANTED) return
+        val nm=getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val open=PendingIntent.getActivity(this,1800,
+            Intent(this,SmartProfilesActivity::class.java),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+        nm.notify(1800+(alert.kind.ordinal),Notification.Builder(this,"smart-rule-alerts")
+            .setSmallIcon(android.R.drawable.ic_dialog_alert)
+            .setContentTitle("Legion Control · "+alert.kind.title)
+            .setContentText(alert.description)
+            .setContentIntent(open).setAutoCancel(true).build())
+    }
+
     private var wasSaving = false
     private var wasSevere = false
 
@@ -231,6 +261,9 @@ class GameSessionRecorderService : Service() {
                     }.onFailure { Log.w("LegionSession","Finalization failed",it) }
                 }
                 runCatching { storage?.close() }
+                runCatching { smartStorage?.close() }
+                smartStorage=null
+                smartRules=emptyList()
                 storage = null
                 activeId = null
                 stopForeground(STOP_FOREGROUND_REMOVE)
@@ -249,6 +282,7 @@ class GameSessionRecorderService : Service() {
                 worker.execute {
                     activeId?.let { runCatching { storage?.finish(it,"SERVICE_DESTROYED") } }
                     runCatching { storage?.close() }
+                    runCatching { smartStorage?.close() }
                 }
             }
         }

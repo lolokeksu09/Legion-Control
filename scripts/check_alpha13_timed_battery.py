@@ -101,7 +101,7 @@ for old_version in (1, 2, 3, 4):
     db.close()
 
 for expected in (
-    "newVersion != GameSessionSchema.VERSION", "oldVersion !in 1..5",
+    "newVersion != SmartProfilesSchema.VERSION", "oldVersion !in 1..6",
     "if (oldVersion == 1) installDiagnostics(db)",
     "if (oldVersion <= 2) installSensors(db)",
     "if (oldVersion <= 3) installSensorAttempts(db)",

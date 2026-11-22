@@ -21,7 +21,10 @@ expected={
  "android.permission.ACCESS_WIFI_STATE","android.permission.PACKAGE_USAGE_STATS",
  "android.permission.FOREGROUND_SERVICE",
  "android.permission.FOREGROUND_SERVICE_SPECIAL_USE",
- "android.permission.POST_NOTIFICATIONS"
+ "android.permission.POST_NOTIFICATIONS",
+    "android.permission.MODIFY_AUDIO_SETTINGS",
+    "android.permission.ACCESS_NOTIFICATION_POLICY",
+    "android.permission.WRITE_SETTINGS"
 }
 assert perms == expected,perms
 assert not ({"android.permission.QUERY_ALL_PACKAGES","android.permission.ACCESS_FINE_LOCATION",
@@ -35,10 +38,10 @@ assert fgs.find("property") is not None
 assert manifest.find("queries/intent") is not None
 assert any(x.attrib.get(ns+"name")==".GameSessionActivity" for x in manifest.findall("./application/activity"))
 gradle=(root/"app/build.gradle.kts").read_text(encoding="utf-8")
-assert 'versionCode = 17' in gradle and 'versionName = "0.1.0-alpha.17"' in gradle
+assert 'versionCode = 18' in gradle and 'versionName = "0.1.0-alpha.18"' in gradle
 assert 'minSdk = 33' in gradle
-assert "GameSessionSchema.VERSION" in history
-assert "oldVersion !in 1..5" in history
+assert "SmartProfilesSchema.VERSION" in history
+assert "oldVersion !in 1..6" in history
 assert "if (oldVersion <= 4) installTimedBatteryTests(db)" in history
 assert history.count("GameSessionSchema.install(db)") == 2
 assert "DROP TABLE" not in history and "DELETE FROM samples" not in history

@@ -18,7 +18,10 @@ assert set(x.attrib["{http://schemas.android.com/apk/res/android}name"] for x in
     "android.permission.ACCESS_WIFI_STATE", "android.permission.PACKAGE_USAGE_STATS",
     "android.permission.FOREGROUND_SERVICE",
     "android.permission.FOREGROUND_SERVICE_SPECIAL_USE",
-    "android.permission.POST_NOTIFICATIONS"
+    "android.permission.POST_NOTIFICATIONS",
+    "android.permission.MODIFY_AUDIO_SETTINGS",
+    "android.permission.ACCESS_NOTIFICATION_POLICY",
+    "android.permission.WRITE_SETTINGS"
 }, "History must not require Android storage or sensor permissions"
 assert 'android:allowBackup="false"' in (root / "app/src/main/AndroidManifest.xml").read_text(encoding="utf-8")
 
@@ -57,8 +60,8 @@ on_create = activity.split("override fun onCreate(", 1)[1].split("override fun o
 assert "sample()" not in on_create, "No battery capture on Activity startup"
 assert "SensorManager" in sensors and "getDefaultSensor(type)" in sensors
 assert "registerListener" not in sensors
-assert 'versionCode = 17' in gradle
-assert 'versionName = "0.1.0-alpha.17"' in gradle
+assert 'versionCode = 18' in gradle
+assert 'versionName = "0.1.0-alpha.18"' in gradle
 
 for risky in ("WRITE_SECURE_SETTINGS", "QUERY_ALL_PACKAGES", "ACCESS_NETWORK_STATE",
               "INTERNET", "setprop ", "moto_extend_service", "pointer_speed"):

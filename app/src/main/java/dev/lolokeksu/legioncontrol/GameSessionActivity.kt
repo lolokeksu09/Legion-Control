@@ -72,6 +72,9 @@ class GameSessionActivity : Activity() {
             "Для любой установленной игры или приложения. Ручная запись состояния телефона " +
             "продолжается при переходе в выбранное приложение. Ни Root, ни Shizuku не требуются."
         ))
+        action("Smart Profiles · сохранённые настройки") {
+            startActivity(Intent(this,SmartProfilesActivity::class.java))
+        }
         action("Выбрать установленное приложение") { chooseApp() }
         packageInput = EditText(this).apply {
             hint="Имя пакета · com.example.game"
@@ -133,6 +136,14 @@ class GameSessionActivity : Activity() {
         root.addView(timeline, LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, 240.dp))
         setContentView(ScrollView(this).apply { addView(root) })
+        intent.getStringExtra("smart_package")?.takeIf {
+            Regex("^[A-Za-z][A-Za-z0-9_]*(\\\\.[A-Za-z0-9_]+)+$").matches(it)
+        }?.let {
+            packageInput.setText(it)
+            labelInput.setText(intent.getStringExtra("smart_label") ?: it)
+            tcpOption.isChecked=intent.getBooleanExtra("smart_tcp",false)
+            reportView.text="Профиль загружен. Нажмите «НАЧАТЬ ЗАПИСЬ», затем откройте игру."
+        }
     }
 
     private fun chooseApp() {
