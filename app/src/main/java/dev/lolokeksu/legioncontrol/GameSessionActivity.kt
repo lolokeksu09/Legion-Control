@@ -32,6 +32,7 @@ class GameSessionActivity : Activity() {
     private lateinit var labelInput: EditText
     private lateinit var tcpOption: CheckBox
     private lateinit var reportView: TextView
+    private lateinit var timeline: GameSessionTimelineView
     private var selectedPackage = ""
     private val packagePattern = Regex("^[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z0-9_]+)+$")
 
@@ -128,6 +129,9 @@ class GameSessionActivity : Activity() {
             setPadding(0,14.dp,0,20.dp)
         }
         root.addView(reportView)
+        timeline = GameSessionTimelineView(this)
+        root.addView(timeline, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, 240.dp))
         setContentView(ScrollView(this).apply { addView(root) })
     }
 
@@ -202,6 +206,8 @@ class GameSessionActivity : Activity() {
         GameSessionRepository(applicationContext).use { repo ->
             val rows=repo.recent(8)
             if(rows.isEmpty()) "Записанных сессий ещё нет." else buildString {
+                val graphPoints=repo.points(rows[0].id)
+                runOnUiThread { if (!isDestroyed) timeline.setPoints(graphPoints) }
                 append("ПОСЛЕДНИЕ СЕССИИ · ").append(rows.size).append('\n')
                 for(row in rows) {
                     val points=repo.points(row.id)
