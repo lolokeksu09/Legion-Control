@@ -93,6 +93,8 @@ jobs:
         run: python3 scripts/check_alpha28_mvvm_backends.py
       - name: Verify alpha.29 central Navigation Component routes
         run: python3 scripts/check_alpha29_navigation_routes.py
+      - name: Validate alpha.30 in-session marks, event correlations and safe CSV
+        run: python3 scripts/check_alpha30_session_signals.py
       - name: Run pure Kotlin CSV and Russian plural regression tests
         run: gradle --no-daemon testDebugUnitTest
       - name: Test and compile real Rust backend for Android
