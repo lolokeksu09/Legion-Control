@@ -524,6 +524,24 @@ class LocalHistoryStore(context: Context) : SQLiteOpenHelper(
      * Most recent saved Rust session only; bounded reads prevent growing memory.
      * Every point came from a manual battery reading, not a sampling service.
      */
+    /** Selected existing session; bounded manual data, not a background scan. */
+    fun sessionReadings(sessionId: String, limit: Int = 250): List<StoredReading> {
+        require(sessionId.isNotBlank() && sessionId.length <= 100)
+        require(limit in 1..1000)
+        val rows = mutableListOf<StoredReading>()
+        readableDatabase.rawQuery(
+            """SELECT session_id,recorded_at_ms,elapsed_ms,percent,
+                      temperature_deci_c,charging_status,charging_source,
+                      voltage_mv,current_ua,power_saving,refresh_hz,width_px,height_px
+               FROM samples WHERE session_id=?
+               ORDER BY elapsed_ms DESC,id DESC LIMIT ?""",
+            arrayOf(sessionId,limit.toString())
+        ).use { cursor ->
+            while (cursor.moveToNext()) rows += cursor.asStoredReading()
+        }
+        return rows.asReversed()
+    }
+
     fun latestSessionReadings(limit: Int = 250): List<StoredReading> {
         require(limit in 1..1000)
         val readings = mutableListOf<StoredReading>()

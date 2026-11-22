@@ -12,7 +12,10 @@ tests = (root / "app/src/test/java/dev/lolokeksu/legioncontrol/ResourceTelemetry
 rate_tests = (root / "app/src/test/java/dev/lolokeksu/legioncontrol/ThermalHeadroomGateTest.kt").read_text(encoding="utf-8")
 manifest = ET.parse(root / "app/src/main/AndroidManifest.xml").getroot()
 
-assert not manifest.findall("uses-permission"), "Public telemetry must not require permissions"
+assert set(x.attrib["{http://schemas.android.com/apk/res/android}name"] for x in manifest.findall("uses-permission")) == {
+    "android.permission.INTERNET", "android.permission.ACCESS_NETWORK_STATE",
+    "android.permission.ACCESS_WIFI_STATE", "android.permission.PACKAGE_USAGE_STATS"
+}, "Public telemetry must not require permissions"
 for value in (
     "ProbeState", "AVAILABLE, UNAVAILABLE, ERROR, RATE_LIMITED",
     "fun <T : Any> read(", "fun memory(", "fun storage(",

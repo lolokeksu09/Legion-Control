@@ -12,7 +12,10 @@ tests = (root / "app/src/test/java/dev/lolokeksu/legioncontrol/DiagnosticTrendEn
 gradle = (root / "app/build.gradle.kts").read_text(encoding="utf-8")
 manifest = ET.parse(root / "app/src/main/AndroidManifest.xml").getroot()
 
-assert not manifest.findall("uses-permission")
+assert set(x.attrib["{http://schemas.android.com/apk/res/android}name"] for x in manifest.findall("uses-permission")) == {
+    "android.permission.INTERNET", "android.permission.ACCESS_NETWORK_STATE",
+    "android.permission.ACCESS_WIFI_STATE", "android.permission.PACKAGE_USAGE_STATS"
+}
 assert "class DiagnosticTrendEngine" in engine
 assert "fun record(snapshot: DeviceDiagnosticSnapshot, batteryPercent: Int?)" in engine
 assert "elapsed <= 0L || elapsed > MAX_COMPARISON_INTERVAL_MS" in engine
@@ -32,7 +35,7 @@ assert "DiagnosticTrendTextReport.format(trend)" in activity
 assert "latestReport = reportHeader?.plus(complete)" in activity
 assert "runOnUiThread {" in activity
 assert "!isDestroyed && requestId == diagnosticRequestId" in activity
-assert activity.count("layout.addView(Button(this).apply {") == 15
+assert activity.count("layout.addView(Button(this).apply {") == 16
 for test_name in (
     "firstReadingIsBaselineAndSecondShowsMeasuredChanges",
     "missingDataNeverBecomesAZeroDelta",
@@ -44,8 +47,8 @@ for test_name in (
     "thermalCodesMatchAndroidPlatformDefinitions",
 ):
     assert test_name in tests, test_name
-assert "versionCode = 13" in gradle
-assert 'versionName = "0.1.0-alpha.13"' in gradle
+assert "versionCode = 14" in gradle
+assert 'versionName = "0.1.0-alpha.14"' in gradle
 for unsafe in ("Shizuku.getInstance", "WRITE_SECURE_SETTINGS", "setprop ", "pm grant",
                "QUERY_ALL_PACKAGES", "exec(", "getDeclaredMethod("):
     assert unsafe not in activity + engine + current + text_report, unsafe

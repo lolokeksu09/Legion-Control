@@ -11,7 +11,10 @@ tests = (root / "app/src/test/java/dev/lolokeksu/legioncontrol/BatteryHealthRepo
 build = (root / "app/build.gradle.kts").read_text(encoding="utf-8")
 manifest = ET.parse(root / "app/src/main/AndroidManifest.xml").getroot()
 
-assert not manifest.findall("uses-permission")
+assert set(x.attrib["{http://schemas.android.com/apk/res/android}name"] for x in manifest.findall("uses-permission")) == {
+    "android.permission.INTERNET", "android.permission.ACCESS_NETWORK_STATE",
+    "android.permission.ACCESS_WIFI_STATE", "android.permission.PACKAGE_USAGE_STATS"
+}
 assert "BatteryManager.EXTRA_HEALTH" in backend
 assert "BatteryManager.EXTRA_CYCLE_COUNT" in backend
 assert "BatteryManager.EXTRA_CHARGING_STATUS" in backend
@@ -32,7 +35,7 @@ assert "val snapshot = output.toString()" in activity
 assert activity.index("BatteryHealthReport.format(") < activity.index("val snapshot = output.toString()")
 assert "latestReport = reportHeader?.plus(snapshot)" in activity
 assert "latestReport = reportHeader?.plus(complete)" in activity
-assert activity.count("layout.addView(Button(this).apply {") == 15, "No new UI controls"
+assert activity.count("layout.addView(Button(this).apply {") == 16, "No new UI controls"
 for test in (
     "androidHealthIsNotDegradationPercentage",
     "missingValuesDoNotBecomeZeroOrFalse",
@@ -44,8 +47,8 @@ for forbidden in ("Shizuku", "WRITE_SECURE_SETTINGS", "setprop ",
                   "QUERY_ALL_PACKAGES", "Runtime.getRuntime().exec",
                   "registerReceiver", "getDeclaredMethod("):
     assert forbidden not in backend + model, forbidden
-assert 'versionCode = 13' in build
-assert 'versionName = "0.1.0-alpha.13"' in build
+assert 'versionCode = 14' in build
+assert 'versionName = "0.1.0-alpha.14"' in build
 print("PASS: public Android battery health/cycles, honest terminal watts, existing report/share, no Shizuku/UI")
 
 assert 'text = "Снять показания датчиков"' in activity

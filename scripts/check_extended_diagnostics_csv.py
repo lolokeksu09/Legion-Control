@@ -75,8 +75,11 @@ assert "Legion-Control-diagnostics-" in activity
 assert "fun extendedCsvRetainsLegacyColumnsAndExportsActualDiagnostics()" in tests
 assert "fun oldRowsHaveEmptyDiagnosticColumnsWithoutFabricatedZero()" in tests
 assert "fun mismatchedDiagnosticCannotBeAttachedToWrongLegacyRow()" in tests
-assert not manifest.findall("uses-permission")
-assert 'versionCode = 13' in build
-assert 'versionName = "0.1.0-alpha.13"' in build
+assert set(x.attrib["{http://schemas.android.com/apk/res/android}name"] for x in manifest.findall("uses-permission")) == {
+    "android.permission.INTERNET", "android.permission.ACCESS_NETWORK_STATE",
+    "android.permission.ACCESS_WIFI_STATE", "android.permission.PACKAGE_USAGE_STATS"
+}
+assert 'versionCode = 14' in build
+assert 'versionName = "0.1.0-alpha.14"' in build
 assert "DROP TABLE" not in store and "DELETE FROM samples" not in store
 print("PASS: extended 20-column export JOIN, v1 blank diagnostics, no row loss/duplicate, no privileges")

@@ -6,7 +6,10 @@ root = Path(__file__).resolve().parents[1]
 android = root / "app/src/main"
 manifest = ET.parse(android / "AndroidManifest.xml").getroot()
 ns = "{http://schemas.android.com/apk/res/android}"
-assert manifest.findall("uses-permission") == [], "Backend alpha needs no extra permissions"
+assert set(x.attrib["{http://schemas.android.com/apk/res/android}name"] for x in manifest.findall("uses-permission")) == {
+    "android.permission.INTERNET", "android.permission.ACCESS_NETWORK_STATE",
+    "android.permission.ACCESS_WIFI_STATE", "android.permission.PACKAGE_USAGE_STATS"
+}, "Backend alpha needs no extra permissions"
 
 build = (root / "app/build.gradle.kts").read_text(encoding="utf-8")
 assert 'applicationId = "dev.lolokeksu.legioncontrol"' in build

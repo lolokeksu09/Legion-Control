@@ -70,10 +70,17 @@ class MainActivity : Activity() {
             setTypeface(typeface, Typeface.BOLD)
         })
         layout.addView(TextView(this).apply {
-            text = "Kotlin + Rust · backend alpha.13"
+            text = "Kotlin + Rust · backend alpha.14"
             textSize = 13f
             setTextColor(0xFFA5A5A5.toInt())
             setPadding(0, 8.dp, 0, 12.dp)
+        })
+        layout.addView(Button(this).apply {
+            text = "Gaming Lab · сеть, сенсоры, производительность"
+            minHeight = 52.dp
+            setOnClickListener {
+                startActivity(Intent(this@MainActivity, GamingDiagnosticsActivity::class.java))
+            }
         })
         result = TextView(this).apply {
             textSize = 14f
