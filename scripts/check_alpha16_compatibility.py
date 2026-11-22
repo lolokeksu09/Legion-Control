@@ -43,6 +43,7 @@ assert "display.isWideColorGamut" in compat
 assert "manager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)" in compat
 assert "PROPERTY_OUTPUT_FRAMES_PER_BUFFER" in compat
 assert "InputDevice.getDeviceIds()" in compat
+assert ".filterNotNull()" in compat, "primitive IntArray must map before filtering"
 assert "device.motionRanges.count" in compat
 assert "MediaDrm.isCryptoSchemeSupported(widevine)" in compat
 assert "MediaDrm(widevine).use" in compat

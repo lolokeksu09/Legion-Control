@@ -96,7 +96,8 @@ object AudioOutputInspector {
 
 object ControllerInventory {
     fun connected(): List<InputDevice> = InputDevice.getDeviceIds()
-        .mapNotNull { InputDevice.getDevice(it) }
+        .map { id -> InputDevice.getDevice(id) }
+        .filterNotNull()
         .filter {
             (it.sources and InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD ||
                 (it.sources and InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK
