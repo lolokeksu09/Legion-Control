@@ -1,0 +1,207 @@
+"""Alpha.23: real v11->v12 SQLite upgrade, preserved audio and earlier rows, bounded haptic API."""
+from pathlib import Path
+import re
+import sqlite3
+import xml.etree.ElementTree as ET
+
+root=Path(__file__).resolve().parents[1]
+src=root/"app/src/main/java/dev/lolokeksu/legioncontrol"
+store=(src/"LocalHistoryStore.kt").read_text(encoding="utf-8")
+schema=(src/"HapticLabSchema.kt").read_text(encoding="utf-8")
+pattern=(src/"HapticPattern.kt").read_text(encoding="utf-8")
+backend=(src/"HapticPlaybackBackend.kt").read_text(encoding="utf-8")
+inspector=(src/"HapticDeviceInspector.kt").read_text(encoding="utf-8")
+repository=(src/"HapticLabRepository.kt").read_text(encoding="utf-8")
+activity=(src/"HapticLabActivity.kt").read_text(encoding="utf-8")
+gradle=(root/"app/build.gradle.kts").read_text(encoding="utf-8")
+
+assert 'versionCode = 23' in gradle
+assert 'versionName = "0.1.0-alpha.23"' in gradle
+assert 'minSdk = 33' in gradle and 'targetSdk = 36' in gradle
+assert 'const val VERSION=12' in schema
+assert 'newVersion != HapticLabSchema.VERSION' in store
+assert 'oldVersion !in 1..11' in store
+assert 'if (oldVersion <= 10) AudioLabSchema.install(db)' in store
+assert store.count('HapticLabSchema.install(db)')==2
+assert 'DROP TABLE' not in store and 'DELETE FROM samples' not in store
+
+manifest=ET.parse(root/"app/src/main/AndroidManifest.xml").getroot()
+ns="{http://schemas.android.com/apk/res/android}"
+perms={node.get(ns+"name") for node in manifest.findall("uses-permission")}
+assert perms=={
+    "android.permission.INTERNET","android.permission.ACCESS_NETWORK_STATE",
+    "android.permission.ACCESS_WIFI_STATE","android.permission.PACKAGE_USAGE_STATS",
+    "android.permission.FOREGROUND_SERVICE","android.permission.FOREGROUND_SERVICE_SPECIAL_USE",
+    "android.permission.POST_NOTIFICATIONS","android.permission.MODIFY_AUDIO_SETTINGS",
+    "android.permission.ACCESS_NOTIFICATION_POLICY","android.permission.WRITE_SETTINGS",
+    "android.permission.VIBRATE"
+},perms
+assert "android.permission.RECORD_AUDIO" not in perms
+assert "android.permission.QUERY_ALL_PACKAGES" not in perms
+assert "android.permission.ACCESS_FINE_LOCATION" not in perms
+assert any(a.get(ns+"name")==".HapticLabActivity" and a.get(ns+"exported")=="false"
+           for a in manifest.findall("./application/activity"))
+assert 'HapticLabActivity::class.java' in (src/"MainActivity.kt").read_text(encoding="utf-8")
+
+# Reuse the previous release's ACTUAL SQLite v11 fixture, then plant audio + app rows
+# before additive migration. This catches loss of audio history or app library.
+def ddl(source,expected):
+    tables=re.findall(r'db.execSQL\("""(.*?)""".trimIndent\(\)\)',source,re.S)
+    indexes=re.findall(r'db.execSQL\("(CREATE INDEX [^"]+)"\)',source)
+    assert len(tables)==expected,(len(tables),expected)
+    return tables,indexes
+
+db=sqlite3.connect(":memory:")
+db.execute("PRAGMA foreign_keys=ON")
+core=re.findall(r'"""(CREATE TABLE (?:sessions|samples)\s*\(.*?\))"""',store,re.S)
+assert len(core)==2
+for sql in core:db.execute(sql)
+db.execute("CREATE INDEX idx_samples_session ON samples(session_id,recorded_at_ms)")
+for file in ("DiagnosticHistoryModels.kt","SensorHistorySchema.kt",
+             "SensorDiagnosticsSchema.kt","TimedBatterySchema.kt"):
+    text=(src/file).read_text(encoding="utf-8")
+    db.execute(re.search(r'const val CREATE_TABLE\s*=\s*"""(.*?)"""',text,re.S).group(1))
+    db.execute(re.search(r'const val CREATE_INDEX\s*=\s*"([^"]+)"',text).group(1))
+for file,expected in (
+    ("GameSessionSchema.kt",3),("SmartProfilesSchema.kt",3),
+    ("ExperimentSchema.kt",3),("ConnectivitySchema.kt",2)
+):
+    text=(src/file).read_text(encoding="utf-8")
+    tables,indexes=ddl(text,expected)
+    for sql in tables+indexes:db.execute(sql)
+
+db.execute("INSERT INTO sessions(id,started_at_ms) VALUES('old',1000)")
+db.execute("""INSERT INTO samples(session_id,recorded_at_ms,elapsed_ms,
+    percent,temperature_deci_c,charging_status,charging_source)
+    VALUES('old',2000,1000,70,370,'Discharging','None')""")
+db.execute("""INSERT INTO game_sessions(session_id,package_name,app_label,started_at_ms,
+    ended_at_ms,end_reason,tcp_opt_in)
+    VALUES('session','com.example.game','Game',1000,5000,'USER_STOP',0)""")
+db.execute("""INSERT INTO game_samples(session_id,recorded_at_ms,battery_percent,network_type)
+    VALUES('session',2000,70,'WIFI')""")
+db.execute("""INSERT INTO game_events(session_id,recorded_at_ms,event_type,details)
+    VALUES('session',2000,'TEST','old event')""")
+db.execute("""INSERT INTO smart_profiles(package_name,label,created_at_ms,updated_at_ms,
+    battery_hot_deci_c,battery_low_percent,tcp_opt_in)
+    VALUES('com.example.game','Example',1000,1000,420,20,0)""")
+db.execute("""INSERT INTO smart_rules(package_name,kind,threshold,cooldown_ms,enabled)
+    VALUES('com.example.game','BATTERY_HOT',420,120000,1)""")
+db.execute("""INSERT INTO smart_rule_events(session_id,package_name,kind,recorded_at_ms,details)
+    VALUES('session','com.example.game','BATTERY_HOT',3000,'heat')""")
+db.execute("""INSERT INTO session_annotations(session_id,tag,note,updated_at_ms)
+    VALUES('session','test','old note',4000)""")
+db.execute("""INSERT INTO session_experiments(experiment_id,package_name,name,hypothesis,label_a,label_b,created_at_ms)
+    VALUES('exp','com.example.game','Experiment','','A','B',5000)""")
+db.execute("""INSERT INTO session_experiment_members(experiment_id,session_id,arm,assigned_at_ms)
+    VALUES('exp','session','A',5500)""")
+db.execute("""INSERT INTO connectivity_runs(run_id,host,started_at_ms,ended_at_ms,mode,status)
+    VALUES('net','dns.google',10000,20000,'SINGLE','COMPLETE')""")
+db.execute("""INSERT INTO connectivity_samples(run_id,cycle,recorded_at_ms,family,
+    dns_ms,tcp_ms,tls_ms,result,network_type,network_validated)
+    VALUES('net',1,11000,'IPV4',10.0,20.0,40.0,'OK','WIFI',1)""")
+
+tables,indexes=ddl((src/"ApplicationCenterSchema.kt").read_text(encoding="utf-8"),2)
+for sql in tables+indexes:db.execute(sql)
+db.execute("""INSERT INTO app_library(package_name,alias,category,note,favorite,
+    created_at_ms,updated_at_ms,last_seen_status)
+    VALUES('com.example.game','Game','MOBA','saved note',1,10000,10000,'VISIBLE')""")
+db.execute("""INSERT INTO app_audit_events(package_name,recorded_at_ms,kind,details)
+    VALUES('com.example.game',11000,'FIRST_OBSERVED','existing')""")
+db.execute("PRAGMA user_version=10")
+old_names=[row[0] for row in db.execute("""
+    SELECT name FROM sqlite_master
+    WHERE type='table' AND name NOT LIKE 'sqlite_%'
+    ORDER BY name
+""")]
+assert len(old_names)>=15,old_names
+previous={name:list(db.execute("SELECT * FROM "+name)) for name in old_names}
+
+tables,indexes=ddl((src/"AudioLabSchema.kt").read_text(encoding="utf-8"),2)
+assert len(indexes)==2
+with db:
+    for sql in tables+indexes: db.execute(sql)
+    db.execute("PRAGMA user_version=11")
+assert db.execute("PRAGMA user_version").fetchone()[0]==11
+for name,records in previous.items():
+    assert list(db.execute("SELECT * FROM "+name))==records,name
+
+
+db.execute("""INSERT INTO audio_test_runs(run_id,started_at_ms,ended_at_ms,kind,channel,
+    frequency_hz,duration_ms,sample_rate_hz,expected_frames,observed_frames,state)
+    VALUES('old-audio',21000,23000,'TONE','LEFT',440,1500,48000,72000,72000,'COMPLETE')""")
+db.execute("""INSERT INTO audio_route_events(run_id,recorded_at_ms,event_kind,output_device_type,details)
+    VALUES('old-audio',21010,'ROUTE_START',2,'legacy speaker')""")
+db.execute("PRAGMA user_version=11")
+old_names=[x[0] for x in db.execute("""
+    SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'
+    ORDER BY name
+""")]
+assert len(old_names)>=17,old_names
+before={name:list(db.execute("SELECT * FROM "+name)) for name in old_names}
+
+tables,indexes=ddl(schema,3)
+assert len(indexes)==2
+with db:
+    for sql in tables+indexes:db.execute(sql)
+    db.execute("PRAGMA user_version=12")
+assert db.execute("PRAGMA user_version").fetchone()[0]==12
+for name,rows in before.items():
+    assert list(db.execute("SELECT * FROM "+name))==rows,name
+
+db.execute("""INSERT INTO haptic_test_runs(run_id,started_at_ms,pattern,level,
+    requested_amplitude,duration_ms,result)
+    VALUES('h1',31000,'DOUBLE_TAP','MEDIUM',96,225,'RUNNING')""")
+db.execute("""UPDATE haptic_test_runs SET ended_at_ms=32000,result='COMPLETED_REQUEST',
+    amplitude_control=0,used_default_amplitude=1
+    WHERE run_id='h1' AND result='RUNNING'""")
+db.execute("""INSERT INTO haptic_feedback(run_id,rating,note,updated_at_ms)
+    VALUES('h1','FELT','I felt the request',32050)""")
+db.execute("""INSERT INTO haptic_capability_snapshots(recorded_at_ms,vibrator_count,
+    has_vibrator,amplitude_control,haptic_enabled,effects,primitives)
+    VALUES(30000,1,1,0,1,'CLICK=YES','CLICK=NO')""")
+assert db.execute("SELECT rating FROM haptic_feedback WHERE run_id='h1'").fetchone()[0]=="FELT"
+
+bad_sql=(
+    "INSERT INTO haptic_test_runs(run_id,started_at_ms,pattern,level,requested_amplitude,duration_ms,result) VALUES('bad1',1,'INFINITE','GENTLE',48,55,'RUNNING')",
+    "INSERT INTO haptic_test_runs(run_id,started_at_ms,pattern,level,requested_amplitude,duration_ms,result) VALUES('bad2',1,'TAP','MAX',48,55,'RUNNING')",
+    "INSERT INTO haptic_test_runs(run_id,started_at_ms,pattern,level,requested_amplitude,duration_ms,result) VALUES('bad3',1,'TAP','GENTLE',255,55,'RUNNING')",
+    "INSERT INTO haptic_test_runs(run_id,started_at_ms,pattern,level,requested_amplitude,duration_ms,result) VALUES('bad4',1,'TAP','GENTLE',48,6000,'RUNNING')",
+    "INSERT INTO haptic_test_runs(run_id,started_at_ms,ended_at_ms,pattern,level,requested_amplitude,duration_ms,result) VALUES('bad5',1,2,'TAP','GENTLE',48,55,'RUNNING')",
+    "INSERT INTO haptic_test_runs(run_id,started_at_ms,pattern,level,requested_amplitude,duration_ms,result) VALUES('bad6',1,'TAP','GENTLE',48,55,'COMPLETED_REQUEST')",
+    "INSERT INTO haptic_feedback(run_id,rating,updated_at_ms) VALUES('unknown','FELT',100)",
+    "INSERT INTO haptic_feedback(run_id,rating,updated_at_ms) VALUES('h1','CONFIRMED_HARDWARE',100)",
+    "INSERT INTO haptic_feedback(run_id,rating,updated_at_ms) VALUES('h1','FELT',0)",
+    "INSERT INTO haptic_capability_snapshots(recorded_at_ms,vibrator_count,has_vibrator) VALUES(1,33,1)",
+    "INSERT INTO haptic_capability_snapshots(recorded_at_ms,vibrator_count,has_vibrator) VALUES(1,1,3)",
+)
+for sql in bad_sql:
+    try:db.execute(sql)
+    except sqlite3.IntegrityError:pass
+    else:raise AssertionError("Invalid SQL succeeded: "+sql)
+db.execute("DELETE FROM haptic_test_runs WHERE run_id='h1'")
+assert db.execute("SELECT COUNT(*) FROM haptic_feedback").fetchone()[0]==0
+assert db.execute("SELECT COUNT(*) FROM haptic_capability_snapshots").fetchone()[0]==1
+for name,rows in before.items():
+    assert list(db.execute("SELECT * FROM "+name))==rows,name
+db.close()
+
+for phrase in ("fun build(","fun withoutAmplitudeControl(","35L..1_800L","160",
+               "fun csvCell(","val kinds","val levels","const val caveat"):
+    assert phrase in pattern,phrase
+for phrase in ("VibratorManager","VibrationEffect.createWaveform",
+               "effective.timings,effective.amplitudes,-1","fun stop()",
+               "cancelled","active?.cancel()","active=null"):
+    assert phrase in backend,phrase
+for phrase in ("VibratorManager","vibratorIds","hasVibrator()","hasAmplitudeControl()",
+               "areEffectsSupported","arePrimitivesSupported","HAPTIC_FEEDBACK_ENABLED"):
+    assert phrase in inspector,phrase
+for phrase in ("fun start(","fun finish(","fun rate(","fun feedback(",
+               "fun saveSnapshot(","fun latestSnapshot(","fun exportCsv(",
+               "db.beginTransaction()","CONFLICT_REPLACE","fun compareRecent("):
+    assert phrase in repository,phrase
+for phrase in ("override fun onStop()","backend.stop()","ACTION_CREATE_DOCUMENT",
+               "fun chooseRating()","fun inspect()","fun confirmDelete()","fun startTest("):
+    assert phrase in activity,phrase
+assert "startForegroundService" not in activity
+assert "MediaRecorder" not in backend and "VibrationEffect.createOneShot(0" not in backend
+print("PASS alpha23: real SQLite v11→v12, 17+ legacy tables preserved, haptic FK/checks and safe Android API bounds")

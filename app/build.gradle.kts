@@ -17,8 +17,8 @@ android {
         applicationId = "dev.lolokeksu.legioncontrol"
         minSdk = 33
         targetSdk = 36
-        versionCode = 22
-        versionName = "0.1.0-alpha.22"
+        versionCode = 23
+        versionName = "0.1.0-alpha.23"
         ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
     }
     compileOptions {

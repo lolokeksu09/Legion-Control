@@ -21,7 +21,7 @@ assert set(x.attrib["{http://schemas.android.com/apk/res/android}name"] for x in
     "android.permission.POST_NOTIFICATIONS",
     "android.permission.MODIFY_AUDIO_SETTINGS",
     "android.permission.ACCESS_NOTIFICATION_POLICY",
-    "android.permission.WRITE_SETTINGS"
+    "android.permission.WRITE_SETTINGS","android.permission.VIBRATE"
 }, "History must not require Android storage or sensor permissions"
 assert 'android:allowBackup="false"' in (root / "app/src/main/AndroidManifest.xml").read_text(encoding="utf-8")
 
@@ -60,8 +60,8 @@ on_create = activity.split("override fun onCreate(", 1)[1].split("override fun o
 assert "sample()" not in on_create, "No battery capture on Activity startup"
 assert "SensorManager" in sensors and "getDefaultSensor(type)" in sensors
 assert "registerListener" not in sensors
-assert 'versionCode = 22' in gradle
-assert 'versionName = "0.1.0-alpha.22"' in gradle
+assert 'versionCode = 23' in gradle
+assert 'versionName = "0.1.0-alpha.23"' in gradle
 
 for risky in ("WRITE_SECURE_SETTINGS", "QUERY_ALL_PACKAGES", "ACCESS_NETWORK_STATE",
               "INTERNET", "setprop ", "moto_extend_service", "pointer_speed"):

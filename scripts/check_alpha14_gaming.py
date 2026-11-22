@@ -26,7 +26,7 @@ expected = {
     "android.permission.POST_NOTIFICATIONS",
     "android.permission.MODIFY_AUDIO_SETTINGS",
     "android.permission.ACCESS_NOTIFICATION_POLICY",
-    "android.permission.WRITE_SETTINGS"
+    "android.permission.WRITE_SETTINGS","android.permission.VIBRATE"
 }
 assert perms == expected, (perms, expected)
 for forbidden in (
@@ -69,9 +69,9 @@ assert "worker.shutdownNow()" in activity and "onStop()" in activity
 assert "task?.cancel(true)" in activity
 assert "frameCapture?.stop(false)" in activity
 assert 'android:exported="false"' in (root / "app/src/main/AndroidManifest.xml").read_text()
-assert "SQLiteOpenHelper" in store and "AudioLabSchema.VERSION" in store
-assert 'versionCode = 22' in gradle
-assert 'versionName = "0.1.0-alpha.22"' in gradle
+assert "SQLiteOpenHelper" in store and "HapticLabSchema.VERSION" in store
+assert 'versionCode = 23' in gradle
+assert 'versionName = "0.1.0-alpha.23"' in gradle
 
 # The actual repo session query must be runnable with escaped bind values,
 # not interpolated into a SQL string.

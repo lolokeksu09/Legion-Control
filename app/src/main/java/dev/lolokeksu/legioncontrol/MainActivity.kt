@@ -70,10 +70,17 @@ class MainActivity : Activity() {
             setTypeface(typeface, Typeface.BOLD)
         })
         layout.addView(TextView(this).apply {
-            text = "Kotlin + Rust · backend alpha.22"
+            text = "Kotlin + Rust · backend alpha.23"
             textSize = 13f
             setTextColor(0xFFA5A5A5.toInt())
             setPadding(0, 8.dp, 0, 12.dp)
+        })
+        layout.addView(Button(this).apply {
+            text = "HAPTIC LAB · вибромотор, шаблоны и ручная оценка"
+            minHeight = 52.dp
+            setOnClickListener {
+                startActivity(Intent(this@MainActivity, HapticLabActivity::class.java))
+            }
         })
         layout.addView(Button(this).apply {
             text = "AUDIO LAB · стерео, частоты, маршруты и история"

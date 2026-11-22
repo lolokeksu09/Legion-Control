@@ -15,10 +15,10 @@ routing=(src/"AudioRouteInspector.kt").read_text(encoding="utf-8")
 activity=(src/"AudioLabActivity.kt").read_text(encoding="utf-8")
 gradle=(root/"app/build.gradle.kts").read_text(encoding="utf-8")
 
-assert 'versionCode = 22' in gradle and 'versionName = "0.1.0-alpha.22"' in gradle
+assert 'versionCode = 23' in gradle and 'versionName = "0.1.0-alpha.23"' in gradle
 assert 'minSdk = 33' in gradle and 'targetSdk = 36' in gradle
 assert 'const val VERSION = 11' in schema
-assert 'newVersion != AudioLabSchema.VERSION' in store and 'oldVersion !in 1..10' in store
+assert 'newVersion != HapticLabSchema.VERSION' in store and 'oldVersion !in 1..11' in store
 assert 'if (oldVersion <= 9) ApplicationCenterSchema.install(db)' in store
 assert store.count('AudioLabSchema.install(db)')==2
 assert 'DROP TABLE' not in store and 'DELETE FROM samples' not in store
@@ -31,7 +31,7 @@ assert permissions=={
     "android.permission.ACCESS_WIFI_STATE","android.permission.PACKAGE_USAGE_STATS",
     "android.permission.FOREGROUND_SERVICE","android.permission.FOREGROUND_SERVICE_SPECIAL_USE",
     "android.permission.POST_NOTIFICATIONS","android.permission.MODIFY_AUDIO_SETTINGS",
-    "android.permission.ACCESS_NOTIFICATION_POLICY","android.permission.WRITE_SETTINGS"
+    "android.permission.ACCESS_NOTIFICATION_POLICY","android.permission.WRITE_SETTINGS","android.permission.VIBRATE"
 }
 assert "android.permission.RECORD_AUDIO" not in permissions
 assert "android.permission.QUERY_ALL_PACKAGES" not in permissions
