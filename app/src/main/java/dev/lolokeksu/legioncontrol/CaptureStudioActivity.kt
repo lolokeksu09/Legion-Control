@@ -23,10 +23,14 @@ import java.util.Locale
  * No background scan, recording without system consent, microphone or cloud upload.
  */
 class CaptureStudioActivity : ComponentActivity() {
-    companion object { private const val REQUEST_CAPTURE = 25001 }
+    companion object {
+        private const val REQUEST_CAPTURE = 25001
+        private const val REQUEST_SCREENSHOT = 25002
+    }
 
     private val viewModel by lazy { ViewModelProvider(this)[CaptureStudioViewModel::class.java] }
     private lateinit var clipsContainer: LinearLayout
+    private lateinit var shotsContainer: LinearLayout
     private lateinit var status: TextView
     private lateinit var choices: TextView
     private val Int.dp: Int get() = (this * resources.displayMetrics.density).toInt()
@@ -109,6 +113,15 @@ class CaptureStudioActivity : ComponentActivity() {
                 status.text = "Остановка запрошена; результат появится после завершения кодирования."
             } else status.text = "Активной записи нет."
         }
+        heading("Скриншот")
+        note("Один PNG после отдельного согласия Android. Через 5 секунд после согласия " +
+            "будет захвачен текущий экран — переключитесь на нужную игру. " +
+            "Защищённые окна могут скрываться.")
+        action("СДЕЛАТЬ СКРИНШОТ ЭКРАНА") { askScreenshotConsent() }
+        action("ОТМЕНИТЬ СКРИНШОТ") {
+            CaptureScreenshotService.cancel(this)
+            status.text = "Отмена снимка запрошена."
+        }
         action("Открыть выбранную игру Game Toolbox") { openSelectedGame() }
         action("Обновить состояние записи") { refreshStatus() }
 
@@ -119,6 +132,11 @@ class CaptureStudioActivity : ComponentActivity() {
         action("ОТКРЫТЬ БИБЛИОТЕКУ КЛИПОВ") { browseClips() }
         clipsContainer = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         root.addView(clipsContainer)
+        heading("Мои снимки")
+        note("PNG сохраняются в Pictures/LegionControl/ · только снимки этого приложения.")
+        action("ОТКРЫТЬ БИБЛИОТЕКУ СНИМКОВ") { viewModel.refreshScreenshots() }
+        shotsContainer = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        root.addView(shotsContainer)
         note("Каждый запуск требует нового согласия Android. " +
             "После подтверждения перейдите в игру — остановить запись можно из постоянного " +
             "уведомления или этого экрана. Ограничение качества/частоты зависит от кодека и прошивки.")
@@ -133,6 +151,14 @@ class CaptureStudioActivity : ComponentActivity() {
                 }
                 is CaptureLibraryState.Ready -> showClipList(state.clips)
                 is CaptureLibraryState.Error -> status.text = state.message
+            }
+        }
+        viewModel.screenshots.observe(this) { state ->
+            when (state) {
+                CaptureScreenshotsState.Idle -> Unit
+                CaptureScreenshotsState.Loading -> status.text = "Читаю собственные PNG из MediaStore…"
+                is CaptureScreenshotsState.Ready -> showScreenshotList(state.shots)
+                is CaptureScreenshotsState.Error -> status.text = state.message
             }
         }
         refreshChoices()
@@ -162,8 +188,8 @@ class CaptureStudioActivity : ComponentActivity() {
     }
 
     private fun askConsent() {
-        if (CaptureRecordingService.recording) {
-            status.text = "Запись уже активна. Сначала остановите текущую."
+        if (CaptureRecordingService.recording || CaptureScreenshotService.active) {
+            status.text = "Выполняется другой захват. Сначала завершите его."
             return
         }
         runCatching {
@@ -175,12 +201,40 @@ class CaptureStudioActivity : ComponentActivity() {
         }
     }
 
+    private fun askScreenshotConsent() {
+        if (CaptureRecordingService.recording || CaptureScreenshotService.active) {
+            status.text = "Сначала завершите текущий захват."
+            return
+        }
+        runCatching {
+            val manager = getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+            startActivityForResult(manager.createScreenCaptureIntent(), REQUEST_SCREENSHOT)
+        }.onFailure {
+            status.text = "Android не разрешил запрос снимка: " + it.javaClass.simpleName
+        }
+    }
+
     @Deprecated("Legacy Activity result API works without introducing AndroidX dependencies")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode != REQUEST_CAPTURE) return
+        if (requestCode != REQUEST_CAPTURE && requestCode != REQUEST_SCREENSHOT) return
         if (resultCode != RESULT_OK || data == null) {
-            status.text = "Вы отказали в записи. MediaProjection и файлы не создавались."
+            status.text = "Системный доступ к захвату не выдан. Файлы не создавались."
+            return
+        }
+        if (requestCode == REQUEST_SCREENSHOT) {
+            val screenshot = Intent(this, CaptureScreenshotService::class.java).apply {
+                action = CaptureScreenshotService.ACTION_START
+                putExtra(CaptureScreenshotService.EXTRA_RESULT, resultCode)
+                putExtra(CaptureScreenshotService.EXTRA_CONSENT, data)
+            }
+            runCatching { startForegroundService(screenshot) }
+                .onSuccess {
+                    status.text = "Запуск снимка запрошен. В течение 5 секунд переключитесь в игру."
+                }
+                .onFailure {
+                    status.text = "Сервис снимка отклонён: " + it.javaClass.simpleName
+                }
             return
         }
         val config = viewModel.config()
@@ -265,6 +319,53 @@ class CaptureStudioActivity : ComponentActivity() {
             }
             startActivity(Intent.createChooser(intent, "Поделиться клипом"))
         }.onFailure { status.text = "Не удалось открыть отправку: " + it.javaClass.simpleName }
+    }
+
+    private fun showScreenshotList(shots: List<CaptureScreenshot>) {
+        shotsContainer.removeAllViews()
+        status.text = if (shots.isEmpty()) "Сохранённых PNG пока нет."
+            else "Найдено снимков: ${shots.size}"
+        for (shot in shots) {
+            val size = String.format(Locale.US, "%.1f", shot.bytes / 1048576.0)
+            shotsContainer.addView(Button(this).apply {
+                text = "${shot.name}\n${size} МиБ"
+                isAllCaps = false
+                minHeight = 48.dp
+                setOnClickListener { screenshotActions(shot) }
+            })
+        }
+    }
+
+    private fun screenshotActions(shot: CaptureScreenshot) {
+        AlertDialog.Builder(this).setTitle(shot.name)
+            .setItems(arrayOf("Просмотреть", "Поделиться", "Удалить PNG")) { _, which ->
+                when (which) {
+                    0 -> runCatching {
+                        startActivity(Intent(Intent.ACTION_VIEW).apply {
+                            setDataAndType(shot.uri, "image/png")
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        })
+                    }.onFailure {
+                        status.text = "Просмотр PNG недоступен: " + it.javaClass.simpleName
+                    }
+                    1 -> runCatching {
+                        startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
+                            type = "image/png"
+                            putExtra(Intent.EXTRA_STREAM, shot.uri)
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }, "Поделиться снимком"))
+                    }.onFailure {
+                        status.text = "Отправка PNG недоступна: " + it.javaClass.simpleName
+                    }
+                    2 -> AlertDialog.Builder(this)
+                        .setTitle("Удалить выбранный снимок?")
+                        .setMessage("Безвозвратно удалится только ${shot.name}.")
+                        .setPositiveButton("Удалить") { _, _ ->
+                            viewModel.deleteConfirmedScreenshot(shot)
+                        }
+                        .setNegativeButton("Отмена", null).show()
+                }
+            }.setNegativeButton("Отмена", null).show()
     }
 
     private fun confirmDelete(clip: CaptureClip) {

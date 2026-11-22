@@ -48,6 +48,10 @@
             android:exported="false"
             android:foregroundServiceType="mediaProjection" />
         <service
+            android:name=".CaptureScreenshotService"
+            android:exported="false"
+            android:foregroundServiceType="mediaProjection" />
+        <service
             android:name=".LegionQuickTileService"
             android:label="Legion Control"
             android:icon="@android:drawable/ic_menu_manage"
