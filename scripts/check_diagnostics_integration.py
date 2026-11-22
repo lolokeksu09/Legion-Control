@@ -11,8 +11,11 @@ tests = (root / "app/src/test/java/dev/lolokeksu/legioncontrol/DiagnosticsTextRe
 build = (root / "app/build.gradle.kts").read_text(encoding="utf-8")
 manifest = ET.parse(root / "app/src/main/AndroidManifest.xml").getroot()
 
-assert not manifest.findall("uses-permission"), "No privileges needed"
-assert activity.count("layout.addView(Button(this).apply {") == 15, "Do not add UI controls"
+assert set(x.attrib["{http://schemas.android.com/apk/res/android}name"] for x in manifest.findall("uses-permission")) == {
+    "android.permission.INTERNET", "android.permission.ACCESS_NETWORK_STATE",
+    "android.permission.ACCESS_WIFI_STATE", "android.permission.PACKAGE_USAGE_STATS"
+}, "No privileges needed"
+assert activity.count("layout.addView(Button(this).apply {") == 16, "Do not add UI controls"
 assert "diagnosticsExecutor = Executors.newSingleThreadExecutor()" in activity
 assert "diagnosticsExecutor.execute {" in activity
 assert "DeviceDiagnosticsBackend.read(applicationContext)" in activity
@@ -30,8 +33,8 @@ assert "DeviceCapabilitiesBackend.read(context)" in combined
 assert "ResourceTelemetryBackend.read(context)" in combined
 assert "fun successfulReadingsExposeSourcesAndActualUnits()" in tests
 assert "fun unavailableAndErrorsAreNotRenderedAsZero()" in tests
-assert 'versionCode = 13' in build
-assert 'versionName = "0.1.0-alpha.13"' in build
+assert 'versionCode = 14' in build
+assert 'versionName = "0.1.0-alpha.14"' in build
 print("PASS: manual MainActivity wiring, off-UI probes, honest reports, no UI redesign")
 
 assert 'text = "Снять показания датчиков"' in activity
