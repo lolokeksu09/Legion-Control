@@ -10,7 +10,8 @@ store=(src/"LocalHistoryStore.kt").read_text(encoding="utf-8")
 schema=(src/"ApplicationCenterSchema.kt").read_text(encoding="utf-8")
 inventory=(src/"ApplicationInventory.kt").read_text(encoding="utf-8")
 repository=(src/"ApplicationCenterRepository.kt").read_text(encoding="utf-8")
-activity=(src/"ApplicationCenterActivity.kt").read_text(encoding="utf-8")
+activity=(src/"ApplicationCenterFragment.kt").read_text(encoding="utf-8")
+compat=(src/"ApplicationCenterActivity.kt").read_text(encoding="utf-8")
 viewmodel=(src/"ApplicationCenterViewModel.kt").read_text(encoding="utf-8")
 rules=(src/"ApplicationAuditRules.kt").read_text(encoding="utf-8")
 usage=(src/"ApplicationUsageInspector.kt").read_text(encoding="utf-8")
@@ -156,6 +157,8 @@ for phrase in ("ACTION_CREATE_DOCUMENT","fun scanAll(","fun scanOne(","fun inspe
                "fun chooseTracked(","fun usage(","fun confirmRemove()"):
     assert phrase in activity,phrase
 assert "startForegroundService" not in activity
+assert "ApplicationCenterFragment()" in compat
+assert "state.observe(viewLifecycleOwner)" in activity
 assert "ViewModelProvider(this)[ApplicationCenterViewModel::class.java]" in activity
 for term in ("ApplicationInventory.inspect(", "ApplicationCenterRepository(getApplication<Application>())",
              "visible.get()", "fun scanAll(", "exportCsv(uri", "onCleared()"):

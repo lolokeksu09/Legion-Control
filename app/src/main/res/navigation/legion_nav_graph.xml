@@ -59,9 +59,12 @@
     <activity
         android:id="@+id/smartProfilesDestination"
         android:name="dev.lolokeksu.legioncontrol.SmartProfilesActivity" />
-    <activity
+    <fragment
         android:id="@+id/applicationCenterDestination"
-        android:name="dev.lolokeksu.legioncontrol.ApplicationCenterActivity" />
+        android:name="dev.lolokeksu.legioncontrol.ApplicationCenterFragment"
+        android:label="Application Center">
+        <argument android:name="app_center_package" app:argType="string" android:defaultValue=""/>
+    </fragment>
     <activity
         android:id="@+id/experimentLabDestination"
         android:name="dev.lolokeksu.legioncontrol.ExperimentLabActivity" />

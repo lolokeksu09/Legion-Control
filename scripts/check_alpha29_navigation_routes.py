@@ -16,7 +16,6 @@ expected={
     "GameToolboxActivity": "gameToolboxDestination",
     "CaptureStudioActivity": "captureStudioDestination",
     "SmartProfilesActivity": "smartProfilesDestination",
-    "ApplicationCenterActivity": "applicationCenterDestination",
     "ExperimentLabActivity": "experimentLabDestination",
     "ConnectivityLabActivity": "connectivityLabDestination",
     "AudioLabActivity": "audioLabDestination",
@@ -41,7 +40,11 @@ for node in nodes:
 assert ids==set(expected)
 assert not any(n.get(android+"id")=="@+id/gameSessionFragment" for n in nodes)
 frags={n.get(android+"id"):n for n in nav.findall("fragment")}
-assert len(frags)==7 and "@+id/gameSessionFragment" in frags
+assert len(frags)==8 and "@+id/gameSessionFragment" in frags
+assert frags["@+id/applicationCenterDestination"].get(android+"name").endswith(".ApplicationCenterFragment")
+assert "ApplicationCenterActivity::class.java to R.id.applicationCenterDestination" in mapping
+assert ".ApplicationCenterActivity" in registered
+assert "ApplicationCenterFragment()" in (src/"ApplicationCenterActivity.kt").read_text()
 assert frags["@+id/gameSessionFragment"].get(android+"name").endswith(".GameSessionFragment")
 game=(src/"GameSessionFragment.kt").read_text()
 compat=(src/"GameSessionActivity.kt").read_text()
@@ -60,4 +63,4 @@ assert "GameSessionActivity::class.java" in hub
 assert ".GameSessionActivity" in registered
 assert nav.get("{http://schemas.android.com/apk/res-auto}startDestination")=="@id/homeFragment"
 assert "QUERY_ALL_PACKAGES" not in (root/"app/src/main/AndroidManifest.xml").read_text()
-print("PASS alpha29: 14 centralized ActivityNavigator routes, one real Game Session Fragment, retained explicit-intent compat")
+print("PASS alpha29: 13 ActivityNavigator routes and two real module Fragments with explicit-intent compatibility")

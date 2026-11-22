@@ -13,7 +13,8 @@ gameActivity=read("GameSessionActivity.kt")
 gamevm=read("GameSessionViewModel.kt")
 profiles=read("SmartProfilesActivity.kt")
 profilevm=read("SmartProfilesViewModel.kt")
-apps=read("ApplicationCenterActivity.kt")
+apps=read("ApplicationCenterFragment.kt")
+appsCompat=read("ApplicationCenterActivity.kt")
 appvm=read("ApplicationCenterViewModel.kt")
 audio=read("AudioLabActivity.kt")
 audiovm=read("AudioLabViewModel.kt")
@@ -79,7 +80,9 @@ assert "HapticLabRepository(" not in haptic
 assert "viewModel.stopPlayback()" in haptic
 assert "setPositiveButton(\"Удалить\")" in haptic
 assert "ViewModelProvider(this)" in game and "state.observe(viewLifecycleOwner)" in game
-for activity in (profiles,apps,audio,haptic):
+assert "ViewModelProvider(this)" in apps and "state.observe(viewLifecycleOwner)" in apps
+assert "ApplicationCenterFragment()" in appsCompat
+for activity in (profiles,audio,haptic):
     assert "ViewModelProvider(this)" in activity
     assert "state.observe(this)" in activity
 
