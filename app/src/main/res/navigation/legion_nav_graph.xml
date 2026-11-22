@@ -78,9 +78,10 @@
         android:id="@+id/audioLabDestination"
         android:name="dev.lolokeksu.legioncontrol.AudioLabFragment"
         android:label="Audio Lab" />
-    <activity
+    <fragment
         android:id="@+id/hapticLabDestination"
-        android:name="dev.lolokeksu.legioncontrol.HapticLabActivity" />
+        android:name="dev.lolokeksu.legioncontrol.HapticLabFragment"
+        android:label="Haptic Lab" />
     <activity
         android:id="@+id/gamingDiagnosticsDestination"
         android:name="dev.lolokeksu.legioncontrol.GamingDiagnosticsActivity" />

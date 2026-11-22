@@ -12,7 +12,8 @@ pattern=(src/"HapticPattern.kt").read_text(encoding="utf-8")
 backend=(src/"HapticPlaybackBackend.kt").read_text(encoding="utf-8")
 inspector=(src/"HapticDeviceInspector.kt").read_text(encoding="utf-8")
 repository=(src/"HapticLabRepository.kt").read_text(encoding="utf-8")
-activity=(src/"HapticLabActivity.kt").read_text(encoding="utf-8")
+activity=(src/"HapticLabFragment.kt").read_text(encoding="utf-8")
+compat=(src/"HapticLabActivity.kt").read_text(encoding="utf-8")
 viewmodel=(src/"HapticLabViewModel.kt").read_text(encoding="utf-8")
 gradle=(root/"app/build.gradle.kts").read_text(encoding="utf-8")
 
@@ -207,5 +208,6 @@ for phrase in ("backend.stop()", "backend.perform(waveform)", "HapticLabReposito
                "fun startTest(", "fun exportCsv(", "onCleared()", "LiveData"):
     assert phrase in viewmodel,phrase
 assert "startForegroundService" not in activity
+assert "HapticLabFragment()" in compat and "state.observe(viewLifecycleOwner)" in activity
 assert "MediaRecorder" not in backend and "VibrationEffect.createOneShot(0" not in backend
 print("PASS alpha23: real SQLite v11→v12, 17+ legacy tables preserved, haptic FK/checks and safe Android API bounds")

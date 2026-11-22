@@ -20,7 +20,8 @@ appvm=read("ApplicationCenterViewModel.kt")
 audio=read("AudioLabFragment.kt")
 audioCompat=read("AudioLabActivity.kt")
 audiovm=read("AudioLabViewModel.kt")
-haptic=read("HapticLabActivity.kt")
+haptic=read("HapticLabFragment.kt")
+hapticCompat=read("HapticLabActivity.kt")
 hapticvm=read("HapticLabViewModel.kt")
 graph=(root/"app/src/main/res/navigation/legion_nav_graph.xml").read_text(encoding="utf-8")
 manifest=ET.parse(root/"app/src/main/AndroidManifest.xml").getroot()
@@ -88,7 +89,8 @@ assert "ViewModelProvider(this)" in profiles and "state.observe(viewLifecycleOwn
 assert "SmartProfilesFragment()" in profilesCompat
 assert "ViewModelProvider(this)" in audio and "state.observe(viewLifecycleOwner)" in audio
 assert "AudioLabFragment()" in audioCompat
-assert "ViewModelProvider(this)" in haptic and "state.observe(this)" in haptic
+assert "ViewModelProvider(this)" in haptic and "state.observe(viewLifecycleOwner)" in haptic
+assert "HapticLabFragment()" in hapticCompat
 
 # Stage 3 does NOT falsely claim a completed all-Fragment migration.
 assert "homeFragment" in graph and "gameDetailFragment" in graph
