@@ -189,6 +189,7 @@ class CaptureScreenshotService : Service() {
                 try {
                     val stream = requireNotNull(contentResolver.openOutputStream(uri, "w"))
                     stream.use { check(cropped.compress(Bitmap.CompressFormat.PNG, 100, it)) }
+                    check(!finished.get()) { "Захват отменён до публикации файла" }
                     CaptureScreenshotLibrary.publish(this, uri)
                     published = true
                 } finally {
@@ -204,26 +205,32 @@ class CaptureScreenshotService : Service() {
 
     private fun end(message: String) {
         if (!finished.compareAndSet(false, true)) return
-        main.post {
-            main.removeCallbacks(timeout)
-            reader?.setOnImageAvailableListener(null, null)
-            runCatching { display?.release() }
-            display = null
-            runCatching { reader?.close() }
-            reader = null
-            val capture = projection
-            projection = null
-            projectionCallback?.let { runCatching { capture?.unregisterCallback(it) } }
-            projectionCallback = null
-            runCatching { capture?.stop() }
-            worker?.quitSafely()
-            worker = null
-            frameHandler = null
-            active = false
-            status(message)
-            stopForeground(STOP_FOREGROUND_REMOVE)
-            stopSelf()
+        // Wait for any active image+MediaStore operation to release its Image before
+        // closing ImageReader or quitting the frame thread. A cancel never publishes.
+        val cleanup = Runnable {
+            main.post {
+                main.removeCallbacks(timeout)
+                reader?.setOnImageAvailableListener(null, null)
+                runCatching { display?.release() }
+                display = null
+                runCatching { reader?.close() }
+                reader = null
+                val capture = projection
+                projection = null
+                projectionCallback?.let { runCatching { capture?.unregisterCallback(it) } }
+                projectionCallback = null
+                runCatching { capture?.stop() }
+                worker?.quitSafely()
+                worker = null
+                frameHandler = null
+                active = false
+                status(message)
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                stopSelf()
+            }
         }
+        val frame = frameHandler
+        if (frame == null || !frame.post(cleanup)) cleanup.run()
     }
 
     override fun onDestroy() {
