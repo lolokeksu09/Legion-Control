@@ -76,8 +76,8 @@ class CaptureRecordingService : Service() {
         }
         val consent = intent.getParcelableExtra(EXTRA_CONSENT, Intent::class.java)
         if (intent.getIntExtra(EXTRA_RESULT, Activity.RESULT_CANCELED) != Activity.RESULT_OK ||
-            consent == null) {
-            writeStatus("Запись не запущена: нет разрешения Android на захват экрана")
+            consent == null || CaptureScreenshotService.active) {
+            writeStatus("Запись не запущена: нет согласия Android или уже выполняется скриншот")
             stopSelf(startId)
             return START_NOT_STICKY
         }
