@@ -15,7 +15,7 @@ class HapticPatternTest {
                 assertTrue(p.timings.all { it in 0..1_000 })
                 assertTrue(p.amplitudes.all { it in 0..160 })
                 assertTrue(p.amplitudes.any { it>0 })
-                assertTrue(p.durationMs in 35..1_800)
+                assertTrue(p.durationMs in 35L..1_800L)
                 assertEquals(p.durationMs,p.timings.sum())
                 assertEquals(HapticPattern.amplitude(level),p.requestedAmplitude)
             }

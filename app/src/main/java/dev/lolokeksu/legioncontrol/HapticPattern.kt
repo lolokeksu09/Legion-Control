@@ -37,7 +37,7 @@ object HapticPattern {
         val amp=amplitude(level)
         val amplitudes=IntArray(times.size) { index -> if(index%2==0)0 else amp }
         return HapticWaveform(kind,level,amp,times,amplitudes).also {
-            require(it.durationMs in 35..1_800)
+            require(it.durationMs in 35L..1_800L)
         }
     }
 

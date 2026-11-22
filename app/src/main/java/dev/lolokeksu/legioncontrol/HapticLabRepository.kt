@@ -24,7 +24,7 @@ class HapticLabRepository(context:Context):AutoCloseable {
     fun start(waveform:HapticWaveform,now:Long=System.currentTimeMillis()):String {
         require(HapticPattern.isValid(waveform.kind,waveform.level))
         require(waveform.requestedAmplitude==HapticPattern.amplitude(waveform.level))
-        require(waveform.durationMs in 35..1_800 && now>0)
+        require(waveform.durationMs in 35L..1_800L && now>0)
         val db=helper.writableDatabase
         db.beginTransaction()
         try {

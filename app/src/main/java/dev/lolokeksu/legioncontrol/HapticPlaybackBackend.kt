@@ -30,7 +30,7 @@ class HapticPlaybackBackend(private val context:Context) {
 
     fun perform(waveform:HapticWaveform):HapticPlaybackResult {
         require(HapticPattern.isValid(waveform.kind,waveform.level))
-        require(waveform.durationMs in 35..1_800)
+        require(waveform.durationMs in 35L..1_800L)
         if(cancelled.get() || Thread.currentThread().isInterrupted)
             return HapticPlaybackResult("CANCELLED",null,null,null,"PreStartStop")
         var ids:Int?=null
