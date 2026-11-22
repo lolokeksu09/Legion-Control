@@ -30,6 +30,8 @@ class CaptureRecordingService : Service() {
     companion object {
         const val ACTION_START = "dev.lolokeksu.legioncontrol.capture.START"
         const val ACTION_STOP = "dev.lolokeksu.legioncontrol.capture.STOP"
+        const val ACTION_PAUSE = "dev.lolokeksu.legioncontrol.capture.PAUSE"
+        const val ACTION_RESUME = "dev.lolokeksu.legioncontrol.capture.RESUME"
         const val EXTRA_CONSENT = "capture_consent"
         const val EXTRA_RESULT = "capture_result"
         const val EXTRA_EDGE = "capture_edge"
@@ -42,10 +44,24 @@ class CaptureRecordingService : Service() {
         private const val NOTICE = 2501
         @Volatile var recording: Boolean = false
             private set
+        @Volatile var paused: Boolean = false
+            private set
 
         fun stop(context: Context) {
             if (recording) context.startService(
                 Intent(context, CaptureRecordingService::class.java).setAction(ACTION_STOP)
+            )
+        }
+
+        fun pause(context: Context) {
+            if (recording && !paused) context.startService(
+                Intent(context, CaptureRecordingService::class.java).setAction(ACTION_PAUSE)
+            )
+        }
+
+        fun resume(context: Context) {
+            if (recording && paused) context.startService(
+                Intent(context, CaptureRecordingService::class.java).setAction(ACTION_RESUME)
             )
         }
     }
@@ -59,15 +75,24 @@ class CaptureRecordingService : Service() {
     private var output: ParcelFileDescriptor? = null
     private var pendingUri: Uri? = null
     private var recorderStarted = false
-    private var startedAt = 0L
+    private var captureClock: CaptureRecordingClock? = null
     private var stopping = false
     private val autoStop = Runnable { finish("Достигнут предел длительности записи") }
+    private val pauseTimeout = Runnable {
+        finish("Пауза превысила 5 минут: запись завершена для освобождения MediaProjection")
+    }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) {
             finish("Остановлено пользователем")
+            return START_NOT_STICKY
+        }
+        if (intent?.action == ACTION_PAUSE || intent?.action == ACTION_RESUME) {
+            if (recording && !stopping) {
+                changePausedState(intent.action == ACTION_PAUSE)
+            } else if (!recording) stopSelfResult(startId)
             return START_NOT_STICKY
         }
         if (intent?.action != ACTION_START || recording || projection != null || stopping) {
@@ -98,28 +123,91 @@ class CaptureRecordingService : Service() {
         return START_NOT_STICKY
     }
 
-    private fun promoteToForeground() {
-        val notifications = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-        notifications.createNotificationChannel(
-            NotificationChannel(CHANNEL, "Capture Studio · запись экрана",
-                NotificationManager.IMPORTANCE_LOW)
-        )
+    private fun buildNotification(): Notification {
         val open = PendingIntent.getActivity(this, 2501,
             Intent(this, CaptureStudioActivity::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val stop = PendingIntent.getService(this, 2502,
             Intent(this, CaptureRecordingService::class.java).setAction(ACTION_STOP),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        val notice = Notification.Builder(this, CHANNEL)
+        val toggle = PendingIntent.getService(this, if (paused) 2504 else 2503,
+            Intent(this, CaptureRecordingService::class.java).setAction(
+                if (paused) ACTION_RESUME else ACTION_PAUSE
+            ), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        return Notification.Builder(this, CHANNEL)
             .setSmallIcon(android.R.drawable.presence_video_online)
-            .setContentTitle("Legion Capture Studio")
-            .setContentText("Захват экрана запущен вручную · нажмите «Остановить»")
+            .setContentTitle(if (paused) "Legion Capture Studio · пауза"
+                else "Legion Capture Studio · запись")
+            .setContentText(if (paused) "Возобновите или остановите запись · автостоп паузы 5 мин"
+                else "Захват экрана включён вручную")
             .setContentIntent(open)
             .setOngoing(true)
+            .setOnlyAlertOnce(true)
             .setCategory(Notification.CATEGORY_SERVICE)
+            .addAction(if (paused) android.R.drawable.ic_media_play
+                else android.R.drawable.ic_media_pause,
+                if (paused) "Продолжить" else "Пауза", toggle)
             .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Остановить", stop)
             .build()
-        startForeground(NOTICE, notice, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION)
+    }
+
+    private fun promoteToForeground() {
+        val notifications = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+        notifications.createNotificationChannel(
+            NotificationChannel(CHANNEL, "Capture Studio · запись экрана",
+                NotificationManager.IMPORTANCE_LOW)
+        )
+        startForeground(NOTICE, buildNotification(),
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION)
+    }
+
+    private fun updateNotification() {
+        // Denied POST_NOTIFICATIONS must never crash an already running FGS.
+        runCatching {
+            (getSystemService(NOTIFICATION_SERVICE) as NotificationManager)
+                .notify(NOTICE, buildNotification())
+        }
+    }
+
+    /** All service commands arrive on Android's main thread; codec transitions are serialized. */
+    private fun changePausedState(wantPause: Boolean) {
+        if (!recording || stopping || wantPause == paused) return
+        val currentRecorder = recorder ?: return
+        val clock = captureClock ?: return
+        val now = SystemClock.elapsedRealtime()
+        if (clock.remainingMs(now) == 0L) {
+            finish("Достигнут предел длительности записи")
+            return
+        }
+        try {
+            if (wantPause) {
+                currentRecorder.pause()
+                check(clock.pause(SystemClock.elapsedRealtime()))
+                paused = true
+                handler.removeCallbacks(autoStop)
+                handler.postDelayed(pauseTimeout, CaptureRecordingClock.MAX_PAUSE_MS)
+                writeStatus("Видеозапись на паузе. Остаток активного времени сохранён. " +
+                    "Возобновите в течение 5 минут или остановите запись.")
+            } else {
+                currentRecorder.resume()
+                val resumedAt = SystemClock.elapsedRealtime()
+                check(clock.resume(resumedAt))
+                paused = false
+                handler.removeCallbacks(pauseTimeout)
+                val remaining = clock.remainingMs(resumedAt)
+                if (remaining == 0L) {
+                    finish("Достигнут предел длительности записи")
+                    return
+                }
+                handler.postDelayed(autoStop, remaining)
+                writeStatus("Видеозапись продолжена. Время паузы не включено в лимит.")
+            }
+            updateNotification()
+        } catch (e: Exception) {
+            // Codec state is unknown after a failed pause/resume. Stop the entire
+            // projection and let normal MP4 publish/delete handling decide validity.
+            finish("Не удалось изменить состояние записи: " + e.javaClass.simpleName)
+        }
     }
 
     private fun beginRecording(consent: Intent, config: CaptureConfig) {
@@ -174,8 +262,9 @@ class CaptureRecordingService : Service() {
         mediaRecorder.start()
         recorderStarted = true
         recording = true
-        startedAt = SystemClock.elapsedRealtime()
-        writeStatus("Запись началась. Видео без звука; остановить можно из уведомления.")
+        captureClock = CaptureRecordingClock(config.maxDurationMs, SystemClock.elapsedRealtime())
+        paused = false
+        writeStatus("Запись началась. Видео без звука; пауза, продолжение и остановка доступны в уведомлении.")
         handler.postDelayed(autoStop, config.maxDurationMs)
     }
 
@@ -187,9 +276,12 @@ class CaptureRecordingService : Service() {
         if (stopping) return
         stopping = true
         handler.removeCallbacks(autoStop)
+        handler.removeCallbacks(pauseTimeout)
         recording = false
+        paused = false
 
-        val elapsed = if (recorderStarted) SystemClock.elapsedRealtime() - startedAt else 0L
+        val elapsed = if (recorderStarted)
+            captureClock?.activeElapsedMs(SystemClock.elapsedRealtime()) ?: 0L else 0L
         var saved = false
         if (recorderStarted && elapsed >= 1000) {
             saved = runCatching { recorder?.stop(); true }.getOrDefault(false)
@@ -200,6 +292,7 @@ class CaptureRecordingService : Service() {
         runCatching { recorder?.release() }
         recorder = null
         recorderStarted = false
+        captureClock = null
         runCatching { output?.close() }
         output = null
         val previous = projection
