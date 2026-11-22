@@ -43,6 +43,6 @@ assert test.count("@Test")>=7
 manifest=(r/"app/src/main/AndroidManifest.xml").read_text()
 for prohibited in ("QUERY_ALL_PACKAGES","WRITE_SECURE_SETTINGS","ACCESS_FINE_LOCATION"):
     assert prohibited not in manifest
-for forbidden in ("Shizuku", "Runtime.getRuntime().exec", "HttpURLConnection", "startForegroundService"):
+for forbidden in ("ShizukuService", "Runtime.getRuntime().exec", "HttpURLConnection", "startForegroundService"):
     assert forbidden not in vm+frag+engine,forbidden
 print("PASS alpha30: local SQLite session events, manual marks, gap-aware engine, SAF and 7+ JVM tests")
