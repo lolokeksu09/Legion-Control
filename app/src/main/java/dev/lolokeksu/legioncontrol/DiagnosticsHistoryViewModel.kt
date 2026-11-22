@@ -1,6 +1,8 @@
 package dev.lolokeksu.legioncontrol
 
 import android.app.Application
+import android.os.Handler
+import android.os.Looper
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -20,6 +22,7 @@ data class DiagnosticsReadResult(
  */
 class DiagnosticsHistoryViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = DiagnosticsHistoryRepository(application)
+    private val mainHandler = Handler(Looper.getMainLooper())
     private val worker = Executors.newSingleThreadExecutor()
     private val generations = AtomicIntegerArray(5)
     private val mutableReport = MutableLiveData<DiagnosticsReadResult>()
@@ -41,8 +44,11 @@ class DiagnosticsHistoryViewModel(application: Application) : AndroidViewModel(a
             val report = runCatching { repository.read(kind) }.getOrElse {
                 "Ошибка чтения SQLite (${kind.name}): " + it.javaClass.simpleName
             }
-            if (generations.get(index) == generation) {
-                mutableReport.postValue(DiagnosticsReadResult(kind.pane, report))
+            // postValue() coalesces results across panes; one main-queue event per pane is required.
+            mainHandler.post {
+                if (generations.get(index) == generation) {
+                    mutableReport.value = DiagnosticsReadResult(kind.pane, report)
+                }
             }
         }
     }
