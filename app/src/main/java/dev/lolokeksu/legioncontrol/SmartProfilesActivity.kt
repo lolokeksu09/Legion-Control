@@ -325,7 +325,7 @@ class SmartProfilesActivity : ComponentActivity() {
                 .setMessage("Совпадающие профили и их настройки будут перезаписаны. " +
                     "Другие профили и история измерений сохранятся. " +
                     "Файл должен быть экспортом Legion Control версии 1.")
-                .setPositiveButton("Импортировать") { _,_ -> viewModel.import(uri) }
+                .setPositiveButton("Импортировать") { _,_ -> viewModel.importBackup(uri) }
                 .setNegativeButton("Отмена",null).show()
         }
     }
