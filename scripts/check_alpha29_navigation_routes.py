@@ -86,5 +86,26 @@ assert "startActivity(Intent(requireContext(), cls)" in hub
 assert "GameSessionActivity::class.java" in hub
 assert ".GameSessionActivity" in registered
 assert nav.get("{http://schemas.android.com/apk/res-auto}startDestination")=="@id/homeFragment"
+# Real cross-module transitions must use a single NavController/back stack inside
+# NavHost while preserving explicit Intent fallbacks for old Activity hosts.
+routing=(src/"ModuleNavigation.kt").read_text()
+for term in ("HubDestinationRoutes.destinationFor(target)",
+             "NavHostFragment.findNavController(from)",
+             "controller.navigate(route,args)",
+             "from.startActivity(Intent(from.requireContext(),target)"):
+    assert term in routing,term
+for file,targets in (
+    ("GameSessionFragment.kt",("SmartProfilesActivity",)),
+    ("SmartProfilesFragment.kt",("ApplicationCenterActivity","ExperimentLabActivity","ConnectivityLabActivity")),
+    ("ApplicationCenterFragment.kt",("SmartProfilesActivity","ExperimentLabActivity")),
+    ("HardwareLabFragment.kt",("CompatibilityLabActivity","DisplayPatternActivity")),
+    ("GamingDiagnosticsFragment.kt",("HardwareLabActivity",)),
+    ("CompatibilityLabFragment.kt",("GamepadLiveActivity",))
+):
+    content=(src/file).read_text()
+    for target in targets:
+        assert f"ModuleNavigation.open(this,{target}::class.java)" in content or \\
+            f"ModuleNavigation.open(this, {target}::class.java" in content, (file,target)
+assert "REQUEST_EXPORT" not in routing and "startForegroundService" not in routing
 assert "QUERY_ALL_PACKAGES" not in (root/"app/src/main/AndroidManifest.xml").read_text()
 print("PASS alpha29: 5 ActivityNavigator routes and ten real module Fragments with explicit-intent compatibility")

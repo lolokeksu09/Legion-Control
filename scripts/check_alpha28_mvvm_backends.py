@@ -27,6 +27,12 @@ connectivity=read("ConnectivityLabFragment.kt")
 connectivityVm=read("ConnectivityLabViewModel.kt")
 experiment=read("ExperimentLabFragment.kt")
 experimentVm=read("ExperimentLabViewModel.kt")
+hardwareFragment=read("HardwareLabFragment.kt")
+hardwareVm=read("HardwareLabViewModel.kt")
+gamingFragment=read("GamingDiagnosticsFragment.kt")
+gamingVm=read("GamingDiagnosticsViewModel.kt")
+compatibilityFragment=read("CompatibilityLabFragment.kt")
+compatibilityVm=read("CompatibilityLabViewModel.kt")
 graph=(root/"app/src/main/res/navigation/legion_nav_graph.xml").read_text(encoding="utf-8")
 manifest=ET.parse(root/"app/src/main/AndroidManifest.xml").getroot()
 ns="{http://schemas.android.com/apk/res/android}"
@@ -99,6 +105,16 @@ assert "ViewModelProvider(this)" in connectivity and "state.observe(viewLifecycl
 assert "ConnectivityProbe.capture(" in connectivityVm and "fun cancelTest()" in connectivityVm
 assert "ViewModelProvider(this)" in experiment and "state.observe(viewLifecycleOwner)" in experiment
 assert "ExperimentRepository(getApplication<Application>())" in experimentVm and "onCleared()" in experimentVm
+for fragment, vm in ((hardwareFragment, hardwareVm),
+                     (gamingFragment, gamingVm),
+                     (compatibilityFragment, compatibilityVm)):
+    assert "ViewModelProvider(this)" in fragment
+    assert "report.observe(viewLifecycleOwner)" in fragment
+    for invariant in ("AndroidViewModel", "onCleared()", "cancelAll()" if vm != compatibilityVm else "cancel()"):
+        assert invariant in vm, invariant
+assert "LocalHistoryStore(app).use" in gamingVm and "FramePacingCapture(" in gamingVm
+assert "MotionStabilityCapture(" in hardwareVm and "ForegroundNetworkEvents(" in hardwareVm
+assert "DisplayModeInspector.inspect(" in compatibilityVm and "QuickComputeProbe.run(" in compatibilityVm
 
 # Stage 3 does NOT falsely claim a completed all-Fragment migration.
 assert "homeFragment" in graph and "gameDetailFragment" in graph
