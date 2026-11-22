@@ -33,7 +33,7 @@ class ApplicationCenterViewModel(application: Application) : AndroidViewModel(ap
 
     fun setVisible(value: Boolean) { visible.set(value) }
 
-    fun pickApp(filter: String?) = submit { nonce ->
+    fun pickApp(filter: String?) = submitWithNonce { nonce ->
         val found = ApplicationInventory.launchable(getApplication<Application>()).filter { item ->
             filter.isNullOrBlank() ||
                 item.label.contains(filter,ignoreCase=true) ||
@@ -43,7 +43,7 @@ class ApplicationCenterViewModel(application: Application) : AndroidViewModel(ap
             nonce, launchable = found)
     }
 
-    fun chooseTracked(onlyFavorites: Boolean) = submit { nonce ->
+    fun chooseTracked(onlyFavorites: Boolean) = submitWithNonce { nonce ->
         val entries = ApplicationCenterRepository(getApplication<Application>()).use { repository ->
             repository.list().filter { !onlyFavorites || it.favorite }
         }
@@ -141,7 +141,7 @@ class ApplicationCenterViewModel(application: Application) : AndroidViewModel(ap
             mutableState.value = current.copy(launchable=null, tracked=null)
     }
 
-    private fun submit(job: (Int) -> ApplicationCenterUiState) {
+    private fun submitWithNonce(job: (Int) -> ApplicationCenterUiState) {
         if (closed.get()) return
         val request=generation.incrementAndGet()
         mutableState.value=ApplicationCenterUiState("Обработка локальных данных…",request)
@@ -156,7 +156,7 @@ class ApplicationCenterViewModel(application: Application) : AndroidViewModel(ap
         }
     }
 
-    private fun submit(job: () -> ApplicationCenterUiState) = submit { _ -> job() }
+    private fun submit(job: () -> ApplicationCenterUiState) = submitWithNonce { _ -> job() }
 
     override fun onCleared() {
         visible.set(false)

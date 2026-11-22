@@ -39,12 +39,12 @@ class SmartProfilesViewModel(application: Application) : AndroidViewModel(applic
             else "Такого профиля нет.")
     }
 
-    fun loadPicker() = submit { nonce ->
+    fun loadPicker() = submitWithNonce { nonce ->
         val profiles = SmartProfilesRepository(getApplication<Application>()).use { it.list() }
         SmartProfilesUiState("Найдено профилей: ${profiles.size}", nonce, profiles = profiles)
     }
 
-    fun loadRules(pkg: String) = submit { nonce ->
+    fun loadRules(pkg: String) = submitWithNonce { nonce ->
         val rules = SmartProfilesRepository(getApplication<Application>()).use { it.rules(pkg) }
         SmartProfilesUiState("Настройка правил $pkg", nonce, rulesPackage = pkg, rules = rules)
     }
@@ -105,7 +105,7 @@ class SmartProfilesViewModel(application: Application) : AndroidViewModel(applic
         }
     }
 
-    private fun submit(job: (Int) -> SmartProfilesUiState) {
+    private fun submitWithNonce(job: (Int) -> SmartProfilesUiState) {
         if (closed.get()) return
         val request = generation.incrementAndGet()
         mutableState.value = SmartProfilesUiState("Операция с локальными данными…", request)
@@ -122,7 +122,7 @@ class SmartProfilesViewModel(application: Application) : AndroidViewModel(applic
         }
     }
 
-    private fun submit(job: () -> SmartProfilesUiState) = submit { _ -> job() }
+    private fun submit(job: () -> SmartProfilesUiState) = submitWithNonce { _ -> job() }
 
     override fun onCleared() {
         closed.set(true)
