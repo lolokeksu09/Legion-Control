@@ -15,7 +15,7 @@ tuning = (src / "ToolboxTuning.kt").read_text(encoding="utf-8")
 system = (src / "SmartSystemControls.kt").read_text(encoding="utf-8")
 store = (src / "LocalHistoryStore.kt").read_text(encoding="utf-8")
 tests = (root / "app/src/test/java/dev/lolokeksu/legioncontrol/ToolboxTuningTest.kt").read_text(encoding="utf-8")
-assert "versionCode = 24" in gradle and 'versionName = "0.1.0-alpha.24"' in gradle
+assert "versionCode = 25" in gradle and 'versionName = "0.1.0-alpha.25"' in gradle
 assert "applicationId = \"dev.lolokeksu.legioncontrol\"" in gradle
 assert "HapticLabSchema.VERSION" in store, "Do not change SQLite v12 for an overlay"
 assert "GAME TOOLBOX" in main and "GameToolboxActivity::class.java" in main
@@ -24,7 +24,7 @@ assert "ToolboxTuningTest" in tests and tests.count("@Test") >= 4
 expected = {
     "android.permission.INTERNET", "android.permission.ACCESS_NETWORK_STATE",
     "android.permission.ACCESS_WIFI_STATE", "android.permission.PACKAGE_USAGE_STATS",
-    "android.permission.FOREGROUND_SERVICE", "android.permission.FOREGROUND_SERVICE_SPECIAL_USE",
+    "android.permission.FOREGROUND_SERVICE", "android.permission.FOREGROUND_SERVICE_SPECIAL_USE","android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION",
     "android.permission.POST_NOTIFICATIONS", "android.permission.MODIFY_AUDIO_SETTINGS",
     "android.permission.ACCESS_NOTIFICATION_POLICY", "android.permission.WRITE_SETTINGS",
     "android.permission.VIBRATE", "android.permission.SYSTEM_ALERT_WINDOW",

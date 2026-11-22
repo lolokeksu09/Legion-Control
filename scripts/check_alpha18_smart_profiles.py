@@ -18,7 +18,7 @@ perms={x.get(ns+"name") for x in manifest.findall("uses-permission")}
 expected={
     "android.permission.INTERNET","android.permission.ACCESS_NETWORK_STATE",
     "android.permission.ACCESS_WIFI_STATE","android.permission.PACKAGE_USAGE_STATS",
-    "android.permission.FOREGROUND_SERVICE","android.permission.FOREGROUND_SERVICE_SPECIAL_USE",
+    "android.permission.FOREGROUND_SERVICE","android.permission.FOREGROUND_SERVICE_SPECIAL_USE","android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION",
     "android.permission.POST_NOTIFICATIONS","android.permission.MODIFY_AUDIO_SETTINGS",
     "android.permission.ACCESS_NOTIFICATION_POLICY","android.permission.WRITE_SETTINGS","android.permission.VIBRATE","android.permission.SYSTEM_ALERT_WINDOW"
 }
@@ -34,8 +34,8 @@ assert qs[0].get(ns+"exported")=="true"
 assert "startActivityAndCollapse(pending)" in (src/"LegionQuickTileService.kt").read_text(encoding="utf-8")
 assert "SmartProfilesActivity::class.java" in (src/"MainActivity.kt").read_text(encoding="utf-8")
 assert "const val VERSION = 7" in schema
-assert 'versionCode = 24' in (root/"app/build.gradle.kts").read_text(encoding="utf-8")
-assert 'versionName = "0.1.0-alpha.24"' in (root/"app/build.gradle.kts").read_text(encoding="utf-8")
+assert 'versionCode = 25' in (root/"app/build.gradle.kts").read_text(encoding="utf-8")
+assert 'versionName = "0.1.0-alpha.25"' in (root/"app/build.gradle.kts").read_text(encoding="utf-8")
 assert 'oldVersion !in 1..11' in history
 assert 'newVersion != HapticLabSchema.VERSION' in history
 assert 'if (oldVersion <= 5) GameSessionSchema.install(db)' in history

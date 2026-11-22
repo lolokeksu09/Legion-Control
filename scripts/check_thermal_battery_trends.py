@@ -16,7 +16,7 @@ assert set(x.attrib["{http://schemas.android.com/apk/res/android}name"] for x in
     "android.permission.INTERNET", "android.permission.ACCESS_NETWORK_STATE",
     "android.permission.ACCESS_WIFI_STATE", "android.permission.PACKAGE_USAGE_STATS",
     "android.permission.FOREGROUND_SERVICE",
-    "android.permission.FOREGROUND_SERVICE_SPECIAL_USE",
+    "android.permission.FOREGROUND_SERVICE_SPECIAL_USE","android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION",
     "android.permission.POST_NOTIFICATIONS",
     "android.permission.MODIFY_AUDIO_SETTINGS",
     "android.permission.ACCESS_NOTIFICATION_POLICY",
@@ -41,7 +41,7 @@ assert "DiagnosticTrendTextReport.format(trend)" in activity
 assert "latestReport = reportHeader?.plus(complete)" in activity
 assert "runOnUiThread {" in activity
 assert "!isDestroyed && requestId == diagnosticRequestId" in activity
-assert activity.count("layout.addView(Button(this).apply {") == 24
+assert activity.count("layout.addView(Button(this).apply {") == 25
 for test_name in (
     "firstReadingIsBaselineAndSecondShowsMeasuredChanges",
     "missingDataNeverBecomesAZeroDelta",
@@ -53,8 +53,8 @@ for test_name in (
     "thermalCodesMatchAndroidPlatformDefinitions",
 ):
     assert test_name in tests, test_name
-assert "versionCode = 24" in gradle
-assert 'versionName = "0.1.0-alpha.24"' in gradle
+assert "versionCode = 25" in gradle
+assert 'versionName = "0.1.0-alpha.25"' in gradle
 for unsafe in ("Shizuku.getInstance", "WRITE_SECURE_SETTINGS", "setprop ", "pm grant",
                "QUERY_ALL_PACKAGES", "exec(", "getDeclaredMethod("):
     assert unsafe not in activity + engine + current + text_report, unsafe
