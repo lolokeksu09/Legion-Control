@@ -1,6 +1,8 @@
 package dev.lolokeksu.legioncontrol
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
 import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioPlaybackCaptureConfiguration
@@ -45,6 +47,10 @@ class PlaybackAudioCapture(
     fun start(videoStartedAtMs: Long) {
         check(worker == null && !stopRequested)
         require(gameUid > 0) { "UID выбранной игры недействителен" }
+        if (context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) !=
+            PackageManager.PERMISSION_GRANTED) {
+            throw SecurityException("RECORD_AUDIO не разрешён для захвата воспроизведения")
+        }
         try {
             val captureConfig = AudioPlaybackCaptureConfiguration.Builder(projection)
                 .addMatchingUsage(AudioAttributes.USAGE_MEDIA)
@@ -117,6 +123,10 @@ class PlaybackAudioCapture(
     fun resume() {
         if (!pauseRequested || stopRequested) return
         val record = requireNotNull(pcm)
+        if (context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) !=
+            PackageManager.PERMISSION_GRANTED) {
+            throw SecurityException("Разрешение RECORD_AUDIO отозвано")
+        }
         record.startRecording()
         check(record.recordingState == AudioRecord.RECORDSTATE_RECORDING)
         pauseRequested = false
