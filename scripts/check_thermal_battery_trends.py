@@ -47,8 +47,8 @@ for test_name in (
     "thermalCodesMatchAndroidPlatformDefinitions",
 ):
     assert test_name in tests, test_name
-assert "versionCode = 15" in gradle
-assert 'versionName = "0.1.0-alpha.15"' in gradle
+assert "versionCode = 16" in gradle
+assert 'versionName = "0.1.0-alpha.16"' in gradle
 for unsafe in ("Shizuku.getInstance", "WRITE_SECURE_SETTINGS", "setprop ", "pm grant",
                "QUERY_ALL_PACKAGES", "exec(", "getDeclaredMethod("):
     assert unsafe not in activity + engine + current + text_report, unsafe
