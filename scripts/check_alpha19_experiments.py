@@ -126,7 +126,7 @@ for term in ("fun annotate(","fun create(","fun assign(","fun unassign(","fun ex
              "MAX_TRIALS","CONFLICT_REPLACE","qualityNotes","dischargePercentPerHour=null"):
     assert term in repository,term
 for term in ("fun evidence(","fun armSummary(","fun formatComparison(","MIN_RATE_WINDOW_MS",
-             "point.timeMs","gapsOver45s","qualityNotes","monotone"):
+             "it.timeMs","gapsOver45s","qualityNotes","monotone"):
     assert term in analytics,term
 for term in ("Intent.ACTION_CREATE_DOCUMENT","ExperimentRepository","fun confirmDelete()",
              "fun assign(","fun saveAnnotation()","fun showEvidence()","fun shareComparison()"):
