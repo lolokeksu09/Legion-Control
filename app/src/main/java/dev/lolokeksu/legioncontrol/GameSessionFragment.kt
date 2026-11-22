@@ -123,6 +123,7 @@ class GameSessionFragment : Fragment() {
         action("ОСТАНОВИТЬ ЗАПИСЬ") { stopRecording() }
         action("Добавить метку во время записи") { addUserMark() }
         action("Session Signals · хронология и события") { openSessionSignals() }
+        action("Session Baselines · сравнение с историей") { openSessionBaselines() }
         action("Разрешить уведомления о записи (Android 13+)") {
             if (requireContext().checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)
                 requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS),REQUEST_NOTIFICATION)
@@ -257,6 +258,19 @@ class GameSessionFragment : Fragment() {
         if(controller!=null)controller.navigate(R.id.sessionSignalsFragment,args)
         else startActivity(Intent(requireContext(),NavigationHostActivity::class.java).apply {
             putExtra("open_session_signals",true)
+            putExtras(args)
+        })
+    }
+
+    private fun openSessionBaselines() {
+        val args=Bundle().apply {
+            val pkg=packageInput.text.toString().trim()
+            if(packagePattern.matches(pkg))putString("smart_package",pkg)
+        }
+        val controller=runCatching { NavHostFragment.findNavController(this) }.getOrNull()
+        if(controller!=null)controller.navigate(R.id.sessionBaselinesFragment,args)
+        else startActivity(Intent(requireContext(),NavigationHostActivity::class.java).apply {
+            putExtra("open_session_baselines",true)
             putExtras(args)
         })
     }

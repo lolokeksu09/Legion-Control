@@ -32,7 +32,8 @@ for node in nodes:
 assert ids==set(expected)
 assert not any(n.get(android+"id")=="@+id/gameSessionFragment" for n in nodes)
 frags={n.get(android+"id"):n for n in nav.findall("fragment")}
-assert len(frags)==17 and "@+id/gameSessionFragment" in frags
+assert len(frags)==18 and "@+id/gameSessionFragment" in frags
+assert frags["@+id/sessionBaselinesFragment"].get(android+"name").endswith(".SessionBaselinesFragment")
 assert frags["@+id/sessionSignalsFragment"].get(android+"name").endswith(".SessionSignalsFragment")
 assert frags["@+id/applicationCenterDestination"].get(android+"name").endswith(".ApplicationCenterFragment")
 assert "ApplicationCenterActivity::class.java to R.id.applicationCenterDestination" in mapping

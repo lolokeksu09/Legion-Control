@@ -152,6 +152,7 @@ class NavigationHostActivity : FragmentActivity() {
                 R.id.hapticLabDestination, R.id.connectivityLabDestination,
                 R.id.experimentLabDestination, R.id.compatibilityLabDestination,
                 R.id.hardwareLabDestination, R.id.gamingDiagnosticsDestination -> R.id.toolsFragment
+                R.id.sessionBaselinesFragment -> R.id.historyFragment
                 else -> actual
             }
             buttons.forEach { (id, views) ->
@@ -163,6 +164,7 @@ class NavigationHostActivity : FragmentActivity() {
             back.visibility = if (actual == R.id.gameDetailFragment ||
                 actual == R.id.gameSessionFragment ||
                 actual == R.id.sessionSignalsFragment ||
+                actual == R.id.sessionBaselinesFragment ||
                 actual == R.id.applicationCenterDestination ||
                 actual == R.id.smartProfilesDestination ||
                 actual == R.id.audioLabDestination ||
@@ -181,6 +183,7 @@ class NavigationHostActivity : FragmentActivity() {
                 R.id.gameDetailFragment -> "НАСТРОЙКИ ИГРЫ"
                 R.id.gameSessionFragment -> "ЗАПИСЬ ИГРОВОЙ СЕССИИ"
                 R.id.sessionSignalsFragment -> "ХРОНОЛОГИЯ И СОБЫТИЯ"
+                R.id.sessionBaselinesFragment -> "ИСТОРИЧЕСКИЕ БАЗОВЫЕ ПОКАЗАТЕЛИ"
                 R.id.applicationCenterDestination -> "БИБЛИОТЕКА ПРИЛОЖЕНИЙ"
                 R.id.smartProfilesDestination -> "УМНЫЕ ПРОФИЛИ"
                 R.id.audioLabDestination -> "АУДИО ЛАБОРАТОРИЯ"
@@ -198,6 +201,12 @@ class NavigationHostActivity : FragmentActivity() {
                 intent.getStringExtra("smart_package")?.let { putString("smart_package",it) }
             }
             nav.navigate(R.id.sessionSignalsFragment,args)
+        }
+        if(savedInstanceState==null && intent.getBooleanExtra("open_session_baselines",false)) {
+            val args=Bundle().apply {
+                intent.getStringExtra("smart_package")?.let { putString("smart_package",it) }
+            }
+            nav.navigate(R.id.sessionBaselinesFragment,args)
         }
         ViewModelProvider(this)[HubViewModel::class.java].refresh()
     }

@@ -350,6 +350,9 @@ class HubPageFragment : Fragment() {
         tile("Session Signals", "Хронология событий, метки, разрывы телеметрии и экспорт") {
             NavHostFragment.findNavController(this).navigate(R.id.sessionSignalsFragment)
         }
+        tile("Session Baselines", "Медиана прошлых сессий, исключения и экспорт") {
+            NavHostFragment.findNavController(this).navigate(R.id.sessionBaselinesFragment)
+        }
         tile("Измерения устройства", "Rust JNI, батарея, тепловая история и CSV") { open(MainActivity::class.java) }
         tile("Эксперименты", "Сравнения и заметки") { open(ExperimentLabActivity::class.java) }
         tile("Клипы MP4", "Movies/LegionControl/ · локальная библиотека") { open(CaptureStudioActivity::class.java) }

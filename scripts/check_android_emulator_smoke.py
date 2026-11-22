@@ -62,6 +62,30 @@ def expect(needle: str, seconds: int = 35) -> None:
 
 
 
+def actual_focused_input() -> str:
+    """Read the committed EditText value, rather than trusting ADB's synthesized keys.
+
+    Emulator input can reorder fast characters (alpha -> aplha); testing the
+    intended command string would misdiagnose the app's SQLite persistence.
+    """
+    tree = hierarchy()
+    fields = [node for node in tree.iter("node")
+              if node.get("class") == "android.widget.EditText"]
+    focused = [node.get("text", "") for node in fields
+               if node.get("focused") == "true" and node.get("text")]
+    if len(focused) == 1:
+        value = focused[0]
+    else:
+        values = [node.get("text", "") for node in fields if node.get("text")]
+        if len(values) != 1:
+            raise AssertionError(f"Cannot identify marker input: {values!r}")
+        value = values[0]
+    if not re.fullmatch(r"[A-Za-z0-9_]{8,40}", value):
+        raise AssertionError(f"Unexpected marker entered by ADB: {value!r}")
+    print("PASS actual marker input:", value, flush=True)
+    return value
+
+
 def expect_scrolling(needle: str, seconds: int = 30) -> None:
     width,height = dimensions()
     deadline=time.monotonic()+seconds
@@ -212,6 +236,7 @@ def main() -> None:
     click("Добавить метку во время записи")
     expect("Отметить момент во время записи")
     adb("shell", "input", "text", "alpha30_marker")
+    marker_that_android_received = actual_focused_input()
     click("Добавить", scrolls=0)
     expect_scrolling("Отправлена ручная метка", seconds=18)
     time.sleep(3)
@@ -224,7 +249,8 @@ def main() -> None:
     capture("05-recorded-session-history")
     click("Session Signals · хронология и события")
     stage("05b-session-signals", "LEGION · SESSION SIGNALS")
-    expect_scrolling("alpha30_marker", seconds=28)
+    expect_scrolling("USER_MARK", seconds=28)
+    expect_scrolling(marker_that_android_received, seconds=28)
     capture("05c-manual-mark-in-timeline")
     back_until("LEGION · GAME SESSION")
     back_until("LEGION CONTROL · SMART PROFILES")
@@ -258,6 +284,16 @@ def main() -> None:
     expect("ИСТОРИЯ И ДИАГНОСТИКА")
     click("Session Signals")
     stage("12b-history-to-signals", "LEGION · SESSION SIGNALS")
+    back_until("ИСТОРИЯ И ДИАГНОСТИКА")
+    click("Session Baselines")
+    stage("12c-history-to-baselines", "LEGION · SESSION BASELINES")
+    expect_scrolling("минимум 3", seconds=28)
+    capture("12d-baseline-insufficient-history-honest")
+    click("За последние 30 дней")
+    expect_scrolling("Окно истории: 30 дней", seconds=28)
+    click("Открыть Session Signals выбранной игры")
+    stage("12e-baselines-to-signals", "LEGION · SESSION SIGNALS")
+    back_until("LEGION · SESSION BASELINES")
     back_until("ИСТОРИЯ И ДИАГНОСТИКА")
     click("Настройки")
     expect(SETTINGS_MARKER)
