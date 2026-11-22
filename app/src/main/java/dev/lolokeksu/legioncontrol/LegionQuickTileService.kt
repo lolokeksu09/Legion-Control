@@ -1,5 +1,6 @@
 package dev.lolokeksu.legioncontrol
 
+import android.annotation.SuppressLint
 import android.app.PendingIntent
 import android.content.Intent
 import android.os.Build
@@ -17,6 +18,8 @@ class LegionQuickTileService : TileService() {
         }
     }
 
+    // Legacy Intent overload is required only on Android 13 (API 33); API 34+ uses PendingIntent.
+    @SuppressLint("StartActivityAndCollapseDeprecated")
     override fun onClick() {
         super.onClick()
         val intent=Intent(this,SmartProfilesActivity::class.java).apply {
