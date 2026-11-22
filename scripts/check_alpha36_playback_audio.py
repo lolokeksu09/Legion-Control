@@ -35,12 +35,19 @@ assert "checkSelfPermission(Manifest.permission.RECORD_AUDIO)" in ui
 assert "onRequestPermissionsResult(" in ui
 assert "createScreenCaptureIntent()" in ui
 assert "CaptureRecordingService.EXTRA_PLAYBACK_AUDIO" in ui
+assert "CaptureRecordingService.EXTRA_AUDIO_GAME" in ui
+assert "selectedAudioGame() == null" in ui
+assert "packageManager.getLaunchIntentForPackage(it) != null" in ui
+assert "getStringExtra(EXTRA_AUDIO_GAME)" in service
+assert "getLaunchIntentForPackage(pkg) != null" in service
+assert "selectedGameUid = uid" in service
+assert ".addMatchingUid(gameUid)" in audio
 assert "putExtra(CaptureRecordingService.EXTRA_PLAYBACK_AUDIO, playbackRequested)" in ui
 assert "Manifest.permission.RECORD_AUDIO" in service
 assert "intent.getBooleanExtra(EXTRA_PLAYBACK_AUDIO, false)" in service
 assert "playbackAudioRequested &&" in service
 assert "checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED" in service
-assert "PlaybackAudioCapture(this, capture)" in service
+assert "PlaybackAudioCapture(this, capture, requireNotNull(selectedGameUid))" in service
 assert "it.start(videoStartedAtMs)" in service
 assert "runCatching { playbackAudio?.pause() }" in service
 assert "runCatching { playbackAudio?.resume() }" in service
