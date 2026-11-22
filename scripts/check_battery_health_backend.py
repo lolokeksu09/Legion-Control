@@ -41,7 +41,7 @@ assert "val snapshot = output.toString()" in activity
 assert activity.index("BatteryHealthReport.format(") < activity.index("val snapshot = output.toString()")
 assert "latestReport = reportHeader?.plus(snapshot)" in activity
 assert "latestReport = reportHeader?.plus(complete)" in activity
-assert activity.count("layout.addView(Button(this).apply {") == 21, "All existing battery controls remain"
+assert activity.count("layout.addView(Button(this).apply {") == 22, "All existing battery controls remain"
 for test in (
     "androidHealthIsNotDegradationPercentage",
     "missingValuesDoNotBecomeZeroOrFalse",
@@ -53,8 +53,8 @@ for forbidden in ("Shizuku", "WRITE_SECURE_SETTINGS", "setprop ",
                   "QUERY_ALL_PACKAGES", "Runtime.getRuntime().exec",
                   "registerReceiver", "getDeclaredMethod("):
     assert forbidden not in backend + model, forbidden
-assert 'versionCode = 21' in build
-assert 'versionName = "0.1.0-alpha.21"' in build
+assert 'versionCode = 22' in build
+assert 'versionName = "0.1.0-alpha.22"' in build
 print("PASS: public Android battery health/cycles, honest terminal watts, existing report/share, no Shizuku/UI")
 
 assert 'text = "Снять показания датчиков"' in activity
