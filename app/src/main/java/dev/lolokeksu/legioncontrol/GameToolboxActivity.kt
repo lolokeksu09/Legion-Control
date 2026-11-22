@@ -78,6 +78,17 @@ class GameToolboxActivity : Activity() {
             status.text = "Запрошена остановка панели. Громкость, DND и яркость не сбрасываются автоматически."
         }
 
+        title("Игровой профиль · действия Android", 17f)
+        note("Для каждой игры можно сохранить громкость, яркость и режим «Не беспокоить». " +
+            "Изменения выполняются только по нажатию, а возврат сохраняется даже после " +
+            "перезапуска приложения. Настройки общесистемные, не параметры самой игры.")
+        action("НАСТРОИТЬ ПРОФИЛЬ ВЫБРАННОЙ ИГРЫ") { configureGameLaunchProfile() }
+        action("ПРИМЕНИТЬ ПРОФИЛЬ") { applyGameLaunchProfile(false) }
+        action("ПРИМЕНИТЬ ПРОФИЛЬ И ЗАПУСТИТЬ ИГРУ") { applyGameLaunchProfile(true) }
+        action("ВОССТАНОВИТЬ ПРЕЖНИЕ НАСТРОЙКИ") {
+            status.text = GameLaunchProfiles.restore(this).message
+        }
+
         title("Внешний вид", 17f)
         note("Прозрачность и диаметр кнопки сохраняются. Положение запоминается после перетаскивания.")
         action("Прозрачность · 60%") { configureOpacity(60) }
@@ -107,7 +118,7 @@ class GameToolboxActivity : Activity() {
         note("Громкость, DND и яркость меняются только по нажатию конкретной кнопки " +
             "в панели. Закрытие панели не отменяет системные изменения. " +
             "Исходная яркость сохраняется существующим механизмом Smart Profiles; " +
-            "DND нужно отключить вручную.")
+            "Ручные изменения DND нужно отменять вручную; профиль имеет отдельный возврат.")
 
         setContentView(ScrollView(this).apply { addView(root) })
         renderStatus()
@@ -132,6 +143,22 @@ class GameToolboxActivity : Activity() {
             append("% · размер: ")
             append(ToolboxTuning.sizeDp(prefs.getInt(ToolboxPreferences.SIZE, 56)))
             append(" dp")
+            if (pkg != null) {
+                val profile = GameLaunchProfiles.profile(this@GameToolboxActivity, pkg)
+                append("\nИгровой профиль: ")
+                append(profile?.let {
+                    buildString {
+                        append("звук ").append(it.mediaPercent?.let { v -> "$v%" } ?: "не менять")
+                        append(" · яркость ").append(it.brightnessPercent?.let { v -> "$v%" } ?: "не менять")
+                        append(" · DND ").append(when (it.focusEnabled) {
+                            true -> "вкл"; false -> "выкл"; null -> "не менять"
+                        })
+                    }
+                } ?: "не настроен")
+            }
+            GameLaunchProfiles.pendingPackage(this@GameToolboxActivity)?.let {
+                append("\nОжидает ручного возврата: ").append(it)
+            }
         }
     }
 
@@ -160,6 +187,57 @@ class GameToolboxActivity : Activity() {
             }
             .setNegativeButton("Отмена", null)
             .show()
+    }
+
+    private fun configureGameLaunchProfile() {
+        val pkg = prefs.getString(ToolboxPreferences.GAME, null)
+        if (pkg == null || !GameLaunchProfilePolicy.validPackage(pkg)) {
+            status.text = "Сначала выберите игру."
+            return
+        }
+        val volumes: List<Int?> = listOf(null, 0, 20, 40, 60, 80, 100)
+        val brightness: List<Int?> = listOf(null, 20, 40, 60, 80, 100)
+        val focus: List<Boolean?> = listOf(null, true, false)
+        AlertDialog.Builder(this)
+            .setTitle("Громкость мультимедиа")
+            .setItems(volumes.map { it?.let { v -> "$v%" } ?: "Не менять" }.toTypedArray()) { _, vi ->
+                AlertDialog.Builder(this)
+                    .setTitle("Яркость")
+                    .setItems(brightness.map { it?.let { v -> "$v%" } ?: "Не менять" }.toTypedArray()) { _, bi ->
+                        AlertDialog.Builder(this)
+                            .setTitle("Режим «Не беспокоить»")
+                            .setItems(arrayOf("Не менять", "Включить", "Выключить")) { _, fi ->
+                                val profile = GameLaunchProfile(volumes[vi], brightness[bi], focus[fi])
+                                status.text = if (GameLaunchProfiles.save(this, pkg, profile)) {
+                                    if (profile.actionable) "Профиль игры сохранён." else "Профиль игры удалён."
+                                } else "Android не смог сохранить профиль."
+                                // Do not call renderStatus here: preserve actionable feedback.
+                            }
+                            .setNegativeButton("Отмена", null).show()
+                    }
+                    .setNegativeButton("Отмена", null).show()
+            }
+            .setNegativeButton("Отмена", null).show()
+    }
+
+    private fun applyGameLaunchProfile(withGame: Boolean) {
+        val pkg = prefs.getString(ToolboxPreferences.GAME, null)
+        if (pkg == null) {
+            status.text = "Сначала выберите игру."
+            return
+        }
+        val launchIntent = if (withGame) packageManager.getLaunchIntentForPackage(pkg) else null
+        if (withGame && launchIntent == null) {
+            status.text = "Android не разрешает запустить выбранную игру."
+            return
+        }
+        val result = GameLaunchProfiles.apply(this, pkg)
+        status.text = result.message
+        if (result.success && launchIntent != null) {
+            runCatching { startActivity(launchIntent) }
+                .onFailure { status.text = "Профиль применён, но запуск игры отклонён: " +
+                    it.javaClass.simpleName }
+        }
     }
 
     private fun overlaySettings() {

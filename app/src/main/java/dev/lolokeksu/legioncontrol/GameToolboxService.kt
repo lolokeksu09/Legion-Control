@@ -284,6 +284,13 @@ class GameToolboxService : Service() {
         row("Вернуть яркость", {
             showFeedback(SmartSystemControls.restoreScreenSettings(this))
         }, "Открыть игру", { openSelectedGame() })
+        row("Профиль игры", {
+            val pkg = prefs.getString(ToolboxPreferences.GAME, null)
+            showFeedback(if (pkg == null) "Сначала выберите игру в настройках."
+                else GameLaunchProfiles.apply(this, pkg).message)
+        }, "Вернуть профиль", {
+            showFeedback(GameLaunchProfiles.restore(this).message)
+        })
         row("Настройки", { openController() }, "СТОП", { stopSelf() })
         feedback = TextView(this).apply {
             textSize = 12f
