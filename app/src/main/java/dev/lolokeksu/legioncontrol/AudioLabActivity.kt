@@ -1,6 +1,7 @@
 package dev.lolokeksu.legioncontrol
 
-import android.app.Activity
+import androidx.activity.ComponentActivity
+import androidx.lifecycle.ViewModelProvider
 import android.app.AlertDialog
 import android.content.Intent
 import android.graphics.Color
@@ -24,11 +25,9 @@ import java.util.concurrent.Future
  * Original generated tones only. UI tests, recording and microphone access do not exist.
  * All playback is started explicitly, on a worker, and stopped on screen exit.
  */
-class AudioLabActivity:Activity() {
+class AudioLabActivity:ComponentActivity() {
     companion object { private const val REQUEST_CSV=2201 }
-    private val worker=Executors.newSingleThreadExecutor()
-    private lateinit var backend:AudioTestBackend
-    private lateinit var routeMonitor:AudioRouteMonitor
+    private lateinit var viewModel:AudioLabViewModel
     private lateinit var mode:Spinner
     private lateinit var channel:Spinner
     private lateinit var frequency:Spinner
@@ -37,20 +36,13 @@ class AudioLabActivity:Activity() {
     private lateinit var routing:TextView
     private lateinit var playButton:Button
     private lateinit var stopButton:Button
-    private var selectedId:String?=null
-    private var lastCompletedReport:String?=null
     private var firstPlayConfirmed=false
     private var playing=false
     private var visible=false
-    private var pending:Future<*>?=null
     private val Int.dp:Int get()=(this*resources.displayMetrics.density).toInt()
 
     override fun onCreate(savedInstanceState:Bundle?) {
         super.onCreate(savedInstanceState)
-        backend=AudioTestBackend(applicationContext)
-        routeMonitor=AudioRouteMonitor(applicationContext) { text ->
-            runOnUiThread { if(visible && !isDestroyed && ::routing.isInitialized) routing.text=text }
-        }
         val root=LinearLayout(this).apply {
             orientation=LinearLayout.VERTICAL
             setPadding(20.dp,28.dp,20.dp,36.dp)
@@ -111,7 +103,7 @@ class AudioLabActivity:Activity() {
         action("Стерео · 440 Гц") { startWith("TONE","BOTH",440,1500) }
         action("Идентификация: левый → правый") { startWith("CHANNEL_ID","ALTERNATING",440,3000) }
         action("Частотный sweep: 220 → 1760 Гц") { startWith("SWEEP","BOTH",440,3000) }
-        stopButton=action("ОСТАНОВИТЬ звук") { backend.stop();show("Остановка запрошена. "+
+        stopButton=action("ОСТАНОВИТЬ звук") { viewModel.stopPlayback();show("Остановка запрошена. "+
             "Плеер освобождает AudioTrack и сохраняет частичный результат.") }
         stopButton.isEnabled=false
         title("Доступные выходы Android")
@@ -139,6 +131,24 @@ class AudioLabActivity:Activity() {
         }
         root.addView(result)
         setContentView(ScrollView(this).apply { addView(root) })
+        viewModel=ViewModelProvider(this)[AudioLabViewModel::class.java]
+        viewModel.state.observe(this) { state ->
+            playing=state.playing
+            buttons()
+            show(state.message)
+            state.runs?.let { list ->
+                viewModel.consumePicker(state.nonce)
+                showHistoryPicker(list)
+            }
+        }
+        viewModel.routes.observe(this) { routing.text=it }
+        if(savedInstanceState!=null) {
+            mode.setSelection(savedInstanceState.getInt("mode",0).coerceIn(0,2))
+            channel.setSelection(savedInstanceState.getInt("channel",0).coerceIn(0,3))
+            frequency.setSelection(savedInstanceState.getInt("frequency",1).coerceIn(0,3))
+            duration.setSelection(savedInstanceState.getInt("duration",1).coerceIn(0,2))
+            firstPlayConfirmed=savedInstanceState.getBoolean("firstPlayConfirmed",false)
+        }
     }
 
     private fun show(t:String) { if(::result.isInitialized) result.text=t }
@@ -189,97 +199,27 @@ class AudioLabActivity:Activity() {
 
     private fun play(type:String,which:String,hz:Int,length:Int) {
         if(!visible || playing) return
-        backend.arm()
-        playing=true
-        buttons()
-        lastCompletedReport=null
-        show("Подготовка исходного PCM через backend · $type / $which / $hz Гц…")
-        pending=worker.submit {
-            var runId:String?=null
-            val message=runCatching {
-                AudioLabRepository(applicationContext).use { repo ->
-                    val id=repo.start(type,which,hz,length)
-                    runId=id
-                    val playback=runCatching {
-                        if(!visible) backend.stop()
-                        backend.play(type,which,hz,length) { current,total ->
-                            runOnUiThread {
-                                if(visible && !isDestroyed && playing)
-                                    show("AudioTrack: $current / $total PCM кадров\n"+
-                                        "Фактическая слышимость, громкость и задержка "+
-                                        "по Android API не измеряются.")
-                            }
-                        }
-                    }.getOrElse { error ->
-                        AudioPlaybackResult(System.currentTimeMillis().coerceAtLeast(1),
-                            "ERROR",0,null,error.javaClass.simpleName.take(48),emptyList())
-                    }
-                    repo.finish(id,playback)
-                    repo.format(id)
-                }
-            }.getOrElse { error ->
-                "Ошибка аудиотеста: "+error.javaClass.simpleName+" · "+error.message.orEmpty().take(140)
-            }
-            runOnUiThread {
-                playing=false
-                if(visible && !isDestroyed) {
-                    selectedId=runId
-                    lastCompletedReport=message
-                    buttons()
-                    show(message)
-                }
-            }
-        }
+        viewModel.play(type,which,hz,length)
     }
 
-    private fun local(block:()->String) {
-        if(playing) return show("Сначала остановите воспроизведение.")
-        show("Чтение локальных данных…")
-        worker.execute {
-            val message=runCatching { block() }.getOrElse { e ->
-                "Ошибка: "+e.javaClass.simpleName+" · "+e.message.orEmpty().take(140)
-            }
-            runOnUiThread {
-                if(visible && !isDestroyed) {
-                    lastCompletedReport=message
-                    show(message)
-                }
-            }
-        }
+    private fun refreshRoutes() { if(visible) viewModel.refreshRoutes() }
+
+    private fun pickHistory() = viewModel.pickHistory()
+
+    private fun showHistoryPicker(items:List<AudioTestRun>) {
+        if(items.isEmpty()) { show("Аудиотестов в локальной истории ещё нет."); return }
+        AlertDialog.Builder(this).setTitle("Аудиотесты · ${items.size}")
+            .setItems(items.map { item ->
+                DateFormat.getDateTimeInstance().format(Date(item.startedAtMs))+
+                    " · "+item.kind+" · "+item.channel+" · "+item.state
+            }.toTypedArray()) { _,idx -> viewModel.selectRun(items[idx].id) }
+            .setNegativeButton("Отмена",null).show()
     }
 
-    private fun refreshRoutes() {
-        if(visible) routing.text=AudioRouteInspector.snapshot(this)
-    }
-
-    private fun pickHistory() = local {
-        AudioLabRepository(applicationContext).use { repo ->
-            val items=repo.runs(60)
-            runOnUiThread {
-                if(visible && !isDestroyed) {
-                    if(items.isEmpty()) show("Аудиотестов в локальной истории ещё нет.")
-                    else AlertDialog.Builder(this).setTitle("Аудиотесты · ${items.size}")
-                        .setItems(items.map { item ->
-                            DateFormat.getDateTimeInstance().format(Date(item.startedAtMs))+
-                                " · "+item.kind+" · "+item.channel+" · "+item.state
-                        }.toTypedArray()) { _,idx ->
-                            selectedId=items[idx].id
-                            local { AudioLabRepository(applicationContext).use {
-                                it.format(items[idx].id)
-                            } }
-                        }.setNegativeButton("Отмена",null).show()
-                }
-            }
-            "История: ${items.size} записей."
-        }
-    }
-
-    private fun compare() = local {
-        AudioLabRepository(applicationContext).use { it.compareRecent() }
-    }
+    private fun compare() = viewModel.compare()
 
     private fun share() {
-        val text=lastCompletedReport ?: return show("Сначала откройте завершённый отчёт.")
+        val text=viewModel.lastCompletedReport ?: return show("Сначала откройте завершённый отчёт.")
         runCatching {
             startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
                 type="text/plain";putExtra(Intent.EXTRA_TEXT,text)
@@ -299,19 +239,13 @@ class AudioLabActivity:Activity() {
     }
 
     private fun confirmDelete() {
-        val id=selectedId ?: return show("Сначала выберите аудиотест.")
+        val id=viewModel.selectedId ?: return show("Сначала выберите аудиотест.")
         if(playing) return show("Остановите воспроизведение.")
         AlertDialog.Builder(this).setTitle("Удалить аудиотест?")
             .setMessage("Удалится только выбранная аудиозапись метаданных и её события маршрута. "+
                 "Игровые сессии, профили и другие данные останутся.")
             .setPositiveButton("Удалить") { _,_ ->
-                local {
-                    val didDelete=AudioLabRepository(applicationContext).use { it.delete(id) }
-                    if(didDelete) {
-                        selectedId=null
-                        "Аудиотест удалён из локальной истории."
-                    } else "Аудиотест уже отсутствует."
-                }
+                viewModel.delete(id)
             }.setNegativeButton("Отмена",null).show()
     }
 
@@ -319,34 +253,32 @@ class AudioLabActivity:Activity() {
         super.onActivityResult(requestCode,resultCode,data)
         if(requestCode!=REQUEST_CSV || resultCode!=RESULT_OK) return
         val uri=data?.data ?: return
-        local {
-            AudioLabRepository(applicationContext).use { repo ->
-                (contentResolver.openOutputStream(uri,"w") ?: error("Не удалось открыть CSV")).use { out ->
-                    OutputStreamWriter(out,Charsets.UTF_8).use { writer -> repo.exportCsv(writer) }
-                }
-            }
-            "CSV записан в выбранный документ; ни одна аудиозапись не создавалась и не передавалась."
-        }
+        viewModel.exportCsv(uri)
     }
 
     override fun onStart() {
         super.onStart()
         visible=true
-        routeMonitor.start()
+        viewModel.setVisible(true)
+        viewModel.startRouteMonitor()
         refreshRoutes()
         buttons()
     }
 
     override fun onStop() {
         visible=false
-        backend.stop()
-        routeMonitor.stop()
+        viewModel.stopPlayback()
+        viewModel.setVisible(false)
+        viewModel.stopRouteMonitor()
         super.onStop()
     }
 
-    override fun onDestroy() {
-        backend.stop()
-        worker.shutdown()
-        super.onDestroy()
+    override fun onSaveInstanceState(outState:Bundle) {
+        outState.putInt("mode",mode.selectedItemPosition)
+        outState.putInt("channel",channel.selectedItemPosition)
+        outState.putInt("frequency",frequency.selectedItemPosition)
+        outState.putInt("duration",duration.selectedItemPosition)
+        outState.putBoolean("firstPlayConfirmed",firstPlayConfirmed)
+        super.onSaveInstanceState(outState)
     }
 }
