@@ -68,8 +68,8 @@ for original_version in (1, 2):
             pass
     db.close()
 
-assert "oldVersion == 1 && newVersion == SensorDiagnosticsSchema.VERSION" in store
-assert "oldVersion == 2 && newVersion == SensorDiagnosticsSchema.VERSION" in store
+assert "if (oldVersion == 1) installDiagnostics(db)" in store
+assert "if (oldVersion <= 2) installSensors(db)" in store
 assert "installSensors(db)" in store
 assert "history.recordSensorCapture(" in activity
 assert "SensorCaptureBackend(this)" in activity

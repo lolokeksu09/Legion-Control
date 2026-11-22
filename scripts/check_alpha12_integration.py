@@ -84,7 +84,7 @@ assert "fun analyze(readings: List<StoredReading>)" in sessions
 assert "fun analyze(attempts: List<SavedSensorAttempt>)" in sensors
 
 # The legacy battery write and child diagnostic insert are serialized in one worker job.
-sample = activity.split("private fun sample() {", 1)[1]
+sample = activity.split("private fun sample(): TimedBatteryPoint? {", 1)[1]
 assert sample.index("diagnosticsExecutor.execute {") < sample.index("history.record(StoredReading(")
 assert sample.index("history.record(StoredReading(") < sample.index("history.recordDiagnostic(")
 assert "acceptedSessionId == null || !primarySave.second" in sample
