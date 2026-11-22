@@ -26,7 +26,8 @@ data class PlaybackAudioResult(val file: File?, val offsetUs: Long, val reason: 
  */
 class PlaybackAudioCapture(
     private val context: Context,
-    private val projection: MediaProjection
+    private val projection: MediaProjection,
+    private val gameUid: Int
 ) {
     @Volatile private var stopRequested = false
     @Volatile private var pauseRequested = false
@@ -43,10 +44,12 @@ class PlaybackAudioCapture(
 
     fun start(videoStartedAtMs: Long) {
         check(worker == null && !stopRequested)
+        require(gameUid > 0) { "UID выбранной игры недействителен" }
         try {
             val captureConfig = AudioPlaybackCaptureConfiguration.Builder(projection)
                 .addMatchingUsage(AudioAttributes.USAGE_MEDIA)
                 .addMatchingUsage(AudioAttributes.USAGE_GAME)
+                .addMatchingUid(gameUid)
                 .build()
             val format = AudioFormat.Builder()
                 .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
