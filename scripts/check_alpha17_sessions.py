@@ -38,10 +38,10 @@ assert fgs.find("property") is not None
 assert manifest.find("queries/intent") is not None
 assert any(x.attrib.get(ns+"name")==".GameSessionActivity" for x in manifest.findall("./application/activity"))
 gradle=(root/"app/build.gradle.kts").read_text(encoding="utf-8")
-assert 'versionCode = 19' in gradle and 'versionName = "0.1.0-alpha.19"' in gradle
+assert 'versionCode = 20' in gradle and 'versionName = "0.1.0-alpha.20"' in gradle
 assert 'minSdk = 33' in gradle
-assert "ExperimentSchema.VERSION" in history
-assert "oldVersion !in 1..7" in history
+assert "ConnectivitySchema.VERSION" in history
+assert "oldVersion !in 1..8" in history
 assert "if (oldVersion <= 4) installTimedBatteryTests(db)" in history
 assert history.count("GameSessionSchema.install(db)") == 2
 assert "DROP TABLE" not in history and "DELETE FROM samples" not in history

@@ -69,9 +69,9 @@ assert "worker.shutdownNow()" in activity and "onStop()" in activity
 assert "task?.cancel(true)" in activity
 assert "frameCapture?.stop(false)" in activity
 assert 'android:exported="false"' in (root / "app/src/main/AndroidManifest.xml").read_text()
-assert "SQLiteOpenHelper" in store and "ExperimentSchema.VERSION" in store
-assert 'versionCode = 19' in gradle
-assert 'versionName = "0.1.0-alpha.19"' in gradle
+assert "SQLiteOpenHelper" in store and "ConnectivitySchema.VERSION" in store
+assert 'versionCode = 20' in gradle
+assert 'versionName = "0.1.0-alpha.20"' in gradle
 
 # The actual repo session query must be runnable with escaped bind values,
 # not interpolated into a SQL string.

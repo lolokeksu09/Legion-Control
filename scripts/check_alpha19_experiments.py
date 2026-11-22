@@ -13,12 +13,12 @@ analytics=(src/"ExperimentAnalytics.kt").read_text(encoding="utf-8")
 activity=(src/"ExperimentLabActivity.kt").read_text(encoding="utf-8")
 build=(root/"app/build.gradle.kts").read_text(encoding="utf-8")
 
-assert 'versionCode = 19' in build
-assert 'versionName = "0.1.0-alpha.19"' in build
+assert 'versionCode = 20' in build
+assert 'versionName = "0.1.0-alpha.20"' in build
 assert 'minSdk = 33' in build
 assert 'const val VERSION = 8' in schema
-assert 'newVersion != ExperimentSchema.VERSION' in history
-assert 'oldVersion !in 1..7' in history
+assert 'newVersion != ConnectivitySchema.VERSION' in history
+assert 'oldVersion !in 1..8' in history
 assert 'if (oldVersion <= 6) SmartProfilesSchema.install(db)' in history
 assert 'if (oldVersion <= 5) GameSessionSchema.install(db)' in history
 assert history.count('ExperimentSchema.install(db)')==2
