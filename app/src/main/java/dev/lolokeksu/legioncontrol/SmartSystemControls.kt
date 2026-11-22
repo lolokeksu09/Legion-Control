@@ -27,10 +27,12 @@ object SmartSystemControls {
         val policy=runCatching { notification?.isNotificationPolicyAccessGranted == true }.getOrDefault(false)
         val write=runCatching { Settings.System.canWrite(context) }.getOrDefault(false)
         val notify=context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)==PackageManager.PERMISSION_GRANTED
-        return "Звук мультимедиа: $music\n" +
-            "«Не беспокоить»: "+if(policy) "доступ разрешён" else "требуется доступ" +
-            "\nИзменение системных параметров: "+if(write) "разрешено" else "нужен WRITE_SETTINGS" +
-            "\nУведомления: "+if(notify) "разрешены" else "отключены/не разрешены"
+        return buildString {
+            append("Звук мультимедиа: ").append(music).append('\n')
+            append("«Не беспокоить»: ").append(if(policy) "доступ разрешён" else "требуется доступ").append('\n')
+            append("Изменение системных параметров: ").append(if(write) "разрешено" else "нужен WRITE_SETTINGS").append('\n')
+            append("Уведомления: ").append(if(notify) "разрешены" else "отключены/не разрешены")
+        }
     }
 
     fun setMediaVolume(context: Context, percent: Int): String {
