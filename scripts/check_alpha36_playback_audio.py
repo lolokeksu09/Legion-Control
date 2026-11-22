@@ -75,6 +75,10 @@ assert 'findTrack(videoExtractor, "video/")' in mux
 assert 'findTrack(audioExtractor, "audio/")' in mux
 assert "MediaExtractor()" in mux and "MediaMuxer(" in mux
 assert "MediaCodec.BufferInfo()" in mux
+assert "MediaExtractor.SAMPLE_FLAG_ENCRYPTED" in mux
+assert "MediaExtractor.SAMPLE_FLAG_SYNC" in mux and "MediaCodec.BUFFER_FLAG_KEY_FRAME" in mux
+assert "MediaExtractor.SAMPLE_FLAG_PARTIAL_FRAME" in mux and "MediaCodec.BUFFER_FLAG_PARTIAL_FRAME" in mux
+assert "extractor.sampleFlags)" not in mux
 assert "MAX_COPY_SAMPLE_BYTES" in mux
 assert "PlaybackAudioTrackPolicy.muxPtsUs(" in mux
 assert "PlaybackAudioTrackPolicy.framesForBytes(" in audio
