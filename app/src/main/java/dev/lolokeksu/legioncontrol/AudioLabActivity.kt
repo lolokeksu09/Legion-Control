@@ -189,6 +189,7 @@ class AudioLabActivity:Activity() {
 
     private fun play(type:String,which:String,hz:Int,length:Int) {
         if(!visible || playing) return
+        backend.arm()
         playing=true
         buttons()
         lastCompletedReport=null
@@ -200,6 +201,7 @@ class AudioLabActivity:Activity() {
                     val id=repo.start(type,which,hz,length)
                     runId=id
                     val playback=runCatching {
+                        if(!visible) backend.stop()
                         backend.play(type,which,hz,length) { current,total ->
                             runOnUiThread {
                                 if(visible && !isDestroyed && playing)

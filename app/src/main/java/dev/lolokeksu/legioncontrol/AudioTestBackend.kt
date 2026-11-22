@@ -36,12 +36,14 @@ class AudioTestBackend(private val context:Context) {
         runCatching { track?.pause() }
     }
 
+    /** The UI arms a new test BEFORE submitting the worker; screen exit can cancel queued work. */
+    fun arm() { stopFlag.set(false) }
+
     fun play(
         kind:String,channel:String,frequency:Int,durationMs:Int,
         progress:(Int,Int)->Unit = { _,_ -> }
     ):AudioPlaybackResult {
         require(AudioSignalGenerator.isValid(kind,channel,frequency,durationMs))
-        stopFlag.set(false)
         val now=System.currentTimeMillis().coerceAtLeast(1)
         val manager=context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         val routeEvents=ConcurrentLinkedQueue<AudioRouteRecord>()
@@ -66,7 +68,7 @@ class AudioTestBackend(private val context:Context) {
             focus=AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
                 .setAudioAttributes(attributes)
                 .setOnAudioFocusChangeListener({ change ->
-                    if(change<=AudioManager.AUDIOFOCUS_LOSS_TRANSIENT) stopFlag.set(true)
+                    if(change<0) stopFlag.set(true)
                 },Handler(Looper.getMainLooper())).build()
             if(manager.requestAudioFocus(focus)!=AudioManager.AUDIOFOCUS_REQUEST_GRANTED)
                 throw IllegalStateException("AudioFocusDenied")
