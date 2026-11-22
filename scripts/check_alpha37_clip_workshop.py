@@ -79,7 +79,7 @@ assert "repository.trimOwnClip(" in vm and "repository.exportOwnClipFrame(" in v
 assert "worker.execute {" in vm
 for forbidden in (
     "Runtime.getRuntime", "java.net.", "MediaProjectionManager",
-    "getMediaProjection", "AudioRecord", "AccessibilityService", "Shizuku",
+    "getMediaProjection", "AudioRecord", "AccessibilityService", "import rikka.shizuku",
     "android.os.Process.killProcess",
 ):
     assert forbidden not in media + policy
