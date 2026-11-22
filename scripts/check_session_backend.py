@@ -16,7 +16,7 @@ assert set(x.attrib["{http://schemas.android.com/apk/res/android}name"] for x in
     "android.permission.INTERNET", "android.permission.ACCESS_NETWORK_STATE",
     "android.permission.ACCESS_WIFI_STATE", "android.permission.PACKAGE_USAGE_STATS",
     "android.permission.FOREGROUND_SERVICE",
-    "android.permission.FOREGROUND_SERVICE_SPECIAL_USE",
+    "android.permission.FOREGROUND_SERVICE_SPECIAL_USE","android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION",
     "android.permission.POST_NOTIFICATIONS",
     "android.permission.MODIFY_AUDIO_SETTINGS",
     "android.permission.ACCESS_NOTIFICATION_POLICY",
@@ -42,8 +42,8 @@ for name in ("engine.resetSession()", "engine.durationMs()",
              "AndroidPowerSource.read("):
     assert name in activity, name
 assert "setPositiveButton(" in activity and "setNegativeButton(" in activity
-assert "versionCode = 24" in build
-assert 'versionName = "0.1.0-alpha.24"' in build
+assert "versionCode = 25" in build
+assert 'versionName = "0.1.0-alpha.25"' in build
 for forbidden in ("WRITE_SECURE_SETTINGS", "QUERY_ALL_PACKAGES", "setprop ",
                   "pointer_speed", "moto_extend_service", "Runtime.getRuntime"):
     assert forbidden not in power + activity + rust_api + native
