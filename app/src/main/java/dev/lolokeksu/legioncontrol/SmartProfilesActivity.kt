@@ -1,6 +1,7 @@
 package dev.lolokeksu.legioncontrol
 
-import android.app.Activity
+import androidx.activity.ComponentActivity
+import androidx.lifecycle.ViewModelProvider
 import android.app.AlertDialog
 import android.app.NotificationManager
 import android.content.Context
@@ -22,12 +23,12 @@ import java.util.concurrent.Executors
  * One screen for profile CRUD, rule configuration, on-demand system actions,
  * history and JSON restore. Database and network operations never use UI thread.
  */
-class SmartProfilesActivity : Activity() {
+class SmartProfilesActivity : ComponentActivity() {
     companion object {
         private const val EXPORT = 1801
         private const val IMPORT = 1802
     }
-    private val worker=Executors.newSingleThreadExecutor()
+    private lateinit var viewModel: SmartProfilesViewModel
     private lateinit var packageText:EditText
     private lateinit var labelText:EditText
     private lateinit var hotText:EditText
@@ -151,21 +152,30 @@ class SmartProfilesActivity : Activity() {
         }
         root.addView(result)
         setContentView(ScrollView(this).apply { addView(root) })
-        intent.getStringExtra("app_center_package")?.takeIf {
+        viewModel = ViewModelProvider(this)[SmartProfilesViewModel::class.java]
+        viewModel.state.observe(this) { update ->
+            show(update.message)
+            update.profiles?.let { profiles ->
+                viewModel.consumeDialog(update.nonce)
+                showSavedProfiles(profiles)
+            }
+            update.rules?.let { rules ->
+                viewModel.consumeDialog(update.nonce)
+                showRulesDialog(update.rulesPackage.orEmpty(), rules)
+            }
+        }
+        if (savedInstanceState != null) {
+            packageText.setText(savedInstanceState.getString("pkg").orEmpty())
+            labelText.setText(savedInstanceState.getString("label").orEmpty())
+            hotText.setText(savedInstanceState.getString("hot", "420"))
+            lowText.setText(savedInstanceState.getString("low", "20"))
+            tcpBox.isChecked = savedInstanceState.getBoolean("tcp", false)
+        } else intent.getStringExtra("app_center_package")?.takeIf {
             SmartProfilesRepository.validatePackage(it)
         }?.let { packageText.setText(it) }
     }
 
     private fun show(message:String) { result.text=message }
-
-    private fun runWorker(block:()->String) {
-        show("Операция с локальными данными…")
-        worker.execute {
-            val message=runCatching { block() }
-                .getOrElse { "Ошибка: ${it.javaClass.simpleName}: ${it.message.orEmpty().take(160)}" }
-            runOnUiThread { if(!isFinishing && !isDestroyed) show(message) }
-        }
-    }
 
     private fun packageNameInput():String=packageText.text.toString().trim()
 
@@ -179,13 +189,7 @@ class SmartProfilesActivity : Activity() {
             show("Некорректные данные: пакет Android, название (до 100), температура 300–550, заряд 5–80.")
             return
         }
-        val tcp=tcpBox.isChecked
-        runWorker {
-            SmartProfilesRepository(applicationContext).use {
-                it.save(pkg,label,hot,low,tcp)
-            }
-            "Сохранено: $label ($pkg). Все 6 правил доступны в настройке."
-        }
+        viewModel.save(pkg, label, hot, low, tcpBox.isChecked)
     }
 
     private fun chooseInstalled() {
@@ -207,61 +211,40 @@ class SmartProfilesActivity : Activity() {
             }.setNegativeButton("Отмена",null).show()
     }
 
-    private fun loadPicker() = runWorker {
-        SmartProfilesRepository(applicationContext).use { repo ->
-            val profiles=repo.list()
-            runOnUiThread {
-                if(!isFinishing && !isDestroyed) {
-                    if(profiles.isEmpty()) show("Пока нет сохранённых профилей.")
-                    else AlertDialog.Builder(this).setTitle("Сохранённые профили")
-                        .setItems(profiles.map { it.label+"\n"+it.packageName }.toTypedArray()) { _,index ->
-                            val p=profiles[index]
-                            packageText.setText(p.packageName)
-                            labelText.setText(p.label)
-                            hotText.setText(p.hotDeciC.toString())
-                            lowText.setText(p.lowPercent.toString())
-                            tcpBox.isChecked=p.tcpOptIn
-                            show("Загружен профиль: "+p.label)
-                        }.setNegativeButton("Отмена",null).show()
-                }
-            }
-            "Найдено профилей: ${profiles.size}"
-        }
+    private fun loadPicker() = viewModel.loadPicker()
+
+    private fun showSavedProfiles(profiles: List<SmartProfile>) {
+        if (profiles.isEmpty()) { show("Пока нет сохранённых профилей."); return }
+        AlertDialog.Builder(this).setTitle("Сохранённые профили")
+            .setItems(profiles.map { it.label + "\n" + it.packageName }.toTypedArray()) { _,index ->
+                val p = profiles[index]
+                packageText.setText(p.packageName)
+                labelText.setText(p.label)
+                hotText.setText(p.hotDeciC.toString())
+                lowText.setText(p.lowPercent.toString())
+                tcpBox.isChecked = p.tcpOptIn
+                show("Загружен профиль: " + p.label)
+            }.setNegativeButton("Отмена",null).show()
     }
 
     private fun configureRules() {
-        val pkg=packageNameInput()
-        if(!SmartProfilesRepository.validatePackage(pkg)) {
-            show("Выберите корректный пакет приложения.");return
+        val pkg = packageNameInput()
+        if (!SmartProfilesRepository.validatePackage(pkg)) {
+            show("Выберите корректный пакет приложения."); return
         }
-        runWorker {
-            SmartProfilesRepository(applicationContext).use { repo ->
-                val rules=repo.rules(pkg)
-                if(rules.isEmpty()) "Сначала сохраните профиль." else {
-                    val flags=rules.map { it.enabled }.toBooleanArray()
-                    runOnUiThread {
-                        if(!isFinishing && !isDestroyed)
-                            AlertDialog.Builder(this).setTitle("Правила · "+pkg)
-                                .setMultiChoiceItems(rules.map {
-                                    it.kind.title+" · "+it.kind.describe(it.threshold)
-                                }.toTypedArray(),flags) { _,index,checked ->
-                                    flags[index]=checked
-                                }
-                                .setPositiveButton("Сохранить") { _,_ ->
-                                    runWorker {
-                                        SmartProfilesRepository(applicationContext).use { p ->
-                                            rules.forEachIndexed { i,r ->
-                                                p.setRule(pkg,r.kind,flags[i],r.cooldownMs)
-                                            }
-                                        }
-                                        "Правила сохранены. В текущей записи изменения не применяются до нового запуска."
-                                    }
-                                }.setNegativeButton("Отмена",null).show()
-                    }
-                    "Настройка правил $pkg"
-                }
-            }
-        }
+        viewModel.loadRules(pkg)
+    }
+
+    private fun showRulesDialog(pkg: String, rules: List<SmartRule>) {
+        if (rules.isEmpty()) { show("Сначала сохраните профиль."); return }
+        val flags = rules.map { it.enabled }.toBooleanArray()
+        AlertDialog.Builder(this).setTitle("Правила · " + pkg)
+            .setMultiChoiceItems(rules.map {
+                it.kind.title + " · " + it.kind.describe(it.threshold)
+            }.toTypedArray(), flags) { _,index,checked -> flags[index] = checked }
+            .setPositiveButton("Сохранить") { _,_ ->
+                viewModel.updateRules(pkg, rules, flags.copyOf())
+            }.setNegativeButton("Отмена",null).show()
     }
 
     private fun openSession() {
@@ -280,32 +263,19 @@ class SmartProfilesActivity : Activity() {
         AlertDialog.Builder(this).setTitle("Удалить профиль?")
             .setMessage("Профиль $pkg и его правила будут удалены. Старые сессии сохранятся.")
             .setPositiveButton("Удалить") { _,_ ->
-                runWorker {
-                    val deleted=SmartProfilesRepository(applicationContext).use { it.delete(pkg) }
-                    if(deleted) "Профиль удалён. История сессий сохранена."
-                    else "Такого профиля нет."
-                }
+                viewModel.delete(pkg)
             }.setNegativeButton("Отмена",null).show()
     }
 
     private fun insights(days:Int) {
         val pkg=packageNameInput()
         if(!SmartProfilesRepository.validatePackage(pkg)) { show("Сначала выберите пакет.");return }
-        runWorker { SmartSessionInsights.summarize(applicationContext,pkg,days).textReport() }
+        viewModel.insights(pkg, days)
     }
 
-    private fun events() = runWorker {
-        SmartProfilesRepository(applicationContext).use { repo ->
-            repo.events().joinToString("\n") {
-                "${java.text.DateFormat.getDateTimeInstance().format(java.util.Date(it.timeMs))} · "+it.packageName+
-                " · "+it.kind+" · "+it.details
-            }.ifBlank { "Предупреждений пока нет." }
-        }
-    }
+    private fun events() = viewModel.events()
 
-    private fun networkProbe() = runWorker {
-        SmartNetworkLab.inspect(applicationContext)
-    }
+    private fun networkProbe() = viewModel.networkProbe()
 
     private fun setCustomVolume() {
         val edit=EditText(this).apply {
@@ -350,31 +320,22 @@ class SmartProfilesActivity : Activity() {
         if(resultCode!=RESULT_OK) return
         val uri=data?.data ?: return
         when(requestCode) {
-            EXPORT -> runWorker {
-                SmartProfilesRepository(applicationContext).use { repo ->
-                    (contentResolver.openOutputStream(uri,"w") ?: error("No output stream"))
-                        .use { repo.writeBackup(it) }
-                }
-                "JSON профилей экспортирован через системный выбор файла."
-            }
+            EXPORT -> viewModel.export(uri)
             IMPORT -> AlertDialog.Builder(this).setTitle("Импортировать профили?")
                 .setMessage("Совпадающие профили и их настройки будут перезаписаны. " +
                     "Другие профили и история измерений сохранятся. " +
                     "Файл должен быть экспортом Legion Control версии 1.")
-                .setPositiveButton("Импортировать") { _,_ ->
-                    runWorker {
-                        val count=SmartProfilesRepository(applicationContext).use { repo ->
-                            (contentResolver.openInputStream(uri) ?: error("No input stream"))
-                                .use { repo.importBackup(it) }
-                        }
-                        "Импортировано профилей: $count. История не изменена."
-                    }
-                }.setNegativeButton("Отмена",null).show()
+                .setPositiveButton("Импортировать") { _,_ -> viewModel.import(uri) }
+                .setNegativeButton("Отмена",null).show()
         }
     }
 
-    override fun onDestroy() {
-        worker.shutdownNow()
-        super.onDestroy()
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putString("pkg", packageText.text.toString())
+        outState.putString("label", labelText.text.toString())
+        outState.putString("hot", hotText.text.toString())
+        outState.putString("low", lowText.text.toString())
+        outState.putBoolean("tcp", tcpBox.isChecked)
+        super.onSaveInstanceState(outState)
     }
 }
