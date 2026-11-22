@@ -54,8 +54,8 @@ on_create = activity.split("override fun onCreate(", 1)[1].split("override fun o
 assert "sample()" not in on_create, "No battery capture on Activity startup"
 assert "SensorManager" in sensors and "getDefaultSensor(type)" in sensors
 assert "registerListener" not in sensors
-assert 'versionCode = 15' in gradle
-assert 'versionName = "0.1.0-alpha.15"' in gradle
+assert 'versionCode = 16' in gradle
+assert 'versionName = "0.1.0-alpha.16"' in gradle
 
 for risky in ("WRITE_SECURE_SETTINGS", "QUERY_ALL_PACKAGES", "ACCESS_NETWORK_STATE",
               "INTERNET", "setprop ", "moto_extend_service", "pointer_speed"):

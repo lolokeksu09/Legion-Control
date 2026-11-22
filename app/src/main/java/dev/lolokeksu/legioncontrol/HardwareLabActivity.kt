@@ -82,6 +82,9 @@ class HardwareLabActivity : Activity() {
         addButton(root, "6 · Codec Inspector — аппаратные видеодекодеры") {
             startWorker { CodecCapabilityDiagnostics.inspect() }
         }
+        addButton(root, "COMPATIBILITY · ещё 7 функций") {
+            startActivity(Intent(this, CompatibilityLabActivity::class.java))
+        }
         addButton(root, "Поделиться последним отчётом") { shareLastReport() }
         addButton(root, "Назад в Gaming Lab") { finish() }
         setContentView(ScrollView(this).apply {
