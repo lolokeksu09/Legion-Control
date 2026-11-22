@@ -205,7 +205,7 @@ object GameLaunchProfiles {
             { requireNotNull(nm).currentInterruptionFilter },
             {
                 check(requireNotNull(nm).isNotificationPolicyAccessGranted)
-                nm.setInterruptionFilter(it)
+                requireNotNull(nm).setInterruptionFilter(it)
             })
         val remaining = ticket.copy(media = media, brightness = brightness,
             brightnessMode = mode, focus = focus)
