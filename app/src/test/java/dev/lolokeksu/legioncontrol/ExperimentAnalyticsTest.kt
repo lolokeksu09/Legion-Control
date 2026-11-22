@@ -82,7 +82,7 @@ class ExperimentAnalyticsTest {
         assertEquals(2,a.sessions)
         assertEquals(1,a.validRates)
         assertEquals(20.0,a.averageDischargePerHour!!,0.001)
-        assertEquals(40.0,a.averagePeakBatteryTempC!!,1.0)
+        assertEquals(36.5,a.averagePeakBatteryTempC!!,0.001)
         assertEquals(1,b.sessions)
         assertEquals(40.0,b.averageDischargePerHour!!,0.001)
         val text=ExperimentAnalytics.formatComparison("Test","Does Wi-Fi help?",a,b)
