@@ -89,6 +89,8 @@ jobs:
         run: python3 scripts/check_alpha26_mvvm_navigation.py
       - name: Verify alpha.27 MVVM diagnostic + capture refactor and preserved Rust backend
         run: python3 scripts/check_alpha27_mvvm_backend.py
+      - name: Verify alpha.28 real ViewModel backends and foreground safety
+        run: python3 scripts/check_alpha28_mvvm_backends.py
       - name: Run pure Kotlin CSV and Russian plural regression tests
         run: gradle --no-daemon testDebugUnitTest
       - name: Test and compile real Rust backend for Android
