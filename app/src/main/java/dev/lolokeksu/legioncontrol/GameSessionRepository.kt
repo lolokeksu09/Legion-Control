@@ -124,6 +124,19 @@ class GameSessionRepository(context: Context) : AutoCloseable {
         return out
     }
 
+    /** Chronological, bounded events for the offline signal timeline; no schema changes. */
+    fun eventsChronological(id: String, limit: Int = 2000): List<GameSessionEvent> {
+        val out = mutableListOf<GameSessionEvent>()
+        dbHelper.readableDatabase.rawQuery(
+            "SELECT recorded_at_ms,event_type,details FROM game_events WHERE session_id=? " +
+                "ORDER BY recorded_at_ms ASC,id ASC LIMIT ?",
+            arrayOf(id, limit.coerceIn(1,2000).toString())
+        ).use { c ->
+            while(c.moveToNext()) out += GameSessionEvent(c.getLong(0),c.getString(1),c.getString(2))
+        }
+        return out
+    }
+
     fun writeCsv(writer: Writer, kind: String) {
         val (header,query) = when(kind) {
             "sessions" -> "session_id,package_name,app_label,started_at_ms,ended_at_ms,end_reason,tcp_opt_in" to
