@@ -85,7 +85,7 @@ assert set(x.attrib["{http://schemas.android.com/apk/res/android}name"] for x in
     "android.permission.ACCESS_NOTIFICATION_POLICY",
     "android.permission.WRITE_SETTINGS"
 }
-assert 'versionCode = 20' in build
-assert 'versionName = "0.1.0-alpha.20"' in build
+assert 'versionCode = 21' in build
+assert 'versionName = "0.1.0-alpha.21"' in build
 assert "DROP TABLE" not in store and "DELETE FROM samples" not in store
 print("PASS: extended 20-column export JOIN, v1 blank diagnostics, no row loss/duplicate, no privileges")

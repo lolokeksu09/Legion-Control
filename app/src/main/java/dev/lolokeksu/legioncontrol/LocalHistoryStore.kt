@@ -13,7 +13,7 @@ import java.io.Writer
  * No storage permission, cloud sync, destructive migration or silent pruning.
  */
 class LocalHistoryStore(context: Context) : SQLiteOpenHelper(
-    context.applicationContext, "legion-control-history.db", null, ConnectivitySchema.VERSION
+    context.applicationContext, "legion-control-history.db", null, ApplicationCenterSchema.VERSION
 ) {
     override fun onConfigure(db: SQLiteDatabase) {
         super.onConfigure(db)
@@ -56,10 +56,11 @@ class LocalHistoryStore(context: Context) : SQLiteOpenHelper(
         SmartProfilesSchema.install(db)
         ExperimentSchema.install(db)
         ConnectivitySchema.install(db)
+        ApplicationCenterSchema.install(db)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        if (newVersion != ConnectivitySchema.VERSION || oldVersion !in 1..8) {
+        if (newVersion != ApplicationCenterSchema.VERSION || oldVersion !in 1..9) {
             throw IllegalStateException("No safe migration from $oldVersion to $newVersion")
         }
         // SQLiteOpenHelper wraps upgrades in its own transaction. These are
@@ -71,7 +72,8 @@ class LocalHistoryStore(context: Context) : SQLiteOpenHelper(
         if (oldVersion <= 5) GameSessionSchema.install(db)
         if (oldVersion <= 6) SmartProfilesSchema.install(db)
         if (oldVersion <= 7) ExperimentSchema.install(db)
-        ConnectivitySchema.install(db)
+        if (oldVersion <= 8) ConnectivitySchema.install(db)
+        ApplicationCenterSchema.install(db)
     }
 
     private fun installDiagnostics(db: SQLiteDatabase) {
