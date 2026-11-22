@@ -1,6 +1,7 @@
 package dev.lolokeksu.legioncontrol
 
-import android.app.Activity
+import androidx.activity.ComponentActivity
+import androidx.lifecycle.ViewModelProvider
 import android.app.AlertDialog
 import android.content.Intent
 import android.graphics.Color
@@ -20,11 +21,11 @@ import java.util.concurrent.Executors
  * All experiment and annotation edits happen only at the user's direction.
  * The recorded evidence is immutable and is never replaced with a simulated benchmark.
  */
-class ExperimentLabActivity : Activity() {
+class ExperimentLabActivity : ComponentActivity() {
     companion object {
         private const val EXPORT_CSV=1901
     }
-    private val worker=Executors.newSingleThreadExecutor()
+    private lateinit var vm: ExperimentLabViewModel
     private lateinit var appInput:EditText
     private lateinit var experimentName:EditText
     private lateinit var hypothesis:EditText
@@ -33,8 +34,6 @@ class ExperimentLabActivity : Activity() {
     private lateinit var tagInput:EditText
     private lateinit var noteInput:EditText
     private lateinit var status:TextView
-    private var selectedExperiment:String?=null
-    private var selectedSession:String?=null
     private val Int.dp:Int get()=(this*resources.displayMetrics.density).toInt()
 
     override fun onCreate(savedInstanceState:Bundle?) {
@@ -124,6 +123,37 @@ class ExperimentLabActivity : Activity() {
         }
         layout.addView(status)
         setContentView(ScrollView(this).apply { addView(layout) })
+        vm=ViewModelProvider(this)[ExperimentLabViewModel::class.java]
+        vm.state.observe(this) { state ->
+            display(state.message)
+            state.packages?.let { vm.consume(state.nonce); showPackagePicker(it) }
+            state.sessions?.let { vm.consume(state.nonce); showSessionPicker(it) }
+            state.experiments?.let { vm.consume(state.nonce); showExperimentPicker(it) }
+            state.annotationFor?.let { sid ->
+                vm.consume(state.nonce)
+                if(vm.vm.selectedSession==sid) {
+                    tagInput.setText(state.annotation?.tag.orEmpty())
+                    noteInput.setText(state.annotation?.note.orEmpty())
+                }
+            }
+            state.share?.let { text ->
+                vm.consume(state.nonce)
+                runCatching {
+                    startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
+                        type="text/plain";putExtra(Intent.EXTRA_TEXT,text)
+                    },"Поделиться анализом"))
+                }.onFailure { display("Не удалось открыть меню отправки.") }
+            }
+        }
+        if(savedInstanceState!=null) {
+            appInput.setText(savedInstanceState.getString("package").orEmpty())
+            experimentName.setText(savedInstanceState.getString("name").orEmpty())
+            hypothesis.setText(savedInstanceState.getString("hypothesis").orEmpty())
+            labelA.setText(savedInstanceState.getString("a","A"))
+            labelB.setText(savedInstanceState.getString("b","B"))
+            tagInput.setText(savedInstanceState.getString("tag").orEmpty())
+            noteInput.setText(savedInstanceState.getString("note").orEmpty())
+        }
         intent.getStringExtra("experiment_package")?.takeIf {
             SmartProfilesRepository.validatePackage(it)
         }?.let { appInput.setText(it) }
@@ -131,146 +161,64 @@ class ExperimentLabActivity : Activity() {
 
     private fun display(t:String) { if(::status.isInitialized) status.text=t }
 
-    private fun work(task:()->String) {
-        display("Чтение локальных данных…")
-        worker.execute {
-            val message=runCatching { task() }.getOrElse {
-                "Ошибка: "+it.javaClass.simpleName+" · "+it.message.orEmpty().take(150)
-            }
-            runOnUiThread { if(!isFinishing && !isDestroyed) display(message) }
-        }
-    }
-
     private fun currentPackage():String? =
         appInput.text.toString().trim().takeIf { SmartProfilesRepository.validatePackage(it) }
 
-    private fun pickPackage() = work {
-        ExperimentRepository(applicationContext).use { repo ->
-            val names=repo.recentSessions(limit=100).map { it.packageName to it.appLabel }
-                .distinctBy { it.first }
-            runOnUiThread {
-                if(!isFinishing && !isDestroyed) {
-                    if(names.isEmpty()) display("Пока нет записанных сессий.")
-                    else AlertDialog.Builder(this).setTitle("Приложения из истории")
-                        .setItems(names.map { it.second+"\n"+it.first }.toTypedArray()) { _,index ->
-                            appInput.setText(names[index].first)
-                            display("Фильтр: "+names[index].second)
-                        }.setNegativeButton("Отмена",null).show()
-                }
-            }
-            "Приложений в последних 100 сессиях: ${names.size}"
-        }
+    private fun pickPackage() = vm.pickPackages()
+
+    private fun showPackagePicker(names:List<Pair<String,String>>) {
+        if(names.isEmpty()) { display("Пока нет записанных сессий.");return }
+        AlertDialog.Builder(this).setTitle("Приложения из истории")
+            .setItems(names.map { it.second+"\n"+it.first }.toTypedArray()) { _,i ->
+                appInput.setText(names[i].first)
+                display("Фильтр: "+names[i].second)
+            }.setNegativeButton("Отмена",null).show()
     }
 
-    private fun pickSession() = work {
+    private fun pickSession() {
         val filter=currentPackage()
-        val raw=appInput.text.toString().trim()
-        if(raw.isNotEmpty() && filter==null) return@work "Некорректное имя пакета Android."
-        ExperimentRepository(applicationContext).use { repo ->
-            val sessions=repo.recentSessions(filter,60)
-            runOnUiThread {
-                if(!isFinishing && !isDestroyed) {
-                    if(sessions.isEmpty()) display("Не найдено записанных сессий.")
-                    else AlertDialog.Builder(this).setTitle("Выберите сессию")
-                        .setItems(sessions.map { s ->
-                            s.appLabel+" · "+DateFormat.getDateTimeInstance().format(Date(s.startedAtMs))+
-                            "\n"+s.packageName+" · "+(s.endReason ?: "не завершена")
-                        }.toTypedArray()) { _,index ->
-                            val s=sessions[index]
-                            selectedSession=s.id
-                            appInput.setText(s.packageName)
-                            tagInput.setText("")
-                            noteInput.setText("")
-                            work {
-                                ExperimentRepository(applicationContext).use { source ->
-                                    val annotation=source.getAnnotation(s.id)
-                                    runOnUiThread {
-                                        if(!isFinishing && !isDestroyed && selectedSession==s.id) {
-                                            tagInput.setText(annotation?.tag.orEmpty())
-                                            noteInput.setText(annotation?.note.orEmpty())
-                                        }
-                                    }
-                                }
-                                "Сессия выбрана: "+s.appLabel+" / "+s.id
-                            }
-                        }.setNegativeButton("Отмена",null).show()
-                }
-            }
-            "Найдено сессий: ${sessions.size}"
+        if(appInput.text.toString().trim().isNotEmpty() && filter==null) {
+            display("Некорректное имя пакета Android.");return
         }
+        vm.pickSessions(filter)
+    }
+
+    private fun showSessionPicker(sessions:List<GameSessionHeader>) {
+        if(sessions.isEmpty()) { display("Не найдено записанных сессий.");return }
+        AlertDialog.Builder(this).setTitle("Выберите сессию")
+            .setItems(sessions.map { row ->
+                row.appLabel+" · "+DateFormat.getDateTimeInstance().format(Date(row.startedAtMs))+
+                    "\n"+row.packageName+" · "+(row.endReason ?: "не завершена")
+            }.toTypedArray()) { _,index ->
+                val session=sessions[index]
+                appInput.setText(session.packageName)
+                tagInput.setText("")
+                noteInput.setText("")
+                vm.selectSession(session.id,session.appLabel)
+            }.setNegativeButton("Отмена",null).show()
     }
 
     private fun saveAnnotation() {
-        val id=selectedSession ?: return display("Сначала выберите сессию.")
+        val id=vm.selectedSession ?: return display("Сначала выберите сессию.")
         val tag=tagInput.text.toString().trim()
         val note=noteInput.text.toString().trim()
         if(tag.length>40 || note.length>1000) return display("Тег до 40, заметка до 1000 символов.")
-        work {
-            ExperimentRepository(applicationContext).use { it.annotate(id,tag,note) }
-            "Метка и заметка сохранены для $id. Исходные измерения не изменены."
-        }
+        vm.saveAnnotation(id,tag,note)
     }
 
     private fun showEvidence() {
-        val id=selectedSession ?: return display("Сначала выберите сессию.")
-        work {
-            ExperimentRepository(applicationContext).use { repo ->
-                val annotation=repo.getAnnotation(id)
-                ExperimentAnalytics.formatEvidence(repo.evidence(id))+
-                    "\n\nМетка: "+(annotation?.tag?.ifBlank { "—" } ?: "—")+
-                    "\nЗаметка: "+(annotation?.note?.ifBlank { "—" } ?: "—")
-            }
-        }
+        val id=vm.selectedSession ?: return display("Сначала выберите сессию.")
+        vm.showEvidence(id)
     }
 
     private fun compareLastTwo() {
         val pkg=currentPackage() ?: return display("Выберите пакет приложения для сравнения.")
-        work {
-            ExperimentRepository(applicationContext).use { repo ->
-                val last=repo.recentSessions(pkg,2)
-                if(last.size<2) "Нужно как минимум две записанные сессии этого приложения."
-                else {
-                    val newer=repo.evidence(last[0].id)
-                    val older=repo.evidence(last[1].id)
-                    val trials=listOf(
-                        ExperimentTrial("A",last[1],"","",older),
-                        ExperimentTrial("B",last[0],"","",newer)
-                    )
-                    ExperimentAnalytics.formatComparison(
-                        "Две последние сессии · "+pkg,
-                        "Наблюдательное сравнение по истории",
-                        ExperimentAnalytics.armSummary("A","Предыдущая",trials),
-                        ExperimentAnalytics.armSummary("B","Последняя",trials)
-                    )+"\n\nПРЕДЫДУЩАЯ:\n"+ExperimentAnalytics.formatEvidence(older)+
-                    "\n\nПОСЛЕДНЯЯ:\n"+ExperimentAnalytics.formatEvidence(newer)
-                }
-            }
-        }
+        vm.compareLastTwo(pkg)
     }
 
     private fun showTrialRoster() {
-        val id=selectedExperiment ?: return display("Выберите эксперимент.")
-        work {
-            ExperimentRepository(applicationContext).use { repo ->
-                val exp=repo.experiment(id) ?: error("Эксперимент не найден")
-                val selected=repo.trials(id)
-                if(selected.isEmpty()) "У эксперимента пока нет назначенных сессий."
-                else buildString {
-                    append(exp.name).append(" · ").append(exp.packageName).append('\n')
-                    append("A: ").append(exp.labelA).append(" / B: ").append(exp.labelB).append('\n')
-                    for(trial in selected) {
-                        append("\n").append(trial.arm).append(" · ")
-                            .append(DateFormat.getDateTimeInstance().format(Date(trial.session.startedAtMs)))
-                            .append(" · ").append(trial.session.endReason ?: "НЕ ЗАВЕРШЕНА")
-                        append("\nТег: ").append(trial.tag.ifBlank { "—" })
-                        append("\nЗаметка: ").append(trial.note.ifBlank { "—" })
-                        append("\nЗамеров: ").append(trial.evidence.samples)
-                        append(" · пропусков >45 с: ").append(trial.evidence.gapsOver45s)
-                        append("\nID: ").append(trial.session.id).append('\n')
-                    }
-                }
-            }
-        }
+        val id=vm.selectedExperiment ?: return display("Выберите эксперимент.")
+        vm.roster(id)
     }
 
     private fun create() {
@@ -282,38 +230,28 @@ class ExperimentLabActivity : Activity() {
         if(name.isBlank()||name.length>100||h.length>500||
             a.isBlank()||b.isBlank()||a.length>60||b.length>60)
             return display("Проверьте название, цель и подписи двух условий.")
-        work {
-            val id=ExperimentRepository(applicationContext).use { it.create(pkg,name,h,a,b) }
-            selectedExperiment=id
-            "Эксперимент создан: $name\n$id\nНазначьте реальные сессии для A и B."
-        }
+        vm.createExperiment(pkg,name,h,a,b)
     }
 
-    private fun pickExperiment() = work {
-        ExperimentRepository(applicationContext).use { repo ->
-            val found=repo.experiments()
-            runOnUiThread {
-                if(!isFinishing && !isDestroyed) {
-                    if(found.isEmpty()) display("Пока нет экспериментов.")
-                    else AlertDialog.Builder(this).setTitle("Эксперименты")
-                        .setItems(found.map { it.name+"\n"+it.packageName }.toTypedArray()) { _,index ->
-                            val e=found[index]
-                            selectedExperiment=e.id
-                            appInput.setText(e.packageName)
-                            experimentName.setText(e.name)
-                            hypothesis.setText(e.hypothesis)
-                            labelA.setText(e.labelA)
-                            labelB.setText(e.labelB)
-                            display("Эксперимент: "+e.name+"\nID: "+e.id)
-                        }.setNegativeButton("Отмена",null).show()
-                }
-            }
-            "Экспериментов: ${found.size}"
-        }
+    private fun pickExperiment()=vm.pickExperiments()
+
+    private fun showExperimentPicker(found:List<SessionExperiment>) {
+        if(found.isEmpty()) { display("Пока нет экспериментов.");return }
+        AlertDialog.Builder(this).setTitle("Эксперименты")
+            .setItems(found.map { it.name+"\n"+it.packageName }.toTypedArray()) { _,i ->
+                val e=found[i]
+                vm.selectExperiment(e.id)
+                appInput.setText(e.packageName)
+                experimentName.setText(e.name)
+                hypothesis.setText(e.hypothesis)
+                labelA.setText(e.labelA)
+                labelB.setText(e.labelB)
+                display("Эксперимент: "+e.name+"\nID: "+e.id)
+            }.setNegativeButton("Отмена",null).show()
     }
 
     private fun updateExperiment() {
-        val id=selectedExperiment ?: return display("Сначала выберите эксперимент.")
+        val id=vm.selectedExperiment ?: return display("Сначала выберите эксперимент.")
         val name=experimentName.text.toString().trim()
         val h=hypothesis.text.toString().trim()
         val a=labelA.text.toString().trim()
@@ -321,37 +259,28 @@ class ExperimentLabActivity : Activity() {
         if(name.isBlank()||name.length>100||h.length>500||
             a.isBlank()||b.isBlank()||a.length>60||b.length>60)
             return display("Недопустимая длина названия или условий.")
-        work {
-            val updated=ExperimentRepository(applicationContext).use { it.update(id,name,h,a,b) }
-            if(updated) "Эксперимент обновлён." else "Эксперимент не найден."
-        }
+        vm.updateExperiment(id,name,h,a,b)
     }
 
     private fun assign(arm:String) {
-        val experiment=selectedExperiment ?: return display("Выберите эксперимент.")
-        val session=selectedSession ?: return display("Выберите реальную сессию.")
-        work {
-            ExperimentRepository(applicationContext).use { it.assign(experiment,session,arm) }
-            "Сессия $session назначена условию $arm. Сохранённые замеры не изменены."
-        }
+        val experiment=vm.selectedExperiment ?: return display("Выберите эксперимент.")
+        val session=vm.selectedSession ?: return display("Выберите реальную сессию.")
+        vm.assign(experiment,session,arm)
     }
 
     private fun unassign() {
-        val experiment=selectedExperiment ?: return display("Выберите эксперимент.")
-        val session=selectedSession ?: return display("Выберите сессию.")
-        work {
-            val deleted=ExperimentRepository(applicationContext).use { it.unassign(experiment,session) }
-            if(deleted) "Сессия исключена из эксперимента." else "Назначение отсутствовало."
-        }
+        val experiment=vm.selectedExperiment ?: return display("Выберите эксперимент.")
+        val session=vm.selectedSession ?: return display("Выберите сессию.")
+        vm.unassign(experiment,session)
     }
 
     private fun compare() {
-        val id=selectedExperiment ?: return display("Выберите эксперимент.")
-        work { ExperimentRepository(applicationContext).use { it.report(id) } }
+        val id=vm.selectedExperiment ?: return display("Выберите эксперимент.")
+        vm.compare(id)
     }
 
     private fun exportCsv() {
-        if(selectedExperiment==null) return display("Выберите эксперимент.")
+        if(vm.selectedExperiment==null) return display("Выберите эксперимент.")
         val request=Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
             addCategory(Intent.CATEGORY_OPENABLE)
             type="text/csv"
@@ -362,34 +291,17 @@ class ExperimentLabActivity : Activity() {
     }
 
     private fun shareComparison() {
-        val id=selectedExperiment ?: return display("Выберите эксперимент.")
-        work {
-            val report=ExperimentRepository(applicationContext).use { it.report(id) }
-            runOnUiThread {
-                if(!isFinishing && !isDestroyed) {
-                    startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
-                        type="text/plain"
-                        putExtra(Intent.EXTRA_TEXT,report)
-                    },"Поделиться анализом"))
-                }
-            }
-            report
-        }
+        val id=vm.selectedExperiment ?: return display("Выберите эксперимент.")
+        vm.share(id)
     }
 
     private fun confirmDelete() {
-        val id=selectedExperiment ?: return display("Выберите эксперимент.")
+        val id=vm.selectedExperiment ?: return display("Выберите эксперимент.")
         AlertDialog.Builder(this).setTitle("Удалить эксперимент?")
             .setMessage("Будут удалены его A/B назначения, но НЕ оригинальные игровые сессии, "+
                 "измерения, заметки и профили.")
             .setPositiveButton("Удалить") { _,_ ->
-                work {
-                    val ok=ExperimentRepository(applicationContext).use { it.delete(id) }
-                    if(ok) {
-                        selectedExperiment=null
-                        "Эксперимент удалён; история не затронута."
-                    } else "Эксперимент не найден."
-                }
+                vm.delete(id)
             }.setNegativeButton("Отмена",null).show()
     }
 
@@ -397,21 +309,18 @@ class ExperimentLabActivity : Activity() {
         super.onActivityResult(requestCode,resultCode,data)
         if(requestCode!=EXPORT_CSV || resultCode!=RESULT_OK) return
         val uri=data?.data ?: return
-        val id=selectedExperiment ?: return
-        work {
-            ExperimentRepository(applicationContext).use { repo ->
-                (contentResolver.openOutputStream(uri,"w") ?: error("Cannot open export")).use { stream ->
-                    OutputStreamWriter(stream,Charsets.UTF_8).use { writer ->
-                        repo.exportCsv(id,writer)
-                    }
-                }
-            }
-            "CSV сохранён в выбранный документ. Экспорт выполнен только по вашему действию."
-        }
+        val id=vm.selectedExperiment ?: return
+        vm.exportCsv(id,uri)
     }
 
-    override fun onDestroy() {
-        worker.shutdown()
-        super.onDestroy()
+    override fun onSaveInstanceState(outState:Bundle) {
+        outState.putString("package",appInput.text.toString())
+        outState.putString("name",experimentName.text.toString())
+        outState.putString("hypothesis",hypothesis.text.toString())
+        outState.putString("a",labelA.text.toString())
+        outState.putString("b",labelB.text.toString())
+        outState.putString("tag",tagInput.text.toString())
+        outState.putString("note",noteInput.text.toString())
+        super.onSaveInstanceState(outState)
     }
 }
