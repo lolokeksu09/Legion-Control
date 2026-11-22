@@ -97,6 +97,37 @@ class GameSessionRepository(context: Context) : AutoCloseable {
         return out
     }
 
+    /** Exact package history, not last-N-global. Safe for baseline comparisons. */
+    fun recentForPackage(packageName:String, limit:Int=25):List<GameSessionHeader> {
+        require(Regex("^[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z0-9_]+)+$").matches(packageName))
+        val out=mutableListOf<GameSessionHeader>()
+        dbHelper.readableDatabase.rawQuery(
+            "SELECT session_id,package_name,app_label,started_at_ms,ended_at_ms,end_reason,tcp_opt_in " +
+                "FROM game_sessions WHERE package_name=? " +
+                "ORDER BY started_at_ms DESC,session_id DESC LIMIT ?",
+            arrayOf(packageName,limit.coerceIn(1,25).toString())
+        ).use { c ->
+            while(c.moveToNext()) out += GameSessionHeader(
+                c.getString(0),c.getString(1),c.getString(2),c.getLong(3),
+                if(c.isNull(4))null else c.getLong(4),
+                if(c.isNull(5))null else c.getString(5),c.getInt(6)==1)
+        }
+        return out
+    }
+
+    /** Unique historical package IDs; no PACKAGE_USAGE_STATS or broad package permission. */
+    fun knownSessionPackages(limit:Int=40):List<String> {
+        val out=mutableListOf<String>()
+        dbHelper.readableDatabase.rawQuery(
+            "SELECT package_name FROM game_sessions GROUP BY package_name " +
+                "ORDER BY MAX(started_at_ms) DESC LIMIT ?",
+            arrayOf(limit.coerceIn(1,40).toString())
+        ).use { c ->
+            while(c.moveToNext()) out += c.getString(0)
+        }
+        return out
+    }
+
     fun points(id: String, limit: Int = 10000): List<GameTelemetryPoint> {
         val out = mutableListOf<GameTelemetryPoint>()
         dbHelper.readableDatabase.rawQuery(
