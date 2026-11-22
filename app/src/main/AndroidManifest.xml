@@ -40,6 +40,7 @@
             android:exported="true">
             <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE" /></intent-filter>
         </service>
+        <activity android:name=".ApplicationCenterActivity" android:exported="false" />
         <activity android:name=".ConnectivityLabActivity" android:exported="false" />
         <activity android:name=".ExperimentLabActivity" android:exported="false" />
         <activity android:name=".SmartProfilesActivity" android:exported="false" />

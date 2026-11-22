@@ -83,6 +83,12 @@ class SmartProfilesActivity : Activity() {
         action("Удалить профиль (с подтверждением)") { confirmDelete() }
         note("Правила оцениваются каждые ~15 секунд только во время явно запущенной записи. " +
             "Если изменить правила в ходе записи, новые настройки применятся в следующей сессии.")
+        action("APPLICATION CENTER · библиотека, версии и права") {
+            val pkg=packageNameInput()
+            startActivity(Intent(this,ApplicationCenterActivity::class.java).apply {
+                if(SmartProfilesRepository.validatePackage(pkg)) putExtra("app_center_package",pkg)
+            })
+        }
         action("EXPERIMENT LAB · A/B сравнения для выбранного приложения") {
             val pkg=packageNameInput()
             startActivity(Intent(this,ExperimentLabActivity::class.java).apply {
@@ -145,6 +151,9 @@ class SmartProfilesActivity : Activity() {
         }
         root.addView(result)
         setContentView(ScrollView(this).apply { addView(root) })
+        intent.getStringExtra("app_center_package")?.takeIf {
+            SmartProfilesRepository.validatePackage(it)
+        }?.let { packageText.setText(it) }
     }
 
     private fun show(message:String) { result.text=message }
