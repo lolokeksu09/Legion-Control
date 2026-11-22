@@ -142,7 +142,7 @@ class PlaybackAudioCapture(
                             val aligned = cap - cap % PlaybackAudioTrackPolicy.PCM_BYTES_PER_FRAME
                             val read = record.read(input, aligned, AudioRecord.READ_NON_BLOCKING)
                             if (read < 0 && !pauseRequested)
-                                error("AudioRecord.read() вернул код $read")
+                                throw IllegalStateException("AudioRecord.read() вернул код $read")
                             val valid = if (read > 0 && !pauseRequested &&
                                 PlaybackAudioTrackPolicy.isAlignedPcmSize(read)) read else 0
                             codec.queueInputBuffer(index, 0, valid, pts, 0)
