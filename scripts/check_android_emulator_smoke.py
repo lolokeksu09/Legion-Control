@@ -170,7 +170,24 @@ def main() -> None:
     adb("shell", "am", "force-stop", PACKAGE)
     adb("shell", "am", "start", "-W", "-n", PACKAGE + "/.NavigationHostActivity", timeout=60)
 
-    stage("01-hub-launch", "Готов к запуску")
+    # A freshly booted Google APIs emulator can show a *Pixel Launcher* ANR,
+    # unrelated to Legion Control. Recover only this named system ANR, at most twice.
+    for attempt in range(3):
+        if visible("Готов к запуску"):
+            break
+        try:
+            expect("Готов к запуску", seconds=18)
+            break
+        except AssertionError:
+            if attempt == 2 or not visible("Pixel Launcher isn't responding"):
+                raise
+            print("RECOVER: Pixel Launcher ANR during emulator bootstrap",flush=True)
+            click("Close app", scrolls=0)
+            adb("shell", "am", "force-stop", PACKAGE)
+            adb("shell", "am", "start", "-W", "-n",
+                PACKAGE + "/.NavigationHostActivity", timeout=60)
+    expect("Готов к запуску")
+    capture("01-hub-launch")
     click("Сервисы")
     expect(TOOLS_MARKER)
 
