@@ -76,16 +76,19 @@ for old in (
 assert graph.tag == "navigation"
 assert graph.get(res+"startDestination") == "@id/homeFragment"
 nodes = graph.findall("fragment")
-assert len(nodes) == 7
+assert len(nodes) == 9
 assert {n.get(android+"id") for n in nodes} == {
     "@+id/homeFragment", "@+id/gamesFragment", "@+id/toolsFragment",
-    "@+id/historyFragment", "@+id/settingsFragment", "@+id/gameDetailFragment", "@+id/gameSessionFragment"
+    "@+id/historyFragment", "@+id/settingsFragment", "@+id/gameDetailFragment", "@+id/gameSessionFragment",
+    "@+id/applicationCenterDestination", "@+id/smartProfilesDestination"
 }
 for node in nodes:
     assert node.get(android+"name") in {
         "dev.lolokeksu.legioncontrol.HubPageFragment",
         "dev.lolokeksu.legioncontrol.GameDetailFragment",
-        "dev.lolokeksu.legioncontrol.GameSessionFragment"
+        "dev.lolokeksu.legioncontrol.GameSessionFragment",
+        "dev.lolokeksu.legioncontrol.ApplicationCenterFragment",
+        "dev.lolokeksu.legioncontrol.SmartProfilesFragment"
     }
     if node.get(android+"id") == "@+id/gameSessionFragment":
         assert [x.get(android+"name") for x in node.findall("argument")] == [
