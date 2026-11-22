@@ -1,6 +1,7 @@
 package dev.lolokeksu.legioncontrol
 
-import android.app.Activity
+import androidx.activity.ComponentActivity
+import androidx.lifecycle.ViewModelProvider
 import android.app.AlertDialog
 import android.content.Intent
 import android.graphics.Color
@@ -17,15 +18,10 @@ import java.util.concurrent.Future
  * Manual-only hardware diagnostics. No background service, root, Shizuku,
  * protected APIs, app enumeration, hidden system settings or cloud telemetry.
  */
-class HardwareLabActivity : Activity() {
-    private val worker = Executors.newSingleThreadExecutor()
-    private var runningJob: Future<*>? = null
-    private var motion: MotionStabilityCapture? = null
-    private var networkEvents: ForegroundNetworkEvents? = null
+class HardwareLabActivity : ComponentActivity() {
+    private lateinit var viewModel: HardwareLabViewModel
     private lateinit var result: TextView
-    private var lastReport: String? = null
-    private var visible = false
-    private var reportGeneration = 0L
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -57,11 +53,11 @@ class HardwareLabActivity : Activity() {
         }
         root.addView(result)
         addButton(root, "1 · Local Route Inspector") {
-            startWorker { LocalRouteDiagnostics.inspect(applicationContext) }
+            viewModel.run(HardwareProbe.ROUTE)
         }
         addButton(root, "2 · Network Events — 30 секунд") { toggleNetworkEvents() }
         addButton(root, "3 · Storage Lab — 8 МиБ / SHA-256") {
-            startWorker { SandboxIoMetrics.format(SandboxIoBenchmark.run(applicationContext)) }
+            viewModel.run(HardwareProbe.STORAGE)
         }
         addButton(root, "4 · Motion Stability — 5 секунд") { toggleMotion() }
         addButton(root, "5 · Display Patterns — пиксели и цвета") {
@@ -80,7 +76,7 @@ class HardwareLabActivity : Activity() {
                 .show()
         }
         addButton(root, "6 · Codec Inspector — аппаратные видеодекодеры") {
-            startWorker { CodecCapabilityDiagnostics.inspect() }
+            viewModel.run(HardwareProbe.CODEC)
         }
         addButton(root, "COMPATIBILITY · ещё 7 функций") {
             startActivity(Intent(this, CompatibilityLabActivity::class.java))
@@ -91,6 +87,8 @@ class HardwareLabActivity : Activity() {
             isFillViewport = true
             addView(root)
         })
+        viewModel=ViewModelProvider(this)[HardwareLabViewModel::class.java]
+        viewModel.report.observe(this) { result.text=it }
     }
 
     private val Int.dp: Int get() = (this * resources.displayMetrics.density).toInt()
@@ -104,78 +102,14 @@ class HardwareLabActivity : Activity() {
         })
     }
 
-    private fun report(text: String) {
-        if (!isDestroyed && ::result.isInitialized) {
-            result.text = text
-            lastReport = text
-        }
-    }
+    private fun toggleMotion() = viewModel.toggleMotion()
 
-    private fun startWorker(block: () -> String) {
-        if (!visible) return
-        if (runningJob?.isDone == false) {
-            report("Сначала дождитесь завершения текущего теста.")
-            return
-        }
-        val generation = ++reportGeneration
-        report("Измерение выполняется по запросу…")
-        runningJob = worker.submit {
-            val value = runCatching { block() }.getOrElse {
-                "Тест недоступен: " + it.javaClass.simpleName
-            }
-            runOnUiThread {
-                if (visible && generation == reportGeneration && !isDestroyed)
-                    report(value)
-            }
-        }
-    }
+    private fun toggleNetworkEvents() = viewModel.toggleNetworkEvents()
 
-    private fun toggleMotion() {
-        val existing = motion
-        if (existing != null) {
-            motion = null
-            existing.stop(true)
-            return
-        }
-        if (!visible) return
-        val capture = MotionStabilityCapture(applicationContext) {
-            motion = null
-            if (visible) report(MotionMetrics.format(it))
-        }
-        motion = capture
-        report("Motion Stability · 5 секунд акселерометр и гироскоп…")
-        runCatching { capture.start() }.onFailure {
-            motion = null
-            capture.stop(false)
-            report("Датчики движения недоступны: " + it.javaClass.simpleName)
-        }
-    }
-
-    private fun toggleNetworkEvents() {
-        val existing = networkEvents
-        if (existing != null) {
-            networkEvents = null
-            existing.stop(true)
-            return
-        }
-        if (!visible) return
-        val capture = ForegroundNetworkEvents(
-            applicationContext,
-            update = { if (visible) report(it) },
-            completed = {
-                networkEvents = null
-                if (visible) report(it)
-            }
-        )
-        if (capture.start()) {
-            networkEvents = capture
-            report("NETWORK EVENTS · подписка на изменения сети на 30 секунд.\n" +
-                "Нажмите кнопку повторно для досрочной остановки.")
-        } else report("Network Events: регистрация callback отклонена Android")
-    }
+    private fun report(text: String) { if (::result.isInitialized) result.text=text }
 
     private fun shareLastReport() {
-        val text = lastReport ?: return report("Сначала выполните диагностику.")
+        val text = viewModel.lastReport ?: return report("Сначала выполните диагностику.")
         if (text.contains("выполняется по запросу")) return
         val intent = Intent(Intent.ACTION_SEND).apply {
             type = "text/plain"
@@ -187,25 +121,12 @@ class HardwareLabActivity : Activity() {
 
     override fun onStart() {
         super.onStart()
-        visible = true
+        viewModel.setVisible(true)
     }
 
     override fun onStop() {
-        visible = false
-        ++reportGeneration
-        motion?.stop(false)
-        motion = null
-        networkEvents?.stop(false)
-        networkEvents = null
-        runningJob?.cancel(true)
+        viewModel.setVisible(false)
+        viewModel.cancelAll()
         super.onStop()
-    }
-
-    override fun onDestroy() {
-        motion?.stop(false)
-        networkEvents?.stop(false)
-        runningJob?.cancel(true)
-        worker.shutdownNow()
-        super.onDestroy()
     }
 }

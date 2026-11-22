@@ -5,6 +5,7 @@ import xml.etree.ElementTree as ET
 root = Path(__file__).resolve().parents[1]
 src = root / "app/src/main/java/dev/lolokeksu/legioncontrol"
 activity = (src / "HardwareLabActivity.kt").read_text(encoding="utf-8")
+viewmodel = (src / "HardwareLabViewModel.kt").read_text(encoding="utf-8")
 backend = (src / "HardwareLabBackend.kt").read_text(encoding="utf-8")
 models = (src / "HardwareLabModels.kt").read_text(encoding="utf-8")
 capture = (src / "HardwareLabCapture.kt").read_text(encoding="utf-8")
@@ -43,22 +44,22 @@ for num,name in enumerate([
     "Codec Inspector"
 ],1):
     assert '"'+str(num)+' · '+name in activity,(num,name)
-for call in (
-    "LocalRouteDiagnostics.inspect(applicationContext)",
-    "SandboxIoBenchmark.run(applicationContext)",
-    "MotionStabilityCapture(applicationContext)",
-    "ForegroundNetworkEvents(",
-    "DisplayPatternActivity::class.java",
-    "CodecCapabilityDiagnostics.inspect()",
-):
-    assert call in activity,call
+assert "DisplayPatternActivity::class.java" in activity
+assert "viewModel.run(HardwareProbe.ROUTE)" in activity
+assert "viewModel.run(HardwareProbe.STORAGE)" in activity
+assert "viewModel.run(HardwareProbe.CODEC)" in activity
+for call in ("LocalRouteDiagnostics.inspect(app)", "SandboxIoBenchmark.run(app)",
+             "MotionStabilityCapture(getApplication<Application>())",
+             "ForegroundNetworkEvents(", "CodecCapabilityDiagnostics.inspect()"):
+    assert call in viewmodel,call
 assert "startActivity(Intent.createChooser(" in activity
-assert "runningJob?.cancel(true)" in activity
-assert "networkEvents?.stop(false)" in activity
-assert "completed = {\n                networkEvents = null" in activity, "30s completion must allow another test"
-assert "motion?.stop(false)" in activity
-assert "worker.shutdownNow()" in activity
-assert "override fun onStop()" in activity
+assert "runningJob?.cancel(true)" in viewmodel
+assert "networkEvents?.stop(false)" in viewmodel
+assert "networkEvents=null" in viewmodel and "completed={" in viewmodel, "30s completion must allow another test"
+assert "motion?.stop(false)" in viewmodel
+assert "worker.shutdownNow()" in viewmodel
+assert "override fun onStop()" in activity and "viewModel.cancelAll()" in activity
+assert "ViewModelProvider(this)[HardwareLabViewModel::class.java]" in activity
 assert "registerDefaultNetworkCallback(callback, handler)" in capture
 assert "unregisterNetworkCallback(callback)" in capture
 assert "handler.postDelayed(timeout, 30_000L)" in capture
