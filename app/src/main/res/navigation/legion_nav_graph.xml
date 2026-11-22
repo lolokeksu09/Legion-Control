@@ -47,4 +47,46 @@
         <argument android:name="smart_label" app:argType="string" android:defaultValue=""/>
         <argument android:name="smart_tcp" app:argType="boolean" android:defaultValue="false"/>
     </fragment>
+    <activity
+        android:id="@+id/diagnosticsDestination"
+        android:name="dev.lolokeksu.legioncontrol.MainActivity" />
+    <activity
+        android:id="@+id/gameToolboxDestination"
+        android:name="dev.lolokeksu.legioncontrol.GameToolboxActivity" />
+    <activity
+        android:id="@+id/captureStudioDestination"
+        android:name="dev.lolokeksu.legioncontrol.CaptureStudioActivity" />
+    <activity
+        android:id="@+id/smartProfilesDestination"
+        android:name="dev.lolokeksu.legioncontrol.SmartProfilesActivity" />
+    <activity
+        android:id="@+id/applicationCenterDestination"
+        android:name="dev.lolokeksu.legioncontrol.ApplicationCenterActivity" />
+    <activity
+        android:id="@+id/experimentLabDestination"
+        android:name="dev.lolokeksu.legioncontrol.ExperimentLabActivity" />
+    <activity
+        android:id="@+id/connectivityLabDestination"
+        android:name="dev.lolokeksu.legioncontrol.ConnectivityLabActivity" />
+    <activity
+        android:id="@+id/audioLabDestination"
+        android:name="dev.lolokeksu.legioncontrol.AudioLabActivity" />
+    <activity
+        android:id="@+id/hapticLabDestination"
+        android:name="dev.lolokeksu.legioncontrol.HapticLabActivity" />
+    <activity
+        android:id="@+id/gamingDiagnosticsDestination"
+        android:name="dev.lolokeksu.legioncontrol.GamingDiagnosticsActivity" />
+    <activity
+        android:id="@+id/hardwareLabDestination"
+        android:name="dev.lolokeksu.legioncontrol.HardwareLabActivity" />
+    <activity
+        android:id="@+id/compatibilityLabDestination"
+        android:name="dev.lolokeksu.legioncontrol.CompatibilityLabActivity" />
+    <activity
+        android:id="@+id/gamepadLiveDestination"
+        android:name="dev.lolokeksu.legioncontrol.GamepadLiveActivity" />
+    <activity
+        android:id="@+id/displayPatternDestination"
+        android:name="dev.lolokeksu.legioncontrol.DisplayPatternActivity" />
 </navigation>

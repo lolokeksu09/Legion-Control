@@ -1,0 +1,63 @@
+#!/usr/bin/env python3
+"""alpha.29: one central Navigation Component route for every module with retained Activity back-compat."""
+from pathlib import Path
+import re
+import xml.etree.ElementTree as ET
+
+root=Path(__file__).resolve().parents[1]
+src=root/"app/src/main/java/dev/lolokeksu/legioncontrol"
+nav=ET.parse(root/"app/src/main/res/navigation/legion_nav_graph.xml").getroot()
+manifest=ET.parse(root/"app/src/main/AndroidManifest.xml").getroot()
+android="{http://schemas.android.com/apk/res/android}"
+ids=set()
+nodes=nav.findall("activity")
+expected={
+    "MainActivity": "diagnosticsDestination",
+    "GameToolboxActivity": "gameToolboxDestination",
+    "CaptureStudioActivity": "captureStudioDestination",
+    "SmartProfilesActivity": "smartProfilesDestination",
+    "ApplicationCenterActivity": "applicationCenterDestination",
+    "ExperimentLabActivity": "experimentLabDestination",
+    "ConnectivityLabActivity": "connectivityLabDestination",
+    "AudioLabActivity": "audioLabDestination",
+    "HapticLabActivity": "hapticLabDestination",
+    "GamingDiagnosticsActivity": "gamingDiagnosticsDestination",
+    "HardwareLabActivity": "hardwareLabDestination",
+    "CompatibilityLabActivity": "compatibilityLabDestination",
+    "GamepadLiveActivity": "gamepadLiveDestination",
+    "DisplayPatternActivity": "displayPatternDestination"
+}
+assert len(nodes)==len(expected), (len(nodes),len(expected))
+registered={a.get(android+"name") for a in manifest.findall("./application/activity")}
+mapping=(src/"HubDestinationRoutes.kt").read_text()
+for node in nodes:
+    cls=node.get(android+"name").split(".")[-1]
+    route=node.get(android+"id")
+    assert cls in expected and route=="@+id/"+expected[cls],(cls,route)
+    assert "."+cls in registered
+    assert f"{cls}::class.java to R.id.{expected[cls]}" in mapping
+    assert cls not in ids
+    ids.add(cls)
+assert ids==set(expected)
+assert not any(n.get(android+"id")=="@+id/gameSessionFragment" for n in nodes)
+frags={n.get(android+"id"):n for n in nav.findall("fragment")}
+assert len(frags)==7 and "@+id/gameSessionFragment" in frags
+assert frags["@+id/gameSessionFragment"].get(android+"name").endswith(".GameSessionFragment")
+game=(src/"GameSessionFragment.kt").read_text()
+compat=(src/"GameSessionActivity.kt").read_text()
+assert "GameSessionRecorderService.start(requireContext()," in game
+assert "GameSessionFragment()" in compat
+hub=(src/"HubPageFragment.kt").read_text()
+detail=(src/"GameDetailFragment.kt").read_text()
+assert "HubDestinationRoutes.destinationFor(cls)" in hub+detail
+assert "NavHostFragment.findNavController(this).navigate(route, extras)" in hub
+assert "NavHostFragment.findNavController(this).navigate(route, intent.extras)" in detail
+assert "NavHostFragment.findNavController(this).navigate(" in detail
+assert 'putString("smart_package",pkg)' in detail
+assert "if (route != null)" in hub and "else startActivity(intent)" in detail
+assert "startActivity(Intent(requireContext(), cls)" in hub
+assert "GameSessionActivity::class.java" in hub
+assert ".GameSessionActivity" in registered
+assert nav.get("{http://schemas.android.com/apk/res-auto}startDestination")=="@id/homeFragment"
+assert "QUERY_ALL_PACKAGES" not in (root/"app/src/main/AndroidManifest.xml").read_text()
+print("PASS alpha29: 14 centralized ActivityNavigator routes, one real Game Session Fragment, retained explicit-intent compat")

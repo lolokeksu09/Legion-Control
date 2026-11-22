@@ -86,7 +86,10 @@ class GameDetailFragment : Fragment() {
 
     private fun <T> open(cls: Class<T>, configure: (Intent) -> Unit = {}) {
         runCatching {
-            startActivity(Intent(requireContext(), cls).apply(configure))
+            val intent = Intent(requireContext(), cls).apply(configure)
+            val route = HubDestinationRoutes.destinationFor(cls)
+            if (route != null) NavHostFragment.findNavController(this).navigate(route, intent.extras)
+            else startActivity(intent)
         }.onFailure { status.text = "Не удалось открыть экран: " + it.javaClass.simpleName }
     }
 

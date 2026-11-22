@@ -142,9 +142,15 @@ class HubPageFragment : Fragment() {
             return
         }
         runCatching {
-            startActivity(Intent(requireContext(), cls).apply {
-                if (extras != null) putExtras(extras)
-            })
+            val route = HubDestinationRoutes.destinationFor(cls)
+            if (route != null) {
+                NavHostFragment.findNavController(this).navigate(route, extras)
+            } else {
+                // Only unregistered legacy screen classes use an explicit Intent fallback.
+                startActivity(Intent(requireContext(), cls).apply {
+                    if (extras != null) putExtras(extras)
+                })
+            }
         }.onFailure { exception ->
             AlertDialog.Builder(requireContext()).setTitle("Не удалось открыть раздел")
                 .setMessage(exception.javaClass.simpleName)
