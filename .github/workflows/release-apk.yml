@@ -72,6 +72,7 @@ jobs:
           python3 scripts/check_alpha19_experiments.py
           python3 scripts/check_alpha20_connectivity.py
           python3 scripts/check_alpha21_application_center.py
+          python3 scripts/check_alpha22_audio_lab.py
       - name: Test local CSV and Russian plural formatting before release
         run: gradle --no-daemon testDebugUnitTest
       - name: Test and build real Rust native libraries
@@ -99,6 +100,6 @@ jobs:
           python3 scripts/verify_release_apk.py app/build/outputs/apk/release/app-release.apk "$ANDROID_HOME/build-tools/36.0.0/apksigner"
       - uses: actions/upload-artifact@v4
         with:
-          name: Legion-Control-v0.1.0-alpha.21-permanent-release-apk
+          name: Legion-Control-v0.1.0-alpha.22-permanent-release-apk
           path: app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
