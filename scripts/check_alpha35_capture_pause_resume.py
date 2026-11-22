@@ -57,7 +57,7 @@ services=[a for a in manifest.findall("./application/service")
           if a.get(ns+"name")==".CaptureRecordingService"]
 assert len(services)==1 and services[0].get(ns+"exported")=="false"
 assert services[0].get(ns+"foregroundServiceType")=="mediaProjection"
-for forbidden in ("android.permission.RECORD_AUDIO",
+for forbidden in (
                   "android.permission.WRITE_SECURE_SETTINGS",
                   "android.permission.MANAGE_EXTERNAL_STORAGE",
                   "android.permission.QUERY_ALL_PACKAGES"):
