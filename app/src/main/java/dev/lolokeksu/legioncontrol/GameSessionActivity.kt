@@ -1,7 +1,8 @@
 package dev.lolokeksu.legioncontrol
 
 import android.Manifest
-import android.app.Activity
+import androidx.activity.ComponentActivity
+import androidx.lifecycle.ViewModelProvider
 import android.app.AlertDialog
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -26,8 +27,8 @@ import java.util.concurrent.Executors
  * Universal app selector. The selected package is a session label; no privileged
  * claim is made that Android allows checking another app's real-time FPS/foreground.
  */
-class GameSessionActivity : Activity() {
-    private val worker = Executors.newSingleThreadExecutor()
+class GameSessionActivity : ComponentActivity() {
+    private lateinit var viewModel: GameSessionViewModel
     private lateinit var packageInput: EditText
     private lateinit var labelInput: EditText
     private lateinit var tcpOption: CheckBox
@@ -136,7 +137,17 @@ class GameSessionActivity : Activity() {
         root.addView(timeline, LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, 240.dp))
         setContentView(ScrollView(this).apply { addView(root) })
-        intent.getStringExtra("smart_package")?.takeIf {
+        viewModel = ViewModelProvider(this)[GameSessionViewModel::class.java]
+        viewModel.state.observe(this) { snapshot ->
+            reportView.text = snapshot.report
+            snapshot.timeline?.let { timeline.setPoints(it) }
+        }
+        if (savedInstanceState != null) {
+            selectedPackage = savedInstanceState.getString("selectedPackage").orEmpty()
+            packageInput.setText(savedInstanceState.getString("packageInput").orEmpty())
+            labelInput.setText(savedInstanceState.getString("labelInput").orEmpty())
+            tcpOption.isChecked = savedInstanceState.getBoolean("tcpOptIn", false)
+        } else intent.getStringExtra("smart_package")?.takeIf {
             Regex("^[A-Za-z][A-Za-z0-9_]*(\\\\.[A-Za-z0-9_]+)+$").matches(it)
         }?.let {
             packageInput.setText(it)
@@ -213,37 +224,9 @@ class GameSessionActivity : Activity() {
         }
     }
 
-    private fun refresh() = runWorker {
-        GameSessionRepository(applicationContext).use { repo ->
-            val rows=repo.recent(8)
-            if(rows.isEmpty()) "Записанных сессий ещё нет." else buildString {
-                val graphPoints=repo.points(rows[0].id)
-                runOnUiThread { if (!isDestroyed) timeline.setPoints(graphPoints) }
-                append("ПОСЛЕДНИЕ СЕССИИ · ").append(rows.size).append('\n')
-                for(row in rows) {
-                    val points=repo.points(row.id)
-                    val s=GameSessionAnalysis.summarize(row,points)
-                    append("\n").append(date(row.startedAtMs)).append(" · ")
-                        .append(GameSessionAnalysis.render(s)).append('\n')
-                    if(points.size >= 10000) append("Показаны первые 10 000 точек; полный CSV доступен в архиве.\n")
-                    for(event in repo.events(row.id,5))
-                        append("  ").append(date(event.timeMs)).append(" · ")
-                            .append(event.kind).append(": ").append(event.details).append('\n')
-                }
-            }
-        }
-    }
+    private fun refresh() = viewModel.refresh()
 
-    private fun compare() = runWorker {
-        GameSessionRepository(applicationContext).use { repo ->
-            val latest=repo.recent(2)
-            if(latest.size < 2) "Для сравнения нужны две сессии."
-            else GameSessionAnalysis.compare(
-                GameSessionAnalysis.summarize(latest[0],repo.points(latest[0].id)),
-                GameSessionAnalysis.summarize(latest[1],repo.points(latest[1].id))
-            )
-        }
-    }
+    private fun compare() = viewModel.compare()
 
     private fun createFile(requestCode: Int) {
         val isZip=requestCode==REQUEST_ZIP
@@ -259,37 +242,19 @@ class GameSessionActivity : Activity() {
 
     override fun onActivityResult(requestCode: Int,resultCode: Int,data: Intent?) {
         super.onActivityResult(requestCode,resultCode,data)
-        if(resultCode != RESULT_OK || requestCode !in listOf(REQUEST_CSV,REQUEST_ZIP)) return
-        val uri=data?.data ?: return
-        runWorker {
-            GameSessionRepository(applicationContext).use { repo ->
-                val output=contentResolver.openOutputStream(uri,"w") ?: error("Нет потока записи")
-                output.use {
-                    if(requestCode==REQUEST_ZIP) repo.exportZip(it)
-                    else BufferedWriter(OutputStreamWriter(it,Charsets.UTF_8)).use { writer ->
-                        repo.writeCsv(writer,"samples")
-                    }
-                }
-            }
-            "Экспорт завершён через выбранный системный документ."
-        }
+        if (resultCode != RESULT_OK || requestCode !in listOf(REQUEST_CSV,REQUEST_ZIP)) return
+        val uri = data?.data ?: return
+        // The system picker stays in Activity; content writes are in the ViewModel.
+        viewModel.export(uri, requestCode == REQUEST_ZIP)
     }
-
-    private fun runWorker(job: () -> String) {
-        reportView.text="Обработка локальных данных…"
-        worker.execute {
-            val text=runCatching { job() }.getOrElse { "Ошибка: "+it.javaClass.simpleName }
-            runOnUiThread { if(!isFinishing && !isDestroyed) reportView.text=text }
-        }
-    }
-
-    private fun date(ms: Long): String =
-        SimpleDateFormat("dd.MM HH:mm:ss",Locale.getDefault()).format(Date(ms))
 
     private val Int.dp: Int get()=(this*resources.displayMetrics.density).toInt()
 
-    override fun onDestroy() {
-        worker.shutdown()
-        super.onDestroy()
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putString("packageInput", packageInput.text.toString())
+        outState.putString("labelInput", labelInput.text.toString())
+        outState.putString("selectedPackage", selectedPackage)
+        outState.putBoolean("tcpOptIn", tcpOption.isChecked)
+        super.onSaveInstanceState(outState)
     }
 }
