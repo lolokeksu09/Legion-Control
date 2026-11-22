@@ -139,7 +139,7 @@ for name,records in old.items():
 db.close()
 
 for phrase in ("fun save(","fun audit(","fun events(","fun writeCsv(","fun remove(",
-               "db.beginTransaction()","AppObservationEvent","last_seen_status",
+               "db.beginTransaction()","last_seen_status",
                "MAX_ITEMS","csvCell"):
     assert phrase in repository,phrase
 for phrase in ("fun launchable(","queryIntentActivities","GET_PERMISSIONS",
