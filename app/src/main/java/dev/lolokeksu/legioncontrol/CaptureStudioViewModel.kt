@@ -29,6 +29,7 @@ class CaptureStudioViewModel(application: Application) : AndroidViewModel(applic
     private val repository = CaptureStudioRepository(application)
     private val worker = Executors.newSingleThreadExecutor()
     private val revision = AtomicInteger(0)
+    private val screenshotRevision = AtomicInteger(0)
     private val libraryMutable = MutableLiveData<CaptureLibraryState>(CaptureLibraryState.Idle)
     val library: LiveData<CaptureLibraryState> = libraryMutable
 
@@ -64,11 +65,11 @@ class CaptureStudioViewModel(application: Application) : AndroidViewModel(applic
     }
 
     fun refreshScreenshots() {
-        val token = revision.incrementAndGet()
+        val token = screenshotRevision.incrementAndGet()
         screenshotsMutable.value = CaptureScreenshotsState.Loading
         worker.execute {
             val result = runCatching { repository.screenshots() }
-            if (token != revision.get()) return@execute
+            if (token != screenshotRevision.get()) return@execute
             screenshotsMutable.postValue(result.fold(
                 { CaptureScreenshotsState.Ready(it) },
                 { CaptureScreenshotsState.Error("Не удалось прочитать снимки: " + it.javaClass.simpleName) }
@@ -77,17 +78,17 @@ class CaptureStudioViewModel(application: Application) : AndroidViewModel(applic
     }
 
     fun deleteConfirmedScreenshot(shot: CaptureScreenshot) {
-        val token = revision.incrementAndGet()
+        val token = screenshotRevision.incrementAndGet()
         screenshotsMutable.value = CaptureScreenshotsState.Loading
         worker.execute {
             val deleted = runCatching { repository.deleteOwnScreenshot(shot) }
-            if (token != revision.get()) return@execute
+            if (token != screenshotRevision.get()) return@execute
             messageMutable.postValue(deleted.fold(
                 { if (it) "Снимок удалён." else "Снимок не удалось удалить." },
                 { "Удаление PNG отклонено: " + it.javaClass.simpleName }
             ))
             val shots = runCatching { repository.screenshots() }
-            if (token != revision.get()) return@execute
+            if (token != screenshotRevision.get()) return@execute
             screenshotsMutable.postValue(shots.fold(
                 { CaptureScreenshotsState.Ready(it) },
                 { CaptureScreenshotsState.Error("Не удалось обновить снимки: " + it.javaClass.simpleName) }
@@ -115,6 +116,7 @@ class CaptureStudioViewModel(application: Application) : AndroidViewModel(applic
 
     override fun onCleared() {
         revision.incrementAndGet()
+        screenshotRevision.incrementAndGet()
         worker.shutdown()
         super.onCleared()
     }
