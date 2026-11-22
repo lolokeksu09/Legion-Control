@@ -7,6 +7,7 @@ root = Path(__file__).resolve().parents[1]
 src = root / "app/src/main/java/dev/lolokeksu/legioncontrol"
 store = (src / "LocalHistoryStore.kt").read_text(encoding="utf-8")
 activity = (src / "MainActivity.kt").read_text(encoding="utf-8")
+reader = (src / "DiagnosticsHistoryRepository.kt").read_text(encoding="utf-8")
 archive = (src / "DiagnosticArchive.kt").read_text(encoding="utf-8")
 sessions = (src / "SessionAnalytics.kt").read_text(encoding="utf-8")
 sensors = (src / "SensorQualityAnalytics.kt").read_text(encoding="utf-8")
@@ -91,8 +92,8 @@ assert "acceptedSessionId == null || !primarySave.second" in sample
 assert "history.endSession(" in activity
 assert "history.writeDiagnosticArchive(it)" in activity
 assert "REQUEST_EXPORT_ARCHIVE" in activity
-assert "SensorQualityAnalytics.format(history.recentSensorAttempts())" in activity
-assert "SessionAnalytics.analyze(points)" in activity
+assert "SensorQualityAnalytics.format(history.recentSensorAttempts())" in reader
+assert "SessionAnalytics.analyze(points)" in reader
 assert "diagnosticsExecutor.execute {" in activity.split("private fun showSavedHistory() {",1)[1].split("private fun showSensorQuality()",1)[0]
 assert "DROP TABLE" not in store and "DELETE FROM samples" not in store
 print("PASS: actual SQLite session, sensor and thermal queries; nonblocking export, archive and FK ordering")

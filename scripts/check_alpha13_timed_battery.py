@@ -13,6 +13,7 @@ schema5 = (src / "TimedBatterySchema.kt").read_text(encoding="utf-8")
 models = (src / "TimedBatteryTestModels.kt").read_text(encoding="utf-8")
 runner = (src / "ForegroundBatteryTest.kt").read_text(encoding="utf-8")
 activity = (src / "MainActivity.kt").read_text(encoding="utf-8")
+reader = (src / "DiagnosticsHistoryRepository.kt").read_text(encoding="utf-8")
 archive = (src / "DiagnosticArchive.kt").read_text(encoding="utf-8")
 
 def table(model):
@@ -125,9 +126,10 @@ for expected in (
     "timedTest?.stop(TimedBatteryStopReason.APP_BACKGROUND)",
     "history.recordTimedBatteryTest(completed)",
     "TimedBatteryPoint(", "private fun sample(): TimedBatteryPoint?",
-    "timedTest?.isActive == true", "history.recentTimedBatteryTests()",
+    "timedTest?.isActive == true",
 ):
     assert expected in activity, expected
+assert "history.recentTimedBatteryTests()" in reader
 assert "timed-tests.csv" in archive
 assert "timedCsv = ::writeTimedBatteryTestsCsv" in store
 assert "DROP TABLE" not in store and "DELETE FROM samples" not in store
