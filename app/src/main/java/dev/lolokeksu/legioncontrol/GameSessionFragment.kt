@@ -155,7 +155,7 @@ class GameSessionFragment : Fragment() {
             labelInput.setText(savedInstanceState.getString("labelInput").orEmpty())
             tcpOption.isChecked = savedInstanceState.getBoolean("tcpOptIn", false)
         } else arguments?.getString("smart_package")?.takeIf {
-            Regex("^[A-Za-z][A-Za-z0-9_]*(\\\\.[A-Za-z0-9_]+)+$").matches(it)
+            packagePattern.matches(it)
         }?.let {
             packageInput.setText(it)
             labelInput.setText(arguments?.getString("smart_label") ?: it)
