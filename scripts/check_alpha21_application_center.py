@@ -42,7 +42,7 @@ assert "android.permission.ACCESS_FINE_LOCATION" not in perms
 assert any(a.get(ns+"name")==".ApplicationCenterActivity" and
            a.get(ns+"exported")=="false" for a in manifest.findall("./application/activity"))
 assert "ApplicationCenterActivity::class.java" in (src/"MainActivity.kt").read_text(encoding="utf-8")
-assert "ApplicationCenterActivity::class.java" in (src/"SmartProfilesActivity.kt").read_text(encoding="utf-8")
+assert "ApplicationCenterActivity::class.java" in (src/"SmartProfilesFragment.kt").read_text(encoding="utf-8")
 
 def ddl(source,expected):
     tables=re.findall(r'db.execSQL\("""(.*?)""".trimIndent\(\)\)',source,re.S)
