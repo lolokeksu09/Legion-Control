@@ -353,6 +353,9 @@ class HubPageFragment : Fragment() {
         tile("Session Baselines", "Медиана прошлых сессий, исключения и экспорт") {
             NavHostFragment.findNavController(this).navigate(R.id.sessionBaselinesFragment)
         }
+        tile("Session Incidents", "Длительность проблемных состояний, ручные метки и CSV") {
+            NavHostFragment.findNavController(this).navigate(R.id.sessionIncidentsFragment)
+        }
         tile("Измерения устройства", "Rust JNI, батарея, тепловая история и CSV") { open(MainActivity::class.java) }
         tile("Эксперименты", "Сравнения и заметки") { open(ExperimentLabActivity::class.java) }
         tile("Клипы MP4", "Movies/LegionControl/ · локальная библиотека") { open(CaptureStudioActivity::class.java) }
@@ -366,7 +369,13 @@ class HubPageFragment : Fragment() {
             val state = if (session.endedAtMs == null) "Нет записи завершения"
                 else "Завершена: " + (session.endReason ?: "нет причины")
             tile(session.appLabel, "${whenRecorded} · ${state}") {
-                open(GameSessionActivity::class.java)
+                NavHostFragment.findNavController(this).navigate(
+                    R.id.sessionIncidentsFragment,
+                    Bundle().apply {
+                        putString("session_id", session.id)
+                        putString("smart_package", session.packageName)
+                    }
+                )
             }
         }
     }

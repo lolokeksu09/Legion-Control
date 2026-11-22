@@ -60,6 +60,12 @@ class SessionBaselinesFragment:Fragment() {
         button("За последние 30 дней") { vm.setDays(30) }
         button("Обновить базовые показатели") { vm.refresh() }
         button("Открыть Session Signals выбранной игры") { openSignals() }
+        button("Session Incidents · эпизоды выбранной игры") {
+            NavHostFragment.findNavController(this).navigate(
+                R.id.sessionIncidentsFragment,
+                Bundle().apply { vm.selectedPackage?.let { putString("smart_package", it) } }
+            )
+        }
         button("Экспортировать сравнение CSV") { export() }
         button("Поделиться текстовым сравнением") { share() }
         output=TextView(requireContext()).apply {

@@ -147,7 +147,8 @@ class NavigationHostActivity : FragmentActivity() {
             val actual = destination.id
             val active = when (actual) {
                 R.id.gameDetailFragment -> R.id.gamesFragment
-                R.id.gameSessionFragment, R.id.sessionSignalsFragment, R.id.applicationCenterDestination,
+                R.id.gameSessionFragment, R.id.sessionSignalsFragment, R.id.sessionIncidentsFragment,
+                R.id.applicationCenterDestination,
                 R.id.smartProfilesDestination, R.id.audioLabDestination,
                 R.id.hapticLabDestination, R.id.connectivityLabDestination,
                 R.id.experimentLabDestination, R.id.compatibilityLabDestination,
@@ -164,6 +165,7 @@ class NavigationHostActivity : FragmentActivity() {
             back.visibility = if (actual == R.id.gameDetailFragment ||
                 actual == R.id.gameSessionFragment ||
                 actual == R.id.sessionSignalsFragment ||
+                actual == R.id.sessionIncidentsFragment ||
                 actual == R.id.sessionBaselinesFragment ||
                 actual == R.id.applicationCenterDestination ||
                 actual == R.id.smartProfilesDestination ||
@@ -184,6 +186,7 @@ class NavigationHostActivity : FragmentActivity() {
                 R.id.gameSessionFragment -> "ЗАПИСЬ ИГРОВОЙ СЕССИИ"
                 R.id.sessionSignalsFragment -> "ХРОНОЛОГИЯ И СОБЫТИЯ"
                 R.id.sessionBaselinesFragment -> "ИСТОРИЧЕСКИЕ БАЗОВЫЕ ПОКАЗАТЕЛИ"
+                R.id.sessionIncidentsFragment -> "ИНТЕРВАЛЫ СОСТОЯНИЯ УСТРОЙСТВА"
                 R.id.applicationCenterDestination -> "БИБЛИОТЕКА ПРИЛОЖЕНИЙ"
                 R.id.smartProfilesDestination -> "УМНЫЕ ПРОФИЛИ"
                 R.id.audioLabDestination -> "АУДИО ЛАБОРАТОРИЯ"
@@ -207,6 +210,13 @@ class NavigationHostActivity : FragmentActivity() {
                 intent.getStringExtra("smart_package")?.let { putString("smart_package",it) }
             }
             nav.navigate(R.id.sessionBaselinesFragment,args)
+        }
+        if (savedInstanceState == null && intent.getBooleanExtra("open_session_incidents", false)) {
+            val args = Bundle().apply {
+                intent.getStringExtra("smart_package")?.let { putString("smart_package", it) }
+                intent.getStringExtra("session_id")?.let { putString("session_id", it) }
+            }
+            nav.navigate(R.id.sessionIncidentsFragment, args)
         }
         ViewModelProvider(this)[HubViewModel::class.java].refresh()
     }

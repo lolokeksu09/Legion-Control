@@ -76,10 +76,10 @@ for old in (
 assert graph.tag == "navigation"
 assert graph.get(res+"startDestination") == "@id/homeFragment"
 nodes = graph.findall("fragment")
-assert len(nodes) == 18
+assert len(nodes) == 19
 assert {n.get(android+"id") for n in nodes} == {
     "@+id/homeFragment", "@+id/gamesFragment", "@+id/toolsFragment",
-    "@+id/historyFragment", "@+id/settingsFragment", "@+id/gameDetailFragment", "@+id/gameSessionFragment", "@+id/sessionSignalsFragment", "@+id/sessionBaselinesFragment",
+    "@+id/historyFragment", "@+id/settingsFragment", "@+id/gameDetailFragment", "@+id/gameSessionFragment", "@+id/sessionSignalsFragment", "@+id/sessionBaselinesFragment", "@+id/sessionIncidentsFragment",
     "@+id/applicationCenterDestination", "@+id/smartProfilesDestination",
     "@+id/audioLabDestination", "@+id/hapticLabDestination",
     "@+id/connectivityLabDestination", "@+id/experimentLabDestination",
@@ -93,6 +93,7 @@ for node in nodes:
         "dev.lolokeksu.legioncontrol.GameSessionFragment",
         "dev.lolokeksu.legioncontrol.SessionSignalsFragment",
         "dev.lolokeksu.legioncontrol.SessionBaselinesFragment",
+        "dev.lolokeksu.legioncontrol.SessionIncidentsFragment",
         "dev.lolokeksu.legioncontrol.ApplicationCenterFragment",
         "dev.lolokeksu.legioncontrol.SmartProfilesFragment",
         "dev.lolokeksu.legioncontrol.AudioLabFragment",
@@ -106,6 +107,9 @@ for node in nodes:
     if node.get(android+"id") == "@+id/gameSessionFragment":
         assert [x.get(android+"name") for x in node.findall("argument")] == [
             "smart_package", "smart_label", "smart_tcp"]
+    elif node.get(android+"id") == "@+id/sessionIncidentsFragment":
+        assert [x.get(android+"name") for x in node.findall("argument")] == [
+            "smart_package", "session_id"]
     elif node.get(android+"id") in ("@+id/audioLabDestination","@+id/hapticLabDestination",
                                   "@+id/connectivityLabDestination","@+id/compatibilityLabDestination",
                                   "@+id/hardwareLabDestination", "@+id/gamingDiagnosticsDestination"):

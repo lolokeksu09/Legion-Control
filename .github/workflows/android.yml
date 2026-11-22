@@ -97,6 +97,8 @@ jobs:
         run: python3 scripts/check_alpha30_session_signals.py
       - name: Validate alpha.31 per-game baseline backend and navigation
         run: python3 scripts/check_alpha31_session_baselines.py
+      - name: Validate alpha.32 session incident engine and routes
+        run: python3 scripts/check_alpha32_session_incidents.py
       - name: Run pure Kotlin CSV and Russian plural regression tests
         run: gradle --no-daemon testDebugUnitTest
       - name: Test and compile real Rust backend for Android
