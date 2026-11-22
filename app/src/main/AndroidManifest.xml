@@ -69,7 +69,9 @@
         <activity android:name=".HardwareLabActivity" android:exported="false" />
         <activity android:name=".DisplayPatternActivity" android:exported="false" />
         <activity android:name=".GamingDiagnosticsActivity" android:exported="false" />
-        <activity android:name=".MainActivity" android:exported="true">
+        <!-- One public launcher. Every existing Activity and its Kotlin/Rust backend remain. -->
+        <activity android:name=".MainActivity" android:exported="false" />
+        <activity android:name=".NavigationHostActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
