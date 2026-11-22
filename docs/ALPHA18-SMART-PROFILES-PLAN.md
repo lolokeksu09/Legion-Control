@@ -1,5 +1,5 @@
 # Legion Control v0.1.0-alpha.18 — Smart Profiles & Automation
-Status: IN PROGRESS — source implemented; release/physical-device verification pending. Plan was committed first, before any alpha.18 code.
+Status: IMPLEMENTED AND SIGNED — GitHub CI and release checks passed; physical-device testing required before 4PDA compatibility claims. Plan was committed first, before any alpha.18 code.
 Baseline: main 4e960764c418c9d23fc818cf8215305eda84e291 (alpha.17).
 Target: Android 13+ (minSdk 33), targetSdk 36, no Root/Shizuku, universal Android devices and games, suitable for public 4PDA distribution.
 
@@ -66,9 +66,10 @@ Acceptance: no root dependency; no WRITE_SECURE_SETTINGS; clean handling of unsu
 
 Paths: `app/src/test/...`, `scripts/check_alpha18_smart_profiles.py`, `.github/workflows/android.yml`, `.github/workflows/release-apk.yml`, `docs/...`, `README.md`.
 
-- [ ] Tests: pure rules/aggregates, SQLite real 6→7 with history preservation, permission/manifest/static contracts, backup round trip.
-- [ ] CI: unit tests, debug assemble, lint, native Rust builds, signing guard and release-certificate fingerprint; keep all previous alpha.4–17 CI checks valid, updating only strict version/permission assumptions.
-- [ ] PR review, merge only after green CI. Trigger main signing workflow; verify the permanent certificate and APK versionCode 18. Provide downloadable APK and 4PDA changelog only if a real verified artifact exists.
+- [x] Tests: pure Kotlin rules and aggregate formatting, real SQLite v6→v7 preservation, permission/manifest/static contracts.
+- [ ] End-to-end on Android: JSON backup round trip, UI permissions, foreground recording and OEM behavior (needs a physical device).
+- [x] CI: unit tests, debug assemble, lint, native Rust builds, signing guard, and release-certificate fingerprint. Previous alpha.4–17 checks retained and verified.
+- [x] PR #21 merged only after green CI. Main release workflow succeeded with pinned permanent certificate; alpha.18 signed APK artifact verified.
 - [ ] Physical test required on Lenovo Legion Y70 (Motorola firmware) plus preferably a separate OEM: actual FGS behavior, DND permission flow, profiles, import/export, wake/sleep, notification actions, installation over alpha.17.
 
 ## Risks and explicit limitations
@@ -94,4 +95,12 @@ Paths: `app/src/test/...`, `scripts/check_alpha18_smart_profiles.py`, `.github/w
 
 Committed as code (not just a proposal): SQLite v7; rule engine with cooldown; CRUD, events, transaction-limited JSON backup; per-app SQL insights; opt-in manual network probe; Android controls and permission status; QS tile; Smart Profiles UI and explicit Game Session handoff; old test-contract updates; new v6→v7 migration and JVM tests. PR: https://github.com/lolokeksu09/Legion-Control/pull/21.
 
-**Gates:** A PASS (plan was first commit), B PASS (real SQLite migration exercise), C PASS on pre-fix revision for JVM tests, D PENDING (Android lint fix to recheck), E NOT RUN (permanent signed release after main merge), F NOT RUN (physical Android device). Do not call this a public release until D/E pass and do not claim physical OEM compatibility until F passes.
+**Gates:** A PASS (plan was first commit), B PASS (real SQLite migration exercise), C PARTIAL (pure JVM rules tested; Android UI not instrumented), D PASS (39-step CI), E PASS (signed release workflow), F NOT RUN (physical Android device). Do not claim OEM compatibility until F passes.
+
+## Release evidence (2026-11-22)
+
+- Merged source commit: `0da1277bf05ce5891bda9b8b39c943316ce52dde` (PR #21).
+- Android/Rust CI on main: https://github.com/lolokeksu09/Legion-Control/actions/runs/44996348563 — success, 39 steps.
+- Pinned release signing workflow on main: https://github.com/lolokeksu09/Legion-Control/actions/runs/44996348704 — success, includes permanent certificate verification.
+- Release artifact: `Legion-Control-v0.1.0-alpha.18-permanent-release-apk` in the signing workflow. Extracted file SHA-256: `0948930fe5b7bc28ffb81e766e0eaf9ea9700a67b394757a0cb791eefaf4f187`. Two native Rust ABIs present.
+- Test on actual Android hardware remains **NOT RUN**. Keep this distinction in the 4PDA post.
