@@ -14,7 +14,7 @@ import java.util.concurrent.Future
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
-enum class GamingProbe { NETWORK,BATTERY,WIFI,USAGE,CHARGING,SESSION,SYSTEM }
+enum class GamingProbe { NETWORK,BATTERY,WIFI,USAGE,CHARGING,SESSION,SYSTEM,THERMAL }
 
 /** One-off public API inspections, real local SQLite comparisons and user-managed listeners. */
 class GamingDiagnosticsViewModel(app:Application):AndroidViewModel(app) {
@@ -67,6 +67,7 @@ class GamingDiagnosticsViewModel(app:Application):AndroidViewModel(app) {
                         SessionComparison.format(sessions)
                     }
                     GamingProbe.SYSTEM -> DeviceInsights.system(app,refreshHzDisplay)
+                    GamingProbe.THERMAL -> DeviceInsights.thermal(app)
                 }
             }.getOrElse { "Ошибка диагностики: "+it.javaClass.simpleName }
             main.post {
@@ -108,7 +109,7 @@ class GamingDiagnosticsViewModel(app:Application):AndroidViewModel(app) {
             return
         }
         thermalListener=listener
-        run(GamingProbe.SYSTEM) // Initial public-API snapshot is manual and read off the UI thread.
+        run(GamingProbe.THERMAL) // Preserve original thermal baseline when user enables the guard.
     }
 
     fun stopThermalGuard() {
