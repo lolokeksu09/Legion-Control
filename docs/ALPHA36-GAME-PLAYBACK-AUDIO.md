@@ -6,7 +6,7 @@ Capture Studio now offers two explicit recording modes:
 - **Video without sound (default)**: the existing `MediaRecorder`/MediaProjection MP4 path. No audio permissions prompt.
 - **Video + permitted internal game/media audio**: the user opts in, Android grants `RECORD_AUDIO` if needed, then the user separately approves a **fresh MediaProjection request**. The app never calls any microphone source API; `RECORD_AUDIO` is the Android requirement for `AudioPlaybackCaptureConfiguration`.
 
-The recording backend uses `AudioPlaybackCaptureConfiguration.Builder(mediaProjection)` with only `USAGE_GAME` and `USAGE_MEDIA`. `AudioRecord` reads PCM from playback, `MediaCodec` produces AAC-LC (48kHz stereo, 128kb/s) and an app-private temporary M4A. The existing H.264 `MediaRecorder` still creates the video MP4.
+The recording backend requires a launchable game selected in Game Toolbox and uses `AudioPlaybackCaptureConfiguration.Builder(mediaProjection)` with only `USAGE_GAME` and `USAGE_MEDIA` **plus `addMatchingUid` for that selected game**. Other applications are excluded. `AudioRecord` reads PCM from playback, `MediaCodec` produces AAC-LC (48kHz stereo, 128kb/s) and an app-private temporary M4A. The existing H.264 `MediaRecorder` still creates the video MP4.
 
 After the user stops recording, pauses too long, or Android revokes projection, a worker finalizes the AAC file and copies audio/video tracks into one MP4 via `MediaExtractor` + `MediaMuxer`. The remux destination stays `IS_PENDING=1` until fully published. The temporary M4A and intermediate MP4 are cleaned after a successful merge; if audio capture or remux fails, the **original video-only MP4** is preserved and the failure is reported instead of inventing sound.
 
@@ -27,7 +27,7 @@ The hybrid MediaRecorder + AudioRecord + AAC + MediaMuxer pipeline is materially
 
 Required physical acceptance:
 1. With audio mode OFF, deny RECORD_AUDIO entirely: video-only recording should work as before.
-2. With audio mode ON, deny RECORD_AUDIO: recording must not start silently; user can turn audio off.
+2. With audio mode ON and no selected game, fail without starting capture. With the game selected, deny RECORD_AUDIO: recording must not start silently; user can turn audio off.
 3. Grant RECORD_AUDIO, accept fresh screen capture, start a game playing recordable media: resulting MP4 should contain H264 + AAC tracks and audible sound aligned with video.
 4. Confirm no microphone/chat audio is captured and audio from an explicitly non-capturable app is absent.
 5. Pause and resume video several times, confirm MP4 audio/video timeline; test stop while paused, 5-minute pause timeout, Android revoking MediaProjection, codec initialization failure and rapid duplicate actions.
