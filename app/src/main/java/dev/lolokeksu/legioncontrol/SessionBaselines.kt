@@ -114,7 +114,7 @@ object SessionBaselines {
             } != false) add("конец сессии не покрыт")
             if (sorted.any { it.powerSaving == true }) add("энергосбережение включалось")
             if (reading.dischargePercentPerHour == null)
-                add("нет допустимой оценки разряда (зарядка/пропуски/короткое окно)")
+                add("нет допустимой оценки разряда (рост заряда/пропуски/короткое окно)")
             if (reading.peakBatteryTempDeciC == null)
                 add("нет измерений температуры батареи")
         }

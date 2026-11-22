@@ -9,7 +9,7 @@ Depends on alpha.30 PR #32; branch PR #33 is stacked and targets alpha.30, not m
 - Existing ExperimentAnalytics.evidence supplies valid battery discharge and temperature.
 - Strict exclusions: unknown/incomplete session, session under 2 minutes,
   fewer than 6 readings, samples cut at 2,000, gaps over 45 seconds, coverage under 70%,
-  missing start/end coverage, power saving, charging/increasing battery percentage
+  missing start/end coverage, power saving, rising battery percentage (possible charging)
   or missing temperature. Excluded rows and reasons stay visible.
 - Median from previous sessions (not including latest) for peak battery temperature
   and observed percentage-point discharge/hour. Simple elevated-value signals only

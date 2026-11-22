@@ -42,7 +42,7 @@ class SessionBaselinesFragment:Fragment() {
         root.addView(TextView(requireContext()).apply {
             text="Сравнение условий устройства в записях одной игры. " +
                 "Последняя сессия против медианы минимум трёх предыдущих. " +
-                "Разрывы, незавершённые записи и зарядка исключаются из сравнения."
+                "Записи с разрывами, энергосбережением или ростом процента заряда исключаются."
             textSize=13f
             setTextColor(0xFFB4B4B4.toInt())
             setPadding(0,12.dp,0,14.dp)
