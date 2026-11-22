@@ -18,13 +18,13 @@
 
 ## Sequence and acceptance
 - [x] Create feature branch and commit this plan as the *first commit*.
-- [ ] Implement pure `HapticPattern.kt`, written test-first for bound timings/intensity/no repeat, separate from Android backend.
-- [ ] Implement `HapticLabSchema.kt` SQLite v12 and `HapticLabRepository.kt` with transactional finish/cascade, error and interruption semantics, CSV injection safety and no deletion of previous history.
-- [ ] Implement `HapticDeviceInspector.kt` via Android documented public APIs; `HapticPlaybackBackend.kt` with user-only vibration, cancellation on app background and no endless vibration.
-- [ ] Add `HapticLabActivity.kt`, manifest and MainActivity navigation, system volume-independent disclosure, present feedback as subjective.
-- [ ] Real SQLite v11→v12 migration test preserving all prior tables and seeded rows (including alpha.22 audio history), FK/check negative tests; JVM pattern tests, retain all old regressions (update exact version and button count only).
-- [ ] Update both workflows, README, `docs/ALPHA23-HAPTIC-LAB.md` and versionCode 23.
-- [ ] PR, green Kotlin/Rust/Android assemble/lint, unsigned and temporary signing rejection, merge, permanent signing workflow, verify APK and link direct chat artifact.
+- [x] Implement pure `HapticPattern.kt`, written test-first for bound timings/intensity/no repeat, separate from Android backend.
+- [x] Implement `HapticLabSchema.kt` SQLite v12 and `HapticLabRepository.kt` with transactional finish/cascade, error and interruption semantics, CSV injection safety and no deletion of previous history.
+- [x] Implement `HapticDeviceInspector.kt` via Android documented public APIs; `HapticPlaybackBackend.kt` with user-only vibration, cancellation on app background and no endless vibration.
+- [x] Add `HapticLabActivity.kt`, manifest and MainActivity navigation, system volume-independent disclosure, present feedback as subjective.
+- [x] Real SQLite v11→v12 migration test preserving all prior tables and seeded rows (including alpha.22 audio history), FK/check negative tests; JVM pattern tests, retain all old regressions (update exact version and button count only).
+- [x] Update both workflows, README, `docs/ALPHA23-HAPTIC-LAB.md` and versionCode 23.
+- [x] PR, green Kotlin/Rust/Android assemble/lint, unsigned and temporary signing rejection, merge, permanent signing workflow, verify APK and link direct chat artifact.
 
 ## Interpretation
 - API request `COMPLETED_REQUEST` means the waveform was submitted and the bounded interval elapsed **without detected exception**. It does NOT verify physical vibration, G-force, click intensity, frequency, motor health, gaming-specific haptics, latency or OEM behavior.
@@ -34,6 +34,17 @@
 - Physical Lenovo Legion Y70 (seller Motorola ROM), other OEM devices, actual haptic feel, auto-stop on Home, feedback persistence, CSV export and update from alpha.22: **NOT TESTED** until on real hardware.
 
 ## Evidence
-- Plan-first commit: pending first commit.
-- CI and signed APK: not yet run.
-- Physical test: NOT RUN.
+- Plan-first commit: `7cf1ef16e99f9dcbcdcafcaa5f1ca8863560de31` — before any feature code. Pure HapticPattern JVM tests committed before implementation.
+- CI and permanently signed APK: PASS (see verified evidence below).
+- Physical test: NOT RUN; Lenovo Legion Y70/Motorola ROM and other OEM haptic sensation must be verified on hardware.
+
+## Release verification — 22 November 2026
+
+- **PR #26:** https://github.com/lolokeksu09/Legion-Control/pull/26, merged to main as `7c8d7b5891c17e4dda02f7c7f98686620dfecd57`.
+- **Pull request CI:** https://github.com/lolokeksu09/Legion-Control/actions/runs/45013811689 — SUCCESS, **44/44** steps after fixing static range check and Android primitive constant passing; no lint baseline or contract disabled.
+- **Main CI:** https://github.com/lolokeksu09/Legion-Control/actions/runs/45014232925 — SUCCESS, **44/44** steps on merged source.
+- **Permanent signed release:** https://github.com/lolokeksu09/Legion-Control/actions/runs/45014232912 — SUCCESS, 19 steps, including pinned permanent signing fingerprint verification, Rust native ABIs and signed release lint.
+- **GitHub artifact:** `Legion-Control-v0.1.0-alpha.23-permanent-release-apk` (artifact ID `14751023796`). Downloaded zip passed CRC; actual APK `app-release.apk` passed ZIP CRC and contains `AndroidManifest.xml`, `lib/arm64-v8a/liblegion_core.so` and `lib/x86_64/liblegion_core.so`.
+- **Signed APK:** 3,652,957 bytes; **SHA-256** `a6d93fd6023e47601915c6af227a39d377a43c063d29ff6a1dfb061e6ce95862`; direct chat artifact `Legion-Control-v0.1.0-alpha.23-signed.apk`.
+- **SQLite v11→v12:** real Python SQLite migration preserving 17+ prior tables including alpha.22 Audio Lab, with FK/cascade/negative SQL constraint tests, plus pure JVM tests for all five finite waveform patterns and CSV escaping.
+- **Not established by CI:** live physical motor output, intensity, latency, app install over alpha.22, OEM configuration settings, vibration interruption on the physical Lenovo, or in-device CSV/dialog UX. No real-world benchmark or calibration claim.
