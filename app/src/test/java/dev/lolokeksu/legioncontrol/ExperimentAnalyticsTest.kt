@@ -13,9 +13,11 @@ class ExperimentAnalyticsTest {
         GameTelemetryPoint(time,percent,temp,null,thermal,saving,120f,type,valid)
 
     @Test fun completedDischargeUsesSampleTimesNotWallClockOrCapacity() {
-        val samples=listOf(point(1000,80,380),point(301000,78,390),point(901000,75,400))
+        val samples=(0..60).map { i ->
+            point(1000L+i*15_000L,80-(5*i/60),380+i/3)
+        }
         val e=ExperimentAnalytics.evidence(baseline,samples)
-        assertEquals(3,e.samples)
+        assertEquals(61,e.samples)
         assertEquals(900000L/60000.0,e.observedMinutes!!,0.001)
         assertEquals(20.0,e.dischargePercentPerHour!!,0.001)
         assertEquals(400,e.peakBatteryTempDeciC)
