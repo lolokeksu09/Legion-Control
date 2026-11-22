@@ -49,8 +49,13 @@ services = manifest.findall("./application/service")
 assert services[0].get(android+"name") == ".GameSessionRecorderService"
 assert {s.get(android+"name") for s in services} == {
     ".GameSessionRecorderService", ".GameToolboxService",
-    ".CaptureRecordingService", ".LegionQuickTileService",
+    ".CaptureRecordingService", ".CaptureScreenshotService", ".LegionQuickTileService",
 }
+
+screenshot_service = next(s for s in services
+                          if s.get(android+"name") == ".CaptureScreenshotService")
+assert screenshot_service.get(android+"exported") == "false"
+assert screenshot_service.get(android+"foregroundServiceType") == "mediaProjection"
 
 activities = {a.get(android+"name"): a
     for a in manifest.findall("./application/activity")}
