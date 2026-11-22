@@ -107,6 +107,8 @@ jobs:
         run: python3 scripts/check_alpha35_capture_pause_resume.py
       - name: Validate alpha.36 game playback audio capture and no-microphone media muxing
         run: python3 scripts/check_alpha36_playback_audio.py
+      - name: Validate alpha.37 bounded non-destructive Clip Workshop exports
+        run: python3 scripts/check_alpha37_clip_workshop.py
       - name: Run pure Kotlin CSV and Russian plural regression tests
         run: gradle --no-daemon testDebugUnitTest
       - name: Test and compile real Rust backend for Android

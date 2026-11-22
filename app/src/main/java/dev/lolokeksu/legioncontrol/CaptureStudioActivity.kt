@@ -12,6 +12,8 @@ import android.media.projection.MediaProjectionManager
 import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
+import android.text.InputType
+import android.widget.EditText
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -159,6 +161,10 @@ class CaptureStudioActivity : ComponentActivity() {
             "Здесь показываются только клипы, сохранённые самим Legion Control. " +
             "Никакие чужие видео приложение не читает.")
         action("ОТКРЫТЬ БИБЛИОТЕКУ КЛИПОВ") { browseClips() }
+        note("CLIP WORKSHOP · Выделяйте фрагменты MP4 без потери качества и " +
+            "сохраняйте отдельные PNG-кадры. Начало MP4 округляется к предыдущему " +
+            "ключевому кадру; исходный файл сохраняется.")
+        action("ОТМЕНИТЬ ОБРАБОТКУ КЛИПА") { viewModel.cancelClipEdit() }
         clipsContainer = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         root.addView(clipsContainer)
         heading("Мои снимки")
@@ -373,11 +379,87 @@ class CaptureStudioActivity : ComponentActivity() {
 
     private fun clipActions(clip: CaptureClip) {
         AlertDialog.Builder(this).setTitle(clip.name)
-            .setItems(arrayOf("Просмотреть", "Поделиться", "Удалить файл")) { _, which ->
+            .setItems(arrayOf(
+                "Просмотреть", "Поделиться",
+                "Создать фрагмент · первые 15 секунд",
+                "Создать фрагмент · последние 15 секунд",
+                "Создать фрагмент · последние 30 секунд",
+                "Создать фрагмент · выбрать границы",
+                "Сохранить кадр PNG",
+                "Удалить файл"
+            )) { _, which ->
                 when (which) {
                     0 -> viewClip(clip.uri)
                     1 -> shareClip(clip.uri)
-                    2 -> confirmDelete(clip)
+                    2 -> viewModel.saveClipExcerpt(clip, ClipTrimSelection.First(15_000))
+                    3 -> viewModel.saveClipExcerpt(clip, ClipTrimSelection.Last(15_000))
+                    4 -> viewModel.saveClipExcerpt(clip, ClipTrimSelection.Last(30_000))
+                    5 -> chooseExcerptRange(clip)
+                    6 -> chooseVideoFrame(clip)
+                    7 -> confirmDelete(clip)
+                }
+            }.setNegativeButton("Отмена", null).show()
+    }
+
+    private fun numericField(hint: String): EditText = EditText(this).apply {
+        inputType = InputType.TYPE_CLASS_NUMBER
+        this.hint = hint
+        setTextColor(Color.WHITE)
+        setHintTextColor(0xFF9399A6.toInt())
+        setSelectAllOnFocus(true)
+    }
+
+    private fun chooseExcerptRange(clip: CaptureClip) {
+        val begin = numericField("От, секунд · например 10")
+        val end = numericField("До, секунд · например 25")
+        val fields = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(20.dp, 8.dp, 20.dp, 4.dp)
+            addView(begin)
+            addView(end)
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Сохранить MP4-фрагмент")
+            .setMessage("Границы в секундах. Минимум 1 секунда. " +
+                "Видео будет начинаться с предыдущего ключевого кадра. " +
+                "Исходный MP4 останется без изменений." +
+                (if (clip.durationMs > 0) " Исходная длительность: ${clip.durationMs / 1000} с."
+                 else " Длительность проверится перед экспортом."))
+            .setView(fields)
+            .setPositiveButton("Создать") { _, _ ->
+                val start = begin.text.toString().toLongOrNull()
+                val finish = end.text.toString().toLongOrNull()
+                if (start == null || finish == null || start < 0L ||
+                    finish <= start || finish > 86_400L) {
+                    status.text = "Укажите корректные границы в целых секундах."
+                } else {
+                    viewModel.saveClipExcerpt(
+                        clip, ClipTrimSelection.Custom(start * 1000L, finish * 1000L)
+                    )
+                }
+            }
+            .setNegativeButton("Отмена", null).show()
+    }
+
+    private fun chooseVideoFrame(clip: CaptureClip) {
+        AlertDialog.Builder(this).setTitle("Экспорт PNG-кадра")
+            .setItems(arrayOf("Первый кадр", "Кадр из середины", "Указать секунду")) { _, choice ->
+                when (choice) {
+                    0 -> viewModel.saveClipFrame(clip, 0L)
+                    1 -> viewModel.saveClipFrame(clip, null)
+                    2 -> {
+                        val at = numericField("Секунда в видео")
+                        AlertDialog.Builder(this)
+                            .setTitle("Кадр по времени")
+                            .setView(at)
+                            .setPositiveButton("Сохранить PNG") { _, _ ->
+                                val seconds = at.text.toString().toLongOrNull()
+                                if (seconds == null || seconds < 0 || seconds > 86_400L) {
+                                    status.text = "Укажите корректную секунду."
+                                } else viewModel.saveClipFrame(clip, seconds * 1000L)
+                            }
+                            .setNegativeButton("Отмена", null).show()
+                    }
                 }
             }.setNegativeButton("Отмена", null).show()
     }
