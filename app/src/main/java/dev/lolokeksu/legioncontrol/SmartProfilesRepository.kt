@@ -163,8 +163,10 @@ class SmartProfilesRepository(context: Context) : AutoCloseable {
     }
 
     fun writeBackup(output: OutputStream) {
+        val profiles=list()
+        require(profiles.size<=MAX_PROFILES) { "Too many profiles for backup; export must not silently truncate" }
         val arr=JSONArray()
-        for(profile in list().take(MAX_PROFILES)) {
+        for(profile in profiles) {
             val obj=JSONObject().put("package",profile.packageName).put("label",profile.label)
                 .put("hot",profile.hotDeciC).put("low",profile.lowPercent)
                 .put("tcp",profile.tcpOptIn)
