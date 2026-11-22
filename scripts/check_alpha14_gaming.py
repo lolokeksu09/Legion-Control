@@ -26,7 +26,7 @@ expected = {
     "android.permission.FOREGROUND_SERVICE",
     "android.permission.FOREGROUND_SERVICE_SPECIAL_USE","android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION",
     "android.permission.POST_NOTIFICATIONS",
-    "android.permission.MODIFY_AUDIO_SETTINGS",
+    "android.permission.MODIFY_AUDIO_SETTINGS", "android.permission.RECORD_AUDIO",
     "android.permission.ACCESS_NOTIFICATION_POLICY",
     "android.permission.WRITE_SETTINGS","android.permission.VIBRATE","android.permission.SYSTEM_ALERT_WINDOW"
 }
