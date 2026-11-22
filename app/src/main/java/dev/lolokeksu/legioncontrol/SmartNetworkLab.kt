@@ -13,8 +13,8 @@ object SmartNetworkLab {
         val cm=context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
         val overview=runCatching {
             val network=cm?.activeNetwork
-            val caps=network?.let { cm.getNetworkCapabilities(it) }
-            val props=network?.let { cm.getLinkProperties(it) }
+            val caps=network?.let { cm?.getNetworkCapabilities(it) }
+            val props=network?.let { cm?.getLinkProperties(it) }
             "Сеть Android: "+when {
                 caps==null -> "не определена"
                 caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN) -> "VPN"
