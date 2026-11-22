@@ -70,10 +70,17 @@ class MainActivity : Activity() {
             setTypeface(typeface, Typeface.BOLD)
         })
         layout.addView(TextView(this).apply {
-            text = "Kotlin + Rust · backend alpha.19"
+            text = "Kotlin + Rust · backend alpha.20"
             textSize = 13f
             setTextColor(0xFFA5A5A5.toInt())
             setPadding(0, 8.dp, 0, 12.dp)
+        })
+        layout.addView(Button(this).apply {
+            text = "CONNECTIVITY OBSERVATORY · DNS / IPv4 / IPv6 / TCP / TLS"
+            minHeight = 52.dp
+            setOnClickListener {
+                startActivity(Intent(this@MainActivity, ConnectivityLabActivity::class.java))
+            }
         })
         layout.addView(Button(this).apply {
             text = "EXPERIMENT LAB · сессии, заметки и A/B"

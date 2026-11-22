@@ -93,6 +93,9 @@ class SmartProfilesActivity : Activity() {
         action("Сводка · 7 дней") { insights(7) }
         action("Сводка · 30 дней") { insights(30) }
         action("Последние предупреждения") { events() }
+        action("CONNECTIVITY OBSERVATORY · подробный DNS/TCP/TLS анализ") {
+            startActivity(Intent(this,ConnectivityLabActivity::class.java))
+        }
         action("NETWORK QUALITY LAB · разовый TCP/DNS-тест") { networkProbe() }
         note("Сетевой тест запускается строго по нажатию. Не измеряет ping игрового сервера.")
         action("Проверить возможности устройства") {
