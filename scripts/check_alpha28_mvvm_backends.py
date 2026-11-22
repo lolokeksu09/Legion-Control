@@ -17,7 +17,8 @@ profilevm=read("SmartProfilesViewModel.kt")
 apps=read("ApplicationCenterFragment.kt")
 appsCompat=read("ApplicationCenterActivity.kt")
 appvm=read("ApplicationCenterViewModel.kt")
-audio=read("AudioLabActivity.kt")
+audio=read("AudioLabFragment.kt")
+audioCompat=read("AudioLabActivity.kt")
 audiovm=read("AudioLabViewModel.kt")
 haptic=read("HapticLabActivity.kt")
 hapticvm=read("HapticLabViewModel.kt")
@@ -85,9 +86,9 @@ assert "ViewModelProvider(this)" in apps and "state.observe(viewLifecycleOwner)"
 assert "ApplicationCenterFragment()" in appsCompat
 assert "ViewModelProvider(this)" in profiles and "state.observe(viewLifecycleOwner)" in profiles
 assert "SmartProfilesFragment()" in profilesCompat
-for activity in (audio,haptic):
-    assert "ViewModelProvider(this)" in activity
-    assert "state.observe(this)" in activity
+assert "ViewModelProvider(this)" in audio and "state.observe(viewLifecycleOwner)" in audio
+assert "AudioLabFragment()" in audioCompat
+assert "ViewModelProvider(this)" in haptic and "state.observe(this)" in haptic
 
 # Stage 3 does NOT falsely claim a completed all-Fragment migration.
 assert "homeFragment" in graph and "gameDetailFragment" in graph
