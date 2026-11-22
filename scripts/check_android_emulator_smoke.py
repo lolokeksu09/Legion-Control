@@ -209,6 +209,11 @@ def main() -> None:
     click("НАЧАТЬ ЗАПИСЬ")
     expect_service(True)
     expect_scrolling("Запрошен запуск записи", seconds=17)
+    click("Добавить метку во время записи")
+    expect("Отметить момент во время записи")
+    adb("shell", "input", "text", "alpha30_marker")
+    click("Добавить", scrolls=0)
+    expect_scrolling("Отправлена ручная метка", seconds=18)
     time.sleep(3)
     click("ОСТАНОВИТЬ ЗАПИСЬ")
     expect_service(False)
@@ -217,6 +222,11 @@ def main() -> None:
     click("Обновить и показать последние сессии")
     expect_scrolling("ПОСЛЕДНИЕ СЕССИИ", seconds=35)
     capture("05-recorded-session-history")
+    click("Session Signals · хронология и события")
+    stage("05b-session-signals", "LEGION · SESSION SIGNALS")
+    expect_scrolling("alpha30_marker", seconds=28)
+    capture("05c-manual-mark-in-timeline")
+    back_until("LEGION · GAME SESSION")
     back_until("LEGION CONTROL · SMART PROFILES")
     back_until(TOOLS_MARKER)
 
@@ -244,6 +254,11 @@ def main() -> None:
     stage("12-experiment-lab", "LEGION · EXPERIMENT LAB")
     back_until(TOOLS_MARKER)
 
+    click("История")
+    expect("ИСТОРИЯ И ДИАГНОСТИКА")
+    click("Session Signals")
+    stage("12b-history-to-signals", "LEGION · SESSION SIGNALS")
+    back_until("ИСТОРИЯ И ДИАГНОСТИКА")
     click("Настройки")
     expect(SETTINGS_MARKER)
     click("Application Center")
@@ -251,8 +266,8 @@ def main() -> None:
     back_until(SETTINGS_MARKER)
     click("Домой")
     stage("14-return-home", "Готов к запуску")
-    print("PASS: Android emulator UI navigation, deep package preselection, explicit",
-          "Game Session start/stop/history, back stack and all 10 module screens",flush=True)
+    print("PASS: Android emulator UI navigation, explicit marker persisted in SQLite,",
+          "signal correlation, selected package, foreground START/STOP, back stack",flush=True)
 
 
 if __name__ == "__main__":
