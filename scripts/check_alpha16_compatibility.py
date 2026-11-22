@@ -6,7 +6,8 @@ root = Path(__file__).resolve().parents[1]
 src = root / "app/src/main/java/dev/lolokeksu/legioncontrol"
 compat = (src/"GamingCompatibilityBackend.kt").read_text(encoding="utf-8")
 rules = (src/"ReadinessModels.kt").read_text(encoding="utf-8")
-activity = (src/"CompatibilityLabActivity.kt").read_text(encoding="utf-8")
+activity = (src/"CompatibilityLabFragment.kt").read_text(encoding="utf-8")
+compatActivity=(src/"CompatibilityLabActivity.kt").read_text(encoding="utf-8")
 viewmodel = (src/"CompatibilityLabViewModel.kt").read_text(encoding="utf-8")
 gamepad = (src/"GamepadLiveActivity.kt").read_text(encoding="utf-8")
 hardware = (src/"HardwareLabActivity.kt").read_text(encoding="utf-8")
@@ -46,7 +47,8 @@ assert "viewModel.cancel()" in activity and "viewModel.setVisible(false)" in act
 assert "task?.cancel(true)" in viewmodel and "executor.shutdownNow()" in viewmodel
 assert "generation.incrementAndGet()" in viewmodel
 assert "ViewModelProvider(this)[CompatibilityLabViewModel::class.java]" in activity
-assert "report.observe(this)" in activity
+assert "report.observe(viewLifecycleOwner)" in activity
+assert "CompatibilityLabFragment()" in compatActivity
 assert "display.supportedModes" in compat
 assert "hdrCapabilities.supportedHdrTypes" in compat
 assert "display.isWideColorGamut" in compat
@@ -70,7 +72,7 @@ assert "dispatchKeyEvent(event: KeyEvent)" in gamepad
 assert "onGenericMotionEvent(event: MotionEvent)" in gamepad
 assert "event.keyCode != KeyEvent.KEYCODE_BACK" in gamepad
 assert "isController(event.deviceId)" in gamepad
-assert "startActivity(Intent(this,GamepadLiveActivity::class.java))" in activity
+assert "startActivity(Intent(requireContext(),GamepadLiveActivity::class.java))" in activity
 assert "onStop()" in activity and "onCleared()" in viewmodel
 for forbidden in (
     "WRITE_SECURE_SETTINGS", "BIND_ACCESSIBILITY_SERVICE",

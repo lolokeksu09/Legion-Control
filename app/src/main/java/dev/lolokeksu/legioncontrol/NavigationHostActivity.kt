@@ -150,7 +150,7 @@ class NavigationHostActivity : FragmentActivity() {
                 R.id.gameSessionFragment, R.id.applicationCenterDestination,
                 R.id.smartProfilesDestination, R.id.audioLabDestination,
                 R.id.hapticLabDestination, R.id.connectivityLabDestination,
-                R.id.experimentLabDestination -> R.id.toolsFragment
+                R.id.experimentLabDestination, R.id.compatibilityLabDestination -> R.id.toolsFragment
                 else -> actual
             }
             buttons.forEach { (id, views) ->
@@ -166,7 +166,8 @@ class NavigationHostActivity : FragmentActivity() {
                 actual == R.id.audioLabDestination ||
                 actual == R.id.hapticLabDestination ||
                 actual == R.id.connectivityLabDestination ||
-                actual == R.id.experimentLabDestination) View.VISIBLE else View.GONE
+                actual == R.id.experimentLabDestination ||
+                actual == R.id.compatibilityLabDestination) View.VISIBLE else View.GONE
             subtitle.text = when (actual) {
                 R.id.homeFragment -> "GAME HUB  ·  alpha.26"
                 R.id.gamesFragment -> "ИГРОВАЯ БИБЛИОТЕКА"
@@ -181,6 +182,7 @@ class NavigationHostActivity : FragmentActivity() {
                 R.id.hapticLabDestination -> "ТАКТИЛЬНАЯ ЛАБОРАТОРИЯ"
                 R.id.connectivityLabDestination -> "СЕТЕВАЯ ДИАГНОСТИКА"
                 R.id.experimentLabDestination -> "A/B ЭКСПЕРИМЕНТЫ"
+                R.id.compatibilityLabDestination -> "СОВМЕСТИМОСТЬ ANDROID"
                 else -> "LEGION CONTROL"
             }
         }

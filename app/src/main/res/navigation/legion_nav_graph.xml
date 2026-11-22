@@ -92,9 +92,10 @@
     <activity
         android:id="@+id/hardwareLabDestination"
         android:name="dev.lolokeksu.legioncontrol.HardwareLabActivity" />
-    <activity
+    <fragment
         android:id="@+id/compatibilityLabDestination"
-        android:name="dev.lolokeksu.legioncontrol.CompatibilityLabActivity" />
+        android:name="dev.lolokeksu.legioncontrol.CompatibilityLabFragment"
+        android:label="Compatibility Lab" />
     <activity
         android:id="@+id/gamepadLiveDestination"
         android:name="dev.lolokeksu.legioncontrol.GamepadLiveActivity" />
