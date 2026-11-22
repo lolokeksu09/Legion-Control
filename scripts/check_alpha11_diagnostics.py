@@ -94,7 +94,7 @@ for version in (1, 2, 3):
     assert db.execute("SELECT COUNT(*) FROM samples").fetchone()[0] == 1
     db.close()
 
-assert "newVersion != ConnectivitySchema.VERSION" in store
+assert "newVersion != ApplicationCenterSchema.VERSION" in store
 assert "if (oldVersion == 1) installDiagnostics(db)" in store
 assert "if (oldVersion <= 2) installSensors(db)" in store
 assert "if (oldVersion <= 3) installSensorAttempts(db)" in store
