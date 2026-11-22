@@ -14,8 +14,8 @@ analytics=(src/"ConnectivityAnalytics.kt").read_text(encoding="utf-8")
 ui=(src/"ConnectivityLabActivity.kt").read_text(encoding="utf-8")
 gradle=(root/"app/build.gradle.kts").read_text(encoding="utf-8")
 
-assert 'versionCode = 25' in gradle
-assert 'versionName = "0.1.0-alpha.25"' in gradle
+assert 'versionCode = 26' in gradle
+assert 'versionName = "0.1.0-alpha.26"' in gradle
 assert 'minSdk = 33' in gradle and 'targetSdk = 36' in gradle
 assert 'const val VERSION = 9' in schema
 assert 'newVersion != HapticLabSchema.VERSION' in store
