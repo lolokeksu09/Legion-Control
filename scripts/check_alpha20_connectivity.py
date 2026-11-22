@@ -12,6 +12,7 @@ repo=(src/"ConnectivityRepository.kt").read_text(encoding="utf-8")
 probe=(src/"ConnectivityProbe.kt").read_text(encoding="utf-8")
 analytics=(src/"ConnectivityAnalytics.kt").read_text(encoding="utf-8")
 ui=(src/"ConnectivityLabActivity.kt").read_text(encoding="utf-8")
+viewmodel=(src/"ConnectivityLabViewModel.kt").read_text(encoding="utf-8")
 gradle=(root/"app/build.gradle.kts").read_text(encoding="utf-8")
 
 assert 'versionCode = 27' in gradle
@@ -157,10 +158,13 @@ for phrase in ("fun capture(","InetAddress.getAllByName(host)","Inet4Address","I
 for phrase in ("fun distribution(","fun summarize(","fun compare(","dnsFailures",
                "ipv6AvailableCycles","eligibleConnections","format","НЕ ping игров"):
     assert phrase in analytics,phrase
-for phrase in ("fun startTest(","onStop()","cancelTest(false)","Future<*>",
+for phrase in ("fun startTest(","onStop()","cancelTest(false)",
                "ACTION_CREATE_DOCUMENT","fun compare()","fun weekReport()",
                "fun showHistory()","fun confirmDelete()"):
     assert phrase in ui,phrase
+for phrase in ("Future<*>", "ConnectivityProbe.capture(", "ConnectivityRepository(getApplication<Application>())",
+               "fun cancelTest()", "onCleared()", "LiveData"):
+    assert phrase in viewmodel,phrase
 assert "startForegroundService" not in ui
 assert "startActivityForResult" in ui
 print("PASS: real SQLite v8→v9 migration preserves all historic tables, FK, constraints, privacy and diagnosis contracts")

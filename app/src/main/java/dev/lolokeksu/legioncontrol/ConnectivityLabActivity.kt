@@ -1,6 +1,7 @@
 package dev.lolokeksu.legioncontrol
 
-import android.app.Activity
+import androidx.activity.ComponentActivity
+import androidx.lifecycle.ViewModelProvider
 import android.app.AlertDialog
 import android.content.Intent
 import android.content.res.ColorStateList
@@ -23,18 +24,14 @@ import java.util.concurrent.Future
 import java.util.concurrent.atomic.AtomicBoolean
 
 /** Visible-only, opt-in public endpoint probes. No foreground service or hidden scheduler. */
-class ConnectivityLabActivity : Activity() {
+class ConnectivityLabActivity : ComponentActivity() {
     companion object {
         private const val EXPORT_CSV = 2001
         private const val INTERVAL_MS = 12_000L
     }
 
-    private val worker:ExecutorService=Executors.newSingleThreadExecutor()
-    private val cancelled=AtomicBoolean(false)
-    @Volatile private var testing=false
-    private var task:Future<*>?=null
-    private var host="one.one.one.one"
-    private var selectedRunId:String?=null
+    private lateinit var viewModel:ConnectivityLabViewModel
+    private var testing=false
     private lateinit var hostButton:Button
     private lateinit var singleButton:Button
     private lateinit var stabilityButton:Button
@@ -120,6 +117,31 @@ class ConnectivityLabActivity : Activity() {
         }
         root.addView(resultView)
         setContentView(ScrollView(this).apply { addView(root) })
+        viewModel=ViewModelProvider(this)[ConnectivityLabViewModel::class.java]
+        viewModel.state.observe(this) { ui ->
+            testing=ui.testing
+            updateButtons()
+            show(ui.message)
+            ui.runs?.let { entries ->
+                viewModel.consumeDialog(ui.nonce)
+                selectHistory(entries)
+            }
+            ui.shareText?.let { report ->
+                viewModel.consumeDialog(ui.nonce)
+                runCatching {
+                    startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
+                        type="text/plain"
+                        putExtra(Intent.EXTRA_TEXT,report)
+                    },"Поделиться сетевым отчётом"))
+                }.onFailure { show("Не удалось открыть меню отправки.") }
+            }
+        }
+        if(savedInstanceState!=null) viewModel.chooseHost(savedInstanceState.getString("host","one.one.one.one"))
+        hostButton.text="Сервер: "+(when(viewModel.host) {
+            "dns.google" -> "Google DNS · dns.google"
+            "dns.quad9.net" -> "Quad9 · dns.quad9.net"
+            else -> "Cloudflare · one.one.one.one"
+        })
         updateButtons()
     }
 
@@ -145,148 +167,43 @@ class ConnectivityLabActivity : Activity() {
         )
         AlertDialog.Builder(this).setTitle("Публичный сервер для диагностики")
             .setItems(names) { _,index ->
-                host=ConnectivityProbe.targets[index]
+                viewModel.chooseHost(ConnectivityProbe.targets[index])
                 hostButton.text="Сервер: "+names[index]
-                selectedRunId=null
-                show("Выбран "+host+":443. Это внешний тестовый сервер, не игровой хост.")
+                show("Выбран "+viewModel.host+":443. Это внешний тестовый сервер, не игровой хост.")
             }.setNegativeButton("Отмена",null).show()
     }
 
-    private fun startTest(cycles:Int) {
-        if(testing) return
-        val target=host
-        testing=true
-        cancelled.set(false)
-        updateButtons()
-        show("Запрошено подключение к $target:443. Запуск теста…")
-        task=worker.submit {
-            var message="Нет сохранённых результатов: запрос был отменён до начала измерений."
-            var runId:String?=null
-            var outcome="COMPLETE"
-            try {
-                ConnectivityRepository(applicationContext).use { db ->
-                    try {
-                        runId=db.start(target,if(cycles==1)"SINGLE" else "STABILITY")
-                        for(cycle in 1..cycles) {
-                            if(cancelled.get() || Thread.currentThread().isInterrupted) {
-                                outcome="CANCELLED"
-                                break
-                            }
-                            val begin=SystemClock.elapsedRealtime()
-                            val readings=ConnectivityProbe.capture(applicationContext,target,cycle)
-                            readings.forEach { db.record(runId!!,it) }
-                            val short="${cycle}/$cycles · "+
-                                readings.joinToString(" · ") { it.family+": "+it.result }
-                            runOnUiThread {
-                                if(!isFinishing && !isDestroyed && !cancelled.get())
-                                    show("Проверка $target:443\n$short\n"+
-                                        "Оставьте экран открытым; не переключайтесь в другое приложение.")
-                            }
-                            if(cycle<cycles) {
-                                val waitMs=(INTERVAL_MS-(SystemClock.elapsedRealtime()-begin))
-                                    .coerceAtLeast(0L)
-                                if(waitMs>0) Thread.sleep(waitMs)
-                            }
-                        }
-                        if(cancelled.get() || Thread.currentThread().isInterrupted)
-                            outcome="CANCELLED"
-                    } catch(interrupted:InterruptedException) {
-                        outcome="CANCELLED"
-                        Thread.interrupted() // clear flag so SQLite finalization can run
-                    } catch(error:Exception) {
-                        outcome=if(cancelled.get())"CANCELLED" else "FAILED"
-                    } finally {
-                        runId?.let { id -> db.finish(id,outcome) }
-                    }
-                    message=runId?.let { ConnectivityAnalytics.render(db.summary(it)) } ?:
-                        "Не удалось начать тест и создать запись в SQLite."
-                }
-            } catch(error:Exception) {
-                message="Ошибка сетевого теста: "+error.javaClass.simpleName+
-                    ". Приложение не выполняло скрытый фоновый тест."
-            } finally {
-                testing=false
-                runOnUiThread {
-                    if(!isFinishing && !isDestroyed) {
-                        updateButtons()
-                        if(!cancelled.get()) {
-                            selectedRunId=runId
-                            show(message)
-                        } else show("Тест отменён. Частичная запись сохранена, если "+
-                            "SQLite успела завершить запись. Проверьте историю.")
-                    }
-                }
-            }
-        }
-    }
+    private fun startTest(cycles:Int) = viewModel.startTest(cycles)
 
     private fun cancelTest(display:Boolean) {
-        if(!testing) return
-        cancelled.set(true)
-        task?.cancel(true)
+        viewModel.cancelTest()
         if(display && ::resultView.isInitialized)
             show("Отмена запрошена. Уже начатое DNS-разрешение может завершиться позже; "+
                 "дальнейшие циклы запускаться не будут.")
     }
 
-    private fun task(block:()->String) {
-        if(testing) {
-            show("Сначала остановите сетевую проверку.")
-            return
-        }
-        show("Чтение локальной истории…")
-        worker.execute {
-            val message=runCatching { block() }.getOrElse {
-                "Ошибка: "+it.javaClass.simpleName+" · "+it.message.orEmpty().take(120)
-            }
-            runOnUiThread { if(!isFinishing && !isDestroyed) show(message) }
-        }
-    }
+    private fun showHistory() = viewModel.showHistory()
 
-    private fun showHistory() = task {
-        ConnectivityRepository(applicationContext).use { db ->
-            val items=db.runs(host,50)
-            runOnUiThread {
-                if(!isFinishing && !isDestroyed) {
-                    if(items.isEmpty()) show("Для "+host+" пока нет сохранённых запусков.")
-                    else AlertDialog.Builder(this).setTitle("История · "+host)
-                        .setItems(items.map { r ->
-                            DateFormat.getDateTimeInstance().format(Date(r.startedAtMs))+
-                                " · "+r.mode+" · "+r.status
-                        }.toTypedArray()) { _,index ->
-                            selectedRunId=items[index].id
-                            show("Выбрана запись "+items[index].id+
-                                "\nНажмите «Подробный отчёт».")
-                        }.setNegativeButton("Отмена",null).show()
-                }
-            }
-            "Записей для выбранного узла: ${items.size} (показаны последние 50)."
-        }
+    private fun selectHistory(items:List<ConnectivityRun>) {
+        if(items.isEmpty()) { show("Для "+viewModel.host+" пока нет сохранённых запусков.");return }
+        AlertDialog.Builder(this).setTitle("История · "+viewModel.host)
+            .setItems(items.map { r ->
+                DateFormat.getDateTimeInstance().format(Date(r.startedAtMs))+
+                    " · "+r.mode+" · "+r.status
+            }.toTypedArray()) { _,index ->
+                viewModel.selectRun(items[index].id)
+                show("Выбрана запись "+items[index].id+"\nНажмите «Подробный отчёт».")
+            }.setNegativeButton("Отмена",null).show()
     }
 
     private fun showSelected() {
-        val id=selectedRunId ?: return show("Сначала выберите тест из истории.")
-        task {
-            ConnectivityRepository(applicationContext).use { db ->
-                val summary=db.summary(id)
-                val details=db.samples(id).joinToString("\n") { r ->
-                    "цикл ${r.cycle} · ${r.family} · ${r.result} · "+
-                    "TCP="+(r.tcpMs?.let { String.format(Locale.US,"%.1f мс",it) } ?: "н/д")+
-                    " · TLS="+(r.tlsMs?.let { String.format(Locale.US,"%.1f мс",it) } ?: "н/д")+
-                    (if(r.errorCode.isBlank())"" else " · "+r.errorCode)
-                }
-                ConnectivityAnalytics.render(summary)+"\n\nПОИМЁННЫЕ ПОПЫТКИ:\n"+details
-            }
-        }
+        val id=viewModel.selectedRunId ?: return show("Сначала выберите тест из истории.")
+        viewModel.showSelected(id)
     }
 
-    private fun compare() = task {
-        ConnectivityRepository(applicationContext).use { it.comparison(host) }
-    }
+    private fun compare() = viewModel.compare()
 
-    private fun weekReport() = task {
-        ConnectivityRepository(applicationContext).use { it.lastSevenDays(host) }
-    }
+    private fun weekReport() = viewModel.weekReport()
 
     private fun exportCsv() {
         if(testing) return show("Остановите тест перед экспортом.")
@@ -300,37 +217,18 @@ class ConnectivityLabActivity : Activity() {
     }
 
     private fun share() {
-        val id=selectedRunId ?: return show("Выберите запись для передачи.")
-        task {
-            ConnectivityRepository(applicationContext).use { db ->
-                val text=ConnectivityAnalytics.render(db.summary(id))
-                runOnUiThread {
-                    if(!isFinishing && !isDestroyed) {
-                        startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
-                            type="text/plain"
-                            putExtra(Intent.EXTRA_TEXT,text)
-                        },"Поделиться сетевым отчётом"))
-                    }
-                }
-                text
-            }
-        }
+        val id=viewModel.selectedRunId ?: return show("Выберите запись для передачи.")
+        viewModel.share(id)
     }
 
     private fun confirmDelete() {
-        val id=selectedRunId ?: return show("Сначала выберите запись.")
+        val id=viewModel.selectedRunId ?: return show("Сначала выберите запись.")
         if(testing) return show("Остановите тест перед удалением.")
         AlertDialog.Builder(this).setTitle("Удалить эту запись?")
             .setMessage("Удалятся только этот сетевой тест и его DNS/TCP/TLS замеры. "+
                 "Другие записи, игровые сессии и профили сохранятся.")
             .setPositiveButton("Удалить") { _,_ ->
-                task {
-                    val deleted=ConnectivityRepository(applicationContext).use { it.delete(id) }
-                    if(deleted) {
-                        selectedRunId=null
-                        "Сетевой тест удалён. История других модулей не изменена."
-                    } else "Запись уже отсутствует."
-                }
+                viewModel.delete(id)
             }.setNegativeButton("Отмена",null).show()
     }
 
@@ -338,17 +236,7 @@ class ConnectivityLabActivity : Activity() {
         super.onActivityResult(requestCode,resultCode,data)
         if(requestCode!=EXPORT_CSV || resultCode!=RESULT_OK) return
         val uri=data?.data ?: return
-        task {
-            ConnectivityRepository(applicationContext).use { db ->
-                (contentResolver.openOutputStream(uri,"w") ?: error("No output stream")).use { stream ->
-                    OutputStreamWriter(stream,Charsets.UTF_8).use { writer ->
-                        db.writeCsv(writer)
-                    }
-                }
-            }
-            "Вся история Connectivity Observatory экспортирована CSV. "+
-                "Никаких IP адресов, SSID или данных чужих приложений не сохранялось."
-        }
+        viewModel.exportCsv(uri)
     }
 
     override fun onStop() {
@@ -356,9 +244,8 @@ class ConnectivityLabActivity : Activity() {
         super.onStop()
     }
 
-    override fun onDestroy() {
-        cancelTest(false)
-        worker.shutdownNow()
-        super.onDestroy()
+    override fun onSaveInstanceState(outState:Bundle) {
+        outState.putString("host",viewModel.host)
+        super.onSaveInstanceState(outState)
     }
 }
