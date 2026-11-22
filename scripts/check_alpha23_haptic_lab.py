@@ -190,7 +190,7 @@ for phrase in ("fun build(","fun withoutAmplitudeControl(","35..1_800","160",
     assert phrase in pattern,phrase
 for phrase in ("VibratorManager","VibrationEffect.createWaveform",
                "effective.timings,effective.amplitudes,-1","fun stop()",
-               "cancelled","vibrator.cancel()","active=null"):
+               "cancelled","active?.cancel()","active=null"):
     assert phrase in backend,phrase
 for phrase in ("VibratorManager","vibratorIds","hasVibrator()","hasAmplitudeControl()",
                "areEffectsSupported","arePrimitivesSupported","HAPTIC_FEEDBACK_ENABLED"):
