@@ -67,3 +67,10 @@ Thermal history is read from the existing battery samples LEFT JOIN diagnostic_s
 ## Alpha.12 — read-only analytics and export, no schema upgrade
 
 Existing sessions, samples, diagnostic_samples, sensor_samples and sensor_probe_attempts are queried without modification. Analytics is bounded (400 attempts and 250 latest-session readings, with truncation noted); the on-demand ZIP exporter streams complete tables and preserves the original battery CSV. SQLite operations execute off UI and in order (battery parent before diagnostic child; session end after accepted samples). No rows are pruned and no migrations are required from alpha.11. Same-certificate in-place APK install retains private history, whereas uninstall destroys it. ZIP creation failures are reported and may leave a partial destination file. Physical-device smoke tests required.
+
+
+## Alpha.13 — additive SQLite v5 timed battery test history
+
+Install timed_battery_tests only after older tables. On v1→v5, create diagnostics, sensor event, sensor attempt and timed test tables; on v2→v5 create sensor event, sensor attempt and timed test; on v3→v5 create attempt and timed test; on v4→v5 create timed test only. SQLiteOpenHelper upgrade is transactional, with no DROP/DELETE. test_id and session_id are unique. Each saved completed test records its start/end timestamps, reason, number of attempts, number of actual committed battery samples, first/last battery percentage, min/max battery temperature and nullable max thermal status. No empty or invalid ticks become fabricated battery samples. Previously stored data retains its identity and old 20-column battery.csv format.
+
+The user-started test remains visible-only; user or Activity stop, severe thermal reading, temperature guard or repeated failures causes bounded termination. New timed-tests.csv is streamed into the existing offline archive. Existing app-private files are retained by same-certificate in-place upgrade; uninstall still removes app history (allowBackup=false). An abrupt app kill without onStop cannot guarantee a completed test summary, but any already committed battery measurements remain.
