@@ -203,13 +203,21 @@ class CaptureStudioActivity : ComponentActivity() {
         if (::status.isInitialized) refreshStatus()
     }
 
+    private fun selectedAudioGame(): String? =
+        getSharedPreferences(ToolboxPreferences.NAME, MODE_PRIVATE)
+            .getString(ToolboxPreferences.GAME, null)
+            ?.takeIf { ApplicationInventory.isPackageName(it) &&
+                packageManager.getLaunchIntentForPackage(it) != null }
+
     private fun refreshChoices() {
         val config = viewModel.config()
         choices.text = "Сторона до ${config.maxEdge} px · ${config.fps} FPS запрошено\\n" +
             "${config.videoBitrate / 1_000_000} Мбит/с · " +
             "${config.maxDurationMs / 60_000} мин максимум\\n" +
-            (if (viewModel.playbackAudioEnabled()) "Внутренний звук: ЗАПРОШЕН (AAC)" else
-                "Внутренний звук: ВЫКЛЮЧЕН")
+            (if (viewModel.playbackAudioEnabled())
+                "Внутренний звук: ЗАПРОШЕН (AAC)\\nИгра: " +
+                    (selectedAudioGame() ?: "НЕ ВЫБРАНА — сначала Game Toolbox")
+             else "Внутренний звук: ВЫКЛЮЧЕН")
     }
 
     private fun selectOption(title: String, name: String, values: IntArray, labels: Array<String>) {
@@ -223,6 +231,10 @@ class CaptureStudioActivity : ComponentActivity() {
     }
 
     private fun askConsent() {
+        if (viewModel.playbackAudioEnabled() && selectedAudioGame() == null) {
+            status.text = "Сначала выберите игру для Game Toolbox. Звук других приложений не записывается."
+            return
+        }
         if (viewModel.playbackAudioEnabled() &&
             checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), REQUEST_PLAYBACK_PERMISSION)
@@ -292,6 +304,11 @@ class CaptureStudioActivity : ComponentActivity() {
             return
         }
         val playbackRequested = viewModel.playbackAudioEnabled()
+        val audioGame = if (playbackRequested) selectedAudioGame() else null
+        if (playbackRequested && audioGame == null) {
+            status.text = "Выбранная игра недоступна. Повторите выбор в Game Toolbox."
+            return
+        }
         if (playbackRequested &&
             checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             status.text = "Разрешение RECORD_AUDIO отозвано. Запись со звуком не начата."
@@ -300,6 +317,7 @@ class CaptureStudioActivity : ComponentActivity() {
         val config = viewModel.config()
         val intent = Intent(this, CaptureRecordingService::class.java).apply {
             putExtra(CaptureRecordingService.EXTRA_PLAYBACK_AUDIO, playbackRequested)
+            if (audioGame != null) putExtra(CaptureRecordingService.EXTRA_AUDIO_GAME, audioGame)
             action = CaptureRecordingService.ACTION_START
             putExtra(CaptureRecordingService.EXTRA_RESULT, resultCode)
             putExtra(CaptureRecordingService.EXTRA_CONSENT, data)
