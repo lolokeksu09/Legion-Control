@@ -5,6 +5,7 @@ import xml.etree.ElementTree as ET
 root = Path(__file__).resolve().parents[1]
 src = root / "app/src/main/java/dev/lolokeksu/legioncontrol"
 activity = (src / "MainActivity.kt").read_text(encoding="utf-8")
+reader = (src / "DiagnosticsHistoryRepository.kt").read_text(encoding="utf-8")
 store = (src / "LocalHistoryStore.kt").read_text(encoding="utf-8")
 sensors = (src / "AndroidSensorInventory.kt").read_text(encoding="utf-8")
 csv = (src / "CsvReport.kt").read_text(encoding="utf-8")
@@ -48,20 +49,22 @@ for expected in (
     "Intent.ACTION_CREATE_DOCUMENT", "Intent.CATEGORY_OPENABLE",
     "onActivityResult(", "openOutputStream(uri,",
     "history.writeCsv(writer)", "history.record(StoredReading(",
-    "history.recentSessions()", "history.endSession(",
-    "history.count()", "latestReport = null",
+    "history.endSession(",
+    "latestReport = null",
     "showSavedHistory()", "AndroidSensorInventory.inspect(this)",
     "setPositiveButton(\"Завершить\")", "engine.resetSession()",
 ):
     assert expected in activity, expected
+for expected in ("history.recentSessions()", "history.count()"):
+    assert expected in reader, expected
 # No startup sample: manual measurement only (also no passive sensor listeners).
 assert "showSavedHistory()" in activity and "private fun manualSample()" in activity
 on_create = activity.split("override fun onCreate(", 1)[1].split("override fun onStart()", 1)[0]
 assert "sample()" not in on_create, "No battery capture on Activity startup"
 assert "SensorManager" in sensors and "getDefaultSensor(type)" in sensors
 assert "registerListener" not in sensors
-assert 'versionCode = 26' in gradle
-assert 'versionName = "0.1.0-alpha.26"' in gradle
+assert 'versionCode = 27' in gradle
+assert 'versionName = "0.1.0-alpha.27"' in gradle
 
 for risky in ("WRITE_SECURE_SETTINGS", "QUERY_ALL_PACKAGES", "ACCESS_NETWORK_STATE",
               "INTERNET", "setprop ", "moto_extend_service", "pointer_speed"):

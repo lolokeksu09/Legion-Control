@@ -8,6 +8,8 @@ src = root / "app/src/main/java/dev/lolokeksu/legioncontrol"
 manifest = ET.parse(root / "app/src/main/AndroidManifest.xml").getroot()
 ns = "{http://schemas.android.com/apk/res/android}"
 activity = (src / "CaptureStudioActivity.kt").read_text(encoding="utf-8")
+reader = (src / "CaptureStudioRepository.kt").read_text(encoding="utf-8")
+vm = (src / "CaptureStudioViewModel.kt").read_text(encoding="utf-8")
 service = (src / "CaptureRecordingService.kt").read_text(encoding="utf-8")
 store = (src / "CaptureClipLibrary.kt").read_text(encoding="utf-8")
 config = (src / "CaptureConfig.kt").read_text(encoding="utf-8")
@@ -15,7 +17,7 @@ main = (src / "MainActivity.kt").read_text(encoding="utf-8")
 gradle = (root / "app/build.gradle.kts").read_text(encoding="utf-8")
 legacy = (src / "LocalHistoryStore.kt").read_text(encoding="utf-8")
 unit = (root / "app/src/test/java/dev/lolokeksu/legioncontrol/CaptureConfigTest.kt").read_text(encoding="utf-8")
-assert 'versionCode = 26' in gradle and 'versionName = "0.1.0-alpha.26"' in gradle
+assert 'versionCode = 27' in gradle and 'versionName = "0.1.0-alpha.27"' in gradle
 assert 'applicationId = "dev.lolokeksu.legioncontrol"' in gradle
 assert "HapticLabSchema.VERSION" in legacy, "Existing SQLite v12 must remain intact"
 assert "CAPTURE STUDIO" in main and "CaptureStudioActivity::class.java" in main
@@ -54,8 +56,9 @@ assert "onActivityResult(" in activity
 assert "if (resultCode != RESULT_OK || data == null)" in activity
 assert activity.index("createScreenCaptureIntent()") < activity.index("onActivityResult(")
 assert "startForegroundService(intent)" in activity
-assert "CaptureConfig.fromOptions(" in activity
-assert "CaptureClipLibrary.listOwn(" in activity
+assert "CaptureConfig.fromOptions(" in reader
+assert "CaptureClipLibrary.listOwn(" in reader
+assert "viewModel.refresh()" in activity and "viewModel.library.observe(this)" in activity
 assert "ACTION_VIEW" in activity and "ACTION_SEND" in activity
 assert "FLAG_GRANT_READ_URI_PERMISSION" in activity
 assert "confirmDelete(clip)" in activity and "setPositiveButton" in activity
@@ -82,6 +85,8 @@ assert "MediaRecorder.OutputFormat.MPEG_4" in service
 assert "CaptureClipLibrary.createPending(this" in service
 assert "CaptureClipLibrary.publish(this" in service
 assert "CaptureClipLibrary.delete(this" in service
+assert "CaptureClipLibrary.delete(app, clip.uri)" in reader
+assert "repository.deleteOwnClip(clip)" in vm
 assert "stopForeground(STOP_FOREGROUND_REMOVE)" in service
 assert "stopSelf()" in service and "recorderStarted && elapsed >= 1000" in service
 assert "registerReceiver(" not in service and "BOOT_COMPLETED" not in service

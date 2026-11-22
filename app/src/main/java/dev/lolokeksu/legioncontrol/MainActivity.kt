@@ -1,6 +1,7 @@
 package dev.lolokeksu.legioncontrol
 
-import android.app.Activity
+import androidx.activity.ComponentActivity
+import androidx.lifecycle.ViewModelProvider
 import android.app.AlertDialog
 import android.os.Bundle
 import android.os.BatteryManager
@@ -30,8 +31,9 @@ import java.util.concurrent.Executors
  * Read-only Android snapshots -> real Rust JNI -> private SQLite.
  * No background sampling, privileged APIs or automatic network transmission.
  */
-class MainActivity : Activity() {
+class MainActivity : ComponentActivity() {
     private val engine = RustEngine()
+    private lateinit var historyModel: DiagnosticsHistoryViewModel
     private val history by lazy { LocalHistoryStore(applicationContext) }
     private lateinit var result: TextView
     private lateinit var historyView: TextView
@@ -44,8 +46,6 @@ class MainActivity : Activity() {
     private val diagnosticsExecutor = Executors.newSingleThreadExecutor()
     private val diagnosticTrends = DiagnosticTrendEngine()
     private var diagnosticRequestId = 0L
-    private var historyRequestId = 0L
-    private var analyticsRequestId = 0L
     private var sensorRequestId = 0L
     private var sensorCapture: SensorCaptureBackend? = null
     private var timedTest: ForegroundBatteryTest? = null
@@ -70,7 +70,7 @@ class MainActivity : Activity() {
             setTypeface(typeface, Typeface.BOLD)
         })
         layout.addView(TextView(this).apply {
-            text = "Kotlin + Rust · alpha.26 · диагностика Kotlin + Rust"
+            text = "Kotlin + Rust · alpha.27 · диагностика Kotlin + Rust"
             textSize = 13f
             setTextColor(0xFFA5A5A5.toInt())
             setPadding(0, 8.dp, 0, 12.dp)
@@ -271,6 +271,17 @@ class MainActivity : Activity() {
             isFillViewport = true
             addView(layout)
         })
+        // Observers are lifecycle-aware: no TextView is retained by the read backend.
+        historyModel = ViewModelProvider(this)[DiagnosticsHistoryViewModel::class.java]
+        historyModel.report.observe(this) { reading ->
+            when (reading.pane) {
+                "history" -> historyView.text = reading.content
+                "analytics" -> analyticsView.text = reading.content
+                "thermal" -> thermalView.text = reading.content
+                "timed" -> if (timedTest?.isActive != true) timedView.text = reading.content
+                "sensors" -> sensorsView.text = reading.content
+            }
+        }
         // Persisted history is visible after a restart without generating a new sample.
         showSavedHistory()
     }
@@ -352,33 +363,8 @@ class MainActivity : Activity() {
 
     private fun showTimedBatteryHistory() {
         timedView.text = "Чтение сохранённых тестов…"
-        diagnosticsExecutor.execute {
-            val report = runCatching {
-                val tests = history.recentTimedBatteryTests()
-                if (tests.isEmpty()) "ИСТОРИЯ ТЕСТОВ БАТАРЕИ · сохранённых тестов нет"
-                else buildString {
-                    append("ИСТОРИЯ ТЕСТОВ БАТАРЕИ · последние ")
-                        .append(tests.size).append('\n')
-                    for (t in tests) {
-                        append("· ")
-                            .append(DateFormat.getDateTimeInstance().format(Date(t.startedAtMs)))
-                            .append(" · ").append(t.reason.name)
-                            .append(" · SQLite ").append(t.successfulReads)
-                            .append("/").append(t.attemptedReads).append(" замеров")
-                        if (t.firstBatteryPercent != null && t.lastBatteryPercent != null) {
-                            append(" · заряд ").append(
-                                String.format(Locale.US, "%+d п.п.",
-                                    t.lastBatteryPercent - t.firstBatteryPercent)
-                            )
-                        }
-                        append('\n')
-                    }
-                }
-            }.getOrElse { "Ошибка истории тестов: " + it.javaClass.simpleName }
-            runOnUiThread {
-                if (!isDestroyed && timedTest?.isActive != true) timedView.text = report
-            }
-        }
+        // Enqueue through the original write executor to preserve save-before-read order.
+        diagnosticsExecutor.execute { historyModel.request(DiagnosticsReadKind.TIMED_BATTERY) }
     }
 
     private val Int.dp: Int get() =
@@ -386,61 +372,18 @@ class MainActivity : Activity() {
 
     /** No SQLite query on UI: stale worker results cannot replace a newer list. */
     private fun showSavedHistory() {
-        val requestId = ++historyRequestId
-        diagnosticsExecutor.execute {
-            val text = runCatching {
-                val total = history.count()
-                val sessions = history.recentSessions()
-                buildString {
-                    append("СОХРАНЁННАЯ ИСТОРИЯ · ")
-                        .append(RussianQuantity.measurements(total.toInt())).append("\n")
-                    append("Сеансов: ").append(sessions.size)
-                    if (sessions.size == 12) append(" (показаны последние 12)")
-                    for (session in sessions) {
-                        append("\n· ")
-                        append(DateFormat.getDateTimeInstance().format(Date(session.startedAtMs)))
-                        append(" · ").append(RussianQuantity.measurements(session.samples))
-                        val durationMs = (session.lastAtMs - session.startedAtMs).coerceAtLeast(0L)
-                        append(" · ").append(String.format(
-                            Locale.getDefault(), "%.1f с", durationMs / 1000.0
-                        ))
-                        if (session.endedAtMs != null) append(" · завершён")
-                    }
-                    append("\nЗаписи остаются после перезапуска приложения.")
-                }
-            }.getOrElse { "Ошибка локальной базы: " + it.javaClass.simpleName }
-            runOnUiThread {
-                if (!isDestroyed && requestId == historyRequestId) historyView.text = text
-            }
-        }
+        // Older SQLite writes complete before this read is handed to the ViewModel.
+        diagnosticsExecutor.execute { historyModel.request(DiagnosticsReadKind.HISTORY) }
     }
 
     private fun showSensorQuality() {
-        val requestId = ++analyticsRequestId
         analyticsView.text = "Аналитика датчиков: чтение SQLite…"
-        diagnosticsExecutor.execute {
-            val text = runCatching {
-                SensorQualityAnalytics.format(history.recentSensorAttempts())
-            }.getOrElse { "Ошибка аналитики датчиков: " + it.javaClass.simpleName }
-            runOnUiThread {
-                if (!isDestroyed && requestId == analyticsRequestId) analyticsView.text = text
-            }
-        }
+        diagnosticsExecutor.execute { historyModel.request(DiagnosticsReadKind.SENSOR_QUALITY) }
     }
 
     private fun showSessionProfile() {
-        val requestId = ++analyticsRequestId
         analyticsView.text = "Профиль последнего сеанса: чтение SQLite…"
-        diagnosticsExecutor.execute {
-            val text = runCatching {
-                val count = history.latestSessionReadingCount()
-                val points = history.latestSessionReadings()
-                SessionAnalytics.format(SessionAnalytics.analyze(points), count > points.size)
-            }.getOrElse { "Ошибка профиля сеанса: " + it.javaClass.simpleName }
-            runOnUiThread {
-                if (!isDestroyed && requestId == analyticsRequestId) analyticsView.text = text
-            }
-        }
+        diagnosticsExecutor.execute { historyModel.request(DiagnosticsReadKind.SESSION_PROFILE) }
     }
 
     private fun checkSensors() {
@@ -460,14 +403,7 @@ class MainActivity : Activity() {
     }
 
     private fun showThermalHistory() {
-        diagnosticsExecutor.execute {
-            val text = runCatching {
-                ThermalHistoryReport.format(history.recentThermalReadings())
-            }.getOrElse { "Ошибка тепловой истории SQLite: " + it.javaClass.simpleName }
-            runOnUiThread {
-                if (!isDestroyed && ::thermalView.isInitialized) thermalView.text = text
-            }
-        }
+        diagnosticsExecutor.execute { historyModel.request(DiagnosticsReadKind.THERMAL) }
     }
 
     private fun startSensorCapture() {
@@ -476,6 +412,7 @@ class MainActivity : Activity() {
             return
         }
         val requestId = ++sensorRequestId
+        historyModel.invalidate("sensors")
         sensorsView.text = "Сбор событий датчиков: до 3 с, для освещённости до 6 с…"
         val capture = SensorCaptureBackend(this) { outcome ->
             sensorCapture = null
@@ -497,35 +434,7 @@ class MainActivity : Activity() {
     }
 
     private fun showLastSensorReadings() {
-        val requestId = ++sensorRequestId
-        diagnosticsExecutor.execute {
-            val text = runCatching {
-                val latest = history.lastSensorSamples()
-                val total = history.sensorSampleCount()
-                val attempts = history.lastSensorAttempts()
-                buildString {
-                    append("ИСТОРИЯ ДАТЧИКОВ SQLite · ").append(total).append(" событий\n")
-                    for (kind in SensorKind.entries) {
-                        append("· ").append(kind.title).append(": ")
-                        val sample = latest[kind]
-                        if (sample == null) append("нет сохранённых событий")
-                        else {
-                            append(sample.values.joinToString(" / ")).append(" ")
-                                .append(kind.unit).append(" · ")
-                                .append(DateFormat.getDateTimeInstance().format(
-                                    Date(sample.recordedAtMs)
-                                ))
-                        }
-                        append('\n')
-                    }
-                    append('\n')
-                    append(SensorSampleReport.formatSavedAttempts(attempts))
-                }
-            }.getOrElse { "Ошибка истории датчиков: " + it.javaClass.simpleName }
-            runOnUiThread {
-                if (!isDestroyed && sensorRequestId == requestId) sensorsView.text = text
-            }
-        }
+        diagnosticsExecutor.execute { historyModel.request(DiagnosticsReadKind.SENSOR_READINGS) }
     }
 
     private fun confirmReset() {

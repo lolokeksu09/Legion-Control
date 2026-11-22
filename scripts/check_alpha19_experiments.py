@@ -13,8 +13,8 @@ analytics=(src/"ExperimentAnalytics.kt").read_text(encoding="utf-8")
 activity=(src/"ExperimentLabActivity.kt").read_text(encoding="utf-8")
 build=(root/"app/build.gradle.kts").read_text(encoding="utf-8")
 
-assert 'versionCode = 26' in build
-assert 'versionName = "0.1.0-alpha.26"' in build
+assert 'versionCode = 27' in build
+assert 'versionName = "0.1.0-alpha.27"' in build
 assert 'minSdk = 33' in build
 assert 'const val VERSION = 8' in schema
 assert 'newVersion != HapticLabSchema.VERSION' in history

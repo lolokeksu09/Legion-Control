@@ -11,7 +11,15 @@
 
 См. `rust-core/`, `android-core/`, `docs/BACKEND.md`. Следующие шаги: Rust unit tests в CI, Android JNI сборка, затем легковесный Kotlin-интерфейс. Никаких заявлений об улучшении FPS, сенсорного отклика или Bypass.
 
-Текущая версия приложения: `0.1.0-alpha.26`.
+Текущая версия приложения: `0.1.0-alpha.27`.
+
+## v0.1.0-alpha.27 — MVVM-бэкенд: диагностика и Capture Studio
+
+Продолжение рефакторинга после alpha.26. Реальные новые слои: `DiagnosticsHistoryRepository`/`DiagnosticsHistoryViewModel` (SQLite-история, тепловая/сенсорная аналитика и старые отчёты); `CaptureStudioRepository`/`CaptureStudioViewModel` (MediaStore, клипы, настройки качества, подтверждённое удаление). UI больше не выполняет эти чтения непосредственно и получает состояния через lifecycle-aware LiveData. Экран Capture Studio показывает собственные MP4 без всплывающего диалога, который мог повторяться при пересоздании экрана.
+
+**Критически:** сам замер батареи на реальном Rust JNI, очередность сохранения SQLite, 60-секундные тесты, датчики, экспорт CSV/ZIP, foreground-сервис и разовое Android-согласие MediaProjection сохранены. Вызовы системных разрешений остались в Activity. SQLite **v12 не мигрируется**, разрешения и постоянный релизный ключ не меняются.
+
+**Это этап 2, а не притворная «полная миграция»**: отдельные старые Audio/Haptic/Smart Profiles/Game Session и прочие Activity ещё требуют переноса. [План и оставшиеся задачи](docs/ALPHA27-MVVM-BACKEND-REFACTOR-PLAN.md) · [Подробности и проверки](docs/ALPHA27-MVVM-BACKEND-REFACTOR.md).
 
 ## v0.1.0-alpha.26 — полноценная навигация MVVM + Game Hub
 

@@ -7,6 +7,7 @@ root = Path(__file__).resolve().parents[1]
 src = root / "app/src/main/java/dev/lolokeksu/legioncontrol"
 store = (src / "LocalHistoryStore.kt").read_text(encoding="utf-8")
 activity = (src / "MainActivity.kt").read_text(encoding="utf-8")
+reader = (src / "DiagnosticsHistoryRepository.kt").read_text(encoding="utf-8")
 sensor = (src / "SensorCaptureBackend.kt").read_text(encoding="utf-8")
 schema2 = (src / "DiagnosticHistoryModels.kt").read_text(encoding="utf-8")
 schema3 = (src / "SensorHistorySchema.kt").read_text(encoding="utf-8")
@@ -102,8 +103,8 @@ assert "installSensorAttempts(db)" in store
 assert "recordSensorCapture(capture: SensorCaptureResult)" in store
 assert "db.beginTransaction()" in store and "db.setTransactionSuccessful()" in store
 assert "history.recordSensorCapture(outcome)" in activity
-assert "history.lastSensorAttempts()" in activity
-assert "history.recentThermalReadings()" in activity
+assert "history.lastSensorAttempts()" in reader
+assert "history.recentThermalReadings()" in reader
 assert "LEFT JOIN diagnostic_samples AS d" in store
 assert "SensorCapturePolicy.LIGHT_EXTENSION_MS" in sensor
 assert "SensorSampleValidation.rejectionReason(" in sensor
