@@ -72,7 +72,7 @@ assert "dispatchKeyEvent(event: KeyEvent)" in gamepad
 assert "onGenericMotionEvent(event: MotionEvent)" in gamepad
 assert "event.keyCode != KeyEvent.KEYCODE_BACK" in gamepad
 assert "isController(event.deviceId)" in gamepad
-assert "startActivity(Intent(requireContext(),GamepadLiveActivity::class.java))" in activity
+assert "ModuleNavigation.open(this,GamepadLiveActivity::class.java)" in activity
 assert "onStop()" in activity and "onCleared()" in viewmodel
 for forbidden in (
     "WRITE_SECURE_SETTINGS", "BIND_ACCESSIBILITY_SERVICE",
