@@ -363,7 +363,7 @@ class CaptureRecordingService : Service() {
             var combined = false
             if (videoValid && uri != null && aac != null) {
                 combined = runCatching {
-                    CaptureMp4Muxer.combine(this, uri, aac, result.offsetUs)
+                    CaptureMp4Muxer.combine(this, uri, aac, result?.offsetUs ?: 0L)
                     true
                 }.getOrDefault(false)
             }
