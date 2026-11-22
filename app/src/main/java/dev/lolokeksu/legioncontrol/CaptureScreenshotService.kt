@@ -107,7 +107,7 @@ class CaptureScreenshotService : Service() {
         val notice = Notification.Builder(this, CHANNEL)
             .setSmallIcon(android.R.drawable.ic_menu_camera)
             .setContentTitle("Legion Capture Studio · скриншот")
-            .setContentText("Через 3 секунды будет сделан один снимок экрана")
+            .setContentText("Через 5 секунд будет сделан один снимок экрана")
             .setContentIntent(open)
             .setOngoing(true)
             .setCategory(Notification.CATEGORY_SERVICE)
@@ -136,7 +136,7 @@ class CaptureScreenshotService : Service() {
         frameHandler = handler
         val imageReader = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 2)
         reader = imageReader
-        captureAfterMs = SystemClock.elapsedRealtime() + 3000L
+        captureAfterMs = SystemClock.elapsedRealtime() + 5000L
         imageReader.setOnImageAvailableListener({ source ->
             val image = runCatching { source.acquireLatestImage() }.getOrNull() ?: return@setOnImageAvailableListener
             image.use {
@@ -155,7 +155,7 @@ class CaptureScreenshotService : Service() {
             DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
             imageReader.surface, null, handler
         )
-        status("Разрешение получено. Снимок будет сделан через 3 секунды.")
+        status("Разрешение получено. Снимок будет сделан через 5 секунд.")
         main.postDelayed(timeout, CaptureScreenshotPolicy.TIMEOUT_MS)
     }
 
