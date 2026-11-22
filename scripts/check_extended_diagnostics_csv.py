@@ -77,9 +77,12 @@ assert "fun oldRowsHaveEmptyDiagnosticColumnsWithoutFabricatedZero()" in tests
 assert "fun mismatchedDiagnosticCannotBeAttachedToWrongLegacyRow()" in tests
 assert set(x.attrib["{http://schemas.android.com/apk/res/android}name"] for x in manifest.findall("uses-permission")) == {
     "android.permission.INTERNET", "android.permission.ACCESS_NETWORK_STATE",
-    "android.permission.ACCESS_WIFI_STATE", "android.permission.PACKAGE_USAGE_STATS"
+    "android.permission.ACCESS_WIFI_STATE", "android.permission.PACKAGE_USAGE_STATS",
+    "android.permission.FOREGROUND_SERVICE",
+    "android.permission.FOREGROUND_SERVICE_SPECIAL_USE",
+    "android.permission.POST_NOTIFICATIONS"
 }
-assert 'versionCode = 16' in build
-assert 'versionName = "0.1.0-alpha.16"' in build
+assert 'versionCode = 17' in build
+assert 'versionName = "0.1.0-alpha.17"' in build
 assert "DROP TABLE" not in store and "DELETE FROM samples" not in store
 print("PASS: extended 20-column export JOIN, v1 blank diagnostics, no row loss/duplicate, no privileges")

@@ -14,7 +14,10 @@ manifest = ET.parse(root / "app/src/main/AndroidManifest.xml").getroot()
 
 assert set(x.attrib["{http://schemas.android.com/apk/res/android}name"] for x in manifest.findall("uses-permission")) == {
     "android.permission.INTERNET", "android.permission.ACCESS_NETWORK_STATE",
-    "android.permission.ACCESS_WIFI_STATE", "android.permission.PACKAGE_USAGE_STATS"
+    "android.permission.ACCESS_WIFI_STATE", "android.permission.PACKAGE_USAGE_STATS",
+    "android.permission.FOREGROUND_SERVICE",
+    "android.permission.FOREGROUND_SERVICE_SPECIAL_USE",
+    "android.permission.POST_NOTIFICATIONS"
 }
 assert "class DiagnosticTrendEngine" in engine
 assert "fun record(snapshot: DeviceDiagnosticSnapshot, batteryPercent: Int?)" in engine
@@ -47,8 +50,8 @@ for test_name in (
     "thermalCodesMatchAndroidPlatformDefinitions",
 ):
     assert test_name in tests, test_name
-assert "versionCode = 16" in gradle
-assert 'versionName = "0.1.0-alpha.16"' in gradle
+assert "versionCode = 17" in gradle
+assert 'versionName = "0.1.0-alpha.17"' in gradle
 for unsafe in ("Shizuku.getInstance", "WRITE_SECURE_SETTINGS", "setprop ", "pm grant",
                "QUERY_ALL_PACKAGES", "exec(", "getDeclaredMethod("):
     assert unsafe not in activity + engine + current + text_report, unsafe

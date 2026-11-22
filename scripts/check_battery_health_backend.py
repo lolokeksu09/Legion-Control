@@ -13,7 +13,10 @@ manifest = ET.parse(root / "app/src/main/AndroidManifest.xml").getroot()
 
 assert set(x.attrib["{http://schemas.android.com/apk/res/android}name"] for x in manifest.findall("uses-permission")) == {
     "android.permission.INTERNET", "android.permission.ACCESS_NETWORK_STATE",
-    "android.permission.ACCESS_WIFI_STATE", "android.permission.PACKAGE_USAGE_STATS"
+    "android.permission.ACCESS_WIFI_STATE", "android.permission.PACKAGE_USAGE_STATS",
+    "android.permission.FOREGROUND_SERVICE",
+    "android.permission.FOREGROUND_SERVICE_SPECIAL_USE",
+    "android.permission.POST_NOTIFICATIONS"
 }
 assert "BatteryManager.EXTRA_HEALTH" in backend
 assert "BatteryManager.EXTRA_CYCLE_COUNT" in backend
@@ -47,8 +50,8 @@ for forbidden in ("Shizuku", "WRITE_SECURE_SETTINGS", "setprop ",
                   "QUERY_ALL_PACKAGES", "Runtime.getRuntime().exec",
                   "registerReceiver", "getDeclaredMethod("):
     assert forbidden not in backend + model, forbidden
-assert 'versionCode = 16' in build
-assert 'versionName = "0.1.0-alpha.16"' in build
+assert 'versionCode = 17' in build
+assert 'versionName = "0.1.0-alpha.17"' in build
 print("PASS: public Android battery health/cycles, honest terminal watts, existing report/share, no Shizuku/UI")
 
 assert 'text = "Снять показания датчиков"' in activity
