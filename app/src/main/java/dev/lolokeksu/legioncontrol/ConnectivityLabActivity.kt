@@ -160,7 +160,7 @@ class ConnectivityLabActivity : Activity() {
         updateButtons()
         show("Запрошено подключение к $target:443. Запуск теста…")
         task=worker.submit {
-            var message:String
+            var message="Нет сохранённых результатов: запрос был отменён до начала измерений."
             var runId:String?=null
             var outcome="COMPLETE"
             try {
