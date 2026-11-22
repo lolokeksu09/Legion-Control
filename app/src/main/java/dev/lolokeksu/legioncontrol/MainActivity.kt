@@ -70,7 +70,7 @@ class MainActivity : ComponentActivity() {
             setTypeface(typeface, Typeface.BOLD)
         })
         layout.addView(TextView(this).apply {
-            text = "Kotlin + Rust · alpha.26 · диагностика Kotlin + Rust"
+            text = "Kotlin + Rust · alpha.27 · диагностика Kotlin + Rust"
             textSize = 13f
             setTextColor(0xFFA5A5A5.toInt())
             setPadding(0, 8.dp, 0, 12.dp)
