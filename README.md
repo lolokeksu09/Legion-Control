@@ -11,7 +11,7 @@
 
 См. `rust-core/`, `android-core/`, `docs/BACKEND.md`. Следующие шаги: Rust unit tests в CI, Android JNI сборка, затем легковесный Kotlin-интерфейс. Никаких заявлений об улучшении FPS, сенсорного отклика или Bypass.
 
-Версия backend: `0.1.0-alpha.9`.
+Версия backend: `0.1.0-alpha.17`.
 
 ## Project Workflow Standard v1.0
 
