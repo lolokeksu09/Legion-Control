@@ -46,12 +46,13 @@ for expected in (
 ):
     assert expected in activity, expected
 # No startup sample: manual measurement only (also no passive sensor listeners).
-assert "showSavedHistory()\n    }" in activity
-assert "sample()\n    }" not in activity
+assert "showSavedHistory()" in activity and "private fun manualSample()" in activity
+on_create = activity.split("override fun onCreate(", 1)[1].split("override fun onStart()", 1)[0]
+assert "sample()" not in on_create, "No battery capture on Activity startup"
 assert "SensorManager" in sensors and "getDefaultSensor(type)" in sensors
 assert "registerListener" not in sensors
-assert 'versionCode = 12' in gradle
-assert 'versionName = "0.1.0-alpha.12"' in gradle
+assert 'versionCode = 13' in gradle
+assert 'versionName = "0.1.0-alpha.13"' in gradle
 
 for risky in ("WRITE_SECURE_SETTINGS", "QUERY_ALL_PACKAGES", "ACCESS_NETWORK_STATE",
               "INTERNET", "setprop ", "moto_extend_service", "pointer_speed"):

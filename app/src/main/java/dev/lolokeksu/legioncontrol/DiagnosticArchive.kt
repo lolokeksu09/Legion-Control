@@ -11,7 +11,8 @@ data class DiagnosticArchiveCounts(
     val battery: Int,
     val attempts: Int,
     val sensors: Int,
-    val thermal: Int
+    val thermal: Int,
+    val timed: Int = 0
 )
 
 /**
@@ -24,12 +25,14 @@ object DiagnosticArchive {
         batteryCsv: (Writer) -> Int,
         attemptsCsv: (Writer) -> Int,
         sensorsCsv: (Writer) -> Int,
-        thermalCsv: (Writer) -> Int
+        thermalCsv: (Writer) -> Int,
+        timedCsv: ((Writer) -> Int)? = null
     ): DiagnosticArchiveCounts = ZipOutputStream(output).use { zip ->
         val battery = entry(zip, "battery.csv", batteryCsv)
         val attempts = entry(zip, "sensor-attempts.csv", attemptsCsv)
         val sensors = entry(zip, "sensor-values.csv", sensorsCsv)
         val thermal = entry(zip, "thermal-history.csv", thermalCsv)
+        val timed = timedCsv?.let { entry(zip, "timed-tests.csv", it) } ?: 0
         zip.putNextEntry(ZipEntry("README.txt"))
         zip.write(
             ("Legion Control diagnostic export\n" +
@@ -38,14 +41,15 @@ object DiagnosticArchive {
                 "sensor-attempts.csv includes successful and failed sensor probes.\n" +
                 "sensor-values.csv includes only accepted real SensorEvent values.\n" +
                 "thermal-history.csv contains previously recorded manual measurements.\n" +
+                (if (timedCsv != null) "timed-tests.csv contains user-started foreground battery tests.\n" else "") +
                 "Missing values are blank, never synthetic zeros.\n" +
                 "Do not treat display refresh rate as game FPS or thermal headroom as CPU temperature.\n" +
                 "Rows: battery=$battery, sensor-attempts=$attempts, " +
-                "sensor-values=$sensors, thermal-history=$thermal\n"
+                "sensor-values=$sensors, thermal-history=$thermal, timed-tests=$timed\n"
             ).toByteArray(Charsets.UTF_8)
         )
         zip.closeEntry()
-        DiagnosticArchiveCounts(battery, attempts, sensors, thermal)
+        DiagnosticArchiveCounts(battery, attempts, sensors, thermal, timed)
     }
 
     private fun entry(

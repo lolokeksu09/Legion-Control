@@ -13,7 +13,7 @@ import java.io.Writer
  * No storage permission, cloud sync, destructive migration or silent pruning.
  */
 class LocalHistoryStore(context: Context) : SQLiteOpenHelper(
-    context.applicationContext, "legion-control-history.db", null, SensorDiagnosticsSchema.VERSION
+    context.applicationContext, "legion-control-history.db", null, TimedBatterySchema.VERSION
 ) {
     override fun onConfigure(db: SQLiteDatabase) {
         super.onConfigure(db)
@@ -51,25 +51,19 @@ class LocalHistoryStore(context: Context) : SQLiteOpenHelper(
         installDiagnostics(db)
         installSensors(db)
         installSensorAttempts(db)
+        installTimedBatteryTests(db)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        if (oldVersion == 1 && newVersion == SensorDiagnosticsSchema.VERSION) {
-            installDiagnostics(db)
-            installSensors(db)
-            installSensorAttempts(db)
-            return
+        if (newVersion != TimedBatterySchema.VERSION || oldVersion !in 1..4) {
+            throw IllegalStateException("No safe migration from $oldVersion to $newVersion")
         }
-        if (oldVersion == 2 && newVersion == SensorDiagnosticsSchema.VERSION) {
-            installSensors(db)
-            installSensorAttempts(db)
-            return
-        }
-        if (oldVersion == 3 && newVersion == SensorDiagnosticsSchema.VERSION) {
-            installSensorAttempts(db)
-            return
-        }
-        throw IllegalStateException("No safe migration from $oldVersion to $newVersion")
+        // SQLiteOpenHelper wraps upgrades in its own transaction. These are
+        // additive DDL statements only: every historical row remains intact.
+        if (oldVersion == 1) installDiagnostics(db)
+        if (oldVersion <= 2) installSensors(db)
+        if (oldVersion <= 3) installSensorAttempts(db)
+        installTimedBatteryTests(db)
     }
 
     private fun installDiagnostics(db: SQLiteDatabase) {
@@ -86,6 +80,121 @@ class LocalHistoryStore(context: Context) : SQLiteOpenHelper(
         db.execSQL(SensorDiagnosticsSchema.CREATE_TABLE.trimIndent())
         db.execSQL(SensorDiagnosticsSchema.CREATE_INDEX)
     }
+
+    private fun installTimedBatteryTests(db: SQLiteDatabase) {
+        db.execSQL(TimedBatterySchema.CREATE_TABLE.trimIndent())
+        db.execSQL(TimedBatterySchema.CREATE_INDEX)
+    }
+
+    /** A completed foreground test is committed after its queued manual samples. */
+    fun recordTimedBatteryTest(test: TimedBatteryTestResult): Boolean {
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            // Allows a 0-point test without adding a fictitious battery reading.
+            db.insertWithOnConflict(
+                "sessions", null,
+                ContentValues().apply {
+                    put("id", test.sessionId)
+                    put("started_at_ms", test.startedAtMs)
+                },
+                SQLiteDatabase.CONFLICT_IGNORE
+            )
+            val firstAndLast = mutableListOf<Pair<Int, Int>>()
+            db.rawQuery(
+                """SELECT percent,temperature_deci_c FROM samples
+                   WHERE session_id=? ORDER BY elapsed_ms ASC,id ASC""",
+                arrayOf(test.sessionId)
+            ).use { cursor ->
+                while (cursor.moveToNext()) {
+                    firstAndLast += cursor.getInt(0) to cursor.getInt(1)
+                }
+            }
+            val temperatures = firstAndLast.map { it.second }
+            val thermalCode = db.rawQuery(
+                """SELECT MAX(thermal_status) FROM diagnostic_samples WHERE session_id=?""",
+                arrayOf(test.sessionId)
+            ).use { cursor ->
+                if (cursor.moveToFirst() && !cursor.isNull(0)) cursor.getInt(0)
+                else null
+            }
+            val values = ContentValues().apply {
+                put("test_id", test.testId)
+                put("session_id", test.sessionId)
+                put("started_at_ms", test.startedAtMs)
+                put("finished_at_ms", test.finishedAtMs)
+                put("reason", test.reason.name)
+                put("attempted_reads", test.attemptedReads)
+                // Real committed SQLite rows, not merely a successful Rust return.
+                put("successful_reads", firstAndLast.size.coerceAtMost(test.attemptedReads))
+                if (firstAndLast.isNotEmpty()) {
+                    put("first_percent", firstAndLast.first().first)
+                    put("last_percent", firstAndLast.last().first)
+                    put("min_temp_deci_c", temperatures.min())
+                    put("max_temp_deci_c", temperatures.max())
+                } else {
+                    putNull("first_percent")
+                    putNull("last_percent")
+                    putNull("min_temp_deci_c")
+                    putNull("max_temp_deci_c")
+                }
+                if (thermalCode == null) putNull("max_thermal_status")
+                else put("max_thermal_status", thermalCode)
+            }
+            val rowId = db.insertWithOnConflict(
+                "timed_battery_tests", null, values, SQLiteDatabase.CONFLICT_IGNORE
+            )
+            db.update(
+                "sessions",
+                ContentValues().apply { put("ended_at_ms", test.finishedAtMs) },
+                "id=?", arrayOf(test.sessionId)
+            )
+            db.setTransactionSuccessful()
+            return rowId != -1L
+        } finally {
+            db.endTransaction()
+        }
+    }
+
+    fun recentTimedBatteryTests(limit: Int = 12): List<SavedTimedBatteryTest> {
+        require(limit in 1..100)
+        val result = mutableListOf<SavedTimedBatteryTest>()
+        readableDatabase.rawQuery(
+            """SELECT test_id,started_at_ms,finished_at_ms,reason,
+                      attempted_reads,successful_reads,first_percent,last_percent,
+                      min_temp_deci_c,max_temp_deci_c,max_thermal_status
+               FROM timed_battery_tests ORDER BY finished_at_ms DESC LIMIT ?""",
+            arrayOf(limit.toString())
+        ).use { cursor ->
+            while (cursor.moveToNext()) result += SavedTimedBatteryTest(
+                testId = cursor.getString(0),
+                startedAtMs = cursor.getLong(1),
+                finishedAtMs = cursor.getLong(2),
+                reason = TimedBatteryStopReason.valueOf(cursor.getString(3)),
+                attemptedReads = cursor.getInt(4),
+                successfulReads = cursor.getInt(5),
+                firstBatteryPercent = if (cursor.isNull(6)) null else cursor.getInt(6),
+                lastBatteryPercent = if (cursor.isNull(7)) null else cursor.getInt(7),
+                minTemperatureDeciC = if (cursor.isNull(8)) null else cursor.getInt(8),
+                maxTemperatureDeciC = if (cursor.isNull(9)) null else cursor.getInt(9),
+                maxThermalStatus = if (cursor.isNull(10)) null else cursor.getInt(10)
+            )
+        }
+        return result
+    }
+
+    fun writeTimedBatteryTestsCsv(writer: Writer): Int = streamDiagnosticCsv(
+        writer,
+        listOf(
+            "test_id","session_id","started_at_ms","finished_at_ms",
+            "reason","attempted_reads","successful_reads","first_percent",
+            "last_percent","min_temp_deci_c","max_temp_deci_c","max_thermal_status"
+        ),
+        """SELECT test_id,session_id,started_at_ms,finished_at_ms,reason,
+                  attempted_reads,successful_reads,first_percent,last_percent,
+                  min_temp_deci_c,max_temp_deci_c,max_thermal_status
+           FROM timed_battery_tests ORDER BY finished_at_ms ASC"""
+    )
 
     fun record(reading: StoredReading): Boolean {
         require(reading.sessionId.isNotBlank() && reading.sessionId.length <= 100)
@@ -480,7 +589,8 @@ class LocalHistoryStore(context: Context) : SQLiteOpenHelper(
             batteryCsv = ::writeCsv,
             attemptsCsv = ::writeSensorAttemptsCsv,
             sensorsCsv = ::writeSensorValuesCsv,
-            thermalCsv = ::writeThermalHistoryCsv
+            thermalCsv = ::writeThermalHistoryCsv,
+            timedCsv = ::writeTimedBatteryTestsCsv
         )
 
     private fun writeSensorAttemptsCsv(writer: Writer): Int = streamDiagnosticCsv(

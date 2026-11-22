@@ -82,7 +82,7 @@ rejects(
        VALUES(?,?,?,?)""",
     ("previous-session", 1900, 2100, 8),
 )
-assert "oldVersion == 1 && newVersion == SensorDiagnosticsSchema.VERSION" in source
+assert "if (oldVersion == 1) installDiagnostics(db)" in source
 assert "DiagnosticHistorySchema.CREATE_TABLE" in source
 assert "DiagnosticHistorySchema.CREATE_INDEX" in source
 assert 'throw IllegalStateException("No safe migration' in source
@@ -94,6 +94,6 @@ assert "history.recordDiagnostic(" in activity
 assert "history.recentDiagnostics(" in activity
 assert "DiagnosticSessionAnalyzer.analyze(" in activity
 assert "fun calculatesActualChargeRateFromSeveralManualMeasurements()" in checks
-assert 'versionCode = 12' in gradle
-assert 'versionName = "0.1.0-alpha.12"' in gradle
+assert 'versionCode = 13' in gradle
+assert 'versionName = "0.1.0-alpha.13"' in gradle
 print("PASS: actual SQLite v1→v2 additive migration preserves rows, rejects orphans, validates diagnostics")

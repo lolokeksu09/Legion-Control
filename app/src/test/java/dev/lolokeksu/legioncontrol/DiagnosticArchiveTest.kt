@@ -77,4 +77,37 @@ class DiagnosticArchiveTest {
             )
         }
     }
+
+    @Test fun timedTestRowsAreAddedToNewArchiveWithoutChangingLegacyBattery() {
+        val output = ByteArrayOutputStream()
+        val counts = DiagnosticArchive.write(
+            output,
+            batteryCsv = { writer ->
+                writer.write("old-battery-format\r\n")
+                1
+            },
+            attemptsCsv = { 0 },
+            sensorsCsv = { 0 },
+            thermalCsv = { 0 },
+            timedCsv = { writer ->
+                DiagnosticArchiveCsv.begin(writer, listOf("test_id", "reason", "successful_reads"))
+                DiagnosticArchiveCsv.append(writer, listOf("run-1", "THERMAL_SEVERE", "2"))
+                1
+            }
+        )
+        assertEquals(1, counts.timed)
+        val contents = mutableMapOf<String, String>()
+        ZipInputStream(ByteArrayInputStream(output.toByteArray())).use { zip ->
+            while (true) {
+                val entry = zip.nextEntry ?: break
+                contents[entry.name] = zip.readBytes().toString(Charsets.UTF_8)
+                zip.closeEntry()
+            }
+        }
+        assertTrue(contents.getValue("battery.csv").contains("old-battery-format"))
+        assertTrue(contents.getValue("timed-tests.csv").contains("THERMAL_SEVERE"))
+        assertTrue(contents.getValue("README.txt").contains("timed-tests=1"))
+        assertEquals(6, contents.size)
+    }
+
 }
