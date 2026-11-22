@@ -85,6 +85,8 @@ jobs:
         run: python3 scripts/check_alpha24_game_toolbox.py
       - name: Verify alpha.25 MediaProjection Capture Studio and owned MP4 lifecycle
         run: python3 scripts/check_alpha25_capture_studio.py
+      - name: Verify alpha.26 MVVM navigation and preserved Kotlin/Rust backend
+        run: python3 scripts/check_alpha26_mvvm_navigation.py
       - name: Run pure Kotlin CSV and Russian plural regression tests
         run: gradle --no-daemon testDebugUnitTest
       - name: Test and compile real Rust backend for Android
@@ -132,6 +134,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: success()
         with:
-          name: Legion-Control-v0.1.0-alpha.25-kotlin-rust-debug
+          name: Legion-Control-v0.1.0-alpha.26-kotlin-rust-debug
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error

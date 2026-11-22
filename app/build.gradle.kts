@@ -17,8 +17,8 @@ android {
         applicationId = "dev.lolokeksu.legioncontrol"
         minSdk = 33
         targetSdk = 36
-        versionCode = 25
-        versionName = "0.1.0-alpha.25"
+        versionCode = 26
+        versionName = "0.1.0-alpha.26"
         ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
     }
     compileOptions {
@@ -57,5 +57,9 @@ gradle.taskGraph.whenReady {
 
 // Pure JVM regressions for CSV integrity and Russian quantity formatting.
 dependencies {
+    // Stable AndroidX Views/Fragments navigation: no Compose compiler or duplicate backend.
+    implementation("androidx.navigation:navigation-fragment:2.10.2")
+    implementation("androidx.lifecycle:lifecycle-viewmodel:2.11.1")
+    implementation("androidx.lifecycle:lifecycle-livedata:2.11.1")
     testImplementation("junit:junit:4.13.2")
 }

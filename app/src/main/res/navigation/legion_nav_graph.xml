@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/legion_nav_graph"
+    app:startDestination="@id/homeFragment">
+    <fragment
+        android:id="@+id/homeFragment"
+        android:name="dev.lolokeksu.legioncontrol.HubPageFragment"
+        android:label="Главная">
+        <argument android:name="page" app:argType="string" android:defaultValue="home"/>
+    </fragment>
+    <fragment
+        android:id="@+id/gamesFragment"
+        android:name="dev.lolokeksu.legioncontrol.HubPageFragment"
+        android:label="Игры">
+        <argument android:name="page" app:argType="string" android:defaultValue="games"/>
+    </fragment>
+    <fragment
+        android:id="@+id/toolsFragment"
+        android:name="dev.lolokeksu.legioncontrol.HubPageFragment"
+        android:label="Инструменты">
+        <argument android:name="page" app:argType="string" android:defaultValue="tools"/>
+    </fragment>
+    <fragment
+        android:id="@+id/historyFragment"
+        android:name="dev.lolokeksu.legioncontrol.HubPageFragment"
+        android:label="История">
+        <argument android:name="page" app:argType="string" android:defaultValue="history"/>
+    </fragment>
+    <fragment
+        android:id="@+id/settingsFragment"
+        android:name="dev.lolokeksu.legioncontrol.HubPageFragment"
+        android:label="Настройки">
+        <argument android:name="page" app:argType="string" android:defaultValue="settings"/>
+    </fragment>
+    <fragment
+        android:id="@+id/gameDetailFragment"
+        android:name="dev.lolokeksu.legioncontrol.GameDetailFragment"
+        android:label="Игра">
+        <argument android:name="gamePackage" app:argType="string"/>
+    </fragment>
+</navigation>
