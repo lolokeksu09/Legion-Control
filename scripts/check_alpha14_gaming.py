@@ -70,8 +70,8 @@ assert "task?.cancel(true)" in activity
 assert "frameCapture?.stop(false)" in activity
 assert 'android:exported="false"' in (root / "app/src/main/AndroidManifest.xml").read_text()
 assert "SQLiteOpenHelper" in store and "HapticLabSchema.VERSION" in store
-assert 'versionCode = 26' in gradle
-assert 'versionName = "0.1.0-alpha.26"' in gradle
+assert 'versionCode = 27' in gradle
+assert 'versionName = "0.1.0-alpha.27"' in gradle
 
 # The actual repo session query must be runnable with escaped bind values,
 # not interpolated into a SQL string.

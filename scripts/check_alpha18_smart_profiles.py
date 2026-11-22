@@ -34,8 +34,8 @@ assert qs[0].get(ns+"exported")=="true"
 assert "startActivityAndCollapse(pending)" in (src/"LegionQuickTileService.kt").read_text(encoding="utf-8")
 assert "SmartProfilesActivity::class.java" in (src/"MainActivity.kt").read_text(encoding="utf-8")
 assert "const val VERSION = 7" in schema
-assert 'versionCode = 26' in (root/"app/build.gradle.kts").read_text(encoding="utf-8")
-assert 'versionName = "0.1.0-alpha.26"' in (root/"app/build.gradle.kts").read_text(encoding="utf-8")
+assert 'versionCode = 27' in (root/"app/build.gradle.kts").read_text(encoding="utf-8")
+assert 'versionName = "0.1.0-alpha.27"' in (root/"app/build.gradle.kts").read_text(encoding="utf-8")
 assert 'oldVersion !in 1..11' in history
 assert 'newVersion != HapticLabSchema.VERSION' in history
 assert 'if (oldVersion <= 5) GameSessionSchema.install(db)' in history
