@@ -25,15 +25,15 @@ assert perms=={
     "android.permission.POST_NOTIFICATIONS",
     "android.permission.MODIFY_AUDIO_SETTINGS",
     "android.permission.ACCESS_NOTIFICATION_POLICY",
-    "android.permission.WRITE_SETTINGS","android.permission.VIBRATE"
+    "android.permission.WRITE_SETTINGS","android.permission.VIBRATE","android.permission.SYSTEM_ALERT_WINDOW"
 }, perms
 assert 'android:exported="false"' in manifest_source
 for name in (".HardwareLabActivity",".DisplayPatternActivity"):
     assert any(x.get(a+"name")==name and x.get(a+"exported")=="false"
         for x in manifest.findall("./application/activity")),name
 assert 'HardwareLabActivity::class.java' in gaming
-assert 'versionCode = 23' in gradle
-assert 'versionName = "0.1.0-alpha.23"' in gradle
+assert 'versionCode = 24' in gradle
+assert 'versionName = "0.1.0-alpha.24"' in gradle
 for num,name in enumerate([
     "Local Route Inspector",
     "Network Events",
