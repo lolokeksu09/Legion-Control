@@ -2,6 +2,8 @@ package dev.lolokeksu.legioncontrol
 
 import androidx.activity.ComponentActivity
 import androidx.lifecycle.ViewModelProvider
+import android.Manifest
+import android.content.pm.PackageManager
 import android.app.AlertDialog
 import android.content.Intent
 import android.graphics.Color
@@ -19,13 +21,14 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * Video-only user-consented screen capture and app-owned clip library.
+ * Video-only or opted-in game/media playback audio capture and app-owned clip library.
  * No background scan, recording without system consent, microphone or cloud upload.
  */
 class CaptureStudioActivity : ComponentActivity() {
     companion object {
         private const val REQUEST_CAPTURE = 25001
         private const val REQUEST_SCREENSHOT = 25002
+        private const val REQUEST_PLAYBACK_PERMISSION = 25003
     }
 
     private val viewModel by lazy { ViewModelProvider(this)[CaptureStudioViewModel::class.java] }
@@ -70,7 +73,7 @@ class CaptureStudioActivity : ComponentActivity() {
         }
         heading("CAPTURE STUDIO")
         note("Записывает экран в MP4 по разовому системному разрешению Android. " +
-            "Только видео: без микрофона и игрового звука. Вы сами решаете, что попадёт в запись. " +
+            "Внутренний звук включается отдельно; микрофон не используется. " +
             "DRM и защищённые окна могут быть чёрными.")
 
         status = TextView(this).apply {
@@ -100,6 +103,12 @@ class CaptureStudioActivity : ComponentActivity() {
             "Битрейт кодирования",
             "mbit", intArrayOf(4, 8, 12), arrayOf("4 Мбит/с", "8 Мбит/с", "12 Мбит/с")
         ) }
+        action("Звук игры · включить / выключить") {
+            viewModel.choosePlaybackAudio(!viewModel.playbackAudioEnabled())
+        }
+        note("По умолчанию без звука. Android запросит RECORD_AUDIO при запуске со звуком; " +
+            "это системное название разрешения, микрофон приложение не открывает. " +
+            "Звуки других приложений могут быть исключены их политикой.")
         action("Автостоп · 1 / 5 / 15 минут") { selectOption(
             "Максимальная длительность",
             "minutes", intArrayOf(1, 5, 15), arrayOf("1 минута", "5 минут", "15 минут")
@@ -165,6 +174,7 @@ class CaptureStudioActivity : ComponentActivity() {
             "уведомления или этого экрана. Ограничение качества/частоты зависит от кодека и прошивки.")
         setContentView(ScrollView(this).apply { addView(root) })
         viewModel.settings.observe(this) { refreshChoices() }
+        viewModel.playbackAudio.observe(this) { refreshChoices() }
         viewModel.message.observe(this) { status.text = it }
         viewModel.library.observe(this) { state ->
             when (state) {
@@ -195,9 +205,11 @@ class CaptureStudioActivity : ComponentActivity() {
 
     private fun refreshChoices() {
         val config = viewModel.config()
-        choices.text = "Сторона до ${config.maxEdge} px · ${config.fps} FPS запрошено\n" +
+        choices.text = "Сторона до ${config.maxEdge} px · ${config.fps} FPS запрошено\\n" +
             "${config.videoBitrate / 1_000_000} Мбит/с · " +
-            "${config.maxDurationMs / 60_000} мин максимум"
+            "${config.maxDurationMs / 60_000} мин максимум\\n" +
+            (if (viewModel.playbackAudioEnabled()) "Внутренний звук: ЗАПРОШЕН (AAC)" else
+                "Внутренний звук: ВЫКЛЮЧЕН")
     }
 
     private fun selectOption(title: String, name: String, values: IntArray, labels: Array<String>) {
@@ -211,6 +223,13 @@ class CaptureStudioActivity : ComponentActivity() {
     }
 
     private fun askConsent() {
+        if (viewModel.playbackAudioEnabled() &&
+            checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), REQUEST_PLAYBACK_PERMISSION)
+            status.text = "Для захвата разрешённого игрового звука Android требует RECORD_AUDIO. " +
+                "Микрофон не используется."
+            return
+        }
         if (CaptureRecordingService.recording || CaptureScreenshotService.active) {
             status.text = "Выполняется другой захват. Сначала завершите его."
             return
@@ -237,6 +256,18 @@ class CaptureStudioActivity : ComponentActivity() {
         }
     }
 
+    override fun onRequestPermissionsResult(
+        requestCode: Int, permissions: Array<out String>, grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode != REQUEST_PLAYBACK_PERMISSION) return
+        if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            askConsent()
+        } else {
+            status.text = "Нет разрешения RECORD_AUDIO. Видео без звука доступно: выключите режим звука."
+        }
+    }
+
     @Deprecated("Legacy Activity result API works without introducing AndroidX dependencies")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
@@ -260,8 +291,15 @@ class CaptureStudioActivity : ComponentActivity() {
                 }
             return
         }
+        val playbackRequested = viewModel.playbackAudioEnabled()
+        if (playbackRequested &&
+            checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            status.text = "Разрешение RECORD_AUDIO отозвано. Запись со звуком не начата."
+            return
+        }
         val config = viewModel.config()
         val intent = Intent(this, CaptureRecordingService::class.java).apply {
+            putExtra(CaptureRecordingService.EXTRA_PLAYBACK_AUDIO, playbackRequested)
             action = CaptureRecordingService.ACTION_START
             putExtra(CaptureRecordingService.EXTRA_RESULT, resultCode)
             putExtra(CaptureRecordingService.EXTRA_CONSENT, data)
