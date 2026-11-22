@@ -70,10 +70,17 @@ class MainActivity : Activity() {
             setTypeface(typeface, Typeface.BOLD)
         })
         layout.addView(TextView(this).apply {
-            text = "Kotlin + Rust · alpha.24 · Game Toolbox"
+            text = "Kotlin + Rust · alpha.25 · Capture Studio"
             textSize = 13f
             setTextColor(0xFFA5A5A5.toInt())
             setPadding(0, 8.dp, 0, 12.dp)
+        })
+        layout.addView(Button(this).apply {
+            text = "CAPTURE STUDIO · запись экрана и клипы MP4"
+            minHeight = 52.dp
+            setOnClickListener {
+                startActivity(Intent(this@MainActivity, CaptureStudioActivity::class.java))
+            }
         })
         layout.addView(Button(this).apply {
             text = "GAME TOOLBOX · плавающая панель поверх игр"
