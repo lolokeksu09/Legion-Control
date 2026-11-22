@@ -135,6 +135,9 @@ class GamingDiagnosticsActivity : Activity() {
         addButton(root, "10 · System Health") {
             runWorker { DeviceInsights.system(applicationContext, display) }
         }
+        addButton(root, "HARDWARE LAB · ещё 6 диагностик") {
+            startActivity(Intent(this, HardwareLabActivity::class.java))
+        }
         addButton(root, "Вернуться к Legion Control") { finish() }
         setContentView(ScrollView(this).apply {
             isFillViewport = true
