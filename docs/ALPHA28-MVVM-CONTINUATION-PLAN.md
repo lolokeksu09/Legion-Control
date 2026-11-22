@@ -33,10 +33,31 @@ This branch contains code for, but does not yet release:
 - **DONE (source):** Audio Lab original PCM playback, route monitor/history and CSV -> `AudioLabViewModel`; no mic and audio stops on screen exit.
 - **DONE (source):** Haptic Lab short opt-in vibration, capability snapshot, feedback/history and CSV -> `HapticLabViewModel`; stops on screen exit.
 - **DONE (source):** Connectivity Observatory explicit DNS/TCP/TLS probes, history, comparison and CSV -> `ConnectivityLabViewModel`; cancellation on screen exit.
-- **NOT YET DONE:** Experiment Lab, Hardware Lab, Compatibility Lab, Gaming Diagnostics and the other unmigrated Activity-owned workers. These still use their preexisting backends and must not be represented as ViewModel-managed.
-- **NOT YET DONE:** conversion of all laboratory screen bodies into Navigation Component Fragment destinations. The existing home/games/tools/history/settings/detail graph remains the safe launcher. No stub destinations or duplicated screens have been added.
-- **NOT YET DONE:** manual device smoke tests (Motorola/Lenovo variant), device haptic/audio/URI functional confirmation, production signing or release.
+- **DONE (source):** Experiment Lab A/B experiments, user-selected history, annotation CRUD, CSV and share -> `ExperimentLabViewModel`, no replacement of original recorded telemetry.
+- **DONE (source):** Compatibility Lab public API probes and aggregate report -> `CompatibilityLabViewModel` with cancellation on leaving the screen.
+- **DONE (source):** Hardware Lab sandbox I/O / codecs / routes, bounded motion and network event captures -> `HardwareLabViewModel` with stop/unregister on screen exit.
+- **DONE (source):** Gaming Diagnostics public API probes, local SQLite session comparisons, thermal listener and frame pacing -> `GamingDiagnosticsViewModel`; full-screen touch UI stays in Fragment.
+- **DONE (source):** Ten full module screens are real Navigation Component `<fragment>` destinations: Game Session, Smart Profiles, Application Center, Experiment Lab, Connectivity Observatory, Audio Lab, Haptic Lab, Compatibility Lab, Hardware Lab and Gaming Diagnostics. The original six hub/game-detail destinations remain. Each moved screen keeps its original Activity class as a thin explicit-Intent compatibility adapter, preserving existing callers, Game Session/Tiles and launcher paths.
+- **DONE (source):** Five purpose-specific Android Activity screens stay as centralized `<activity>` destinations through `ActivityNavigator`: MainActivity Kotlin/Rust diagnostics, Game Toolbox overlay UI, Capture Studio MediaProjection consent, Gamepad Live and fullscreen Display Patterns. This is an intentional platform boundary, not a claim that those five screens were converted to Fragment.
+- **NOT YET DONE:** physical Android smoke tests (Motorola/Lenovo variant): rotary/configuration changes, selected package navigation, back stack, system picker, haptic/audio stop, sensor/network cancellation and consent behavior.
+- **NOT YET DONE:** release signing with the permanent distribution key, merge to main or production release.
 
-CI: historical alpha.4–alpha.27 regression scripts have been adapted at the true backend boundary; `scripts/check_alpha28_mvvm_backends.py` is a new regression gate in the Android workflow. A green CI result must be checked against the **latest commit**, not a prior passing build, before marking this patch merge-ready.
+CI: historical alpha.4–alpha.27 regression scripts are maintained at the moved source boundary. Both `scripts/check_alpha28_mvvm_backends.py` and `scripts/check_alpha29_navigation_routes.py` run in the Android workflow. A green CI result on an **older** commit is not proof for a newer revision. Run the current head through Kotlin unit tests, Rust compilation, `assembleDebug lintDebug`, APK JNI verification, and signing-safety checks before requesting merge.
 
 Unchanged throughout: package ID, SDK requirements, exact manifest permission allowlist, Rust JNI symbols/cap, SQLite schema v12 and existing data, permanent signer identity, explicit consent and manual-only triggers.
+
+## Navigation handoff matrix (alpha.29 branch revision)
+
+| Route ownership | Screens | Mechanism |
+| --- | --- | --- |
+| Existing six hub destinations | Home, Games, Tools, History, Settings, Game Detail | Navigation `FragmentNavigator`, retained |
+| Ten migrated user-facing modules | Game Session; Smart Profiles; Application Center; Experiment Lab; Connectivity Observatory; Audio Lab; Haptic Lab; Compatibility Lab; Hardware Lab; Gaming Diagnostics | Navigation `FragmentNavigator` using screen ViewModels |
+| Five platform-specialized modules | Legacy diagnostics; Game Toolbox; Capture Studio; Gamepad Live; Display Patterns | Navigation `ActivityNavigator`, Activity remains first-class |
+| Legacy deep links and feature-to-feature Intents | Ten moved screens | Original exported=false Activity classes host the canonical Fragment; no duplicated UI layout |
+
+The release name and version remain **0.1.0-alpha.27** during this refactor branch; this is not a published `alpha.29` APK. No SQLite migration is performed.
+
+### Completion gates
+- Green GitHub Actions for **exact final head commit** (no unresolved failures), followed by code review.
+- Device smoke on Lenovo Y70 with Motorola identity: launcher tabs, open/back to Game Detail, Game Session explicit START/STOP, Smart Profiles import/export confirmation, App Center selected-package, Audio/Haptic stop on background, Connectivity cancellation, diagnostics history and save-before-read ordering.
+- Confirm media projection remains Android's native one-time consent, overlay privileges remain official Settings intents, no unsolicited network probe or vibration, and no unsigned or CI-temporary-signed APK distributed.
