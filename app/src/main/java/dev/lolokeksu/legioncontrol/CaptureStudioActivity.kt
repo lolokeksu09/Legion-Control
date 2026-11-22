@@ -200,7 +200,10 @@ class CaptureStudioActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        if (::status.isInitialized) refreshStatus()
+        if (::status.isInitialized) {
+            refreshStatus()
+            refreshChoices()
+        }
     }
 
     private fun selectedAudioGame(): String? =
