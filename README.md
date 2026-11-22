@@ -199,3 +199,7 @@ Backend-first версия добавляет три действия: «Про�
 ## v0.1.0-alpha.21 — Application Control Center
 
 **Новый модуль для всех Android приложений и игр:** локальная библиотека (избранное, категории, заметки), просмотр версий и запрошенных разрешений, ручная проверка изменений версий, история наблюдений, необязательная статистика Android Usage Access за 24 часа/7 дней, безопасные системные ярлыки на настройки приложения и CSV. Нет новых разрешений, Root/Shizuku, QUERY_ALL_PACKAGES, автоматических действий над другими приложениями. SQLite v10 без потери истории v1–v9. [Руководство](docs/ALPHA21-APPLICATION-CENTER.md) · [План и проверки](docs/ALPHA21-APPLICATION-CENTER-PLAN.md).
+
+## v0.1.0-alpha.22 — Audio Lab
+
+A new **real audio test module** (not another output metadata list): gentle generated stereo PCM16 tones, left/right and channel identification, 220–1760 Hz sweep, manual stop on-screen, active-route observation, connected-output events, SQLite v11 audio test history and CSV export. Only explicit, foreground playback; no microphone, no new permissions, Root/Shizuku or fake latency measurement. [Audio Lab guide](docs/ALPHA22-AUDIO-LAB.md) · [plan and verification](docs/ALPHA22-AUDIO-LAB-PLAN.md).

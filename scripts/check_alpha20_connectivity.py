@@ -14,12 +14,12 @@ analytics=(src/"ConnectivityAnalytics.kt").read_text(encoding="utf-8")
 ui=(src/"ConnectivityLabActivity.kt").read_text(encoding="utf-8")
 gradle=(root/"app/build.gradle.kts").read_text(encoding="utf-8")
 
-assert 'versionCode = 21' in gradle
-assert 'versionName = "0.1.0-alpha.21"' in gradle
+assert 'versionCode = 22' in gradle
+assert 'versionName = "0.1.0-alpha.22"' in gradle
 assert 'minSdk = 33' in gradle and 'targetSdk = 36' in gradle
 assert 'const val VERSION = 9' in schema
-assert 'newVersion != ApplicationCenterSchema.VERSION' in store
-assert 'oldVersion !in 1..9' in store
+assert 'newVersion != AudioLabSchema.VERSION' in store
+assert 'oldVersion !in 1..10' in store
 assert 'if (oldVersion <= 7) ExperimentSchema.install(db)' in store
 assert 'if (oldVersion <= 6) SmartProfilesSchema.install(db)' in store
 assert 'if (oldVersion <= 5) GameSessionSchema.install(db)' in store

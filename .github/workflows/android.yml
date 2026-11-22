@@ -77,6 +77,8 @@ jobs:
         run: python3 scripts/check_alpha20_connectivity.py
       - name: Verify alpha.21 Application Center and real SQLite v9-to-v10 migration
         run: python3 scripts/check_alpha21_application_center.py
+      - name: Verify alpha.22 Audio Lab and real SQLite v10-to-v11 migration
+        run: python3 scripts/check_alpha22_audio_lab.py
       - name: Run pure Kotlin CSV and Russian plural regression tests
         run: gradle --no-daemon testDebugUnitTest
       - name: Test and compile real Rust backend for Android
@@ -124,6 +126,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: success()
         with:
-          name: Legion-Control-v0.1.0-alpha.21-kotlin-rust-debug
+          name: Legion-Control-v0.1.0-alpha.22-kotlin-rust-debug
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error

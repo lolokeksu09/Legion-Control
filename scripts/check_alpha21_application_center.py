@@ -15,12 +15,12 @@ rules=(src/"ApplicationAuditRules.kt").read_text(encoding="utf-8")
 usage=(src/"ApplicationUsageInspector.kt").read_text(encoding="utf-8")
 gradle=(root/"app/build.gradle.kts").read_text(encoding="utf-8")
 
-assert "versionCode = 21" in gradle
-assert 'versionName = "0.1.0-alpha.21"' in gradle
+assert "versionCode = 22" in gradle
+assert 'versionName = "0.1.0-alpha.22"' in gradle
 assert 'minSdk = 33' in gradle and 'targetSdk = 36' in gradle
 assert "const val VERSION = 10" in schema
-assert "newVersion != ApplicationCenterSchema.VERSION" in store
-assert "oldVersion !in 1..9" in store
+assert "newVersion != AudioLabSchema.VERSION" in store
+assert "oldVersion !in 1..10" in store
 assert "if (oldVersion <= 8) ConnectivitySchema.install(db)" in store
 assert store.count("ApplicationCenterSchema.install(db)")==2
 assert "DROP TABLE" not in store and "DELETE FROM samples" not in store
