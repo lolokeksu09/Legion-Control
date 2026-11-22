@@ -8,7 +8,10 @@ manifest = ET.parse(android / "AndroidManifest.xml").getroot()
 ns = "{http://schemas.android.com/apk/res/android}"
 assert set(x.attrib["{http://schemas.android.com/apk/res/android}name"] for x in manifest.findall("uses-permission")) == {
     "android.permission.INTERNET", "android.permission.ACCESS_NETWORK_STATE",
-    "android.permission.ACCESS_WIFI_STATE", "android.permission.PACKAGE_USAGE_STATS"
+    "android.permission.ACCESS_WIFI_STATE", "android.permission.PACKAGE_USAGE_STATS",
+    "android.permission.FOREGROUND_SERVICE",
+    "android.permission.FOREGROUND_SERVICE_SPECIAL_USE",
+    "android.permission.POST_NOTIFICATIONS"
 }, "Backend alpha needs no extra permissions"
 
 build = (root / "app/build.gradle.kts").read_text(encoding="utf-8")

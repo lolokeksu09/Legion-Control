@@ -14,7 +14,10 @@ manifest = ET.parse(root / "app/src/main/AndroidManifest.xml").getroot()
 
 assert set(x.attrib["{http://schemas.android.com/apk/res/android}name"] for x in manifest.findall("uses-permission")) == {
     "android.permission.INTERNET", "android.permission.ACCESS_NETWORK_STATE",
-    "android.permission.ACCESS_WIFI_STATE", "android.permission.PACKAGE_USAGE_STATS"
+    "android.permission.ACCESS_WIFI_STATE", "android.permission.PACKAGE_USAGE_STATS",
+    "android.permission.FOREGROUND_SERVICE",
+    "android.permission.FOREGROUND_SERVICE_SPECIAL_USE",
+    "android.permission.POST_NOTIFICATIONS"
 }, "Public telemetry must not require permissions"
 for value in (
     "ProbeState", "AVAILABLE, UNAVAILABLE, ERROR, RATE_LIMITED",

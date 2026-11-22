@@ -13,9 +13,12 @@ manifest = ET.parse(root / "app/src/main/AndroidManifest.xml").getroot()
 
 assert set(x.attrib["{http://schemas.android.com/apk/res/android}name"] for x in manifest.findall("uses-permission")) == {
     "android.permission.INTERNET", "android.permission.ACCESS_NETWORK_STATE",
-    "android.permission.ACCESS_WIFI_STATE", "android.permission.PACKAGE_USAGE_STATS"
+    "android.permission.ACCESS_WIFI_STATE", "android.permission.PACKAGE_USAGE_STATS",
+    "android.permission.FOREGROUND_SERVICE",
+    "android.permission.FOREGROUND_SERVICE_SPECIAL_USE",
+    "android.permission.POST_NOTIFICATIONS"
 }, "No privileges needed"
-assert activity.count("layout.addView(Button(this).apply {") == 16, "Do not add UI controls"
+assert activity.count("layout.addView(Button(this).apply {") == 17, "Keep all diagnostic actions"
 assert "diagnosticsExecutor = Executors.newSingleThreadExecutor()" in activity
 assert "diagnosticsExecutor.execute {" in activity
 assert "DeviceDiagnosticsBackend.read(applicationContext)" in activity
@@ -33,8 +36,8 @@ assert "DeviceCapabilitiesBackend.read(context)" in combined
 assert "ResourceTelemetryBackend.read(context)" in combined
 assert "fun successfulReadingsExposeSourcesAndActualUnits()" in tests
 assert "fun unavailableAndErrorsAreNotRenderedAsZero()" in tests
-assert 'versionCode = 16' in build
-assert 'versionName = "0.1.0-alpha.16"' in build
+assert 'versionCode = 17' in build
+assert 'versionName = "0.1.0-alpha.17"' in build
 print("PASS: manual MainActivity wiring, off-UI probes, honest reports, no UI redesign")
 
 assert 'text = "Снять показания датчиков"' in activity
