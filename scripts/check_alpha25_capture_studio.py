@@ -66,7 +66,8 @@ assert "CaptureRecordingService.stop(this)" in activity
 assert "getLaunchIntentForPackage" in activity
 
 assert "FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION" in service
-assert "startForeground(NOTICE, notice" in service
+assert "startForeground(NOTICE, buildNotification()" in service
+assert "ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION" in service
 assert "getMediaProjection(Activity.RESULT_OK, consent)" in service
 assert service.index("promoteToForeground()\n") < service.index("beginRecording(consent, config)")
 assert service.index("val capture = requireNotNull(manager.getMediaProjection") < service.index("capture.registerCallback(callback, handler)")
