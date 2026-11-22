@@ -5,6 +5,7 @@ import xml.etree.ElementTree as ET
 root = Path(__file__).resolve().parents[1]
 src = root / "app/src/main/java/dev/lolokeksu/legioncontrol"
 activity = (src / "MainActivity.kt").read_text(encoding="utf-8")
+controller = (src / "RustSampleController.kt").read_text(encoding="utf-8")
 report = (src / "DiagnosticsTextReport.kt").read_text(encoding="utf-8")
 combined = (src / "DeviceDiagnosticsBackend.kt").read_text(encoding="utf-8")
 tests = (root / "app/src/test/java/dev/lolokeksu/legioncontrol/DiagnosticsTextReportTest.kt").read_text(encoding="utf-8")
@@ -22,14 +23,16 @@ assert set(x.attrib["{http://schemas.android.com/apk/res/android}name"] for x in
     "android.permission.WRITE_SETTINGS","android.permission.VIBRATE","android.permission.SYSTEM_ALERT_WINDOW"
 }, "No privileges needed"
 assert activity.count("layout.addView(Button(this).apply {") == 25, "Keep all diagnostic actions"
-assert "diagnosticsExecutor = Executors.newSingleThreadExecutor()" in activity
+assert "val writer = Executors.newSingleThreadExecutor()" in controller
 assert "diagnosticsExecutor.execute {" in activity
-assert "DeviceDiagnosticsBackend.read(applicationContext)" in activity
-assert "DiagnosticsTextReport.format(" in activity
-assert "runOnUiThread {" in activity
-assert "!isDestroyed && requestId == diagnosticRequestId" in activity
-assert "diagnosticRequestId++" in activity and "diagnosticsExecutor.shutdown()" in activity
-assert "latestReport = reportHeader?.plus(complete)" in activity
+assert "writer.execute {" in controller
+assert "DeviceDiagnosticsBackend.read(context)" in controller
+assert "DiagnosticsTextReport.format(" in controller
+assert "mainHandler.post {" in controller
+assert "!cleared && requestId == diagnosticRequestId" in controller
+assert "diagnosticRequestId++" in controller and "writer.shutdown()" in controller
+assert "mutableUiState.value = RustSampleUiState(complete, reportHeader?.plus(complete))" in controller
+assert "sampleController.uiState.observe(this)" in activity
 assert 'text = "Обновить измерение"' in activity and "setOnClickListener { manualSample() }" in activity
 assert 'format(snapshot: DeviceDiagnosticSnapshot): String' in report
 assert "ProbeState.UNAVAILABLE" in report

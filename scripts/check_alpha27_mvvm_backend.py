@@ -8,6 +8,7 @@ src=root/"app/src/main/java/dev/lolokeksu/legioncontrol"
 def read(name): return (src/name).read_text(encoding="utf-8")
 
 main=read("MainActivity.kt")
+controller=read("RustSampleController.kt")
 diagnostic_repo=read("DiagnosticsHistoryRepository.kt")
 diagnostic_vm=read("DiagnosticsHistoryViewModel.kt")
 capture=read("CaptureStudioActivity.kt")
@@ -33,15 +34,18 @@ assert "diagnosticsExecutor.execute { historyModel.request(DiagnosticsReadKind.H
 for kind in ("HISTORY","SENSOR_QUALITY","SESSION_PROFILE","THERMAL","TIMED_BATTERY","SENSOR_READINGS"):
     assert "DiagnosticsReadKind."+kind in main
 assert "private fun sample(): TimedBatteryPoint?" in main
-assert "engine.record(percent, temp, elapsedMs)" in main
-assert "engine.statistics()" in main
-assert "history.record(StoredReading(" in main
-assert "history.recordDiagnostic(" in main
-assert main.index("history.record(StoredReading(") < main.index("history.recordDiagnostic(")
+assert "sampleController.sample()" in main
+assert "fun sample(): TimedBatteryPoint?" in controller
+assert "engine.record(percent, temp, elapsedMs)" in controller
+assert "engine.statistics()" in controller
+assert "history.record(StoredReading(" in controller
+assert "history.recordDiagnostic(" in controller
+assert controller.index("history.record(StoredReading(") < controller.index("history.recordDiagnostic(")
 assert "history.recordSensorCapture(outcome)" in main
 assert "history.recordTimedBatteryTest(completed)" in main
 assert "history.writeDiagnosticArchive(it)" in main
-assert "diagnosticsExecutor.shutdown()" in main and "history.close()" in main
+assert "writer.shutdown()" in controller and "history.close()" in controller
+assert "ViewModelProvider(this)[RustSampleController::class.java]" in main
 assert "historyModel.invalidate(\"sensors\")" in main
 
 assert "class DiagnosticsHistoryRepository(" in diagnostic_repo

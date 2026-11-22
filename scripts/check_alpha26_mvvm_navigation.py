@@ -19,6 +19,7 @@ repo = (src/"HubRepository.kt").read_text()
 rules = (src/"HubNavigationRules.kt").read_text()
 tests = (root/"app/src/test/java/dev/lolokeksu/legioncontrol/HubNavigationRulesTest.kt").read_text()
 legacy = (src/"MainActivity.kt").read_text()
+sample_controller = (src/"RustSampleController.kt").read_text()
 store = (src/"LocalHistoryStore.kt").read_text()
 rust = (root/"rust-core/src/lib.rs").read_text()
 
@@ -28,8 +29,9 @@ assert 'androidx.navigation:navigation-fragment:2.10.2' in gradle
 assert 'androidx.lifecycle:lifecycle-viewmodel:2.11.1' in gradle
 assert 'androidx.lifecycle:lifecycle-livedata:2.11.1' in gradle
 assert "HapticLabSchema.VERSION" in store and "HISTORY_LIMIT: usize = 64" in rust
-assert "engine.record(percent, temp, elapsedMs)" in legacy
-assert "engine.statistics()" in legacy
+assert "engine.record(percent, temp, elapsedMs)" in sample_controller
+assert "engine.statistics()" in sample_controller
+assert "sampleController.sample()" in legacy
 assert "GameSessionActivity::class.java" in legacy
 
 permissions = {x.get(android+"name") for x in manifest.findall("uses-permission")}
