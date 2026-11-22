@@ -1,5 +1,7 @@
 package dev.lolokeksu.legioncontrol
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.app.Activity
 import android.app.Notification
 import android.app.NotificationChannel
@@ -38,6 +40,7 @@ class CaptureRecordingService : Service() {
         const val EXTRA_FPS = "capture_fps"
         const val EXTRA_MBIT = "capture_mbit"
         const val EXTRA_MINUTES = "capture_minutes"
+        const val EXTRA_PLAYBACK_AUDIO = "capture_playback_audio"
         const val PREFS = "legion-capture-studio"
         const val LAST_RESULT = "last_result"
         private const val CHANNEL = "legion-capture-recording"
@@ -74,6 +77,10 @@ class CaptureRecordingService : Service() {
     private var recorder: MediaRecorder? = null
     private var output: ParcelFileDescriptor? = null
     private var pendingUri: Uri? = null
+    private var playbackAudio: PlaybackAudioCapture? = null
+    private var playbackAudioRequested = false
+    private var playbackAudioProblem: String? = null
+    private var videoStartedAtMs = 0L
     private var recorderStarted = false
     private var captureClock: CaptureRecordingClock? = null
     private var stopping = false
@@ -92,11 +99,11 @@ class CaptureRecordingService : Service() {
         if (intent?.action == ACTION_PAUSE || intent?.action == ACTION_RESUME) {
             if (recording && !stopping) {
                 changePausedState(intent.action == ACTION_PAUSE)
-            } else if (!recording) stopSelfResult(startId)
+            } else if (!recording && !stopping) stopSelfResult(startId)
             return START_NOT_STICKY
         }
         if (intent?.action != ACTION_START || recording || projection != null || stopping) {
-            if (!recording) stopSelf(startId)
+            if (!recording && !stopping) stopSelf(startId)
             return START_NOT_STICKY
         }
         val consent = intent.getParcelableExtra(EXTRA_CONSENT, Intent::class.java)
@@ -104,6 +111,13 @@ class CaptureRecordingService : Service() {
             consent == null || CaptureScreenshotService.active) {
             writeStatus("Запись не запущена: нет согласия Android или уже выполняется скриншот")
             stopSelf(startId)
+            return START_NOT_STICKY
+        }
+        playbackAudioRequested = intent.getBooleanExtra(EXTRA_PLAYBACK_AUDIO, false)
+        if (playbackAudioRequested &&
+            checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            writeStatus("Нет разрешения на захват внутреннего звука. Выберите режим без звука либо выдайте разрешение.")
+            stopSelfResult(startId)
             return START_NOT_STICKY
         }
         try {
@@ -139,6 +153,7 @@ class CaptureRecordingService : Service() {
             .setContentTitle(if (paused) "Legion Capture Studio · пауза"
                 else "Legion Capture Studio · запись")
             .setContentText(if (paused) "Возобновите или остановите запись · автостоп паузы 5 мин"
+                else if (playbackAudio != null) "Видео + разрешённый звук игры"
                 else "Захват экрана включён вручную")
             .setContentIntent(open)
             .setOngoing(true)
@@ -182,6 +197,9 @@ class CaptureRecordingService : Service() {
         try {
             if (wantPause) {
                 currentRecorder.pause()
+                runCatching { playbackAudio?.pause() }.onFailure {
+                    playbackAudioProblem = "Пауза звука не поддержана: " + it.javaClass.simpleName
+                }
                 check(clock.pause(SystemClock.elapsedRealtime()))
                 paused = true
                 handler.removeCallbacks(autoStop)
@@ -190,6 +208,9 @@ class CaptureRecordingService : Service() {
                     "Возобновите в течение 5 минут или остановите запись.")
             } else {
                 currentRecorder.resume()
+                runCatching { playbackAudio?.resume() }.onFailure {
+                    playbackAudioProblem = "Возобновление звука не поддержано: " + it.javaClass.simpleName
+                }
                 val resumedAt = SystemClock.elapsedRealtime()
                 check(clock.resume(resumedAt))
                 paused = false
@@ -262,9 +283,26 @@ class CaptureRecordingService : Service() {
         mediaRecorder.start()
         recorderStarted = true
         recording = true
-        captureClock = CaptureRecordingClock(config.maxDurationMs, SystemClock.elapsedRealtime())
+        videoStartedAtMs = SystemClock.elapsedRealtime()
+        captureClock = CaptureRecordingClock(config.maxDurationMs, videoStartedAtMs)
         paused = false
-        writeStatus("Запись началась. Видео без звука; пауза, продолжение и остановка доступны в уведомлении.")
+        if (playbackAudioRequested) {
+            runCatching {
+                PlaybackAudioCapture(this, capture).also {
+                    it.start(videoStartedAtMs)
+                    playbackAudio = it
+                }
+            }.onFailure {
+                playbackAudioProblem = "Внутренний звук не удалось запустить: " +
+                    it.javaClass.simpleName
+            }
+        }
+        writeStatus(if (playbackAudio != null)
+            "Видео и разрешённый внутренний звук записываются; аудио зависит от политики игры."
+            else if (playbackAudioRequested)
+            "Видео пишется БЕЗ ЗВУКА: " + (playbackAudioProblem ?: "Аудиозахват недоступен")
+            else "Запись началась. Видео без звука; пауза и остановка доступны в уведомлении.")
+        updateNotification()
         handler.postDelayed(autoStop, config.maxDurationMs)
     }
 
@@ -282,9 +320,9 @@ class CaptureRecordingService : Service() {
 
         val elapsed = if (recorderStarted)
             captureClock?.activeElapsedMs(SystemClock.elapsedRealtime()) ?: 0L else 0L
-        var saved = false
+        var videoValid = false
         if (recorderStarted && elapsed >= 1000) {
-            saved = runCatching { recorder?.stop(); true }.getOrDefault(false)
+            videoValid = runCatching { recorder?.stop(); true }.getOrDefault(false)
         }
         runCatching { virtualDisplay?.release() }
         virtualDisplay = null
@@ -304,18 +342,64 @@ class CaptureRecordingService : Service() {
 
         val uri = pendingUri
         pendingUri = null
-        if (uri != null) {
-            if (saved) {
-                saved = runCatching { CaptureClipLibrary.publish(this, uri); true }
-                    .getOrDefault(false)
-            }
-            if (!saved) runCatching { CaptureClipLibrary.delete(this, uri) }
+        val audio = playbackAudio
+        playbackAudio = null
+        val wasAudioRequested = playbackAudioRequested
+        val audioFailure = playbackAudioProblem
+
+        if (audio == null) {
+            publishVideoOrDelete(uri, videoValid,
+                if (wasAudioRequested) "Без внутреннего звука: " +
+                    (audioFailure ?: "Android или игра отказали") else "Видео без звука",
+                reason)
+            return
         }
-        writeStatus(
-            if (saved) "Клип сохранён в Movies/LegionControl/ · " + reason
-            else if (uri != null) "Видео не сохранено (короткая запись или сбой кодека) · " + reason
-            else reason
-        )
+
+        // Finalize AAC and copy both codec tracks off the Android main thread.
+        // Keep this foreground service alive until owned pending MediaStore rows resolve.
+        Thread({
+            val result = runCatching { audio.stopAndTakeResult() }.getOrNull()
+            val aac = result?.file
+            var combined = false
+            if (videoValid && uri != null && aac != null) {
+                combined = runCatching {
+                    CaptureMp4Muxer.combine(this, uri, aac, result.offsetUs)
+                    true
+                }.getOrDefault(false)
+            }
+            runCatching { aac?.delete() }
+            handler.post {
+                if (combined && uri != null) {
+                    // The combined result is already published, so the intermediate MP4 is removed.
+                    runCatching { CaptureClipLibrary.delete(this, uri) }
+                    writeStatus("MP4 со звуком сохранён в Movies/LegionControl/ · " + reason +
+                        " · отдельные игры могут блокировать звук или давать тишину")
+                    stopCaptureService()
+                } else {
+                    publishVideoOrDelete(uri, videoValid, "Видео без звука: " +
+                        (audioFailure ?: result?.reason ?: "Не удалось объединить AAC и MP4"), reason)
+                }
+            }
+        }, "legion-audio-mp4-finalizer").start()
+    }
+
+    private fun publishVideoOrDelete(uri: Uri?, isValid: Boolean,
+                                     soundNote: String, reason: String) {
+        var published = false
+        if (uri != null && isValid) {
+            published = runCatching { CaptureClipLibrary.publish(this, uri); true }
+                .getOrDefault(false)
+        }
+        if (uri != null && !published) runCatching { CaptureClipLibrary.delete(this, uri) }
+        writeStatus(if (published)
+            "MP4 сохранён в Movies/LegionControl/ · " + soundNote + " · " + reason
+        else if (uri != null)
+            "Видео не сохранено (короткая запись или сбой кодека) · " + reason
+        else reason)
+        stopCaptureService()
+    }
+
+    private fun stopCaptureService() {
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
