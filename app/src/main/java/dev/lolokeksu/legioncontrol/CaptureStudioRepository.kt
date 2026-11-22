@@ -16,14 +16,7 @@ class CaptureStudioRepository(context: Context) {
     )
 
     fun updateOption(name: String, value: Int): CaptureConfig {
-        require(name in setOf("edge", "fps", "mbit", "minutes"))
-        val allowed = when (name) {
-            "edge" -> value in setOf(1280, 1920)
-            "fps" -> value in setOf(30, 60)
-            "mbit" -> value in setOf(4, 8, 12)
-            else -> value in setOf(1, 5, 15)
-        }
-        require(allowed) { "Unsupported capture option: $name = $value" }
+        CapturePresetRules.requireSupported(name, value)
         prefs.edit().putInt(name, value).apply()
         return config()
     }
