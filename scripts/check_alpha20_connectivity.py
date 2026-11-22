@@ -43,7 +43,7 @@ assert all(p not in perms for p in (
 assert any(a.get(ns+"name")==".ConnectivityLabActivity" and
            a.get(ns+"exported")=="false" for a in manifest.findall("./application/activity"))
 assert "ConnectivityLabActivity::class.java" in (src/"MainActivity.kt").read_text(encoding="utf-8")
-assert "ConnectivityLabActivity::class.java" in (src/"SmartProfilesActivity.kt").read_text(encoding="utf-8")
+assert "ConnectivityLabActivity::class.java" in (src/"SmartProfilesFragment.kt").read_text(encoding="utf-8")
 
 def ddl(source,n):
     tables=re.findall(r'db.execSQL\("""(.*?)""".trimIndent\(\)\)',source,re.S)
