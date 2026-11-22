@@ -53,8 +53,8 @@ for forbidden in ("Shizuku", "WRITE_SECURE_SETTINGS", "setprop ",
                   "QUERY_ALL_PACKAGES", "Runtime.getRuntime().exec",
                   "registerReceiver", "getDeclaredMethod("):
     assert forbidden not in backend + model, forbidden
-assert 'versionCode = 25' in build
-assert 'versionName = "0.1.0-alpha.25"' in build
+assert 'versionCode = 26' in build
+assert 'versionName = "0.1.0-alpha.26"' in build
 print("PASS: public Android battery health/cycles, honest terminal watts, existing report/share, no Shizuku/UI")
 
 assert 'text = "Снять показания датчиков"' in activity
