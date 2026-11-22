@@ -118,7 +118,7 @@ class GameToolboxActivity : Activity() {
         note("Громкость, DND и яркость меняются только по нажатию конкретной кнопки " +
             "в панели. Закрытие панели не отменяет системные изменения. " +
             "Исходная яркость сохраняется существующим механизмом Smart Profiles; " +
-            "DND нужно отключить вручную.")
+            "Ручные изменения DND нужно отменять вручную; профиль имеет отдельный возврат.")
 
         setContentView(ScrollView(this).apply { addView(root) })
         renderStatus()
@@ -145,7 +145,7 @@ class GameToolboxActivity : Activity() {
             append(" dp")
             if (pkg != null) {
                 val profile = GameLaunchProfiles.profile(this@GameToolboxActivity, pkg)
-                append("\\nИгровой профиль: ")
+                append("\nИгровой профиль: ")
                 append(profile?.let {
                     buildString {
                         append("звук ").append(it.mediaPercent?.let { v -> "$v%" } ?: "не менять")
@@ -157,7 +157,7 @@ class GameToolboxActivity : Activity() {
                 } ?: "не настроен")
             }
             GameLaunchProfiles.pendingPackage(this@GameToolboxActivity)?.let {
-                append("\\nОжидает ручного возврата: ").append(it)
+                append("\nОжидает ручного возврата: ").append(it)
             }
         }
     }
