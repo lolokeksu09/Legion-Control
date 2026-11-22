@@ -42,6 +42,19 @@ class CaptureStudioRepository(context: Context) {
 
     fun clips(): List<CaptureClip> = CaptureClipLibrary.listOwn(app)
 
+    /** Editing is strictly scoped to a published item from the app-owned MediaStore query. */
+    fun trimOwnClip(
+        clip: CaptureClip, range: ClipTrimSelection, cancelled: () -> Boolean
+    ) = ClipWorkshop.trim(app, requireOwnClip(clip).uri, range, cancelled)
+
+    fun exportOwnClipFrame(
+        clip: CaptureClip, atMs: Long?, cancelled: () -> Boolean
+    ) = ClipWorkshop.exportFrame(app, requireOwnClip(clip).uri, atMs, cancelled)
+
+    private fun requireOwnClip(clip: CaptureClip): CaptureClip =
+        clips().firstOrNull { it.uri == clip.uri }
+            ?: throw IllegalArgumentException("Selected clip is not in own library")
+
     fun screenshots(): List<CaptureScreenshot> = CaptureScreenshotLibrary.listOwn(app)
 
     fun deleteOwnScreenshot(screenshot: CaptureScreenshot): Boolean {
