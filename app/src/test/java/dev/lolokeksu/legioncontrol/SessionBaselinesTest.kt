@@ -60,7 +60,7 @@ class SessionBaselinesTest {
         val result=SessionBaselines.compare("com.example.game",7,now,
             listOf(bad,rising,capture("old",2),capture("new",1)))
         assertNull(result.discharge)
-        assertEquals(1,result.qualifiedSessions)
+        assertEquals(2,result.qualifiedSessions)
     }
 
     @Test fun missingIntervalsAndTruncationInvalidateComparison() {
