@@ -133,6 +133,12 @@ for term in ("fun writeCsv(","fun exportZip(","fun recent(","fun points(","fun e
 assert "warnings(s)" in analysis
 assert "GameSessionActivity::class.java" in (src/"MainActivity.kt").read_text(encoding="utf-8")
 assert "GameSessionFragment()" in activity and "state.observe(viewLifecycleOwner)" in fragment
+# The same package-name validator must handle both typed packages and navigation
+# extras; a separately escaped regex silently discards Smart Profiles selection.
+assert "packagePattern.matches(pkg)" in fragment
+assert "packagePattern.matches(it)" in fragment
+assert fragment.count('Regex("^[A-Za-z]') == 1, "one canonical package regex"
+assert 'arguments?.getString("smart_package")?.takeIf {' in fragment
 for forbidden in ("ACCESS_FINE_LOCATION","QUERY_ALL_PACKAGES","WRITE_SECURE_SETTINGS",
  "Runtime.getRuntime().exec","setprop ","ShizukuService"):
     assert forbidden not in service+capture+activity+fragment+repository
