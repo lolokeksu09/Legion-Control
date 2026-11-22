@@ -11,6 +11,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
     <uses-permission android:name="android.permission.WRITE_SETTINGS" />
     <queries>
@@ -40,6 +41,7 @@
             android:exported="true">
             <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE" /></intent-filter>
         </service>
+        <activity android:name=".HapticLabActivity" android:exported="false" />
         <activity android:name=".AudioLabActivity" android:exported="false" />
         <activity android:name=".ApplicationCenterActivity" android:exported="false" />
         <activity android:name=".ConnectivityLabActivity" android:exported="false" />
