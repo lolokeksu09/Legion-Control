@@ -116,7 +116,7 @@ class GamingDiagnosticsFragment : Fragment() {
             viewModel.run(GamingProbe.SYSTEM,refreshHzDisplay=requireActivity().display)
         }
         addButton(root, "HARDWARE LAB · ещё 6 диагностик") {
-            startActivity(Intent(requireContext(), HardwareLabActivity::class.java))
+            ModuleNavigation.open(this,HardwareLabActivity::class.java)
         }
         addButton(root, "Вернуться к Legion Control") {
             val nav=runCatching { NavHostFragment.findNavController(this) }.getOrNull()

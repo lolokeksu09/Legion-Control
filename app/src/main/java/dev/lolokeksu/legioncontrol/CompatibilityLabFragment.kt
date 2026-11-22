@@ -63,7 +63,7 @@ class CompatibilityLabFragment : Fragment() {
             viewModel.run(CompatibilityRead.GAMEPADS,requireActivity().display)
         }
         addButton(root, "4 · Gamepad Live · кнопки и стики") {
-            startActivity(Intent(requireContext(),GamepadLiveActivity::class.java))
+            ModuleNavigation.open(this,GamepadLiveActivity::class.java)
         }
         addButton(root, "5 · DRM / Widevine Compatibility") {
             viewModel.run(CompatibilityRead.DRM,requireActivity().display)

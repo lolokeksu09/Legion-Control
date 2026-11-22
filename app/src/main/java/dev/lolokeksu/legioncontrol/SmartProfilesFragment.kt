@@ -90,14 +90,14 @@ class SmartProfilesFragment : Fragment() {
             "Если изменить правила в ходе записи, новые настройки применятся в следующей сессии.")
         action("APPLICATION CENTER · библиотека, версии и права") {
             val pkg=packageNameInput()
-            startActivity(Intent(requireContext(),ApplicationCenterActivity::class.java).apply {
-                if(SmartProfilesRepository.validatePackage(pkg)) putExtra("app_center_package",pkg)
+            ModuleNavigation.open(this, ApplicationCenterActivity::class.java, Bundle().apply {
+                if(SmartProfilesRepository.validatePackage(pkg)) putString("app_center_package",pkg)
             })
         }
         action("EXPERIMENT LAB · A/B сравнения для выбранного приложения") {
             val pkg=packageNameInput()
-            startActivity(Intent(requireContext(),ExperimentLabActivity::class.java).apply {
-                if(SmartProfilesRepository.validatePackage(pkg)) putExtra("experiment_package",pkg)
+            ModuleNavigation.open(this, ExperimentLabActivity::class.java, Bundle().apply {
+                if(SmartProfilesRepository.validatePackage(pkg)) putString("experiment_package",pkg)
             })
         }
         action("Сводка по выбранному приложению · 24 часа") { insights(1) }
@@ -105,7 +105,7 @@ class SmartProfilesFragment : Fragment() {
         action("Сводка · 30 дней") { insights(30) }
         action("Последние предупреждения") { events() }
         action("CONNECTIVITY OBSERVATORY · подробный DNS/TCP/TLS анализ") {
-            startActivity(Intent(requireContext(),ConnectivityLabActivity::class.java))
+            ModuleNavigation.open(this,ConnectivityLabActivity::class.java)
         }
         action("NETWORK QUALITY LAB · разовый TCP/DNS-тест") { networkProbe() }
         note("Сетевой тест запускается строго по нажатию. Не измеряет ping игрового сервера.")

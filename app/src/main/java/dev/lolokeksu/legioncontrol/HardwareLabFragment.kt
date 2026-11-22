@@ -74,7 +74,7 @@ class HardwareLabFragment : Fragment() {
                 )
                 .setNegativeButton("Отмена", null)
                 .setPositiveButton("Начать") { _, _ ->
-                    startActivity(Intent(requireContext(), DisplayPatternActivity::class.java))
+                    ModuleNavigation.open(this,DisplayPatternActivity::class.java)
                 }
                 .show()
         }
@@ -82,7 +82,7 @@ class HardwareLabFragment : Fragment() {
             viewModel.run(HardwareProbe.CODEC)
         }
         addButton(root, "COMPATIBILITY · ещё 7 функций") {
-            startActivity(Intent(requireContext(), CompatibilityLabActivity::class.java))
+            ModuleNavigation.open(this,CompatibilityLabActivity::class.java)
         }
         addButton(root, "Поделиться последним отчётом") { shareLastReport() }
         addButton(root, "Назад в Gaming Lab") {

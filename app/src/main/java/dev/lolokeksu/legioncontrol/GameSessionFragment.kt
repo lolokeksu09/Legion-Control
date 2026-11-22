@@ -77,7 +77,7 @@ class GameSessionFragment : Fragment() {
             "продолжается при переходе в выбранное приложение. Ни Root, ни Shizuku не требуются."
         ))
         action("Smart Profiles · сохранённые настройки") {
-            startActivity(Intent(requireContext(),SmartProfilesActivity::class.java))
+            ModuleNavigation.open(this,SmartProfilesActivity::class.java)
         }
         action("Выбрать установленное приложение") { chooseApp() }
         packageInput = EditText(requireContext()).apply {

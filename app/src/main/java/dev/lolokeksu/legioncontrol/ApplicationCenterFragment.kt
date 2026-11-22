@@ -114,13 +114,13 @@ class ApplicationCenterFragment:Fragment() {
             openSystem(ApplicationInventory.batterySettings())
         }
         button("Открыть Smart Profiles") {
-            startActivity(Intent(requireContext(),SmartProfilesActivity::class.java).apply {
-                selectedPackage()?.let { putExtra("app_center_package",it) }
+            ModuleNavigation.open(this,SmartProfilesActivity::class.java,Bundle().apply {
+                selectedPackage()?.let { putString("app_center_package",it) }
             })
         }
         button("Открыть Experiment Lab для этого пакета") {
-            startActivity(Intent(requireContext(),ExperimentLabActivity::class.java).apply {
-                selectedPackage()?.let { putExtra("experiment_package",it) }
+            ModuleNavigation.open(this,ExperimentLabActivity::class.java,Bundle().apply {
+                selectedPackage()?.let { putString("experiment_package",it) }
             })
         }
         title("Экспорт локальных данных")
