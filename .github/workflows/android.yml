@@ -65,6 +65,8 @@ jobs:
         run: python3 scripts/check_alpha14_gaming.py
       - name: Verify alpha.15 Hardware Lab backend and unchanged permissions
         run: python3 scripts/check_alpha15_hardware.py
+      - name: Validate alpha.16 Compatibility Lab and safety invariants
+        run: python3 scripts/check_alpha16_compatibility.py
       - name: Run pure Kotlin CSV and Russian plural regression tests
         run: gradle --no-daemon testDebugUnitTest
       - name: Test and compile real Rust backend for Android
@@ -112,6 +114,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: success()
         with:
-          name: Legion-Control-v0.1.0-alpha.15-kotlin-rust-debug
+          name: Legion-Control-v0.1.0-alpha.16-kotlin-rust-debug
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
