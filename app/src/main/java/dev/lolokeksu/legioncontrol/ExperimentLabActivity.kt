@@ -131,7 +131,7 @@ class ExperimentLabActivity : ComponentActivity() {
             state.experiments?.let { vm.consume(state.nonce); showExperimentPicker(it) }
             state.annotationFor?.let { sid ->
                 vm.consume(state.nonce)
-                if(vm.vm.selectedSession==sid) {
+                if(vm.selectedSession==sid) {
                     tagInput.setText(state.annotation?.tag.orEmpty())
                     noteInput.setText(state.annotation?.note.orEmpty())
                 }
