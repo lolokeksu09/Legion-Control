@@ -147,7 +147,8 @@ class NavigationHostActivity : FragmentActivity() {
             val actual = destination.id
             val active = when (actual) {
                 R.id.gameDetailFragment -> R.id.gamesFragment
-                R.id.gameSessionFragment, R.id.applicationCenterDestination -> R.id.toolsFragment
+                R.id.gameSessionFragment, R.id.applicationCenterDestination,
+                R.id.smartProfilesDestination -> R.id.toolsFragment
                 else -> actual
             }
             buttons.forEach { (id, views) ->
@@ -158,7 +159,8 @@ class NavigationHostActivity : FragmentActivity() {
             }
             back.visibility = if (actual == R.id.gameDetailFragment ||
                 actual == R.id.gameSessionFragment ||
-                actual == R.id.applicationCenterDestination) View.VISIBLE else View.GONE
+                actual == R.id.applicationCenterDestination ||
+                actual == R.id.smartProfilesDestination) View.VISIBLE else View.GONE
             subtitle.text = when (actual) {
                 R.id.homeFragment -> "GAME HUB  ·  alpha.26"
                 R.id.gamesFragment -> "ИГРОВАЯ БИБЛИОТЕКА"
@@ -168,6 +170,7 @@ class NavigationHostActivity : FragmentActivity() {
                 R.id.gameDetailFragment -> "НАСТРОЙКИ ИГРЫ"
                 R.id.gameSessionFragment -> "ЗАПИСЬ ИГРОВОЙ СЕССИИ"
                 R.id.applicationCenterDestination -> "БИБЛИОТЕКА ПРИЛОЖЕНИЙ"
+                R.id.smartProfilesDestination -> "УМНЫЕ ПРОФИЛИ"
                 else -> "LEGION CONTROL"
             }
         }

@@ -15,7 +15,6 @@ expected={
     "MainActivity": "diagnosticsDestination",
     "GameToolboxActivity": "gameToolboxDestination",
     "CaptureStudioActivity": "captureStudioDestination",
-    "SmartProfilesActivity": "smartProfilesDestination",
     "ExperimentLabActivity": "experimentLabDestination",
     "ConnectivityLabActivity": "connectivityLabDestination",
     "AudioLabActivity": "audioLabDestination",
@@ -40,10 +39,14 @@ for node in nodes:
 assert ids==set(expected)
 assert not any(n.get(android+"id")=="@+id/gameSessionFragment" for n in nodes)
 frags={n.get(android+"id"):n for n in nav.findall("fragment")}
-assert len(frags)==8 and "@+id/gameSessionFragment" in frags
+assert len(frags)==9 and "@+id/gameSessionFragment" in frags
 assert frags["@+id/applicationCenterDestination"].get(android+"name").endswith(".ApplicationCenterFragment")
 assert "ApplicationCenterActivity::class.java to R.id.applicationCenterDestination" in mapping
 assert ".ApplicationCenterActivity" in registered
+assert frags["@+id/smartProfilesDestination"].get(android+"name").endswith(".SmartProfilesFragment")
+assert "SmartProfilesActivity::class.java to R.id.smartProfilesDestination" in mapping
+assert ".SmartProfilesActivity" in registered
+assert "SmartProfilesFragment()" in (src/"SmartProfilesActivity.kt").read_text()
 assert "ApplicationCenterFragment()" in (src/"ApplicationCenterActivity.kt").read_text()
 assert frags["@+id/gameSessionFragment"].get(android+"name").endswith(".GameSessionFragment")
 game=(src/"GameSessionFragment.kt").read_text()
@@ -63,4 +66,4 @@ assert "GameSessionActivity::class.java" in hub
 assert ".GameSessionActivity" in registered
 assert nav.get("{http://schemas.android.com/apk/res-auto}startDestination")=="@id/homeFragment"
 assert "QUERY_ALL_PACKAGES" not in (root/"app/src/main/AndroidManifest.xml").read_text()
-print("PASS alpha29: 13 ActivityNavigator routes and two real module Fragments with explicit-intent compatibility")
+print("PASS alpha29: 12 ActivityNavigator routes and three real module Fragments with explicit-intent compatibility")
