@@ -20,8 +20,8 @@ for name in names[1:]:
 assert 'System.getenv("LEGION_RELEASE_STORE_FILE")' in gradle
 assert 'hasReleaseSigning' in gradle and 'throw GradleException(' in gradle
 assert 'signingConfig = signingConfigs.getByName("legionRelease")' in gradle
-assert 'versionCode = 13' in gradle
-assert 'versionName = "0.1.0-alpha.13"' in gradle
+assert 'versionCode = 14' in gradle
+assert 'versionName = "0.1.0-alpha.14"' in gradle
 assert "workflow_dispatch:" in workflow
 assert "github.ref == 'refs/heads/main'" in workflow
 assert "base64 --decode" in workflow
