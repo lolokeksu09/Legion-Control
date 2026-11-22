@@ -5,6 +5,7 @@ import xml.etree.ElementTree as ET
 root = Path(__file__).resolve().parents[1]
 src = root / "app/src/main/java/dev/lolokeksu/legioncontrol"
 activity = (src / "MainActivity.kt").read_text(encoding="utf-8")
+controller = (src / "RustSampleController.kt").read_text(encoding="utf-8")
 reader = (src / "DiagnosticsHistoryRepository.kt").read_text(encoding="utf-8")
 store = (src / "LocalHistoryStore.kt").read_text(encoding="utf-8")
 sensors = (src / "AndroidSensorInventory.kt").read_text(encoding="utf-8")
@@ -39,7 +40,7 @@ assert "object ActiveSession" in models
 assert "java.io.Writer" in csv
 assert "Instant.ofEpochMilli" in csv
 assert 'value.replace("\\\"", "\\\"\\\"")' in csv
-assert "RussianQuantity.measurements(" in activity
+assert "RussianQuantity.measurements(" in controller
 assert "fun russianMeasurementForms()" in tests
 assert "fun csvContainsExactValuesAndEscapesMultilineQuotes()" in tests
 assert "fun missingMeasurementsUseEmptyColumnsNotFabricatedZero()" in tests
@@ -48,13 +49,13 @@ assert 'testImplementation("junit:junit:4.13.2")' in gradle
 for expected in (
     "Intent.ACTION_CREATE_DOCUMENT", "Intent.CATEGORY_OPENABLE",
     "onActivityResult(", "openOutputStream(uri,",
-    "history.writeCsv(writer)", "history.record(StoredReading(",
-    "history.endSession(",
+    "history.writeCsv(writer)", "history.endSession(",
     "latestReport = null",
     "showSavedHistory()", "AndroidSensorInventory.inspect(this)",
-    "setPositiveButton(\"Завершить\")", "engine.resetSession()",
+    "setPositiveButton(\"Завершить\")", "sampleController.resetSession()",
 ):
     assert expected in activity, expected
+assert "history.record(StoredReading(" in controller and "engine.resetSession()" in controller
 for expected in ("history.recentSessions()", "history.count()"):
     assert expected in reader, expected
 # No startup sample: manual measurement only (also no passive sensor listeners).
