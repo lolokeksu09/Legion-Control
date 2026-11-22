@@ -1,6 +1,6 @@
 # Legion Control alpha.22 — Audio Lab: stereo, playback, routing and test history
 
-Status: PLAN FIRST — file committed before alpha.22 implementation.
+Status: IMPLEMENTED, MERGED AND PERMANENTLY SIGNED. First commit was the plan; physical sound tests remain NOT RUN.
 Base: `main` at `50c2f0271ff89674a87affb3de445961d7b22a4e` (alpha.21).
 Target: Android 13+, any game/device, release signed with existing permanent certificate.
 
@@ -21,13 +21,13 @@ Compatibility Lab already reads static audio-output metadata, but there is **no 
 
 - [x] Branch `feat/alpha22-audio-lab` from verified alpha.21 main.
 - [x] This plan committed first.
-- [ ] Inspect existing LocalHistoryStore v10, static AudioOutputInspector, MainActivity, Manifest, signing workflow and strict regression checks.
-- [ ] Backend and SQLite v11, actual signal generator and AudioTrack with lifecycle safety.
-- [ ] Pure Kotlin waveform tests, v10→v11 real SQLite test, preserve older regression contracts.
-- [ ] UI and navigation with real callbacks, SAF CSV export and notes on safe playback.
-- [ ] Docs and 4PDA limitations; bump versionCode to 22 and release workflow artifact labels.
-- [ ] PR + GitHub CI Kotlin/Rust, Android lint, signing negative tests; fix failures and rerun.
-- [ ] Merge after green CI and verify permanent signed release APK; supply user a direct APK file.
+- [x] Inspect existing LocalHistoryStore v10, static AudioOutputInspector, MainActivity, Manifest, signing workflow and strict regression checks.
+- [x] Backend and SQLite v11, actual signal generator and AudioTrack with lifecycle safety.
+- [x] Pure Kotlin waveform tests, v10→v11 real SQLite test, preserve older regression contracts.
+- [x] UI and navigation with real callbacks, SAF CSV export and notes on safe playback.
+- [x] Docs and 4PDA limitations; bump versionCode to 22 and release workflow artifact labels.
+- [x] PR + GitHub CI Kotlin/Rust, Android lint, signing negative tests; fix failures and rerun.
+- [x] Merge after green CI and verify permanent signed release APK; supply user a direct APK file.
 - [ ] Real Lenovo Legion Y70 / Motorola-ROM manual test, speaker/headphone channel identification and physical sound, Bluetooth routing and interruption behavior — NOT RUN until a device executes it.
 
 ## Safety and measurement limits
@@ -42,8 +42,18 @@ Compatibility Lab already reads static audio-output metadata, but there is **no 
 
 ## Evidence log
 
-- Plan commit: to record after write.
-- Kotlin and actual SQLite tests: NOT RUN.
-- Android CI: NOT RUN.
-- Signed APK: NOT RUN.
-- Physical audio verification: NOT RUN.
+- Plan-first commit: `fe50c4139d15de47b361f1a411372df11c451885` (preceded all feature code).
+- Kotlin and real SQLite tests: PASS — seven generator JVM tests and executable SQLite v10→v11 preservation/FK/invalid-state checks in CI.
+- Android PR and main CI: PASS — 43/43 steps in both runs; Android lint, debug assemble, Rust targets and negative signing checks.
+- Permanently signed APK: PASS — pinned certificate and APK/CRC/ARM64/x86_64 contents verified; GitHub release artifact available.
+- Physical sound / routing / audio focus verification on Lenovo Legion Y70: NOT RUN.
+
+## Release verification — 2026-11-22
+
+- PR #25: https://github.com/lolokeksu09/Legion-Control/pull/25 — merged into main as `b0d317f7b9858621285cdc62750183cde18bad69`.
+- PR full CI: https://github.com/lolokeksu09/Legion-Control/actions/runs/45009859461 — SUCCESS, 43 steps.
+- Main full CI: https://github.com/lolokeksu09/Legion-Control/actions/runs/45010264323 — SUCCESS, 43 steps.
+- Permanent signed release: https://github.com/lolokeksu09/Legion-Control/actions/runs/45010264369 — SUCCESS, 19 steps, pinned certificate verified in workflow.
+- Signed GitHub Actions artifact: `Legion-Control-v0.1.0-alpha.22-permanent-release-apk`, artifact ID `14749637283`.
+- Verified original APK: `app-release.apk`, `3,587,373` bytes, SHA-256 `91eae0fd7161e6cfd51be86f9f62b9be86b4e4be67d7cf4ce9c0c771ed315b25`. ZIP CRC PASS; `AndroidManifest.xml`, `lib/arm64-v8a/liblegion_core.so` and `lib/x86_64/liblegion_core.so` found.
+- **Not run on actual speaker/headphones:** installation over signed alpha.21, audible L/R identity, Bluetooth routing, media focus interruptions, CSV screen export, OEM Motorola audio handling. CI proves build/tests, not hardware-acoustic quality.
