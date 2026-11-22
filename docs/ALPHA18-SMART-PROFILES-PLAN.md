@@ -1,5 +1,5 @@
 # Legion Control v0.1.0-alpha.18 — Smart Profiles & Automation
-Status: IMPLEMENTATION PLAN (created before feature changes)
+Status: IN PROGRESS — source implemented; release/physical-device verification pending. Plan was committed first, before any alpha.18 code.
 Baseline: main 4e960764c418c9d23fc818cf8215305eda84e291 (alpha.17).
 Target: Android 13+ (minSdk 33), targetSdk 36, no Root/Shizuku, universal Android devices and games, suitable for public 4PDA distribution.
 
@@ -19,16 +19,16 @@ Turn read-only diagnostics into an explicit user-controlled per-app workflow: sa
 ## Phase 0 — create plan and isolated branch (required first)
 
 - [x] Create `feat/alpha18-smart-profiles` from alpha.17 main, and commit this file **before** feature changes.
-- [ ] Review current `GameSessionActivity.kt`, `GameSessionRepository.kt`, `GameSessionRecorderService.kt`, `LocalHistoryStore.kt`, `AndroidManifest.xml`, CI verification scripts and `app/build.gradle.kts`.
+- [x] Review current `GameSessionActivity.kt`, `GameSessionRepository.kt`, `GameSessionRecorderService.kt`, `LocalHistoryStore.kt`, `AndroidManifest.xml`, CI verification scripts and `app/build.gradle.kts`.
 
 ## Phase 1 — data and rules backend (P0)
 
 Paths: `SmartProfilesSchema.kt`, `SmartProfilesRepository.kt`, `SmartRules.kt`, `LocalHistoryStore.kt`.
 
-- [ ] Add SQLite v7 tables `smart_profiles`, `smart_rules`, `smart_rule_events` with non-destructive v1-v6 migrations, FK constraints, useful indexes, length limits, and uniqueness of app packages.
-- [ ] CRUD profiles (label, package, sampling-related preferences, optional per-profile thresholds), and rules (battery temperature, battery percentage, Android thermal status, power saver, network validation/transport).
-- [ ] Pure Kotlin rule evaluator with no side effects, explicit unknown-state behavior and validation ranges; event dedup/cooldown to prevent notification spam.
-- [ ] Add a repository/API layer for recent sessions per package and aggregates. Separate real measurements from derived indicators. No fake global 'performance score'.
+- [x] Add SQLite v7 tables `smart_profiles`, `smart_rules`, `smart_rule_events` with non-destructive v1-v6 migrations, FK constraints, useful indexes, length limits, and uniqueness of app packages.
+- [x] CRUD profiles (label, package, sampling-related preferences, optional per-profile thresholds), and rules (battery temperature, battery percentage, Android thermal status, power saver, network validation/transport).
+- [x] Pure Kotlin rule evaluator with no side effects, explicit unknown-state behavior and validation ranges; event dedup/cooldown to prevent notification spam.
+- [x] Add a repository/API layer for recent sessions per package and aggregates. Separate real measurements from derived indicators. No fake global 'performance score'.
 
 Acceptance: SQL constraints + migration test against actual v6 fixture; previous alpha.17 session and sample rows unchanged; evaluator unit tests cover boundary, null, duplicate, cooldown, cross-game rules.
 
@@ -36,10 +36,10 @@ Acceptance: SQL constraints + migration test against actual v6 fixture; previous
 
 Paths: `GameSessionRecorderService.kt`, `GameSessionActivity.kt`, `SmartProfilesActivity.kt` (new).
 
-- [ ] User can save/select a profile, then explicitly start recording for that app; retain manual package input.
-- [ ] Evaluate enabled rules on existing recorded snapshots, persist event transitions with timestamps, display warnings and optionally post a notification (permission-gated, bounded).
-- [ ] Explicit user controls: volume through public AudioManager, DND only with Notification Policy access; brightness/display timeout only if WRITE_SETTINGS granted. Never bypass user consent; consider restoring/undoing the last user change.
-- [ ] Keep recorder's existing notification stop action and cancellation semantics. Do not invent continuous access to other apps' metrics.
+- [x] User can save/select a profile, then explicitly start recording for that app; retain manual package input.
+- [x] Evaluate enabled rules on existing recorded snapshots, persist event transitions with timestamps, display warnings and optionally post a notification (permission-gated, bounded).
+- [x] Explicit user controls: volume through public AudioManager, DND only with Notification Policy access; brightness/display timeout only if WRITE_SETTINGS granted. Never bypass user consent; consider restoring/undoing the last user change.
+- [x] Keep recorder's existing notification stop action and cancellation semantics. Do not invent continuous access to other apps' metrics.
 
 Acceptance: a profile works without Usage Access, Root and Shizuku; denied permissions cause explained no-op; no duplicated event storms.
 
@@ -47,9 +47,9 @@ Acceptance: a profile works without Usage Access, Root and Shizuku; denied permi
 
 Paths: `SmartSessionInsights.kt`, `SmartNetworkLab.kt`, `SmartProfilesBackup.kt` and dedicated UI.
 
-- [ ] Local aggregates by package / 24h / 7d / 30d for sample count, duration, battery delta and temperature; disclose interrupted sessions and incomplete records.
-- [ ] Manual network probes only with explicit tap, distinguishing DNS, TCP connect and Android NetworkCapabilities; never label as game-server ping. Avoid scanning LAN or leaking SSIDs/IPs.
-- [ ] JSON export/import via ACTION_CREATE_DOCUMENT / ACTION_OPEN_DOCUMENT; validate version, size and ranges; transactional import with duplicate merge and rollback; old saved measurements never deleted.
+- [x] Local aggregates by package / 24h / 7d / 30d for sample count, duration, battery delta and temperature; disclose interrupted sessions and incomplete records.
+- [x] Manual network probes only with explicit tap, distinguishing DNS, TCP connect and Android NetworkCapabilities; never label as game-server ping. Avoid scanning LAN or leaking SSIDs/IPs.
+- [x] JSON export/import via ACTION_CREATE_DOCUMENT / ACTION_OPEN_DOCUMENT; validate version, size and ranges; transactional import with duplicate merge and rollback; old saved measurements never deleted.
 
 Acceptance: import exported profiles and rules on a fresh install, reject invalid/malicious files, no data loss on duplicates.
 
@@ -57,8 +57,8 @@ Acceptance: import exported profiles and rules on a fresh install, reject invali
 
 Paths: `LegionQuickTileService.kt`, `SmartCompatibilityBackend.kt`, `AndroidManifest.xml`.
 
-- [ ] Opt-in Quick Settings Tile with status and safe launcher to Smart Profiles. Respect Android 14/15 restrictions on background activity launches; do not start FGS invisibly from a tile.
-- [ ] Capability matrix: available / user permission required / Android/OEM restricted / unknown. Display truthful API gates for DND, WRITE_SETTINGS, notifications, usage stats, NetworkCapabilities and background recording.
+- [x] Opt-in Quick Settings Tile with status and safe launcher to Smart Profiles. Respect Android 14/15 restrictions on background activity launches; do not start FGS invisibly from a tile.
+- [x] Capability matrix: available / user permission required / Android/OEM restricted / unknown. Display truthful API gates for DND, WRITE_SETTINGS, notifications, usage stats, NetworkCapabilities and background recording.
 
 Acceptance: no root dependency; no WRITE_SECURE_SETTINGS; clean handling of unsupported features and tile service lifecycle.
 
@@ -89,3 +89,9 @@ Paths: `app/src/test/...`, `scripts/check_alpha18_smart_profiles.py`, `.github/w
 - Gate D — Android debug + Rust + lint green (pass/fail/not run)
 - Gate E — permanently signed release APK built and fingerprint-verified (pass/fail/not run)
 - Gate F — physical Android device interaction tested (pass/fail/not run)
+
+## Implementation checkpoint (2026-11-22)
+
+Committed as code (not just a proposal): SQLite v7; rule engine with cooldown; CRUD, events, transaction-limited JSON backup; per-app SQL insights; opt-in manual network probe; Android controls and permission status; QS tile; Smart Profiles UI and explicit Game Session handoff; old test-contract updates; new v6→v7 migration and JVM tests. PR: https://github.com/lolokeksu09/Legion-Control/pull/21.
+
+**Gates:** A PASS (plan was first commit), B PASS (real SQLite migration exercise), C PASS on pre-fix revision for JVM tests, D PENDING (Android lint fix to recheck), E NOT RUN (permanent signed release after main merge), F NOT RUN (physical Android device). Do not call this a public release until D/E pass and do not claim physical OEM compatibility until F passes.
