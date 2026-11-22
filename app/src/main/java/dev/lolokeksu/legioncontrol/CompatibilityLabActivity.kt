@@ -1,6 +1,7 @@
 package dev.lolokeksu.legioncontrol
 
-import android.app.Activity
+import androidx.activity.ComponentActivity
+import androidx.lifecycle.ViewModelProvider
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
@@ -16,12 +17,8 @@ import java.util.concurrent.Future
  * Opt-in compatibility analysis. Each read is user-triggered. Device info and
  * report text remain local unless the user invokes Android's share chooser.
  */
-class CompatibilityLabActivity : Activity() {
-    private val executor = Executors.newSingleThreadExecutor()
-    private var task: Future<*>? = null
-    private var generation = 0L
-    private var visible = false
-    private var lastCompletedReport: String? = null
+class CompatibilityLabActivity : ComponentActivity() {
+    private lateinit var viewModel: CompatibilityLabViewModel
     private lateinit var output: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -54,29 +51,25 @@ class CompatibilityLabActivity : Activity() {
         }
         root.addView(output)
         addButton(root, "1 · Display Modes & HDR") {
-            execute { DisplayModeInspector.inspect(display) }
+            viewModel.run(CompatibilityRead.DISPLAY,display)
         }
         addButton(root, "2 · Audio Output Inspector") {
-            execute { AudioOutputInspector.inspect(applicationContext) }
+            viewModel.run(CompatibilityRead.AUDIO,display)
         }
         addButton(root, "3 · Gamepad Inventory") {
-            execute { ControllerInventory.format(ControllerInventory.connected()) }
+            viewModel.run(CompatibilityRead.GAMEPADS,display)
         }
         addButton(root, "4 · Gamepad Live · кнопки и стики") {
-            if (visible) startActivity(Intent(this,GamepadLiveActivity::class.java))
+            startActivity(Intent(this,GamepadLiveActivity::class.java))
         }
         addButton(root, "5 · DRM / Widevine Compatibility") {
-            execute { DrmCapabilityInspector.inspect() }
+            viewModel.run(CompatibilityRead.DRM,display)
         }
         addButton(root, "6 · Gaming Readiness · снимок системы") {
-            execute {
-                GamingReadinessRules.format(GamingReadinessRules.analyze(
-                    GamingReadinessSnapshot.read(applicationContext,display)
-                ))
-            }
+            viewModel.run(CompatibilityRead.READINESS,display)
         }
         addButton(root, "7 · Quick Compute Probe · локальный CPU-тест") {
-            execute { QuickComputeProbe.run(applicationContext) }
+            viewModel.run(CompatibilityRead.COMPUTE,display)
         }
         addButton(root, "Полный отчёт о совместимости") { runFullReport() }
         addButton(root, "Поделиться последним завершённым отчётом") { shareLastReport() }
@@ -85,6 +78,8 @@ class CompatibilityLabActivity : Activity() {
             isFillViewport = true
             addView(root)
         })
+        viewModel=ViewModelProvider(this)[CompatibilityLabViewModel::class.java]
+        viewModel.report.observe(this) { output.text=it }
     }
 
     private val Int.dp get() = (this * resources.displayMetrics.density).toInt()
@@ -98,59 +93,10 @@ class CompatibilityLabActivity : Activity() {
         })
     }
 
-    private fun execute(read: () -> String) {
-        if (!visible) return
-        if (task?.isDone == false) {
-            output.text = "Предыдущий запрос ещё выполняется."
-            return
-        }
-        val requestId = ++generation
-        output.text = "Диагностика по запросу…"
-        task = executor.submit {
-            val result = runCatching { read() }.getOrElse { error ->
-                "Диагностика не завершилась: " + error.javaClass.simpleName
-            }
-            runOnUiThread {
-                if (visible && !isDestroyed && requestId == generation) {
-                    output.text = result
-                    lastCompletedReport = result
-                }
-            }
-        }
-    }
-
-    private fun runFullReport() {
-        execute {
-            // A broken OEM provider must not erase results from healthy providers.
-            val sections: List<Pair<String, () -> String>> = listOf(
-                "Display" to { DisplayModeInspector.inspect(display) },
-                "Audio" to { AudioOutputInspector.inspect(applicationContext) },
-                "Gamepads" to {
-                    ControllerInventory.format(ControllerInventory.connected())
-                },
-                "DRM" to { DrmCapabilityInspector.inspect() },
-                "Gaming Readiness" to {
-                    GamingReadinessRules.format(GamingReadinessRules.analyze(
-                        GamingReadinessSnapshot.read(applicationContext,display)
-                    ))
-                }
-            )
-            sections.map { (label, read) ->
-                if (Thread.currentThread().isInterrupted) {
-                    throw InterruptedException("Report canceled")
-                }
-                runCatching { read() }.getOrElse {
-                    label + " · сведения недоступны: " + it.javaClass.simpleName
-                }
-            }.joinToString(
-                "\n\n---\n\n",
-                prefix = "LEGION CONTROL · OFFLINE COMPATIBILITY REPORT\n\n"
-            )
-        }
-    }
+    private fun runFullReport() { viewModel.run(CompatibilityRead.ALL,display) }
 
     private fun shareLastReport() {
-        val content = lastCompletedReport
+        val content = viewModel.lastCompletedReport
         if (content.isNullOrBlank()) {
             output.text = "Сначала заверши хотя бы одну диагностику."
             return
@@ -166,19 +112,12 @@ class CompatibilityLabActivity : Activity() {
 
     override fun onStart() {
         super.onStart()
-        visible = true
+        viewModel.setVisible(true)
     }
 
     override fun onStop() {
-        visible = false
-        generation++
-        task?.cancel(true)
+        viewModel.setVisible(false)
+        viewModel.cancel()
         super.onStop()
-    }
-
-    override fun onDestroy() {
-        task?.cancel(true)
-        executor.shutdownNow()
-        super.onDestroy()
     }
 }
