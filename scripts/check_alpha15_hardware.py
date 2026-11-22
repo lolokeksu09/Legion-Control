@@ -32,8 +32,8 @@ for name in (".HardwareLabActivity",".DisplayPatternActivity"):
     assert any(x.get(a+"name")==name and x.get(a+"exported")=="false"
         for x in manifest.findall("./application/activity")),name
 assert 'HardwareLabActivity::class.java' in gaming
-assert 'versionCode = 18' in gradle
-assert 'versionName = "0.1.0-alpha.18"' in gradle
+assert 'versionCode = 19' in gradle
+assert 'versionName = "0.1.0-alpha.19"' in gradle
 for num,name in enumerate([
     "Local Route Inspector",
     "Network Events",
@@ -87,6 +87,6 @@ for forbidden in (
         assert forbidden not in backend+capture+display
     else:
         assert forbidden not in backend+capture+display
-assert "SmartProfilesSchema.VERSION" in (src/"LocalHistoryStore.kt").read_text(encoding="utf-8")
+assert "ExperimentSchema.VERSION" in (src/"LocalHistoryStore.kt").read_text(encoding="utf-8")
 assert not any(x in activity for x in ("startForegroundService(", "registerReceiver(", "WorkManager"))
 print("PASS: six real hardware tests, bounded callbacks/storage and unchanged SQLite v5 / permissions")
