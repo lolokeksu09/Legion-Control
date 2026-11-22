@@ -4,7 +4,8 @@ import xml.etree.ElementTree as ET
 
 root = Path(__file__).resolve().parents[1]
 src = root / "app/src/main/java/dev/lolokeksu/legioncontrol"
-activity = (src / "HardwareLabActivity.kt").read_text(encoding="utf-8")
+activity = (src / "HardwareLabFragment.kt").read_text(encoding="utf-8")
+wrapper = (src / "HardwareLabActivity.kt").read_text(encoding="utf-8")
 viewmodel = (src / "HardwareLabViewModel.kt").read_text(encoding="utf-8")
 backend = (src / "HardwareLabBackend.kt").read_text(encoding="utf-8")
 models = (src / "HardwareLabModels.kt").read_text(encoding="utf-8")
@@ -33,6 +34,8 @@ for name in (".HardwareLabActivity",".DisplayPatternActivity"):
     assert any(x.get(a+"name")==name and x.get(a+"exported")=="false"
         for x in manifest.findall("./application/activity")),name
 assert 'HardwareLabActivity::class.java' in gaming
+assert "HardwareLabFragment()" in wrapper
+assert "report.observe(viewLifecycleOwner)" in activity
 assert 'versionCode = 27' in gradle
 assert 'versionName = "0.1.0-alpha.27"' in gradle
 for num,name in enumerate([

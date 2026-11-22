@@ -89,9 +89,10 @@
     <activity
         android:id="@+id/gamingDiagnosticsDestination"
         android:name="dev.lolokeksu.legioncontrol.GamingDiagnosticsActivity" />
-    <activity
+    <fragment
         android:id="@+id/hardwareLabDestination"
-        android:name="dev.lolokeksu.legioncontrol.HardwareLabActivity" />
+        android:name="dev.lolokeksu.legioncontrol.HardwareLabFragment"
+        android:label="Hardware Lab" />
     <fragment
         android:id="@+id/compatibilityLabDestination"
         android:name="dev.lolokeksu.legioncontrol.CompatibilityLabFragment"
