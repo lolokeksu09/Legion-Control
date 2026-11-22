@@ -1,6 +1,7 @@
 package dev.lolokeksu.legioncontrol
 
-import android.app.Activity
+import androidx.activity.ComponentActivity
+import androidx.lifecycle.ViewModelProvider
 import android.app.Dialog
 import android.content.Intent
 import android.graphics.Color
@@ -23,16 +24,11 @@ import java.util.concurrent.Future
  * Ten opt-in Android public-API tools. No privileged control, continuous
  * telemetry, receiver, background service, Wi-Fi location access or uploads.
  */
-class GamingDiagnosticsActivity : Activity() {
-    private val worker = Executors.newSingleThreadExecutor()
-    private var task: Future<*>? = null
+class GamingDiagnosticsActivity : ComponentActivity() {
+    private lateinit var viewModel: GamingDiagnosticsViewModel
     private lateinit var resultView: TextView
     private lateinit var packageInput: EditText
-    private var lastCharge: ChargeReading? = null
-    private var frameCapture: FramePacingCapture? = null
     private var touchDialog: Dialog? = null
-    private var thermalListener: PowerManager.OnThermalStatusChangedListener? = null
-    private var thermalEvents = 0
     private var visible = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -66,10 +62,10 @@ class GamingDiagnosticsActivity : Activity() {
         root.addView(resultView)
 
         addButton(root, "1 · Network Analyzer — TCP/DNS") {
-            runWorker { TcpProbeStatistics.format(NetworkDiagnostics.probe()) }
+            viewModel.run(GamingProbe.NETWORK)
         }
         addButton(root, "2 · Battery Intelligence") {
-            runWorker { DeviceInsights.battery(applicationContext) }
+            viewModel.run(GamingProbe.BATTERY)
         }
         addButton(root, "3 · Thermal Guard — включить/выключить события") {
             toggleThermalGuard()
@@ -81,7 +77,7 @@ class GamingDiagnosticsActivity : Activity() {
             startFramePacing()
         }
         addButton(root, "6 · Wi-Fi / LTE Inspector") {
-            runWorker { DeviceInsights.network(applicationContext) }
+            viewModel.run(GamingProbe.WIFI)
         }
         packageInput = EditText(this).apply {
             setSingleLine(true)
@@ -98,7 +94,7 @@ class GamingDiagnosticsActivity : Activity() {
             if (!GameUsageDiagnostics.hasUsageAccess(this)) {
                 report("Доступ к статистике использования ещё не предоставлен. " +
                     "Нажми кнопку настройки ниже и разреши Legion Control.")
-            } else runWorker { GameUsageDiagnostics.read(applicationContext, selectedPackage) }
+            } else viewModel.run(GamingProbe.USAGE,selectedPackage)
         }
         addButton(root, "Разрешить статистику использования (настройки Android)") {
             runCatching {
@@ -109,31 +105,13 @@ class GamingDiagnosticsActivity : Activity() {
             }
         }
         addButton(root, "8 · Charging Analyzer — сравнить с прошлым замером") {
-            runWorker {
-                val current = ChargingDiagnostics.read(applicationContext)
-                val text = ChargingDiagnostics.format(current, lastCharge)
-                lastCharge = current
-                text
-            }
+            viewModel.run(GamingProbe.CHARGING)
         }
         addButton(root, "9 · Session Comparison — последние два сеанса") {
-            runWorker {
-                val sessions = LocalHistoryStore(applicationContext).use { history ->
-                    history.recentSessions(30).filter { it.samples >= 2 }.take(2).mapIndexed {
-                        index, entry ->
-                        ComparedSession(
-                            "Сеанс "+(index+1),
-                            requireNotNull(SessionAnalytics.analyze(
-                                history.sessionReadings(entry.id)
-                            ))
-                        )
-                    }
-                }
-                SessionComparison.format(sessions)
-            }
+            viewModel.run(GamingProbe.SESSION)
         }
         addButton(root, "10 · System Health") {
-            runWorker { DeviceInsights.system(applicationContext, display) }
+            viewModel.run(GamingProbe.SYSTEM,refreshHzDisplay=display)
         }
         addButton(root, "HARDWARE LAB · ещё 6 диагностик") {
             startActivity(Intent(this, HardwareLabActivity::class.java))
@@ -143,6 +121,8 @@ class GamingDiagnosticsActivity : Activity() {
             isFillViewport = true
             addView(root)
         })
+        viewModel=ViewModelProvider(this)[GamingDiagnosticsViewModel::class.java]
+        viewModel.report.observe(this) { report(it) }
     }
 
     private val Int.dp: Int get() = (this * resources.displayMetrics.density).toInt()
@@ -160,78 +140,10 @@ class GamingDiagnosticsActivity : Activity() {
         if (!isDestroyed && ::resultView.isInitialized) resultView.text = message
     }
 
-    private fun runWorker(block: () -> String) {
-        if (!visible) {
-            report("Экран неактивен, диагностика не запускается.")
-            return
-        }
-        if (task?.isDone == false) {
-            report("Другая проверка ещё выполняется. Заверши её перед следующей.")
-            return
-        }
-        report("Выполняется проверка по запросу…")
-        task = worker.submit {
-            val text = runCatching { block() }.getOrElse {
-                "Ошибка диагностики: " + it.javaClass.simpleName
-            }
-            runOnUiThread {
-                if (visible && !isDestroyed) report(text)
-            }
-        }
-    }
-
-    private fun toggleThermalGuard() {
-        val power = getSystemService(POWER_SERVICE) as? PowerManager
-        if (power == null) {
-            report("Thermal Guard: сервис PowerManager недоступен")
-            return
-        }
-        if (thermalListener != null) {
-            stopThermalGuard()
-            report("Thermal Guard остановлен; событий за сеанс: " + thermalEvents)
-            return
-        }
-        thermalEvents = 0
-        val listener = PowerManager.OnThermalStatusChangedListener { status ->
-            thermalEvents++
-            if (visible) report(
-                "THERMAL GUARD · событие "+thermalEvents+
-                    "\nAndroid Thermal Status: "+ThermalSeverity.describe(status)+
-                    "\nСлушатель удаляется при сворачивании приложения."
-            )
-        }
-        val success = runCatching {
-            power.addThermalStatusListener(mainExecutor, listener)
-        }.isSuccess
-        if (!success) {
-            report("Thermal Guard: подписка не поддерживается этой прошивкой")
-            return
-        }
-        thermalListener = listener
-        runWorker { DeviceInsights.thermal(applicationContext) +
-            "\nСлушатель изменений Thermal Status активен, пока открыт экран."
-        }
-    }
-
-    private fun stopThermalGuard() {
-        val listener = thermalListener ?: return
-        thermalListener = null
-        val manager = getSystemService(POWER_SERVICE) as? PowerManager
-        runCatching { manager?.removeThermalStatusListener(listener) }
-    }
+    private fun toggleThermalGuard() = viewModel.toggleThermalGuard()
 
     private fun startFramePacing() {
-        if (frameCapture != null) {
-            report("Frame Pacing уже выполняется")
-            return
-        }
-        report("Frame Pacing · 5 секунд VSYNC callback внутри Legion Control…")
-        val current = FramePacingCapture(display?.mode?.refreshRate ?: 0f) {
-            frameCapture = null
-            if (visible) report(FramePacingStatistics.format(it))
-        }
-        frameCapture = current
-        current.start()
+        viewModel.startFramePacing(display?.mode?.refreshRate ?: 0f)
     }
 
     private fun openTouchTester() {
@@ -281,24 +193,15 @@ class GamingDiagnosticsActivity : Activity() {
     override fun onStart() {
         super.onStart()
         visible = true
+        viewModel.setVisible(true)
     }
 
     override fun onStop() {
         visible = false
-        frameCapture?.stop(false)
-        frameCapture = null
-        stopThermalGuard()
+        viewModel.setVisible(false)
+        viewModel.cancelAll()
         touchDialog?.dismiss()
         touchDialog = null
-        task?.cancel(true)
         super.onStop()
-    }
-
-    override fun onDestroy() {
-        stopThermalGuard()
-        frameCapture?.stop(false)
-        task?.cancel(true)
-        worker.shutdownNow()
-        super.onDestroy()
     }
 }
