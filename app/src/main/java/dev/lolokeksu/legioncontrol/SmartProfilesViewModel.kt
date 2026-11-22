@@ -89,7 +89,7 @@ class SmartProfilesViewModel(application: Application) : AndroidViewModel(applic
     }
 
     /** Called only AFTER the user confirms overwriting matching profiles. */
-    fun import(uri: Uri) = submit {
+    fun importBackup(uri: Uri) = submit {
         val count = SmartProfilesRepository(getApplication<Application>()).use { repo ->
             (getApplication<Application>().contentResolver.openInputStream(uri)
                 ?: error("No input stream")).use { repo.importBackup(it) }
