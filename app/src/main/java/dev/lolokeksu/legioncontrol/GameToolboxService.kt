@@ -343,6 +343,15 @@ class GameToolboxService : Service() {
         expanded = !expanded
         panel?.visibility = if (expanded) View.VISIBLE else View.GONE
         applyPreferences()
+        // Panel height becomes known after the first layout pass. Reposition the
+        // complete expanded panel on screen even if the user dragged LC to the bottom.
+        if (expanded) overlay?.post {
+            val root = overlay ?: return@post
+            val p = params ?: return@post
+            val height = windows.currentWindowMetrics.bounds.height()
+            p.y = ToolboxTuning.position(p.y, height - root.height)
+            updateOverlay()
+        }
     }
 
     private fun applyPreferences() {
