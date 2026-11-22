@@ -56,5 +56,5 @@ Provide a practical, privacy-respecting local app library with custom favorites/
 - **Permanent release signing:** https://github.com/lolokeksu09/Legion-Control/actions/runs/45008516334 — SUCCESS; pinned certificate and release APK verified.
 - **Signed APK artifact:** `Legion-Control-v0.1.0-alpha.21-permanent-release-apk`, GitHub artifact id `14749191262`.
 - **Verified exact APK bytes:** 3,521,813; SHA-256 `08112aed3fbd8c215de1fe0ab6de1d1c11746481206bb10ebc25c8d53b9c7faf`; APK ZIP CRC passed, AndroidManifest.xml and ARM64/x86_64 `liblegion_core.so` present.
-- **Main CI run:** https://github.com/lolokeksu09/Legion-Control/actions/runs/45008516338 — result must be inspected separately; do not infer main CI status from PR CI.
+- **Main CI run:** https://github.com/lolokeksu09/Legion-Control/actions/runs/45008516338 — SUCCESS, 42/42 steps, checked on merged app source commit `2d6e766e424a2c54e257556f3610433778ae8fdf`.
 - **NOT RUN on real device:** APK installation over signed alpha.20, display/navigation, app metadata on Motorola hybrid ROM, Usage Access and CSV on Android. Documentation and CI do not prove these behaviors.
