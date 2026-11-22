@@ -30,6 +30,15 @@ class CaptureStudioRepository(context: Context) {
 
     fun clips(): List<CaptureClip> = CaptureClipLibrary.listOwn(app)
 
+    fun screenshots(): List<CaptureScreenshot> = CaptureScreenshotLibrary.listOwn(app)
+
+    fun deleteOwnScreenshot(screenshot: CaptureScreenshot): Boolean {
+        require(screenshots().any { it.uri == screenshot.uri }) {
+            "Selected screenshot is not in own library"
+        }
+        return CaptureScreenshotLibrary.delete(app, screenshot.uri)
+    }
+
     /** The dialog-confirmed URI comes only from this app's own MediaStore query. */
     fun deleteOwnClip(clip: CaptureClip): Boolean {
         require(clips().any { it.uri == clip.uri }) { "Selected clip is not in own library" }
