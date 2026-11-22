@@ -15,6 +15,7 @@ import android.widget.ScrollView
 import android.widget.TextView
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
+import androidx.navigation.fragment.NavHostFragment
 import java.text.DateFormat
 import java.util.Date
 
@@ -57,6 +58,14 @@ class SessionSignalsFragment:Fragment() {
         action("Обновить хронологию") { vm.refresh() }
         action("Сохранить события выбранной сессии CSV") { saveCsv() }
         action("Поделиться текстовым анализом") { share() }
+        action("Session Baselines · история этой игры") {
+            val args=Bundle().apply {
+                vm.state.value?.report?.session?.packageName?.let {
+                    putString("smart_package",it)
+                }
+            }
+            NavHostFragment.findNavController(this).navigate(R.id.sessionBaselinesFragment,args)
+        }
         report=TextView(requireContext()).apply {
             setTextColor(Color.WHITE)
             textSize=14f
