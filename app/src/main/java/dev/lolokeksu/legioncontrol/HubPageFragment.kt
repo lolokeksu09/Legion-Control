@@ -347,6 +347,9 @@ class HubPageFragment : Fragment() {
     private fun showHistory(s: HubSnapshot) {
         section("История", "Все данные остались в прежней SQLite v12. Ничего не очищено.")
         tile("Игровые сессии", "Просмотр сохранённых Game Session") { open(GameSessionActivity::class.java) }
+        tile("Session Signals", "Хронология событий, метки, разрывы телеметрии и экспорт") {
+            NavHostFragment.findNavController(this).navigate(R.id.sessionSignalsFragment)
+        }
         tile("Измерения устройства", "Rust JNI, батарея, тепловая история и CSV") { open(MainActivity::class.java) }
         tile("Эксперименты", "Сравнения и заметки") { open(ExperimentLabActivity::class.java) }
         tile("Клипы MP4", "Movies/LegionControl/ · локальная библиотека") { open(CaptureStudioActivity::class.java) }

@@ -7,6 +7,7 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
+import androidx.navigation.fragment.NavHostFragment
 import android.app.AlertDialog
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -120,6 +121,8 @@ class GameSessionFragment : Fragment() {
         action("НАЧАТЬ ЗАПИСЬ") { startRecording() }
         action("Открыть выбранное приложение") { openSelectedApp() }
         action("ОСТАНОВИТЬ ЗАПИСЬ") { stopRecording() }
+        action("Добавить метку во время записи") { addUserMark() }
+        action("Session Signals · хронология и события") { openSessionSignals() }
         action("Разрешить уведомления о записи (Android 13+)") {
             if (requireContext().checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)
                 requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS),REQUEST_NOTIFICATION)
@@ -221,6 +224,41 @@ class GameSessionFragment : Fragment() {
         } catch(e: Exception) {
             reportView.text="Не удалось остановить службу: "+e.javaClass.simpleName
         }
+    }
+
+    /** Manual annotations are queued only by an active recorder; no implicit START. */
+    private fun addUserMark() {
+        val field=EditText(requireContext()).apply {
+            hint="Например: лаг при смене Wi-Fi"
+            setSingleLine(true)
+            filters=arrayOf(android.text.InputFilter.LengthFilter(120))
+            setTextColor(Color.BLACK)
+        }
+        AlertDialog.Builder(requireContext())
+            .setTitle("Отметить момент во время записи")
+            .setView(field)
+            .setPositiveButton("Добавить") { _,_ ->
+                val note=SessionSignals.normalizeMarker(field.text.toString())
+                if(note==null) reportView.text="Метка пуста."
+                else runCatching {
+                    GameSessionRecorderService.mark(requireContext(),note)
+                    reportView.text="Отправлена ручная метка. Она сохранится только " +
+                        "если Game Session сейчас записывает. Проверить можно через Session Signals."
+                }.onFailure { reportView.text="Метка не отправлена: "+it.javaClass.simpleName }
+            }.setNegativeButton("Отмена",null).show()
+    }
+
+    private fun openSessionSignals() {
+        val args=Bundle().apply {
+            val pkg=packageInput.text.toString().trim()
+            if(packagePattern.matches(pkg))putString("smart_package",pkg)
+        }
+        val controller=runCatching { NavHostFragment.findNavController(this) }.getOrNull()
+        if(controller!=null)controller.navigate(R.id.sessionSignalsFragment,args)
+        else startActivity(Intent(requireContext(),NavigationHostActivity::class.java).apply {
+            putExtra("open_session_signals",true)
+            putExtras(args)
+        })
     }
 
     private fun openSelectedApp() {

@@ -27,6 +27,8 @@ class GameSessionRecorderService : Service() {
     companion object {
         const val ACTION_START = "dev.lolokeksu.legioncontrol.game.START"
         const val ACTION_STOP = "dev.lolokeksu.legioncontrol.game.STOP"
+        const val ACTION_MARK = "dev.lolokeksu.legioncontrol.game.MARK"
+        const val EXTRA_MARK_TEXT = "mark_text"
         const val EXTRA_PACKAGE = "package"
         const val EXTRA_LABEL = "label"
         const val EXTRA_TCP = "tcp"
@@ -45,6 +47,15 @@ class GameSessionRecorderService : Service() {
         }
         fun stop(context: Context) {
             context.startService(Intent(context,GameSessionRecorderService::class.java).apply { action = ACTION_STOP })
+        }
+        /** A user-tapped marker is appended only to an already active session. */
+        fun mark(context: Context, note: String) {
+            val normalized = SessionSignals.normalizeMarker(note)
+                ?: throw IllegalArgumentException("Метка пуста")
+            context.startService(Intent(context,GameSessionRecorderService::class.java).apply {
+                action = ACTION_MARK
+                putExtra(EXTRA_MARK_TEXT, normalized)
+            })
         }
     }
 
@@ -79,6 +90,17 @@ class GameSessionRecorderService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) {
             stopRecording("USER_STOP")
+            return START_NOT_STICKY
+        }
+        if (intent?.action == ACTION_MARK) {
+            // startService may create an idle Service. Never start recording for a mark.
+            if (!started || stopping) {
+                if (!started) stopSelfResult(startId)
+                return START_NOT_STICKY
+            }
+            val note = SessionSignals.normalizeMarker(
+                intent.getStringExtra(EXTRA_MARK_TEXT).orEmpty())
+            if (note != null) enqueueEvent("USER_MARK",note)
             return START_NOT_STICKY
         }
         if (intent?.action != ACTION_START || started || stopping) return START_NOT_STICKY
@@ -172,12 +194,15 @@ class GameSessionRecorderService : Service() {
         } catch(e: Exception) { enqueueEvent("API_ERROR","Thermal listener: "+e.javaClass.simpleName) }
     }
 
-    private fun enqueueEvent(type: String, detail: String) {
+    private fun enqueueEvent(
+        type: String, detail: String, recordedAtMs: Long = System.currentTimeMillis()
+    ) {
+        // Preserve observation time even when SQLite writes wait in the serial queue.
         if (stopping) return
         runCatching {
             worker.execute {
                 val id = activeId ?: return@execute
-                runCatching { storage?.event(id,type,detail) }
+                runCatching { storage?.event(id,type,detail,recordedAtMs) }
                     .onFailure { Log.w("LegionSession","Event not saved",it) }
             }
         }
