@@ -25,7 +25,12 @@ class CaptureStudioRepository(context: Context) {
         val running = CaptureRecordingService.recording
         val last = prefs.getString(CaptureRecordingService.LAST_RESULT,
             "Клипов ещё нет. Для первой записи нажмите «Начать» и подтвердите запрос Android.")
-        return (if (running) "ЗАПИСЬ АКТИВНА\n" else "Запись не активна\n") + last
+        val header = when {
+            running && CaptureRecordingService.paused -> "ЗАПИСЬ НА ПАУЗЕ\\n"
+            running -> "ЗАПИСЬ АКТИВНА\\n"
+            else -> "Запись не активна\\n"
+        }
+        return header + last
     }
 
     fun clips(): List<CaptureClip> = CaptureClipLibrary.listOwn(app)
