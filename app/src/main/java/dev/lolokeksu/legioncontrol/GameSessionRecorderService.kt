@@ -194,12 +194,15 @@ class GameSessionRecorderService : Service() {
         } catch(e: Exception) { enqueueEvent("API_ERROR","Thermal listener: "+e.javaClass.simpleName) }
     }
 
-    private fun enqueueEvent(type: String, detail: String) {
+    private fun enqueueEvent(
+        type: String, detail: String, recordedAtMs: Long = System.currentTimeMillis()
+    ) {
+        // Preserve observation time even when SQLite writes wait in the serial queue.
         if (stopping) return
         runCatching {
             worker.execute {
                 val id = activeId ?: return@execute
-                runCatching { storage?.event(id,type,detail) }
+                runCatching { storage?.event(id,type,detail,recordedAtMs) }
                     .onFailure { Log.w("LegionSession","Event not saved",it) }
             }
         }
