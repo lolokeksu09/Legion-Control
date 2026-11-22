@@ -38,7 +38,7 @@ assert "val snapshot = output.toString()" in activity
 assert activity.index("BatteryHealthReport.format(") < activity.index("val snapshot = output.toString()")
 assert "latestReport = reportHeader?.plus(snapshot)" in activity
 assert "latestReport = reportHeader?.plus(complete)" in activity
-assert activity.count("layout.addView(Button(this).apply {") == 16, "No new UI controls"
+assert activity.count("layout.addView(Button(this).apply {") == 17, "All existing battery controls remain"
 for test in (
     "androidHealthIsNotDegradationPercentage",
     "missingValuesDoNotBecomeZeroOrFalse",

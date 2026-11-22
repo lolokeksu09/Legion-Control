@@ -38,7 +38,7 @@ assert "DiagnosticTrendTextReport.format(trend)" in activity
 assert "latestReport = reportHeader?.plus(complete)" in activity
 assert "runOnUiThread {" in activity
 assert "!isDestroyed && requestId == diagnosticRequestId" in activity
-assert activity.count("layout.addView(Button(this).apply {") == 16
+assert activity.count("layout.addView(Button(this).apply {") == 17
 for test_name in (
     "firstReadingIsBaselineAndSecondShowsMeasuredChanges",
     "missingDataNeverBecomesAZeroDelta",
