@@ -22,6 +22,7 @@ import java.util.concurrent.Executors
 class ApplicationCenterActivity:Activity() {
     companion object { private const val EXPORT_CSV=2101 }
     private val worker=Executors.newSingleThreadExecutor()
+    @Volatile private var visible=false
     private lateinit var packageText:EditText
     private lateinit var aliasText:EditText
     private lateinit var categoryText:EditText
@@ -72,6 +73,7 @@ class ApplicationCenterActivity:Activity() {
         button("Выбрать видимое установленное приложение") { chooseApp() }
         button("Найти приложение по названию / пакету") { searchApp() }
         button("Моя библиотека / избранное") { chooseTracked() }
+        button("Только избранные приложения") { chooseTracked(onlyFavorites=true) }
         packageText=edit("Имя пакета · например com.example.game")
         aliasText=edit("Название в библиотеке · до 100 символов")
         categoryText=edit("Категория · до 40 символов")
@@ -194,9 +196,9 @@ class ApplicationCenterActivity:Activity() {
         "Из доступных Launcher API найдено: ${found.size}"
     }
 
-    private fun chooseTracked() = work {
+    private fun chooseTracked(onlyFavorites:Boolean=false) = work {
         ApplicationCenterRepository(applicationContext).use { repository ->
-            val entries=repository.list()
+            val entries=repository.list().filter { !onlyFavorites || it.favorite }
             runOnUiThread {
                 if(!isFinishing && !isDestroyed) {
                     if(entries.isEmpty()) show("Библиотека пуста — сохраните приложение.")
@@ -261,8 +263,10 @@ class ApplicationCenterActivity:Activity() {
         if(tracked.isEmpty()) return@work "Библиотека пуста — нечего проверять."
         var changed=0
         var errors=0
+        var checked=0
         for(item in tracked) {
-            if(Thread.currentThread().isInterrupted) break
+            if(!visible || Thread.currentThread().isInterrupted) break
+            checked++
             runCatching {
                 val observation=ApplicationInventory.inspect(applicationContext,item.packageName)
                 ApplicationCenterRepository(applicationContext).use { repository ->
@@ -270,7 +274,7 @@ class ApplicationCenterActivity:Activity() {
                 }
             }.onFailure { errors++ }
         }
-        "Проверено по запросу: ${tracked.size} записей. "+
+        "Проверено по запросу: $checked из ${tracked.size} записей. "+
             "Событий: $changed · ошибок Android/SQLite: $errors. "+
             "Недоступность пакета НЕ означает удаление."
     }
@@ -357,7 +361,18 @@ class ApplicationCenterActivity:Activity() {
         }
     }
 
+    override fun onStart() {
+        super.onStart()
+        visible=true
+    }
+
+    override fun onStop() {
+        visible=false // Manual library scan stops when user leaves this screen.
+        super.onStop()
+    }
+
     override fun onDestroy() {
+        visible=false
         worker.shutdown()
         super.onDestroy()
     }
