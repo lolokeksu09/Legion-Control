@@ -20,7 +20,7 @@ assert set(x.attrib["{http://schemas.android.com/apk/res/android}name"] for x in
     "android.permission.POST_NOTIFICATIONS",
     "android.permission.MODIFY_AUDIO_SETTINGS",
     "android.permission.ACCESS_NOTIFICATION_POLICY",
-    "android.permission.WRITE_SETTINGS","android.permission.VIBRATE"
+    "android.permission.WRITE_SETTINGS","android.permission.VIBRATE","android.permission.SYSTEM_ALERT_WINDOW"
 }, "Public telemetry must not require permissions"
 for value in (
     "ProbeState", "AVAILABLE, UNAVAILABLE, ERROR, RATE_LIMITED",

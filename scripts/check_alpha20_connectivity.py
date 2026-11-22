@@ -14,8 +14,8 @@ analytics=(src/"ConnectivityAnalytics.kt").read_text(encoding="utf-8")
 ui=(src/"ConnectivityLabActivity.kt").read_text(encoding="utf-8")
 gradle=(root/"app/build.gradle.kts").read_text(encoding="utf-8")
 
-assert 'versionCode = 23' in gradle
-assert 'versionName = "0.1.0-alpha.23"' in gradle
+assert 'versionCode = 24' in gradle
+assert 'versionName = "0.1.0-alpha.24"' in gradle
 assert 'minSdk = 33' in gradle and 'targetSdk = 36' in gradle
 assert 'const val VERSION = 9' in schema
 assert 'newVersion != HapticLabSchema.VERSION' in store
@@ -34,7 +34,7 @@ assert perms=={
     "android.permission.ACCESS_WIFI_STATE","android.permission.PACKAGE_USAGE_STATS",
     "android.permission.FOREGROUND_SERVICE","android.permission.FOREGROUND_SERVICE_SPECIAL_USE",
     "android.permission.POST_NOTIFICATIONS","android.permission.MODIFY_AUDIO_SETTINGS",
-    "android.permission.ACCESS_NOTIFICATION_POLICY","android.permission.WRITE_SETTINGS","android.permission.VIBRATE"
+    "android.permission.ACCESS_NOTIFICATION_POLICY","android.permission.WRITE_SETTINGS","android.permission.VIBRATE","android.permission.SYSTEM_ALERT_WINDOW"
 }
 assert all(p not in perms for p in (
     "android.permission.ACCESS_FINE_LOCATION","android.permission.QUERY_ALL_PACKAGES",

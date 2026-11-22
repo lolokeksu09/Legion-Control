@@ -20,7 +20,7 @@ assert set(x.attrib["{http://schemas.android.com/apk/res/android}name"] for x in
     "android.permission.POST_NOTIFICATIONS",
     "android.permission.MODIFY_AUDIO_SETTINGS",
     "android.permission.ACCESS_NOTIFICATION_POLICY",
-    "android.permission.WRITE_SETTINGS","android.permission.VIBRATE"
+    "android.permission.WRITE_SETTINGS","android.permission.VIBRATE","android.permission.SYSTEM_ALERT_WINDOW"
 }
 assert "class DiagnosticTrendEngine" in engine
 assert "fun record(snapshot: DeviceDiagnosticSnapshot, batteryPercent: Int?)" in engine
@@ -41,7 +41,7 @@ assert "DiagnosticTrendTextReport.format(trend)" in activity
 assert "latestReport = reportHeader?.plus(complete)" in activity
 assert "runOnUiThread {" in activity
 assert "!isDestroyed && requestId == diagnosticRequestId" in activity
-assert activity.count("layout.addView(Button(this).apply {") == 23
+assert activity.count("layout.addView(Button(this).apply {") == 24
 for test_name in (
     "firstReadingIsBaselineAndSecondShowsMeasuredChanges",
     "missingDataNeverBecomesAZeroDelta",
@@ -53,8 +53,8 @@ for test_name in (
     "thermalCodesMatchAndroidPlatformDefinitions",
 ):
     assert test_name in tests, test_name
-assert "versionCode = 23" in gradle
-assert 'versionName = "0.1.0-alpha.23"' in gradle
+assert "versionCode = 24" in gradle
+assert 'versionName = "0.1.0-alpha.24"' in gradle
 for unsafe in ("Shizuku.getInstance", "WRITE_SECURE_SETTINGS", "setprop ", "pm grant",
                "QUERY_ALL_PACKAGES", "exec(", "getDeclaredMethod("):
     assert unsafe not in activity + engine + current + text_report, unsafe

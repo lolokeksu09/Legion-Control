@@ -19,9 +19,9 @@ assert set(x.attrib["{http://schemas.android.com/apk/res/android}name"] for x in
     "android.permission.POST_NOTIFICATIONS",
     "android.permission.MODIFY_AUDIO_SETTINGS",
     "android.permission.ACCESS_NOTIFICATION_POLICY",
-    "android.permission.WRITE_SETTINGS","android.permission.VIBRATE"
+    "android.permission.WRITE_SETTINGS","android.permission.VIBRATE","android.permission.SYSTEM_ALERT_WINDOW"
 }, "No privileges needed"
-assert activity.count("layout.addView(Button(this).apply {") == 23, "Keep all diagnostic actions"
+assert activity.count("layout.addView(Button(this).apply {") == 24, "Keep all diagnostic actions"
 assert "diagnosticsExecutor = Executors.newSingleThreadExecutor()" in activity
 assert "diagnosticsExecutor.execute {" in activity
 assert "DeviceDiagnosticsBackend.read(applicationContext)" in activity
@@ -39,8 +39,8 @@ assert "DeviceCapabilitiesBackend.read(context)" in combined
 assert "ResourceTelemetryBackend.read(context)" in combined
 assert "fun successfulReadingsExposeSourcesAndActualUnits()" in tests
 assert "fun unavailableAndErrorsAreNotRenderedAsZero()" in tests
-assert 'versionCode = 23' in build
-assert 'versionName = "0.1.0-alpha.23"' in build
+assert 'versionCode = 24' in build
+assert 'versionName = "0.1.0-alpha.24"' in build
 print("PASS: manual MainActivity wiring, off-UI probes, honest reports, no UI redesign")
 
 assert 'text = "Снять показания датчиков"' in activity
