@@ -6,6 +6,8 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 
 sealed interface CaptureLibraryState {
     data object Idle : CaptureLibraryState
@@ -30,6 +32,7 @@ class CaptureStudioViewModel(application: Application) : AndroidViewModel(applic
     private val worker = Executors.newSingleThreadExecutor()
     private val revision = AtomicInteger(0)
     private val screenshotRevision = AtomicInteger(0)
+    private val currentEdit = AtomicReference<AtomicBoolean?>(null)
     private val libraryMutable = MutableLiveData<CaptureLibraryState>(CaptureLibraryState.Idle)
     val library: LiveData<CaptureLibraryState> = libraryMutable
 
@@ -74,6 +77,72 @@ class CaptureStudioViewModel(application: Application) : AndroidViewModel(applic
                 { CaptureLibraryState.Ready(it) },
                 { CaptureLibraryState.Error("Не удалось прочитать библиотеку: " + it.javaClass.simpleName) }
             ))
+        }
+    }
+
+    /** The immutable source clip is never overwritten; each export creates a separate row. */
+    fun saveClipExcerpt(clip: CaptureClip, selection: ClipTrimSelection) {
+        runClipEdit(
+            success = "Фрагмент MP4 сохранён отдельно. Исходный клип не изменён.",
+            screenshot = false
+        ) { cancelled -> repository.trimOwnClip(clip, selection, cancelled) }
+    }
+
+    fun saveClipFrame(clip: CaptureClip, atMs: Long?) {
+        runClipEdit(
+            success = "Кадр PNG сохранён в Pictures/LegionControl/.",
+            screenshot = true
+        ) { cancelled -> repository.exportOwnClipFrame(clip, atMs, cancelled) }
+    }
+
+    fun cancelClipEdit() {
+        if (currentEdit.get()?.let { it.set(true); true } == true) {
+            messageMutable.value = "Отмена экспорта запрошена. Незавершённый файл будет удалён."
+        } else {
+            messageMutable.value = "Нет активной обработки клипа."
+        }
+    }
+
+    private fun runClipEdit(
+        success: String,
+        screenshot: Boolean,
+        action: ((() -> Boolean)) -> android.net.Uri
+    ) {
+        val token = AtomicBoolean(false)
+        if (!currentEdit.compareAndSet(null, token)) {
+            messageMutable.value = "Другая операция с клипом уже выполняется."
+            return
+        }
+        messageMutable.value = if (screenshot) "Сохраняю PNG-кадр…" else "Создаю MP4-фрагмент…"
+        worker.execute {
+            val result = runCatching {
+                action { token.get() || Thread.currentThread().isInterrupted }
+            }
+            currentEdit.compareAndSet(token, null)
+            val message = result.fold(
+                { success },
+                {
+                    if (token.get() || it is InterruptedException) "Экспорт отменён."
+                    else "Экспорт не удался: " + it.javaClass.simpleName + " · " +
+                        (it.message ?: "проверьте исходный файл")
+                }
+            )
+            messageMutable.postValue(message)
+            if (result.isSuccess) {
+                if (screenshot) {
+                    val updated = runCatching { repository.screenshots() }
+                    screenshotsMutable.postValue(updated.fold(
+                        { CaptureScreenshotsState.Ready(it) },
+                        { CaptureScreenshotsState.Error("Не удалось открыть PNG: " + it.javaClass.simpleName) }
+                    ))
+                } else {
+                    val updated = runCatching { repository.clips() }
+                    libraryMutable.postValue(updated.fold(
+                        { CaptureLibraryState.Ready(it) },
+                        { CaptureLibraryState.Error("Не удалось открыть MP4: " + it.javaClass.simpleName) }
+                    ))
+                }
+            }
         }
     }
 
@@ -128,6 +197,7 @@ class CaptureStudioViewModel(application: Application) : AndroidViewModel(applic
     }
 
     override fun onCleared() {
+        currentEdit.get()?.set(true)
         revision.incrementAndGet()
         screenshotRevision.incrementAndGet()
         worker.shutdown()
