@@ -54,6 +54,13 @@
         <argument android:name="smart_package" app:argType="string" android:defaultValue=""/>
     </fragment>
     <fragment
+        android:id="@+id/sessionIncidentsFragment"
+        android:name="dev.lolokeksu.legioncontrol.SessionIncidentsFragment"
+        android:label="Session Incidents">
+        <argument android:name="smart_package" app:argType="string" android:defaultValue=""/>
+        <argument android:name="session_id" app:argType="string" android:defaultValue=""/>
+    </fragment>
+    <fragment
         android:id="@+id/sessionBaselinesFragment"
         android:name="dev.lolokeksu.legioncontrol.SessionBaselinesFragment"
         android:label="Session Baselines">

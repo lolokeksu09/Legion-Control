@@ -58,6 +58,15 @@ class SessionSignalsFragment:Fragment() {
         action("Обновить хронологию") { vm.refresh() }
         action("Сохранить события выбранной сессии CSV") { saveCsv() }
         action("Поделиться текстовым анализом") { share() }
+        action("Session Incidents · длительность состояний") {
+            val args = Bundle().apply {
+                vm.state.value?.report?.session?.let {
+                    putString("smart_package", it.packageName)
+                    putString("session_id", it.id)
+                }
+            }
+            NavHostFragment.findNavController(this).navigate(R.id.sessionIncidentsFragment, args)
+        }
         action("Session Baselines · история этой игры") {
             val args=Bundle().apply {
                 vm.state.value?.report?.session?.packageName?.let {

@@ -18,7 +18,7 @@ tests=(root/"app/src/test/java/dev/lolokeksu/legioncontrol/SessionBaselinesTest.
 nav=ET.parse(root/"app/src/main/res/navigation/legion_nav_graph.xml").getroot()
 android="{http://schemas.android.com/apk/res/android}"
 frags={n.get(android+"id"):n for n in nav.findall("fragment")}
-assert len(frags)==18
+assert len(frags)==19
 assert frags["@+id/sessionBaselinesFragment"].get(android+"name").endswith(".SessionBaselinesFragment")
 for term in ("ExperimentAnalytics.evidence", "MAX_SESSIONS = 24",
              "MAX_POINTS_PER_SESSION = 2000", "MIN_REFERENCES = 3",
