@@ -338,6 +338,11 @@ class CaptureRecordingService : Service() {
         val callback = projectionCallback
         projectionCallback = null
         if (callback != null) runCatching { previous?.unregisterCallback(callback) }
+        // Stop the AudioRecord source before revoking MediaProjection so an in-flight
+        // read cannot spuriously fail and discard an otherwise valid AAC track.
+        runCatching { playbackAudio?.pause() }.onFailure {
+            playbackAudioProblem = "Аудиозахват остановлен с ошибкой: " + it.javaClass.simpleName
+        }
         runCatching { previous?.stop() }
 
         val uri = pendingUri
@@ -361,7 +366,7 @@ class CaptureRecordingService : Service() {
             val result = runCatching { audio.stopAndTakeResult() }.getOrNull()
             val aac = result?.file
             var combined = false
-            if (videoValid && uri != null && aac != null) {
+            if (videoValid && uri != null && aac != null && audioFailure == null) {
                 combined = runCatching {
                     CaptureMp4Muxer.combine(this, uri, aac, result?.offsetUs ?: 0L)
                     true
