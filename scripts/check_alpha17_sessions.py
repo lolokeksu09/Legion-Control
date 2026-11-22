@@ -20,7 +20,7 @@ expected={
  "android.permission.INTERNET","android.permission.ACCESS_NETWORK_STATE",
  "android.permission.ACCESS_WIFI_STATE","android.permission.PACKAGE_USAGE_STATS",
  "android.permission.FOREGROUND_SERVICE",
- "android.permission.FOREGROUND_SERVICE_SPECIAL_USE",
+ "android.permission.FOREGROUND_SERVICE_SPECIAL_USE","android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION",
  "android.permission.POST_NOTIFICATIONS",
     "android.permission.MODIFY_AUDIO_SETTINGS",
     "android.permission.ACCESS_NOTIFICATION_POLICY",
@@ -38,7 +38,7 @@ assert fgs.find("property") is not None
 assert manifest.find("queries/intent") is not None
 assert any(x.attrib.get(ns+"name")==".GameSessionActivity" for x in manifest.findall("./application/activity"))
 gradle=(root/"app/build.gradle.kts").read_text(encoding="utf-8")
-assert 'versionCode = 24' in gradle and 'versionName = "0.1.0-alpha.24"' in gradle
+assert 'versionCode = 25' in gradle and 'versionName = "0.1.0-alpha.25"' in gradle
 assert 'minSdk = 33' in gradle
 assert "HapticLabSchema.VERSION" in history
 assert "oldVersion !in 1..11" in history
