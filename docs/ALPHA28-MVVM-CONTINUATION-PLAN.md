@@ -22,3 +22,21 @@ Base: merged alpha.27 on main `63018d35cf04839dc795fda07a29d2c64ab61bb7`. This i
 - Shared SQLite helper is closed only behind queued writes; never close while accepted sample jobs are outstanding.
 - Recorded events and permission prompts must not replay after rotation; no ViewModel should own Activity references or MediaProjection tokens.
 - Any failure can be rolled back by reverting this isolated feature branch; main stays alpha.27 until review.
+
+## Implementation checkpoint — 2026-11-22
+
+This branch contains code for, but does not yet release:
+- **DONE (source):** real Rust manual/timed sampling, JNI/window stats, battery/report and serialized SQLite primary+diagnostic writes -> `RustSampleController` (AndroidViewModel).
+- **DONE (source):** Game Session history, temperature timeline, comparison and user-selected CSV/ZIP write -> `GameSessionViewModel`; recorder foreground service remains Android service.
+- **DONE (source):** Smart Profiles CRUD, rule selection/persistence, insights, opt-in network probe and confirmed JSON import/export -> `SmartProfilesViewModel`.
+- **DONE (source):** Application Center library, audit/usage, manual scan cancel-on-leave and CSV -> `ApplicationCenterViewModel`.
+- **DONE (source):** Audio Lab original PCM playback, route monitor/history and CSV -> `AudioLabViewModel`; no mic and audio stops on screen exit.
+- **DONE (source):** Haptic Lab short opt-in vibration, capability snapshot, feedback/history and CSV -> `HapticLabViewModel`; stops on screen exit.
+- **DONE (source):** Connectivity Observatory explicit DNS/TCP/TLS probes, history, comparison and CSV -> `ConnectivityLabViewModel`; cancellation on screen exit.
+- **NOT YET DONE:** Experiment Lab, Hardware Lab, Compatibility Lab, Gaming Diagnostics and the other unmigrated Activity-owned workers. These still use their preexisting backends and must not be represented as ViewModel-managed.
+- **NOT YET DONE:** conversion of all laboratory screen bodies into Navigation Component Fragment destinations. The existing home/games/tools/history/settings/detail graph remains the safe launcher. No stub destinations or duplicated screens have been added.
+- **NOT YET DONE:** manual device smoke tests (Motorola/Lenovo variant), device haptic/audio/URI functional confirmation, production signing or release.
+
+CI: historical alpha.4–alpha.27 regression scripts have been adapted at the true backend boundary; `scripts/check_alpha28_mvvm_backends.py` is a new regression gate in the Android workflow. A green CI result must be checked against the **latest commit**, not a prior passing build, before marking this patch merge-ready.
+
+Unchanged throughout: package ID, SDK requirements, exact manifest permission allowlist, Rust JNI symbols/cap, SQLite schema v12 and existing data, permanent signer identity, explicit consent and manual-only triggers.
