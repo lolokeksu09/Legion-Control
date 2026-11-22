@@ -16,7 +16,10 @@ assert set(x.attrib["{http://schemas.android.com/apk/res/android}name"] for x in
     "android.permission.ACCESS_WIFI_STATE", "android.permission.PACKAGE_USAGE_STATS",
     "android.permission.FOREGROUND_SERVICE",
     "android.permission.FOREGROUND_SERVICE_SPECIAL_USE",
-    "android.permission.POST_NOTIFICATIONS"
+    "android.permission.POST_NOTIFICATIONS",
+    "android.permission.MODIFY_AUDIO_SETTINGS",
+    "android.permission.ACCESS_NOTIFICATION_POLICY",
+    "android.permission.WRITE_SETTINGS"
 }
 assert "BatteryManager.EXTRA_HEALTH" in backend
 assert "BatteryManager.EXTRA_CYCLE_COUNT" in backend
@@ -38,7 +41,7 @@ assert "val snapshot = output.toString()" in activity
 assert activity.index("BatteryHealthReport.format(") < activity.index("val snapshot = output.toString()")
 assert "latestReport = reportHeader?.plus(snapshot)" in activity
 assert "latestReport = reportHeader?.plus(complete)" in activity
-assert activity.count("layout.addView(Button(this).apply {") == 17, "All existing battery controls remain"
+assert activity.count("layout.addView(Button(this).apply {") == 18, "All existing battery controls remain"
 for test in (
     "androidHealthIsNotDegradationPercentage",
     "missingValuesDoNotBecomeZeroOrFalse",
@@ -50,8 +53,8 @@ for forbidden in ("Shizuku", "WRITE_SECURE_SETTINGS", "setprop ",
                   "QUERY_ALL_PACKAGES", "Runtime.getRuntime().exec",
                   "registerReceiver", "getDeclaredMethod("):
     assert forbidden not in backend + model, forbidden
-assert 'versionCode = 17' in build
-assert 'versionName = "0.1.0-alpha.17"' in build
+assert 'versionCode = 18' in build
+assert 'versionName = "0.1.0-alpha.18"' in build
 print("PASS: public Android battery health/cycles, honest terminal watts, existing report/share, no Shizuku/UI")
 
 assert 'text = "Снять показания датчиков"' in activity

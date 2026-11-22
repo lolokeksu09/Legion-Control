@@ -19,14 +19,17 @@ assert perms=={
  "android.permission.ACCESS_WIFI_STATE","android.permission.PACKAGE_USAGE_STATS",
     "android.permission.FOREGROUND_SERVICE",
     "android.permission.FOREGROUND_SERVICE_SPECIAL_USE",
-    "android.permission.POST_NOTIFICATIONS"
+    "android.permission.POST_NOTIFICATIONS",
+    "android.permission.MODIFY_AUDIO_SETTINGS",
+    "android.permission.ACCESS_NOTIFICATION_POLICY",
+    "android.permission.WRITE_SETTINGS"
 },perms
 for name in (".CompatibilityLabActivity",".GamepadLiveActivity"):
     matches=[x for x in manifest.findall("./application/activity") if x.attrib.get(a+"name")==name]
     assert len(matches)==1 and matches[0].attrib.get(a+"exported")=="false",name
 assert 'CompatibilityLabActivity::class.java' in hardware
-assert 'versionCode = 17' in gradle and 'versionName = "0.1.0-alpha.17"' in gradle
-assert "GameSessionSchema.VERSION" in store
+assert 'versionCode = 18' in gradle and 'versionName = "0.1.0-alpha.18"' in gradle
+assert "SmartProfilesSchema.VERSION" in store
 assert "DROP TABLE" not in store
 for n,label in enumerate([
     "Display Modes & HDR", "Audio Output Inspector","Gamepad Inventory",

@@ -23,7 +23,10 @@ expected = {
     "android.permission.ACCESS_WIFI_STATE", "android.permission.PACKAGE_USAGE_STATS",
     "android.permission.FOREGROUND_SERVICE",
     "android.permission.FOREGROUND_SERVICE_SPECIAL_USE",
-    "android.permission.POST_NOTIFICATIONS"
+    "android.permission.POST_NOTIFICATIONS",
+    "android.permission.MODIFY_AUDIO_SETTINGS",
+    "android.permission.ACCESS_NOTIFICATION_POLICY",
+    "android.permission.WRITE_SETTINGS"
 }
 assert perms == expected, (perms, expected)
 for forbidden in (
@@ -66,9 +69,9 @@ assert "worker.shutdownNow()" in activity and "onStop()" in activity
 assert "task?.cancel(true)" in activity
 assert "frameCapture?.stop(false)" in activity
 assert 'android:exported="false"' in (root / "app/src/main/AndroidManifest.xml").read_text()
-assert "SQLiteOpenHelper" in store and "GameSessionSchema.VERSION" in store
-assert 'versionCode = 17' in gradle
-assert 'versionName = "0.1.0-alpha.17"' in gradle
+assert "SQLiteOpenHelper" in store and "SmartProfilesSchema.VERSION" in store
+assert 'versionCode = 18' in gradle
+assert 'versionName = "0.1.0-alpha.18"' in gradle
 
 # The actual repo session query must be runnable with escaped bind values,
 # not interpolated into a SQL string.
