@@ -11,6 +11,8 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 PACKAGE = "dev.lolokeksu.legioncontrol"
+TOOLS_MARKER = "ВСЕ СИСТЕМНЫЕ ИНСТРУМЕНТЫ"
+SETTINGS_MARKER = "НАСТРОЙКИ И КОНТРОЛЬ"
 EVIDENCE = Path("smoke-evidence")
 EVIDENCE.mkdir(exist_ok=True)
 REPORT = EVIDENCE / "results.txt"
@@ -170,11 +172,11 @@ def main() -> None:
 
     stage("01-hub-launch", "Готов к запуску")
     click("Сервисы")
-    expect("Инструменты")
+    expect(TOOLS_MARKER)
 
     click("Game Session")
     stage("02-game-session", "LEGION · GAME SESSION")
-    back_until("Инструменты")
+    back_until(TOOLS_MARKER)
 
     click("Smart Profiles")
     stage("03-smart-profiles", "LEGION CONTROL · SMART PROFILES")
@@ -199,14 +201,14 @@ def main() -> None:
     expect_scrolling("ПОСЛЕДНИЕ СЕССИИ", seconds=35)
     capture("05-recorded-session-history")
     back_until("LEGION CONTROL · SMART PROFILES")
-    back_until("Инструменты")
+    back_until(TOOLS_MARKER)
 
     click("Audio Lab")
     stage("06-audio-lab-idle", "AUDIO LAB · ALPHA.22")
-    back_until("Инструменты")
+    back_until(TOOLS_MARKER)
     click("Haptic Lab")
     stage("07-haptic-lab-idle", "HAPTIC LAB · ALPHA.23")
-    back_until("Инструменты")
+    back_until(TOOLS_MARKER)
 
     click("Gaming Lab")
     stage("08-gaming-lab", "LEGION CONTROL · GAMING LAB")
@@ -216,20 +218,20 @@ def main() -> None:
     stage("10-compatibility", "LEGION CONTROL · COMPATIBILITY")
     back_until("LEGION CONTROL · HARDWARE LAB")
     back_until("LEGION CONTROL · GAMING LAB")
-    back_until("Инструменты")
+    back_until(TOOLS_MARKER)
 
     click("Connectivity Observatory")
     stage("11-connectivity-idle", "CONNECTIVITY OBSERVATORY")
-    back_until("Инструменты")
+    back_until(TOOLS_MARKER)
     click("Experiment Lab")
     stage("12-experiment-lab", "LEGION · EXPERIMENT LAB")
-    back_until("Инструменты")
+    back_until(TOOLS_MARKER)
 
     click("Настройки")
-    expect("Настройки")
+    expect(SETTINGS_MARKER)
     click("Application Center")
     stage("13-application-center", "APPLICATION CONTROL CENTER")
-    back_until("Настройки")
+    back_until(SETTINGS_MARKER)
     click("Домой")
     stage("14-return-home", "Готов к запуску")
     print("PASS: Android emulator UI navigation, deep package preselection, explicit",
