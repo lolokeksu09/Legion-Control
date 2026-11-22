@@ -143,3 +143,41 @@ jobs:
           name: Legion-Control-v0.1.0-alpha.27-kotlin-rust-debug
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+
+  emulator-smoke:
+    name: Android 35 x86_64 emulator UI + user-triggered session smoke
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Retrieve APK from exact Kotlin/Rust build
+        uses: actions/download-artifact@v4
+        with:
+          name: Legion-Control-v0.1.0-alpha.27-kotlin-rust-debug
+          path: smoke-apk
+      - name: Enable KVM
+        run: |
+          sudo chmod 666 /dev/kvm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install and launch on Android 35 emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_5
+          disable-animations: true
+          emulator-boot-timeout: 900
+          emulator-options: -no-snapshot -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -camera-front none
+          script: python3 scripts/check_android_emulator_smoke.py smoke-apk/app-debug.apk
+      - name: Attach emulator screenshots and diagnostic evidence
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Legion-Control-alpha29-android35-ui-smoke
+          path: smoke-evidence/
+          if-no-files-found: warn
