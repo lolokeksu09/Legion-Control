@@ -98,6 +98,7 @@ object SessionIncidents {
         // Bound even if a caller passes a larger in-memory collection.
         val input = recorded.take(MAX_SAMPLES)
         val end = header.endedAtMs ?: Long.MAX_VALUE
+        val outOfWindow = input.count { it.timeMs < header.startedAtMs || it.timeMs > end }
         val usable = input.asSequence()
             .filter { it.timeMs >= header.startedAtMs && it.timeMs <= end }
             .sortedBy { it.timeMs }
@@ -150,7 +151,7 @@ object SessionIncidents {
                 .filter { it.timeMs in begin..finish }.take(3).toList())
         }
         return SessionIncidentsReport(
-            header, usable.size, input.size - usable.size, gaps, continuity,
+            header, usable.size, outOfWindow, gaps, continuity,
             events.take(MAX_EVENTS).count { it.timeMs in header.startedAtMs..end },
             sampleLimitHit || recorded.size > MAX_SAMPLES,
             eventLimitHit || events.size > MAX_EVENTS,
