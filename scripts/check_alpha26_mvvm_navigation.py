@@ -19,6 +19,7 @@ repo = (src/"HubRepository.kt").read_text()
 rules = (src/"HubNavigationRules.kt").read_text()
 tests = (root/"app/src/test/java/dev/lolokeksu/legioncontrol/HubNavigationRulesTest.kt").read_text()
 legacy = (src/"MainActivity.kt").read_text()
+sample_controller = (src/"RustSampleController.kt").read_text()
 store = (src/"LocalHistoryStore.kt").read_text()
 rust = (root/"rust-core/src/lib.rs").read_text()
 
@@ -28,8 +29,9 @@ assert 'androidx.navigation:navigation-fragment:2.10.2' in gradle
 assert 'androidx.lifecycle:lifecycle-viewmodel:2.11.1' in gradle
 assert 'androidx.lifecycle:lifecycle-livedata:2.11.1' in gradle
 assert "HapticLabSchema.VERSION" in store and "HISTORY_LIMIT: usize = 64" in rust
-assert "engine.record(percent, temp, elapsedMs)" in legacy
-assert "engine.statistics()" in legacy
+assert "engine.record(percent, temp, elapsedMs)" in sample_controller
+assert "engine.statistics()" in sample_controller
+assert "sampleController.sample()" in legacy
 assert "GameSessionActivity::class.java" in legacy
 
 permissions = {x.get(android+"name") for x in manifest.findall("uses-permission")}
@@ -74,17 +76,40 @@ for old in (
 assert graph.tag == "navigation"
 assert graph.get(res+"startDestination") == "@id/homeFragment"
 nodes = graph.findall("fragment")
-assert len(nodes) == 6
+assert len(nodes) == 16
 assert {n.get(android+"id") for n in nodes} == {
     "@+id/homeFragment", "@+id/gamesFragment", "@+id/toolsFragment",
-    "@+id/historyFragment", "@+id/settingsFragment", "@+id/gameDetailFragment"
+    "@+id/historyFragment", "@+id/settingsFragment", "@+id/gameDetailFragment", "@+id/gameSessionFragment",
+    "@+id/applicationCenterDestination", "@+id/smartProfilesDestination",
+    "@+id/audioLabDestination", "@+id/hapticLabDestination",
+    "@+id/connectivityLabDestination", "@+id/experimentLabDestination",
+    "@+id/compatibilityLabDestination", "@+id/hardwareLabDestination",
+    "@+id/gamingDiagnosticsDestination"
 }
 for node in nodes:
     assert node.get(android+"name") in {
         "dev.lolokeksu.legioncontrol.HubPageFragment",
-        "dev.lolokeksu.legioncontrol.GameDetailFragment"
+        "dev.lolokeksu.legioncontrol.GameDetailFragment",
+        "dev.lolokeksu.legioncontrol.GameSessionFragment",
+        "dev.lolokeksu.legioncontrol.ApplicationCenterFragment",
+        "dev.lolokeksu.legioncontrol.SmartProfilesFragment",
+        "dev.lolokeksu.legioncontrol.AudioLabFragment",
+        "dev.lolokeksu.legioncontrol.HapticLabFragment",
+        "dev.lolokeksu.legioncontrol.ConnectivityLabFragment",
+        "dev.lolokeksu.legioncontrol.ExperimentLabFragment",
+        "dev.lolokeksu.legioncontrol.CompatibilityLabFragment",
+        "dev.lolokeksu.legioncontrol.HardwareLabFragment",
+        "dev.lolokeksu.legioncontrol.GamingDiagnosticsFragment"
     }
-    assert len(node.findall("argument")) == 1
+    if node.get(android+"id") == "@+id/gameSessionFragment":
+        assert [x.get(android+"name") for x in node.findall("argument")] == [
+            "smart_package", "smart_label", "smart_tcp"]
+    elif node.get(android+"id") in ("@+id/audioLabDestination","@+id/hapticLabDestination",
+                                  "@+id/connectivityLabDestination","@+id/compatibilityLabDestination",
+                                  "@+id/hardwareLabDestination", "@+id/gamingDiagnosticsDestination"):
+        assert len(node.findall("argument")) == 0
+    else:
+        assert len(node.findall("argument")) == 1
 detail_node = [n for n in nodes if n.get(android+"id") == "@+id/gameDetailFragment"][0]
 assert detail_node.find("argument").get(android+"name") == "gamePackage"
 
@@ -108,8 +133,8 @@ assert "HapticLabActivity::class.java" in view and "AudioLabActivity::class.java
 assert "setOnClickListener" in view and "onResume()" in view
 
 assert "toggleFavorite(pkg, app.label)" in detail
-assert "GameSessionActivity::class.java" in detail
-assert 'putExtra("smart_package", pkg)' in detail
+assert "R.id.gameSessionFragment" in detail
+assert 'putString("smart_package",pkg)' in detail
 assert 'putExtra("app_center_package", pkg)' in detail
 assert "getLaunchIntentForPackage(pkg)" in detail
 

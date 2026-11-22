@@ -6,9 +6,11 @@ root = Path(__file__).resolve().parents[1]
 src = root / "app/src/main/java/dev/lolokeksu/legioncontrol"
 compat = (src/"GamingCompatibilityBackend.kt").read_text(encoding="utf-8")
 rules = (src/"ReadinessModels.kt").read_text(encoding="utf-8")
-activity = (src/"CompatibilityLabActivity.kt").read_text(encoding="utf-8")
+activity = (src/"CompatibilityLabFragment.kt").read_text(encoding="utf-8")
+compatActivity=(src/"CompatibilityLabActivity.kt").read_text(encoding="utf-8")
+viewmodel = (src/"CompatibilityLabViewModel.kt").read_text(encoding="utf-8")
 gamepad = (src/"GamepadLiveActivity.kt").read_text(encoding="utf-8")
-hardware = (src/"HardwareLabActivity.kt").read_text(encoding="utf-8")
+hardware = (src/"HardwareLabFragment.kt").read_text(encoding="utf-8")
 store = (src/"LocalHistoryStore.kt").read_text(encoding="utf-8")
 gradle = (root/"app/build.gradle.kts").read_text(encoding="utf-8")
 manifest = ET.parse(root/"app/src/main/AndroidManifest.xml").getroot()
@@ -41,8 +43,12 @@ assert "Полный отчёт о совместимости" in activity
 assert "Intent.ACTION_SEND" in activity
 assert "Intent.createChooser" in activity
 assert "lastCompletedReport" in activity
-assert "task?.cancel(true)" in activity and "executor.shutdownNow()" in activity
-assert "++generation" in activity
+assert "viewModel.cancel()" in activity and "viewModel.setVisible(false)" in activity
+assert "task?.cancel(true)" in viewmodel and "executor.shutdownNow()" in viewmodel
+assert "generation.incrementAndGet()" in viewmodel
+assert "ViewModelProvider(this)[CompatibilityLabViewModel::class.java]" in activity
+assert "report.observe(viewLifecycleOwner)" in activity
+assert "CompatibilityLabFragment()" in compatActivity
 assert "display.supportedModes" in compat
 assert "hdrCapabilities.supportedHdrTypes" in compat
 assert "display.isWideColorGamut" in compat
@@ -66,14 +72,14 @@ assert "dispatchKeyEvent(event: KeyEvent)" in gamepad
 assert "onGenericMotionEvent(event: MotionEvent)" in gamepad
 assert "event.keyCode != KeyEvent.KEYCODE_BACK" in gamepad
 assert "isController(event.deviceId)" in gamepad
-assert "startActivity(Intent(this,GamepadLiveActivity::class.java))" in activity
-assert "onStop()" in activity and "onDestroy()" in activity
+assert "ModuleNavigation.open(this,GamepadLiveActivity::class.java)" in activity
+assert "onStop()" in activity and "onCleared()" in viewmodel
 for forbidden in (
     "WRITE_SECURE_SETTINGS", "BIND_ACCESSIBILITY_SERVICE",
     "registerReceiver(", "startForegroundService(", "Runtime.getRuntime().exec",
     "setPreferredDisplayModeId(", "setCommunicationDevice(", "openSession("
 ):
-    assert forbidden not in activity+gamepad,forbidden
+    assert forbidden not in activity+viewmodel+gamepad,forbidden
 # Android's sticky battery read inside the backend is allowed; no listener exists.
 assert "context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))" in compat
 print("PASS: seven real compatibility modules, permission boundary, lifecycle and old v5 schema")

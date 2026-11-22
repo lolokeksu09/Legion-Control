@@ -7,6 +7,7 @@ root = Path(__file__).resolve().parents[1]
 src = root / "app/src/main/java/dev/lolokeksu/legioncontrol"
 store = (src / "LocalHistoryStore.kt").read_text(encoding="utf-8")
 activity = (src / "MainActivity.kt").read_text(encoding="utf-8")
+controller = (src / "RustSampleController.kt").read_text(encoding="utf-8")
 reader = (src / "DiagnosticsHistoryRepository.kt").read_text(encoding="utf-8")
 archive = (src / "DiagnosticArchive.kt").read_text(encoding="utf-8")
 sessions = (src / "SessionAnalytics.kt").read_text(encoding="utf-8")
@@ -85,8 +86,8 @@ assert "fun analyze(readings: List<StoredReading>)" in sessions
 assert "fun analyze(attempts: List<SavedSensorAttempt>)" in sensors
 
 # The legacy battery write and child diagnostic insert are serialized in one worker job.
-sample = activity.split("private fun sample(): TimedBatteryPoint? {", 1)[1]
-assert sample.index("diagnosticsExecutor.execute {") < sample.index("history.record(StoredReading(")
+sample = controller.split("fun sample(): TimedBatteryPoint? {", 1)[1]
+assert sample.index("writer.execute {") < sample.index("history.record(StoredReading(")
 assert sample.index("history.record(StoredReading(") < sample.index("history.recordDiagnostic(")
 assert "acceptedSessionId == null || !primarySave.second" in sample
 assert "history.endSession(" in activity

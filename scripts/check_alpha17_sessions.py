@@ -11,6 +11,8 @@ schema=(src/"GameSessionSchema.kt").read_text(encoding="utf-8")
 repository=(src/"GameSessionRepository.kt").read_text(encoding="utf-8")
 service=(src/"GameSessionRecorderService.kt").read_text(encoding="utf-8")
 activity=(src/"GameSessionActivity.kt").read_text(encoding="utf-8")
+fragment=(src/"GameSessionFragment.kt").read_text(encoding="utf-8")
+viewmodel=(src/"GameSessionViewModel.kt").read_text(encoding="utf-8")
 capture=(src/"GameSessionTelemetry.kt").read_text(encoding="utf-8")
 analysis=(src/"GameSessionAnalysis.kt").read_text(encoding="utf-8")
 manifest=ET.parse(root/"app/src/main/AndroidManifest.xml").getroot()
@@ -118,15 +120,26 @@ for term in ("BatteryManager.EXTRA_TEMPERATURE","BATTERY_PROPERTY_CURRENT_NOW",
     assert term in capture,term
 for term in ("ACTION_MAIN","CATEGORY_LAUNCHER","startRecording()","stopRecording()",
  "GameSessionRecorderService.start","GameSessionRecorderService.stop",
- "GameSessionAnalysis.render","GameSessionAnalysis.compare",
- "Intent.ACTION_CREATE_DOCUMENT","exportZip","writeCsv(writer"):
-    assert term in activity,term
+ "Intent.ACTION_CREATE_DOCUMENT","ViewModelProvider(this)[GameSessionViewModel::class.java]",
+ "GameSessionRecorderService.start","GameSessionRecorderService.stop"):
+    assert term in fragment,term
+for term in ("GameSessionAnalysis.render","GameSessionAnalysis.compare",
+             "exportZip","writeCsv(writer", "GameSessionRepository(getApplication())",
+             "onCleared()", "LiveData", "latest.get() == request"):
+    assert term in viewmodel,term
 for term in ("fun writeCsv(","fun exportZip(","fun recent(","fun points(","fun event(",
  "dbHelper.writableDatabase","UUID.randomUUID","if(c.isNull"):
     assert term in repository,term
 assert "warnings(s)" in analysis
 assert "GameSessionActivity::class.java" in (src/"MainActivity.kt").read_text(encoding="utf-8")
+assert "GameSessionFragment()" in activity and "state.observe(viewLifecycleOwner)" in fragment
+# The same package-name validator must handle both typed packages and navigation
+# extras; a separately escaped regex silently discards Smart Profiles selection.
+assert "packagePattern.matches(pkg)" in fragment
+assert "packagePattern.matches(it)" in fragment
+assert fragment.count('Regex("^[A-Za-z]') == 1, "one canonical package regex"
+assert 'arguments?.getString("smart_package")?.takeIf {' in fragment
 for forbidden in ("ACCESS_FINE_LOCATION","QUERY_ALL_PACKAGES","WRITE_SECURE_SETTINGS",
  "Runtime.getRuntime().exec","setprop ","ShizukuService"):
-    assert forbidden not in service+capture+activity+repository
+    assert forbidden not in service+capture+activity+fragment+repository
 print("PASS: real v5→v6 preservation, FK/constraints and universal user-started service/export wiring")

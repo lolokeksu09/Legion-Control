@@ -5,6 +5,7 @@ import xml.etree.ElementTree as ET
 root = Path(__file__).resolve().parents[1]
 src = root / "app/src/main/java/dev/lolokeksu/legioncontrol"
 activity = (src / "MainActivity.kt").read_text(encoding="utf-8")
+controller = (src / "RustSampleController.kt").read_text(encoding="utf-8")
 rust_api = (src / "RustEngine.kt").read_text(encoding="utf-8")
 power = (src / "AndroidPowerSource.kt").read_text(encoding="utf-8")
 native = (root / "rust-core/src/lib.rs").read_text(encoding="utf-8")
@@ -36,15 +37,15 @@ for name in ("BatteryManager.EXTRA_PLUGGED", "BatteryManager.EXTRA_STATUS",
              "BatteryManager.EXTRA_VOLTAGE",
              "BatteryManager.BATTERY_PROPERTY_CURRENT_NOW", "PowerManager"):
     assert name in power, name
-for name in ("engine.resetSession()", "engine.durationMs()",
-             "Intent.ACTION_SEND", "Intent.EXTRA_TEXT", "Intent.createChooser",
-             "AlertDialog.Builder(this)", "latestReport = null",
-             "AndroidPowerSource.read("):
+for name in ("engine.resetSession()", "engine.durationMs()", "AndroidPowerSource.read("):
+    assert name in controller, name
+for name in ("sampleController.resetSession()", "Intent.ACTION_SEND", "Intent.EXTRA_TEXT",
+             "Intent.createChooser", "AlertDialog.Builder(this)", "latestReport = null"):
     assert name in activity, name
 assert "setPositiveButton(" in activity and "setNegativeButton(" in activity
 assert "versionCode = 27" in build
 assert 'versionName = "0.1.0-alpha.27"' in build
 for forbidden in ("WRITE_SECURE_SETTINGS", "QUERY_ALL_PACKAGES", "setprop ",
                   "pointer_speed", "moto_extend_service", "Runtime.getRuntime"):
-    assert forbidden not in power + activity + rust_api + native
+    assert forbidden not in power + activity + controller + rust_api + native
 print("PASS: alpha.3 explicit Rust history reset/duration, public power API and user-initiated report")

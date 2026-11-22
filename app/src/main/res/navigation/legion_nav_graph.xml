@@ -39,4 +39,69 @@
         android:label="Игра">
         <argument android:name="gamePackage" app:argType="string"/>
     </fragment>
+    <fragment
+        android:id="@+id/gameSessionFragment"
+        android:name="dev.lolokeksu.legioncontrol.GameSessionFragment"
+        android:label="Game Session">
+        <argument android:name="smart_package" app:argType="string" android:defaultValue=""/>
+        <argument android:name="smart_label" app:argType="string" android:defaultValue=""/>
+        <argument android:name="smart_tcp" app:argType="boolean" android:defaultValue="false"/>
+    </fragment>
+    <activity
+        android:id="@+id/diagnosticsDestination"
+        android:name="dev.lolokeksu.legioncontrol.MainActivity" />
+    <activity
+        android:id="@+id/gameToolboxDestination"
+        android:name="dev.lolokeksu.legioncontrol.GameToolboxActivity" />
+    <activity
+        android:id="@+id/captureStudioDestination"
+        android:name="dev.lolokeksu.legioncontrol.CaptureStudioActivity" />
+    <fragment
+        android:id="@+id/smartProfilesDestination"
+        android:name="dev.lolokeksu.legioncontrol.SmartProfilesFragment"
+        android:label="Smart Profiles">
+        <argument android:name="app_center_package" app:argType="string" android:defaultValue=""/>
+    </fragment>
+    <fragment
+        android:id="@+id/applicationCenterDestination"
+        android:name="dev.lolokeksu.legioncontrol.ApplicationCenterFragment"
+        android:label="Application Center">
+        <argument android:name="app_center_package" app:argType="string" android:defaultValue=""/>
+    </fragment>
+    <fragment
+        android:id="@+id/experimentLabDestination"
+        android:name="dev.lolokeksu.legioncontrol.ExperimentLabFragment"
+        android:label="Experiment Lab">
+        <argument android:name="experiment_package" app:argType="string" android:defaultValue=""/>
+    </fragment>
+    <fragment
+        android:id="@+id/connectivityLabDestination"
+        android:name="dev.lolokeksu.legioncontrol.ConnectivityLabFragment"
+        android:label="Connectivity Observatory" />
+    <fragment
+        android:id="@+id/audioLabDestination"
+        android:name="dev.lolokeksu.legioncontrol.AudioLabFragment"
+        android:label="Audio Lab" />
+    <fragment
+        android:id="@+id/hapticLabDestination"
+        android:name="dev.lolokeksu.legioncontrol.HapticLabFragment"
+        android:label="Haptic Lab" />
+    <fragment
+        android:id="@+id/gamingDiagnosticsDestination"
+        android:name="dev.lolokeksu.legioncontrol.GamingDiagnosticsFragment"
+        android:label="Gaming Diagnostics" />
+    <fragment
+        android:id="@+id/hardwareLabDestination"
+        android:name="dev.lolokeksu.legioncontrol.HardwareLabFragment"
+        android:label="Hardware Lab" />
+    <fragment
+        android:id="@+id/compatibilityLabDestination"
+        android:name="dev.lolokeksu.legioncontrol.CompatibilityLabFragment"
+        android:label="Compatibility Lab" />
+    <activity
+        android:id="@+id/gamepadLiveDestination"
+        android:name="dev.lolokeksu.legioncontrol.GamepadLiveActivity" />
+    <activity
+        android:id="@+id/displayPatternDestination"
+        android:name="dev.lolokeksu.legioncontrol.DisplayPatternActivity" />
 </navigation>

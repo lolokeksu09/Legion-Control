@@ -86,7 +86,10 @@ class GameDetailFragment : Fragment() {
 
     private fun <T> open(cls: Class<T>, configure: (Intent) -> Unit = {}) {
         runCatching {
-            startActivity(Intent(requireContext(), cls).apply(configure))
+            val intent = Intent(requireContext(), cls).apply(configure)
+            val route = HubDestinationRoutes.destinationFor(cls)
+            if (route != null) NavHostFragment.findNavController(this).navigate(route, intent.extras)
+            else startActivity(intent)
         }.onFailure { status.text = "Не удалось открыть экран: " + it.javaClass.simpleName }
     }
 
@@ -150,10 +153,12 @@ class GameDetailFragment : Fragment() {
             open(GameToolboxActivity::class.java)
         }
         addAction("Game Session", "Открыть запись сессии с заранее выбранным пакетом") {
-            open(GameSessionActivity::class.java) {
-                it.putExtra("smart_package", pkg)
-                it.putExtra("smart_label", app.label)
-            }
+            NavHostFragment.findNavController(this).navigate(
+                R.id.gameSessionFragment, Bundle().apply {
+                    putString("smart_package",pkg)
+                    putString("smart_label",app.label)
+                }
+            )
         }
         addAction("Smart Profiles", "Профиль и предупреждения именно этого приложения") {
             open(SmartProfilesActivity::class.java) {

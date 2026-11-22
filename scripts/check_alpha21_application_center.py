@@ -10,7 +10,9 @@ store=(src/"LocalHistoryStore.kt").read_text(encoding="utf-8")
 schema=(src/"ApplicationCenterSchema.kt").read_text(encoding="utf-8")
 inventory=(src/"ApplicationInventory.kt").read_text(encoding="utf-8")
 repository=(src/"ApplicationCenterRepository.kt").read_text(encoding="utf-8")
-activity=(src/"ApplicationCenterActivity.kt").read_text(encoding="utf-8")
+activity=(src/"ApplicationCenterFragment.kt").read_text(encoding="utf-8")
+compat=(src/"ApplicationCenterActivity.kt").read_text(encoding="utf-8")
+viewmodel=(src/"ApplicationCenterViewModel.kt").read_text(encoding="utf-8")
 rules=(src/"ApplicationAuditRules.kt").read_text(encoding="utf-8")
 usage=(src/"ApplicationUsageInspector.kt").read_text(encoding="utf-8")
 gradle=(root/"app/build.gradle.kts").read_text(encoding="utf-8")
@@ -40,7 +42,7 @@ assert "android.permission.ACCESS_FINE_LOCATION" not in perms
 assert any(a.get(ns+"name")==".ApplicationCenterActivity" and
            a.get(ns+"exported")=="false" for a in manifest.findall("./application/activity"))
 assert "ApplicationCenterActivity::class.java" in (src/"MainActivity.kt").read_text(encoding="utf-8")
-assert "ApplicationCenterActivity::class.java" in (src/"SmartProfilesActivity.kt").read_text(encoding="utf-8")
+assert "ApplicationCenterActivity::class.java" in (src/"SmartProfilesFragment.kt").read_text(encoding="utf-8")
 
 def ddl(source,expected):
     tables=re.findall(r'db.execSQL\("""(.*?)""".trimIndent\(\)\)',source,re.S)
@@ -155,4 +157,10 @@ for phrase in ("ACTION_CREATE_DOCUMENT","fun scanAll(","fun scanOne(","fun inspe
                "fun chooseTracked(","fun usage(","fun confirmRemove()"):
     assert phrase in activity,phrase
 assert "startForegroundService" not in activity
+assert "ApplicationCenterFragment()" in compat
+assert "state.observe(viewLifecycleOwner)" in activity
+assert "ViewModelProvider(this)[ApplicationCenterViewModel::class.java]" in activity
+for term in ("ApplicationInventory.inspect(", "ApplicationCenterRepository(getApplication<Application>())",
+             "visible.get()", "fun scanAll(", "exportCsv(uri", "onCleared()"):
+    assert term in viewmodel,term
 print("PASS alpha21: SQLite v9→v10 preserves all 13 previous tables; FK, checks and Android public-API contracts")

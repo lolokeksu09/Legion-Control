@@ -145,14 +145,32 @@ class NavigationHostActivity : FragmentActivity() {
         }
         nav.addOnDestinationChangedListener { _, destination, _ ->
             val actual = destination.id
-            val active = if (actual == R.id.gameDetailFragment) R.id.gamesFragment else actual
+            val active = when (actual) {
+                R.id.gameDetailFragment -> R.id.gamesFragment
+                R.id.gameSessionFragment, R.id.applicationCenterDestination,
+                R.id.smartProfilesDestination, R.id.audioLabDestination,
+                R.id.hapticLabDestination, R.id.connectivityLabDestination,
+                R.id.experimentLabDestination, R.id.compatibilityLabDestination,
+                R.id.hardwareLabDestination, R.id.gamingDiagnosticsDestination -> R.id.toolsFragment
+                else -> actual
+            }
             buttons.forEach { (id, views) ->
                 val selected = id == active
                 views.first.imageTintList = ColorStateList.valueOf(if (selected) accent else muted)
                 views.second.setTextColor(if (selected) accent else muted)
                 views.second.setTypeface(null, if (selected) Typeface.BOLD else Typeface.NORMAL)
             }
-            back.visibility = if (actual == R.id.gameDetailFragment) View.VISIBLE else View.GONE
+            back.visibility = if (actual == R.id.gameDetailFragment ||
+                actual == R.id.gameSessionFragment ||
+                actual == R.id.applicationCenterDestination ||
+                actual == R.id.smartProfilesDestination ||
+                actual == R.id.audioLabDestination ||
+                actual == R.id.hapticLabDestination ||
+                actual == R.id.connectivityLabDestination ||
+                actual == R.id.experimentLabDestination ||
+                actual == R.id.compatibilityLabDestination ||
+                actual == R.id.hardwareLabDestination ||
+                actual == R.id.gamingDiagnosticsDestination) View.VISIBLE else View.GONE
             subtitle.text = when (actual) {
                 R.id.homeFragment -> "GAME HUB  ·  alpha.26"
                 R.id.gamesFragment -> "ИГРОВАЯ БИБЛИОТЕКА"
@@ -160,6 +178,16 @@ class NavigationHostActivity : FragmentActivity() {
                 R.id.historyFragment -> "ИСТОРИЯ И ДИАГНОСТИКА"
                 R.id.settingsFragment -> "НАСТРОЙКИ И КОНТРОЛЬ"
                 R.id.gameDetailFragment -> "НАСТРОЙКИ ИГРЫ"
+                R.id.gameSessionFragment -> "ЗАПИСЬ ИГРОВОЙ СЕССИИ"
+                R.id.applicationCenterDestination -> "БИБЛИОТЕКА ПРИЛОЖЕНИЙ"
+                R.id.smartProfilesDestination -> "УМНЫЕ ПРОФИЛИ"
+                R.id.audioLabDestination -> "АУДИО ЛАБОРАТОРИЯ"
+                R.id.hapticLabDestination -> "ТАКТИЛЬНАЯ ЛАБОРАТОРИЯ"
+                R.id.connectivityLabDestination -> "СЕТЕВАЯ ДИАГНОСТИКА"
+                R.id.experimentLabDestination -> "A/B ЭКСПЕРИМЕНТЫ"
+                R.id.compatibilityLabDestination -> "СОВМЕСТИМОСТЬ ANDROID"
+                R.id.hardwareLabDestination -> "АППАРАТНАЯ ДИАГНОСТИКА"
+                R.id.gamingDiagnosticsDestination -> "ИГРОВАЯ ДИАГНОСТИКА"
                 else -> "LEGION CONTROL"
             }
         }

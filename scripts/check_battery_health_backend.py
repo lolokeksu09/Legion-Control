@@ -5,6 +5,7 @@ import xml.etree.ElementTree as ET
 root = Path(__file__).resolve().parents[1]
 src = root / "app/src/main/java/dev/lolokeksu/legioncontrol"
 activity = (src / "MainActivity.kt").read_text(encoding="utf-8")
+controller = (src / "RustSampleController.kt").read_text(encoding="utf-8")
 backend = (src / "BatteryHealthBackend.kt").read_text(encoding="utf-8")
 model = (src / "BatteryHealthSnapshot.kt").read_text(encoding="utf-8")
 tests = (root / "app/src/test/java/dev/lolokeksu/legioncontrol/BatteryHealthReportTest.kt").read_text(encoding="utf-8")
@@ -35,12 +36,12 @@ assert "val ua = currentMicroAmps?.takeIf" in model
 assert "return mv.toDouble() * ua.toDouble() / 1_000_000_000.0" in model
 assert "GOOD — не процент износа" in model
 assert "не подтверждает мощность адаптера или наличие Bypass" in model
-assert "val batteryHealth = BatteryHealthBackend.read(battery)" in activity
-assert "BatteryHealthReport.format(" in activity
-assert "val snapshot = output.toString()" in activity
-assert activity.index("BatteryHealthReport.format(") < activity.index("val snapshot = output.toString()")
-assert "latestReport = reportHeader?.plus(snapshot)" in activity
-assert "latestReport = reportHeader?.plus(complete)" in activity
+assert "val batteryHealth = BatteryHealthBackend.read(battery)" in controller
+assert "BatteryHealthReport.format(" in controller
+assert "val snapshot = output.toString()" in controller
+assert controller.index("BatteryHealthReport.format(") < controller.index("val snapshot = output.toString()")
+assert "reportHeader?.plus(snapshot)" in controller
+assert "reportHeader?.plus(complete)" in controller
 assert activity.count("layout.addView(Button(this).apply {") == 25, "All existing battery controls remain"
 for test in (
     "androidHealthIsNotDegradationPercentage",

@@ -10,7 +10,8 @@ history=(src/"LocalHistoryStore.kt").read_text(encoding="utf-8")
 schema=(src/"ExperimentSchema.kt").read_text(encoding="utf-8")
 repository=(src/"ExperimentRepository.kt").read_text(encoding="utf-8")
 analytics=(src/"ExperimentAnalytics.kt").read_text(encoding="utf-8")
-activity=(src/"ExperimentLabActivity.kt").read_text(encoding="utf-8")
+activity=(src/"ExperimentLabFragment.kt").read_text(encoding="utf-8")
+compat=(src/"ExperimentLabActivity.kt").read_text(encoding="utf-8")
 build=(root/"app/build.gradle.kts").read_text(encoding="utf-8")
 
 assert 'versionCode = 27' in build
@@ -128,7 +129,15 @@ for term in ("fun annotate(","fun create(","fun assign(","fun unassign(","fun ex
 for term in ("fun evidence(","fun armSummary(","fun formatComparison(","MIN_RATE_WINDOW_MS",
              "it.timeMs","gapsOver45s","qualityNotes","monotone"):
     assert term in analytics,term
-for term in ("Intent.ACTION_CREATE_DOCUMENT","ExperimentRepository","fun confirmDelete()",
-             "fun assign(","fun saveAnnotation()","fun showEvidence()","fun shareComparison()"):
+viewmodel=(src/"ExperimentLabViewModel.kt").read_text(encoding="utf-8")
+for term in ("Intent.ACTION_CREATE_DOCUMENT","fun confirmDelete()",
+             "fun assign(","fun saveAnnotation()","fun showEvidence()","fun shareComparison()",
+             "ViewModelProvider(this)"):
     assert term in activity,term
+assert "ExperimentRepository(applicationContext)" not in activity
+assert "ExperimentLabFragment()" in compat and "state.observe(viewLifecycleOwner)" in activity
+for term in ("ExperimentRepository(getApplication<Application>())","fun selectSession(",
+             "fun createExperiment(", "fun assign(", "fun exportCsv(", "onCleared()",
+             "ExperimentAnalytics.formatComparison(", "it.annotate("):
+    assert term in viewmodel,term
 print("PASS: real SQLite v7→v8 preservation, FK/cascade tests, A/B source integration and unchanged permissions")

@@ -13,6 +13,7 @@ schema5 = (src / "TimedBatterySchema.kt").read_text(encoding="utf-8")
 models = (src / "TimedBatteryTestModels.kt").read_text(encoding="utf-8")
 runner = (src / "ForegroundBatteryTest.kt").read_text(encoding="utf-8")
 activity = (src / "MainActivity.kt").read_text(encoding="utf-8")
+controller = (src / "RustSampleController.kt").read_text(encoding="utf-8")
 reader = (src / "DiagnosticsHistoryRepository.kt").read_text(encoding="utf-8")
 archive = (src / "DiagnosticArchive.kt").read_text(encoding="utf-8")
 
@@ -125,10 +126,12 @@ for expected in (
 for expected in (
     "timedTest?.stop(TimedBatteryStopReason.APP_BACKGROUND)",
     "history.recordTimedBatteryTest(completed)",
-    "TimedBatteryPoint(", "private fun sample(): TimedBatteryPoint?",
+    "private fun sample(): TimedBatteryPoint?",
     "timedTest?.isActive == true",
 ):
     assert expected in activity, expected
+assert "TimedBatteryPoint(" in controller and "fun sample(): TimedBatteryPoint?" in controller
+assert "sampleController.sample()" in activity
 assert "history.recentTimedBatteryTests()" in reader
 assert "timed-tests.csv" in archive
 assert "timedCsv = ::writeTimedBatteryTestsCsv" in store

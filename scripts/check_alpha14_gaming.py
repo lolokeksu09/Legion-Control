@@ -6,7 +6,9 @@ import sqlite3
 
 root = Path(__file__).resolve().parents[1]
 src = root / "app/src/main/java/dev/lolokeksu/legioncontrol"
-activity = (src / "GamingDiagnosticsActivity.kt").read_text(encoding="utf-8")
+activity = (src / "GamingDiagnosticsFragment.kt").read_text(encoding="utf-8")
+wrapper = (src / "GamingDiagnosticsActivity.kt").read_text(encoding="utf-8")
+viewmodel = (src / "GamingDiagnosticsViewModel.kt").read_text(encoding="utf-8")
 main = (src / "MainActivity.kt").read_text(encoding="utf-8")
 network = (src / "NetworkDiagnostics.kt").read_text(encoding="utf-8")
 devices = (src / "DeviceInsights.kt").read_text(encoding="utf-8")
@@ -37,8 +39,10 @@ for forbidden in (
     assert forbidden not in str(perms)
 assert 'android.permission.PACKAGE_USAGE_STATS' in perms
 assert "AppOpsManager.OPSTR_GET_USAGE_STATS" in usage
+assert "GamingDiagnosticsFragment()" in wrapper
+assert "report.observe(viewLifecycleOwner)" in activity
 assert "Settings.ACTION_USAGE_ACCESS_SETTINGS" in activity
-assert "hasUsageAccess(this)" in activity
+assert "hasUsageAccess(requireContext())" in activity
 assert "GameUsageDiagnostics.DEFAULT_PACKAGE" in activity
 
 for n,label in enumerate((
@@ -49,25 +53,26 @@ for n,label in enumerate((
 ),1):
     assert f'"{n} · {label}' in activity, (n,label)
 
-assert "NetworkDiagnostics.probe()" in activity
-assert "TcpProbeStatistics.format(" in activity
+assert "NetworkDiagnostics.probe()" in viewmodel
+assert "TcpProbeStatistics.format(" in viewmodel
 assert "Socket()" in network and "TIMEOUT_MS = 1800" in network
 assert 'NOT ICMP' in network and 'не ICMP' in network
 assert "BATTERY_PROPERTY_CHARGE_COUNTER" in devices
 assert "BATTERY_PROPERTY_ENERGY_COUNTER" in devices
 assert "getThermalHeadroom(0)" in devices
-assert "addThermalStatusListener" in activity and "removeThermalStatusListener" in activity
+assert "addThermalStatusListener" in viewmodel and "removeThermalStatusListener" in viewmodel
 assert "TouchDiagnosticsView" in activity and "onTouchEvent(event: MotionEvent)" in touch
 assert "Choreographer.FrameCallback" in touch and "5000L" in touch
 assert "getNetworkCapabilities(active)" in devices
 assert "UsageStatsManager" in usage and "queryEvents(from, now)" in usage
-assert "ChargingDiagnostics.read(" in activity and "ChargeReading" in devices
-assert "SessionAnalytics.analyze(" in activity and "sessionReadings(" in store
+assert "ChargingDiagnostics.read(" in viewmodel and "ChargeReading" in devices
+assert "SessionAnalytics.analyze(" in viewmodel and "sessionReadings(" in store
 assert "ActivityManager.MemoryInfo()" in devices and "StatFs(" in devices
 assert 'GamingDiagnosticsActivity::class.java' in main
-assert "worker.shutdownNow()" in activity and "onStop()" in activity
-assert "task?.cancel(true)" in activity
-assert "frameCapture?.stop(false)" in activity
+assert "worker.shutdownNow()" in viewmodel and "onStop()" in activity
+assert "task?.cancel(true)" in viewmodel
+assert "frameCapture?.stop(false)" in viewmodel
+assert "ViewModelProvider(this)[GamingDiagnosticsViewModel::class.java]" in activity
 assert 'android:exported="false"' in (root / "app/src/main/AndroidManifest.xml").read_text()
 assert "SQLiteOpenHelper" in store and "HapticLabSchema.VERSION" in store
 assert 'versionCode = 27' in gradle

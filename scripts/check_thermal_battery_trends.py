@@ -5,6 +5,7 @@ import xml.etree.ElementTree as ET
 root = Path(__file__).resolve().parents[1]
 src = root / "app/src/main/java/dev/lolokeksu/legioncontrol"
 activity = (src / "MainActivity.kt").read_text(encoding="utf-8")
+controller = (src / "RustSampleController.kt").read_text(encoding="utf-8")
 engine = (src / "DiagnosticTrendEngine.kt").read_text(encoding="utf-8")
 text_report = (src / "DiagnosticTrendTextReport.kt").read_text(encoding="utf-8")
 current = (src / "DiagnosticsTextReport.kt").read_text(encoding="utf-8")
@@ -34,13 +35,13 @@ assert "object ThermalSeverity" in engine
 assert "BatteryCounterAgreement.DISAGREE" in text_report
 assert "не является диагностикой износа" in text_report
 assert "ThermalSeverity.describe(capabilities.thermalStatus)" in current
-assert "diagnosticTrends = DiagnosticTrendEngine()" in activity
-assert "diagnosticTrends.record(current, percent)" in activity
-assert "diagnosticTrends.clear()" in activity
-assert "DiagnosticTrendTextReport.format(trend)" in activity
-assert "latestReport = reportHeader?.plus(complete)" in activity
-assert "runOnUiThread {" in activity
-assert "!isDestroyed && requestId == diagnosticRequestId" in activity
+assert "diagnosticTrends = DiagnosticTrendEngine()" in controller
+assert "diagnosticTrends.record(current, percent)" in controller
+assert "diagnosticTrends.clear()" in controller
+assert "DiagnosticTrendTextReport.format(trend)" in controller
+assert "mutableUiState.value = RustSampleUiState(complete, reportHeader?.plus(complete))" in controller
+assert "mainHandler.post {" in controller
+assert "!cleared && requestId == diagnosticRequestId" in controller
 assert activity.count("layout.addView(Button(this).apply {") == 25
 for test_name in (
     "firstReadingIsBaselineAndSecondShowsMeasuredChanges",
@@ -57,7 +58,7 @@ assert "versionCode = 27" in gradle
 assert 'versionName = "0.1.0-alpha.27"' in gradle
 for unsafe in ("Shizuku.getInstance", "WRITE_SECURE_SETTINGS", "setprop ", "pm grant",
                "QUERY_ALL_PACKAGES", "exec(", "getDeclaredMethod("):
-    assert unsafe not in activity + engine + current + text_report, unsafe
+    assert unsafe not in activity + controller + engine + current + text_report, unsafe
 print("PASS: alpha.6 trend engine, real app wiring, no privileges or UI redesign")
 
 assert 'text = "Снять показания датчиков"' in activity

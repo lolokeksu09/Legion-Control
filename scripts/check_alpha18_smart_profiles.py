@@ -11,7 +11,9 @@ schema=(src/"SmartProfilesSchema.kt").read_text(encoding="utf-8")
 repository=(src/"SmartProfilesRepository.kt").read_text(encoding="utf-8")
 rules=(src/"SmartRules.kt").read_text(encoding="utf-8")
 service=(src/"GameSessionRecorderService.kt").read_text(encoding="utf-8")
-activity=(src/"SmartProfilesActivity.kt").read_text(encoding="utf-8")
+activity=(src/"SmartProfilesFragment.kt").read_text(encoding="utf-8")
+compat=(src/"SmartProfilesActivity.kt").read_text(encoding="utf-8")
+viewmodel=(src/"SmartProfilesViewModel.kt").read_text(encoding="utf-8")
 manifest=ET.parse(root/"app/src/main/AndroidManifest.xml").getroot()
 ns="{http://schemas.android.com/apk/res/android}"
 perms={x.get(ns+"name") for x in manifest.findall("uses-permission")}
@@ -122,9 +124,15 @@ for token in ("smartEngine.evaluate(point,smartRules)","smartStorage?.logAlert("
               "checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)"):
     assert token in service,token
 assert "GameSessionRecorderService.start" not in activity
-for token in ("SmartSessionInsights.summarize","SmartNetworkLab.inspect",
-              "SmartSystemControls.setBrightness","SmartSystemControls.setDoNotDisturb",
-              "ACTION_CREATE_DOCUMENT","ACTION_OPEN_DOCUMENT","importBackup(it)"):
+assert "SmartProfilesFragment()" in compat
+assert "state.observe(viewLifecycleOwner)" in activity
+for token in ("SmartSystemControls.setBrightness", "SmartSystemControls.setDoNotDisturb",
+              "ACTION_CREATE_DOCUMENT","ACTION_OPEN_DOCUMENT",
+              "ViewModelProvider(this)[SmartProfilesViewModel::class.java]"):
     assert token in activity,token
+for token in ("SmartSessionInsights.summarize", "SmartNetworkLab.inspect",
+              "importBackup(it)", "SmartProfilesRepository(getApplication<Application>())",
+              "onCleared()", "consumeDialog("):
+    assert token in viewmodel,token
 assert "android:exported=\"false\"" in (root/"app/src/main/AndroidManifest.xml").read_text()
 print("PASS: real SQLite v6→v7 preservation/cascades/constraints and safe universal profile wiring")

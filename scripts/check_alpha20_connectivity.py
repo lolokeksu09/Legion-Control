@@ -11,7 +11,9 @@ schema=(src/"ConnectivitySchema.kt").read_text(encoding="utf-8")
 repo=(src/"ConnectivityRepository.kt").read_text(encoding="utf-8")
 probe=(src/"ConnectivityProbe.kt").read_text(encoding="utf-8")
 analytics=(src/"ConnectivityAnalytics.kt").read_text(encoding="utf-8")
-ui=(src/"ConnectivityLabActivity.kt").read_text(encoding="utf-8")
+ui=(src/"ConnectivityLabFragment.kt").read_text(encoding="utf-8")
+compat=(src/"ConnectivityLabActivity.kt").read_text(encoding="utf-8")
+viewmodel=(src/"ConnectivityLabViewModel.kt").read_text(encoding="utf-8")
 gradle=(root/"app/build.gradle.kts").read_text(encoding="utf-8")
 
 assert 'versionCode = 27' in gradle
@@ -42,7 +44,7 @@ assert all(p not in perms for p in (
 assert any(a.get(ns+"name")==".ConnectivityLabActivity" and
            a.get(ns+"exported")=="false" for a in manifest.findall("./application/activity"))
 assert "ConnectivityLabActivity::class.java" in (src/"MainActivity.kt").read_text(encoding="utf-8")
-assert "ConnectivityLabActivity::class.java" in (src/"SmartProfilesActivity.kt").read_text(encoding="utf-8")
+assert "ConnectivityLabActivity::class.java" in (src/"SmartProfilesFragment.kt").read_text(encoding="utf-8")
 
 def ddl(source,n):
     tables=re.findall(r'db.execSQL\("""(.*?)""".trimIndent\(\)\)',source,re.S)
@@ -157,10 +159,14 @@ for phrase in ("fun capture(","InetAddress.getAllByName(host)","Inet4Address","I
 for phrase in ("fun distribution(","fun summarize(","fun compare(","dnsFailures",
                "ipv6AvailableCycles","eligibleConnections","format","НЕ ping игров"):
     assert phrase in analytics,phrase
-for phrase in ("fun startTest(","onStop()","cancelTest(false)","Future<*>",
+for phrase in ("fun startTest(","onStop()","cancelTest(false)",
                "ACTION_CREATE_DOCUMENT","fun compare()","fun weekReport()",
                "fun showHistory()","fun confirmDelete()"):
     assert phrase in ui,phrase
+for phrase in ("Future<*>", "ConnectivityProbe.capture(", "ConnectivityRepository(getApplication<Application>())",
+               "fun cancelTest()", "onCleared()", "LiveData"):
+    assert phrase in viewmodel,phrase
 assert "startForegroundService" not in ui
+assert "ConnectivityLabFragment()" in compat and "state.observe(viewLifecycleOwner)" in ui
 assert "startActivityForResult" in ui
 print("PASS: real SQLite v8→v9 migration preserves all historic tables, FK, constraints, privacy and diagnosis contracts")

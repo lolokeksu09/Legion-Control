@@ -132,10 +132,25 @@ class HubPageFragment : Fragment() {
     }
 
     private fun <T> open(cls: Class<T>, extras: Bundle? = null) {
+        if (cls == GameSessionActivity::class.java) {
+            runCatching { NavHostFragment.findNavController(this).navigate(R.id.gameSessionFragment,extras) }
+                .onFailure { error ->
+                    AlertDialog.Builder(requireContext()).setTitle("Не удалось открыть Game Session")
+                        .setMessage(error.javaClass.simpleName)
+                        .setPositiveButton("Понятно",null).show()
+                }
+            return
+        }
         runCatching {
-            startActivity(Intent(requireContext(), cls).apply {
-                if (extras != null) putExtras(extras)
-            })
+            val route = HubDestinationRoutes.destinationFor(cls)
+            if (route != null) {
+                NavHostFragment.findNavController(this).navigate(route, extras)
+            } else {
+                // Only unregistered legacy screen classes use an explicit Intent fallback.
+                startActivity(Intent(requireContext(), cls).apply {
+                    if (extras != null) putExtras(extras)
+                })
+            }
         }.onFailure { exception ->
             AlertDialog.Builder(requireContext()).setTitle("Не удалось открыть раздел")
                 .setMessage(exception.javaClass.simpleName)
