@@ -203,3 +203,7 @@ Backend-first версия добавляет три действия: «Про�
 ## v0.1.0-alpha.22 — Audio Lab
 
 A new **real audio test module** (not another output metadata list): gentle generated stereo PCM16 tones, left/right and channel identification, 220–1760 Hz sweep, manual stop on-screen, active-route observation, connected-output events, SQLite v11 audio test history and CSV export. Only explicit, foreground playback; no microphone, no new permissions, Root/Shizuku or fake latency measurement. [Audio Lab guide](docs/ALPHA22-AUDIO-LAB.md) · [plan and verification](docs/ALPHA22-AUDIO-LAB-PLAN.md).
+
+## v0.1.0-alpha.23 — Haptic Lab
+
+**Completely new standalone vibrator-testing module** for Android 13+: five bounded original haptic waveforms, three user-selected digital levels with amplitude-control fallback, Android vibrator/effect/primitive capability inspector, immediate Stop and on-screen-only playback, local subjective user feedback, SQLite v12 test history, last-two comparisons and opt-in CSV export. No Root/Shizuku, background requests or physical-intensity claims; adds only the normal Android `VIBRATE` permission. [Haptic Lab guide](docs/ALPHA23-HAPTIC-LAB.md) · [implementation plan](docs/ALPHA23-HAPTIC-LAB-PLAN.md).
