@@ -34,6 +34,6 @@ Alpha.14–23 already contain diagnostic labs, Smart Profiles' manual audio/DND/
 
 - [x] Repository and PR #26 audited.
 - [x] Plan committed before implementation.
-- [ ] Code implemented.
+- [x] Code implemented; code review and physical device check still pending.
 - [ ] JVM/static/CI gates passed.
 - [ ] Physical device tested (requires user device).
