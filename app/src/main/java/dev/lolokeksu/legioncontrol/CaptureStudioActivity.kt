@@ -31,6 +31,8 @@ class CaptureStudioActivity : ComponentActivity() {
         private const val REQUEST_CAPTURE = 25001
         private const val REQUEST_SCREENSHOT = 25002
         private const val REQUEST_PLAYBACK_PERMISSION = 25003
+        private const val REQUEST_EXPORT_GAME_PROFILES = 25004
+        private const val REQUEST_IMPORT_GAME_PROFILES = 25005
     }
 
     private val viewModel by lazy { ViewModelProvider(this)[CaptureStudioViewModel::class.java] }
@@ -115,6 +117,23 @@ class CaptureStudioActivity : ComponentActivity() {
             "Максимальная длительность",
             "minutes", intArrayOf(1, 5, 15), arrayOf("1 минута", "5 минут", "15 минут")
         ) }
+
+        heading("Профили записи по играм")
+        note("Выберите игру в Game Toolbox. До сохранения её профиля применяются общие настройки. " +
+            "После сохранения разрешение, FPS, битрейт, лимит и звук изменяются отдельно для этой игры.")
+        action("СОХРАНИТЬ ПРОФИЛЬ ВЫБРАННОЙ ИГРЫ") { viewModel.saveSelectedGameProfile() }
+        action("СБРОСИТЬ ПРОФИЛЬ ВЫБРАННОЙ ИГРЫ") {
+            AlertDialog.Builder(this)
+                .setTitle("Сбросить профиль записи игры?")
+                .setMessage("Будут удалены только настройки записи выбранной игры. " +
+                    "Общие настройки, клипы и другие игровые профили останутся.")
+                .setPositiveButton("Сбросить") { _, _ -> viewModel.removeSelectedGameProfile() }
+                .setNegativeButton("Отмена", null).show()
+        }
+        action("ЭКСПОРТИРОВАТЬ ИГРОВЫЕ ПРОФИЛИ В JSON") { exportGameProfiles() }
+        action("ВОССТАНОВИТЬ ИГРОВЫЕ ПРОФИЛИ ИЗ JSON") { importGameProfiles() }
+        note("Резервная копия создаётся только по вашему запросу. " +
+            "При импорте заменяются игровые профили, но не общие настройки и не записи видео.")
 
         heading("Запись")
         action("НАЧАТЬ ЗАПИСЬ ЭКРАНА") { askConsent() }
@@ -207,6 +226,7 @@ class CaptureStudioActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         if (::status.isInitialized) {
+            viewModel.refreshSelectedGameSettings()
             refreshStatus()
             refreshChoices()
         }
@@ -220,7 +240,13 @@ class CaptureStudioActivity : ComponentActivity() {
 
     private fun refreshChoices() {
         val config = viewModel.config()
-        choices.text = "Сторона до ${config.maxEdge} px · ${config.fps} FPS запрошено\\n" +
+        val active = viewModel.captureSettings()
+        choices.text = (if (active.usingGameProfile)
+                "Профиль игры: ${active.selectedGame}\\n"
+            else if (active.selectedGame != null)
+                "Общие настройки (для ${active.selectedGame} профиль не сохранён)\\n"
+            else "Общие настройки · игра не выбрана\\n") +
+            "Сторона до ${config.maxEdge} px · ${config.fps} FPS запрошено\\n" +
             "${config.videoBitrate / 1_000_000} Мбит/с · " +
             "${config.maxDurationMs / 60_000} мин максимум\\n" +
             (if (viewModel.playbackAudioEnabled())
@@ -240,11 +266,12 @@ class CaptureStudioActivity : ComponentActivity() {
     }
 
     private fun askConsent() {
-        if (viewModel.playbackAudioEnabled() && selectedAudioGame() == null) {
+        val settings = viewModel.captureSettings()
+        if (settings.profile.playbackAudio && settings.selectedGame == null) {
             status.text = "Сначала выберите игру для Game Toolbox. Звук других приложений не записывается."
             return
         }
-        if (viewModel.playbackAudioEnabled() &&
+        if (settings.profile.playbackAudio &&
             checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), REQUEST_PLAYBACK_PERMISSION)
             status.text = "Для захвата разрешённого игрового звука Android требует RECORD_AUDIO. " +
@@ -258,8 +285,10 @@ class CaptureStudioActivity : ComponentActivity() {
         runCatching {
             val manager = getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
             // Fresh Intent and user prompt for EVERY capture; never persist or reuse token.
+            viewModel.rememberCaptureConsent(settings)
             startActivityForResult(manager.createScreenCaptureIntent(), REQUEST_CAPTURE)
         }.onFailure {
+            viewModel.clearCaptureConsent()
             status.text = "Системный запрос записи недоступен: " + it.javaClass.simpleName
         }
     }
@@ -289,11 +318,48 @@ class CaptureStudioActivity : ComponentActivity() {
         }
     }
 
+    private fun exportGameProfiles() {
+        val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "application/json"
+            putExtra(Intent.EXTRA_TITLE, "LegionCaptureProfiles.json")
+        }
+        runCatching { startActivityForResult(intent, REQUEST_EXPORT_GAME_PROFILES) }
+            .onFailure { status.text = "Не удалось открыть сохранение: " + it.javaClass.simpleName }
+    }
+
+    private fun importGameProfiles() {
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "application/json"
+        }
+        runCatching { startActivityForResult(intent, REQUEST_IMPORT_GAME_PROFILES) }
+            .onFailure { status.text = "Не удалось открыть файл: " + it.javaClass.simpleName }
+    }
+
     @Deprecated("Legacy Activity result API works without introducing AndroidX dependencies")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQUEST_EXPORT_GAME_PROFILES) {
+            if (resultCode == RESULT_OK && data?.data != null) {
+                viewModel.exportGameProfiles(data.data!!)
+            }
+            return
+        }
+        if (requestCode == REQUEST_IMPORT_GAME_PROFILES) {
+            if (resultCode == RESULT_OK && data?.data != null) {
+                val uri = data.data!!
+                AlertDialog.Builder(this).setTitle("Восстановить профили?")
+                    .setMessage("Сохранённые профили ВСЕХ игр будут заменены содержимым JSON. " +
+                        "Общие настройки и ваши записи не изменятся. Некорректный файл отклоняется полностью.")
+                    .setPositiveButton("Импортировать") { _, _ -> viewModel.importGameProfiles(uri) }
+                    .setNegativeButton("Отмена", null).show()
+            }
+            return
+        }
         if (requestCode != REQUEST_CAPTURE && requestCode != REQUEST_SCREENSHOT) return
         if (resultCode != RESULT_OK || data == null) {
+            if (requestCode == REQUEST_CAPTURE) viewModel.clearCaptureConsent()
             status.text = "Системный доступ к захвату не выдан. Файлы не создавались."
             return
         }
@@ -312,8 +378,13 @@ class CaptureStudioActivity : ComponentActivity() {
                 }
             return
         }
-        val playbackRequested = viewModel.playbackAudioEnabled()
-        val audioGame = if (playbackRequested) selectedAudioGame() else null
+        val snapshot = viewModel.takeCaptureConsent()
+        if (snapshot == null) {
+            status.text = "Настройки запроса утрачены. Повторите запрос записи экрана."
+            return
+        }
+        val playbackRequested = snapshot.profile.playbackAudio
+        val audioGame = if (playbackRequested) snapshot.selectedGame else null
         if (playbackRequested && audioGame == null) {
             status.text = "Выбранная игра недоступна. Повторите выбор в Game Toolbox."
             return
@@ -323,7 +394,7 @@ class CaptureStudioActivity : ComponentActivity() {
             status.text = "Разрешение RECORD_AUDIO отозвано. Запись со звуком не начата."
             return
         }
-        val config = viewModel.config()
+        val config = snapshot.profile.toConfig()
         val intent = Intent(this, CaptureRecordingService::class.java).apply {
             putExtra(CaptureRecordingService.EXTRA_PLAYBACK_AUDIO, playbackRequested)
             if (audioGame != null) putExtra(CaptureRecordingService.EXTRA_AUDIO_GAME, audioGame)

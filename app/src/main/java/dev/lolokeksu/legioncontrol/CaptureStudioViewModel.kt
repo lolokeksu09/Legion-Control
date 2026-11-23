@@ -29,6 +29,7 @@ sealed interface CaptureScreenshotsState {
  */
 class CaptureStudioViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = CaptureStudioRepository(application)
+    private var pendingCaptureConsent: ActiveGameCaptureSettings? = null
     private val worker = Executors.newSingleThreadExecutor()
     private val revision = AtomicInteger(0)
     private val screenshotRevision = AtomicInteger(0)
@@ -47,6 +48,71 @@ class CaptureStudioViewModel(application: Application) : AndroidViewModel(applic
 
     private val playbackAudioMutable = MutableLiveData(repository.playbackAudioEnabled())
     val playbackAudio: LiveData<Boolean> = playbackAudioMutable
+
+    fun captureSettings(): ActiveGameCaptureSettings = repository.captureSettings()
+
+    /** Freeze package, video parameters and audio flag for this one Android consent. */
+    fun rememberCaptureConsent(settings: ActiveGameCaptureSettings) {
+        pendingCaptureConsent = settings
+    }
+
+    fun takeCaptureConsent(): ActiveGameCaptureSettings? =
+        pendingCaptureConsent.also { pendingCaptureConsent = null }
+
+    fun clearCaptureConsent() { pendingCaptureConsent = null }
+
+    fun refreshSelectedGameSettings() {
+        val settings = repository.captureSettings()
+        settingsMutable.value = settings.profile.toConfig()
+        playbackAudioMutable.value = settings.profile.playbackAudio
+    }
+
+    fun saveSelectedGameProfile() {
+        runCatching { repository.saveSelectedGameProfile() }
+            .onSuccess {
+                refreshSelectedGameSettings()
+                messageMutable.value = "Профиль записи для игры сохранён. Изменения параметров теперь относятся только к ней."
+            }.onFailure {
+                messageMutable.value = "Не удалось сохранить профиль: " + (it.message ?: it.javaClass.simpleName)
+            }
+    }
+
+    fun removeSelectedGameProfile() {
+        runCatching { repository.removeSelectedGameProfile() }
+            .onSuccess {
+                refreshSelectedGameSettings()
+                messageMutable.value = "Профиль игры сброшен. Теперь действуют общие настройки записи."
+            }.onFailure {
+                messageMutable.value = "Не удалось сбросить профиль: " + (it.message ?: it.javaClass.simpleName)
+            }
+    }
+
+    fun savedGameProfileCount(): Int = repository.savedGameProfileCount()
+
+    fun exportGameProfiles(uri: android.net.Uri) {
+        worker.execute {
+            val result = runCatching { repository.exportGameProfiles(uri) }
+            messageMutable.postValue(result.fold(
+                { "Профили записи экспортированы в выбранный JSON-файл." },
+                { "Ошибка экспорта профилей: " + (it.message ?: it.javaClass.simpleName) }
+            ))
+        }
+    }
+
+    fun importGameProfiles(uri: android.net.Uri) {
+        worker.execute {
+            val result = runCatching { repository.importGameProfiles(uri) }
+            result.onSuccess {
+                val fresh = repository.captureSettings()
+                settingsMutable.postValue(fresh.profile.toConfig())
+                playbackAudioMutable.postValue(fresh.profile.playbackAudio)
+            }
+            messageMutable.postValue(result.fold(
+                { "Импортировано профилей: $it. Предыдущие игровые профили заменены, общие настройки не затронуты." },
+                { "Импорт отменён: " + (it.message ?: it.javaClass.simpleName) }
+            ))
+        }
+    }
 
     fun playbackAudioEnabled(): Boolean = repository.playbackAudioEnabled()
 
@@ -197,6 +263,7 @@ class CaptureStudioViewModel(application: Application) : AndroidViewModel(applic
     }
 
     override fun onCleared() {
+        pendingCaptureConsent = null
         currentEdit.get()?.set(true)
         revision.incrementAndGet()
         screenshotRevision.incrementAndGet()
