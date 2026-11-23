@@ -125,6 +125,7 @@ class ReplayCaptureService : Service() {
                     Activity.RESULT_OK
                 val wanted = intent.getIntExtra(EXTRA_SECONDS, 60)
                 if (!approved || token == null || wanted !in setOf(30, 60, 120)) {
+                    CaptureCoordinator.releasePending(CaptureMode.REPLAY)
                     writeStatus("Replay не запущен: разрешение Android или параметры неверны.")
                     stopSelfResult(startId)
                     return START_NOT_STICKY
@@ -138,6 +139,7 @@ class ReplayCaptureService : Service() {
                 if (audioRequested) {
                     if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) !=
                         PackageManager.PERMISSION_GRANTED) {
+                        CaptureCoordinator.releasePending(CaptureMode.REPLAY)
                         writeStatus("Replay со звуком не запущен: RECORD_AUDIO запрещён.")
                         stopSelfResult(startId)
                         return START_NOT_STICKY
@@ -151,6 +153,7 @@ class ReplayCaptureService : Service() {
                         }.getOrNull()
                     } else null
                     if (uid == null || uid <= 0) {
+                        CaptureCoordinator.releasePending(CaptureMode.REPLAY)
                         writeStatus("Replay: игра для захвата звука не найдена.")
                         stopSelfResult(startId)
                         return START_NOT_STICKY
