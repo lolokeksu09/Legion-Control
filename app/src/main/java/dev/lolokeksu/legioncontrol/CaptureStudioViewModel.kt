@@ -64,6 +64,16 @@ class CaptureStudioViewModel(application: Application) : AndroidViewModel(applic
     private val worker = Executors.newSingleThreadExecutor()
     private val revision = AtomicInteger(0)
     private val screenshotRevision = AtomicInteger(0)
+    @Volatile private var clipsPage = 0
+    @Volatile private var shotsPage = 0
+
+    fun clipsPageNumber(): Int = clipsPage + 1
+    fun screenshotsPageNumber(): Int = shotsPage + 1
+
+    fun nextClipPage() { clipsPage = (clipsPage + 1).coerceAtMost(50_000); refresh() }
+    fun previousClipPage() { clipsPage = (clipsPage - 1).coerceAtLeast(0); refresh() }
+    fun nextScreenshotPage() { shotsPage = (shotsPage + 1).coerceAtMost(50_000); refreshScreenshots() }
+    fun previousScreenshotPage() { shotsPage = (shotsPage - 1).coerceAtLeast(0); refreshScreenshots() }
     private val currentEdit = AtomicReference<AtomicBoolean?>(null)
     private val libraryMutable = MutableLiveData<CaptureLibraryState>(CaptureLibraryState.Idle)
     val library: LiveData<CaptureLibraryState> = libraryMutable
@@ -167,8 +177,9 @@ class CaptureStudioViewModel(application: Application) : AndroidViewModel(applic
     fun refresh() {
         val token = revision.incrementAndGet()
         libraryMutable.value = CaptureLibraryState.Loading
+        val requestedPage = clipsPage
         worker.execute {
-            val result = runCatching { repository.clips() }
+            val result = runCatching { repository.clips(requestedPage) }
             if (token != revision.get()) return@execute
             libraryMutable.postValue(result.fold(
                 { CaptureLibraryState.Ready(it) },
@@ -227,13 +238,13 @@ class CaptureStudioViewModel(application: Application) : AndroidViewModel(applic
             messageMutable.postValue(message)
             if (result.isSuccess) {
                 if (screenshot) {
-                    val updated = runCatching { repository.screenshots() }
+                    val updated = runCatching { repository.screenshots(shotsPage) }
                     screenshotsMutable.postValue(updated.fold(
                         { CaptureScreenshotsState.Ready(it) },
                         { CaptureScreenshotsState.Error("Не удалось открыть PNG: " + it.javaClass.simpleName) }
                     ))
                 } else {
-                    val updated = runCatching { repository.clips() }
+                    val updated = runCatching { repository.clips(clipsPage) }
                     libraryMutable.postValue(updated.fold(
                         { CaptureLibraryState.Ready(it) },
                         { CaptureLibraryState.Error("Не удалось открыть MP4: " + it.javaClass.simpleName) }
@@ -246,8 +257,9 @@ class CaptureStudioViewModel(application: Application) : AndroidViewModel(applic
     fun refreshScreenshots() {
         val token = screenshotRevision.incrementAndGet()
         screenshotsMutable.value = CaptureScreenshotsState.Loading
+        val requestedPage = shotsPage
         worker.execute {
-            val result = runCatching { repository.screenshots() }
+            val result = runCatching { repository.screenshots(requestedPage) }
             if (token != screenshotRevision.get()) return@execute
             screenshotsMutable.postValue(result.fold(
                 { CaptureScreenshotsState.Ready(it) },
@@ -266,7 +278,7 @@ class CaptureStudioViewModel(application: Application) : AndroidViewModel(applic
                 { if (it) "Снимок удалён." else "Снимок не удалось удалить." },
                 { "Удаление PNG отклонено: " + it.javaClass.simpleName }
             ))
-            val shots = runCatching { repository.screenshots() }
+            val shots = runCatching { repository.screenshots(shotsPage) }
             if (token != screenshotRevision.get()) return@execute
             screenshotsMutable.postValue(shots.fold(
                 { CaptureScreenshotsState.Ready(it) },
@@ -285,7 +297,7 @@ class CaptureStudioViewModel(application: Application) : AndroidViewModel(applic
                 { if (it) "Видео удалено." else "Файл уже отсутствует или не удалён." },
                 { "Удаление не удалось: " + it.javaClass.simpleName }
             ))
-            val clips = runCatching { repository.clips() }
+            val clips = runCatching { repository.clips(clipsPage) }
             libraryMutable.postValue(clips.fold(
                 { CaptureLibraryState.Ready(it) },
                 { CaptureLibraryState.Error("Не удалось обновить библиотеку: " + it.javaClass.simpleName) }
