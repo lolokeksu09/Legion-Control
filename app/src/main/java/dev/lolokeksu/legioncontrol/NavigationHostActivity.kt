@@ -159,15 +159,18 @@ class NavigationHostActivity : FragmentActivity() {
         }
         nav.addOnDestinationChangedListener { _, destination, _ ->
             val actual = destination.id
+            // Select the owning top-level section, not the Activity/Fragment
+            // implementation family. A contextual shortcut does not change ownership.
             val active = when (actual) {
-                R.id.gameDetailFragment -> R.id.gamesFragment
-                R.id.gameSessionFragment, R.id.sessionSignalsFragment, R.id.sessionIncidentsFragment,
+                R.id.gameDetailFragment, R.id.gameSessionFragment,
                 R.id.applicationCenterDestination, R.id.gameToolboxDestination,
-                R.id.smartProfilesDestination, R.id.audioLabDestination,
-                R.id.hapticLabDestination, R.id.connectivityLabDestination,
-                R.id.experimentLabDestination, R.id.compatibilityLabDestination,
-                R.id.hardwareLabDestination, R.id.gamingDiagnosticsDestination -> R.id.toolsFragment
+                R.id.smartProfilesDestination -> R.id.gamesFragment
+                R.id.sessionSignalsFragment, R.id.sessionIncidentsFragment,
                 R.id.sessionBaselinesFragment -> R.id.historyFragment
+                R.id.audioLabDestination, R.id.hapticLabDestination,
+                R.id.connectivityLabDestination, R.id.experimentLabDestination,
+                R.id.compatibilityLabDestination, R.id.hardwareLabDestination,
+                R.id.gamingDiagnosticsDestination -> R.id.toolsFragment
                 else -> actual
             }
             buttons.forEach { (id, views) ->
