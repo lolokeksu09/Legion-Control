@@ -19,6 +19,7 @@ android {
         targetSdk = 36
         versionCode = 40
         versionName = "0.1.0-alpha.40"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
     }
     compileOptions {
@@ -62,4 +63,6 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel:2.11.1")
     implementation("androidx.lifecycle:lifecycle-livedata:2.11.1")
     testImplementation("junit:junit:4.13.2")
+    androidTestImplementation("androidx.test:runner:1.7.0")
+    androidTestImplementation("androidx.test.ext:junit:1.3.0")
 }
