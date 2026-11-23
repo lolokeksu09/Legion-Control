@@ -38,6 +38,16 @@ class ReplayFrameBufferTest {
         assertEquals(2_000_000L, buffer.snapshot().first().ptsUs)
     }
 
+    @Test fun cannotExceedByteCeilingWithoutAnotherKeyframe() {
+        val buffer = ReplayFrameBuffer(120, 65L)
+        assertTrue(buffer.add(frame(0, true, 50)))
+        assertTrue(buffer.add(frame(1, false, 50)))
+        assertEquals(0L, buffer.sizeBytes)
+        assertTrue(buffer.snapshot().isEmpty())
+        assertFalse(buffer.add(frame(2, false)))
+        assertTrue(buffer.add(frame(3, true)))
+    }
+
     @Test fun refusesInvalidOutOfOrderAndOversizedSamples() {
         val buffer = ReplayFrameBuffer(30, 100L)
         assertFalse(buffer.add(ReplayFrame(byteArrayOf(1), -1, true)))
