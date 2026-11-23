@@ -28,7 +28,7 @@ class GamepadLiveActivity : Activity() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.BLACK)
-            setPadding(20.dp, 44.dp, 20.dp, 20.dp)
+            setPadding(18.dp, 20.dp, 18.dp, 24.dp)
             isFocusableInTouchMode = true
         }
         root.addView(TextView(this).apply {
@@ -64,10 +64,9 @@ class GamepadLiveActivity : Activity() {
             text = "Закончить тест"
             setOnClickListener { finish() }
         })
-        setContentView(ScrollView(this).apply {
+        LegionUiSupport.setModuleActivityContent(this, ScrollView(this).apply {
             addView(root)
-            LegionUiSupport.applyInsets(this)
-        })
+        }, "ПРОВЕРКА ГЕЙМПАДА")
         root.requestFocus()
     }
 

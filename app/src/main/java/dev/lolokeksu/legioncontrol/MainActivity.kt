@@ -58,7 +58,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(20.dp, 40.dp, 20.dp, 24.dp)
+            setPadding(18.dp, 20.dp, 18.dp, 28.dp)
             setBackgroundColor(Color.BLACK)
         }
         layout.addView(TextView(this).apply {
@@ -291,11 +291,10 @@ class MainActivity : ComponentActivity() {
             minHeight = 48.dp
             setOnClickListener { showLastSensorReadings() }
         })
-        setContentView(ScrollView(this).apply {
+        LegionUiSupport.setModuleActivityContent(this, ScrollView(this).apply {
             isFillViewport = true
             addView(layout)
-            LegionUiSupport.applyInsets(this)
-        })
+        }, "ДИАГНОСТИКА УСТРОЙСТВА")
         // The real Rust writer survives recreation and never retains Android UI objects.
         sampleController = ViewModelProvider(this)[RustSampleController::class.java]
         sampleController.uiState.observe(this) { state ->

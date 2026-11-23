@@ -1,5 +1,6 @@
 package dev.lolokeksu.legioncontrol
 
+import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.Typeface
@@ -52,7 +53,8 @@ class NavigationHostActivity : FragmentActivity() {
                     fm: FragmentManager, fragment: Fragment,
                     view: View, savedInstanceState: Bundle?
                 ) {
-                    if (fragment !is HubPageFragment) {
+                    if (fragment !is HubPageFragment && fragment !is GameDetailFragment &&
+                        fragment !is GameToolboxFragment) {
                         LegionUiSupport.styleFragmentButtons(view)
                     }
                 }
@@ -253,7 +255,30 @@ class NavigationHostActivity : FragmentActivity() {
         if (savedInstanceState == null && intent.getBooleanExtra("open_game_toolbox", false)) {
             nav.navigate(R.id.gameToolboxDestination)
         }
+        openRequestedTab(intent)
         ViewModelProvider(this)[HubViewModel::class.java].refresh()
+    }
+
+    private fun openRequestedTab(request: Intent) {
+        val index = request.getIntExtra("open_hub_tab", -1)
+        val destinations = intArrayOf(R.id.homeFragment, R.id.gamesFragment,
+            R.id.toolsFragment, R.id.historyFragment, R.id.settingsFragment)
+        if (index !in destinations.indices) return
+        request.removeExtra("open_hub_tab")
+        val destination = destinations[index]
+        if (nav.currentDestination?.id != destination) {
+            nav.navigate(destination, null, NavOptions.Builder()
+                .setLaunchSingleTop(true)
+                .setRestoreState(true)
+                .setPopUpTo(R.id.homeFragment, false, true)
+                .build())
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (::nav.isInitialized) openRequestedTab(intent)
     }
 
     override fun onResume() {
