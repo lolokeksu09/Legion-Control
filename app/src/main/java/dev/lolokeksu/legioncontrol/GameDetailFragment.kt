@@ -65,18 +65,13 @@ class GameDetailFragment : Fragment() {
         }
 
     private fun addAction(title: String, desc: String, callback: () -> Unit) {
-        val background = GradientDrawable().apply {
-            setColor(0xFF12161C.toInt())
-            cornerRadius = 17.dp.toFloat()
-            setStroke(1.dp, 0xFF252B33.toInt())
-        }
         val row = LinearLayout(requireContext()).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(18.dp, 16.dp, 16.dp, 16.dp)
-            this.background = background
+            background = LegionUiSupport.cardSurface(this)
             isClickable = true
             isFocusable = true
-            contentDescription = title
+            contentDescription = if (desc.isBlank()) title else "$title. $desc"
             setOnClickListener { callback() }
         }
         row.addView(text(title, 16f, Color.WHITE, true))

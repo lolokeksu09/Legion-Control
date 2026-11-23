@@ -70,30 +70,10 @@ class GameToolboxFragment : Fragment() {
     }
 
     private fun tile(title: String, detail: String, onClick: () -> Unit) {
-        val row = LinearLayout(requireContext()).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            background = RippleDrawable(ColorStateList.valueOf(0x4486B7FF), outline(), null)
-            setPadding(17.dp, 15.dp, 13.dp, 15.dp)
-            isClickable = true
-            isFocusable = true
-            contentDescription = title
-            setOnClickListener { onClick() }
-        }
-        val labels = LinearLayout(requireContext()).apply {
-            orientation = LinearLayout.VERTICAL
-        }
-        labels.addView(text(title, 15f, fg, true))
-        if (detail.isNotBlank()) {
-            labels.addView(text(detail, 12f, muted).apply {
-                setPadding(0, 5.dp, 0, 0)
-            })
-        }
-        row.addView(labels, LinearLayout.LayoutParams(0, -2, 1f))
-        row.addView(text("›", 24f, accent))
-        column.addView(row, LinearLayout.LayoutParams(-1, -2).apply {
-            bottomMargin = 10.dp
-        })
+        column.addView(
+            LegionUiSupport.actionTile(requireContext(), title, detail, onClick),
+            LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 10.dp }
+        )
     }
 
     private fun choices(

@@ -102,26 +102,10 @@ class HubPageFragment : Fragment() {
     }
 
     private fun tile(title: String, description: String, onClick: () -> Unit) {
-        val row = LinearLayout(requireContext()).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            background = outline()
-            setPadding(17.dp, 15.dp, 13.dp, 15.dp)
-            isClickable = true
-            isFocusable = true
-            contentDescription = title
-            setOnClickListener { onClick() }
-        }
-        val detail = LinearLayout(requireContext()).apply { orientation = LinearLayout.VERTICAL }
-        detail.addView(text(title, 15f, fg, true))
-        if (description.isNotBlank()) detail.addView(text(description, 12f, muted).apply {
-            setPadding(0, 5.dp, 0, 0)
-        })
-        row.addView(detail, LinearLayout.LayoutParams(0, -2, 1f))
-        row.addView(text("›", 24f, accent), LinearLayout.LayoutParams(-2, -2))
-        column.addView(row, LinearLayout.LayoutParams(-1, -2).apply {
-            bottomMargin = 10.dp
-        })
+        column.addView(
+            LegionUiSupport.actionTile(requireContext(), title, description, onClick),
+            LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 10.dp }
+        )
     }
 
     private fun group(label: String) {
