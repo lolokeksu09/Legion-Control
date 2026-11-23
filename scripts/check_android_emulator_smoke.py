@@ -437,7 +437,7 @@ def main() -> None:
     # strings as evidence that search and action routing actually work.
     click("Инструменты")
     expect(TOOLS_MARKER)
-    click("Поиск инструмента", scrolls=0)
+    click("Поиск по инструментам Legion Control", scrolls=0)
     adb("shell", "input", "text", "audio")
     expect("Audio Lab")
     if visible("Gaming Lab"):
@@ -446,7 +446,7 @@ def main() -> None:
     click("Audio Lab", scrolls=0)
     stage("18-tools-search-opens-audio", "AUDIO LAB · ALPHA.22")
     back_until(TOOLS_MARKER)
-    click("Поиск инструмента", scrolls=0)
+    click("Поиск по инструментам Legion Control", scrolls=0)
     adb("shell", "input", "text", "unlikelysearch999")
     expect("Инструменты не найдены")
     adb("shell", "input", "keyevent", "KEYCODE_BACK")
