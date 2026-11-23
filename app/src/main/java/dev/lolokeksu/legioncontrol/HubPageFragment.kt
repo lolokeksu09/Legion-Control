@@ -155,16 +155,28 @@ class HubPageFragment : Fragment() {
         column.removeAllViews()
         when (state) {
             HubLoadState.Loading -> {
-                section("LEGION · GAME HUB", "Чтение локальной библиотеки и системных данных")
-                info("Загружаю данные устройства…")
+                if (page() == HubTab.TOOLS) {
+                    showTools()
+                    group("Сводка устройства")
+                    info("Чтение локальных данных продолжается. Инструменты доступны.")
+                } else {
+                    section("LEGION · GAME HUB", "Чтение локальной библиотеки и системных данных")
+                    info("Загружаю данные устройства…")
+                }
             }
             is HubLoadState.Failed -> {
-                section("Не удалось загрузить")
-                info(state.message)
+                if (page() == HubTab.TOOLS) {
+                    showTools()
+                    group("Не удалось прочитать сводку")
+                    info(state.message)
+                } else {
+                    section("Не удалось загрузить")
+                    info(state.message)
+                    showLegacyShortcuts()
+                }
                 tile("Повторить чтение", "Без удаления данных и изменения системных настроек") {
                     viewModel.refresh()
                 }
-                showLegacyShortcuts()
             }
             is HubLoadState.Ready -> {
                 when (page()) {
