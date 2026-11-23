@@ -227,18 +227,25 @@ def main() -> None:
                 PACKAGE + "/.NavigationHostActivity", timeout=60)
     expect("Готов к запуску")
     capture("01-hub-launch")
+    click("Игры")
+    stage("01-games-tab", "ИГРОВАЯ БИБЛИОТЕКА")
+    expect("Поиск игры или имени пакета")
     click("Сервисы")
     expect(TOOLS_MARKER)
+    capture("01-tools-tab")
 
     # Previously unobserved media and overlay screens: verify the real Activity
     # launches and core labels, without invoking any MediaProjection consent.
     click("Capture Studio")
     stage("01a-capture-studio", "CAPTURE STUDIO")
+    expect("ЗАХВАТ И REPLAY")
+    expect("Домой")
     expect_scrolling("INSTANT REPLAY", seconds=35)
     capture("01b-capture-studio-replay")
     back_until(TOOLS_MARKER)
     click("Game Toolbox")
     stage("01c-game-toolbox", "GAME TOOLBOX")
+    expect("ИГРОВАЯ ПАНЕЛЬ")
     expect("ИГРОВАЯ ПАНЕЛЬ")  # Header owned by canonical NavigationHostActivity
     expect("Выбрать игру или приложение")
     expect("Домой")  # Persistent bottom navigation on formerly standalone screen
@@ -320,6 +327,7 @@ def main() -> None:
 
     click("История")
     expect("ИСТОРИЯ И ДИАГНОСТИКА")
+    capture("12-history-tab")
     click("Session Incidents")
     stage("12a-history-to-incidents", "LEGION · SESSION INCIDENTS")
     back_until("ИСТОРИЯ И ДИАГНОСТИКА")
@@ -338,6 +346,7 @@ def main() -> None:
     back_until("ИСТОРИЯ И ДИАГНОСТИКА")
     click("Настройки")
     expect(SETTINGS_MARKER)
+    capture("13-settings-tab")
     click("Application Center")
     stage("13-application-center", "APPLICATION CONTROL CENTER")
     back_until(SETTINGS_MARKER)

@@ -78,7 +78,7 @@ assert "versionLabel()" in read("NavigationHostActivity.kt")
 assert "GAME HUB  ·  alpha.26" not in read("NavigationHostActivity.kt")
 assert "contentDescription = \"Назад\"" in read("NavigationHostActivity.kt")
 assert "WindowInsets.Type.ime()" in read("LegionUiSupport.kt")
-assert "LegionUiSupport.applyInsets(this)" in read("CaptureStudioActivity.kt")
+assert "LegionUiSupport.setModuleActivityContent(this" in read("CaptureStudioActivity.kt")
 assert "Не удалось" in read("ConnectivityLabViewModel.kt")
 assert "CaptureStorageOverview.report" in vm
 assert "android.permission.MANAGE_EXTERNAL_STORAGE" not in (
