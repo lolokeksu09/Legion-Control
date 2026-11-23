@@ -377,6 +377,20 @@ def main() -> None:
     back_until(SETTINGS_MARKER)
     click("Домой")
     stage("14-return-home", "Готов к запуску")
+    # Explicit legacy entry points must show the SAME styled NavHost module,
+    # including header, dark action controls and five-tab navigation.
+    adb("shell", "am", "start", "-W", "-n",
+        PACKAGE + "/.GamingDiagnosticsActivity", timeout=60)
+    stage("15-legacy-gaming-entry", "LEGION CONTROL · GAMING LAB")
+    expect("ИГРОВАЯ ДИАГНОСТИКА")
+    expect("Домой")
+    back_until(TOOLS_MARKER)
+    adb("shell", "am", "start", "-W", "-n",
+        PACKAGE + "/.GameSessionActivity", timeout=60)
+    stage("16-legacy-session-entry", "LEGION · GAME SESSION")
+    expect("ЗАПИСЬ ИГРОВОЙ СЕССИИ")
+    expect("Домой")
+    back_until(TOOLS_MARKER)
     print("PASS: Android emulator UI navigation, explicit marker persisted in SQLite,",
           "signal correlation, selected package, foreground START/STOP, back stack",flush=True)
 
