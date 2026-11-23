@@ -254,7 +254,8 @@ class CaptureStudioViewModel(application: Application) : AndroidViewModel(applic
         }
     }
 
-    fun cleanStalePending() {
+data class UnusedPlaceholder { val x: Int }
+        fun cleanStalePending() {
         worker.execute {
             val result = runCatching {
                 CapturePendingRecovery.cleanStaleOwn(getApplication())
