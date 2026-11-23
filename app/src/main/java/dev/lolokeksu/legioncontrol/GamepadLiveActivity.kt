@@ -18,6 +18,7 @@ import android.widget.TextView
  * AccessibilityService, event injection, or capture when activity is hidden.
  */
 class GamepadLiveActivity : Activity() {
+    private val Int.dp get() = (this * resources.displayMetrics.density).toInt()
     private lateinit var eventView: TextView
     private var lastMotionShownMs = 0L
     private val recentKeys = ArrayDeque<String>()
@@ -27,7 +28,7 @@ class GamepadLiveActivity : Activity() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.BLACK)
-            setPadding(20, 44, 20, 20)
+            setPadding(20.dp, 44.dp, 20.dp, 20.dp)
             isFocusableInTouchMode = true
         }
         root.addView(TextView(this).apply {
