@@ -191,6 +191,21 @@ def main() -> None:
     print("Emulator ABI:", adb("shell", "getprop", "ro.product.cpu.abi").strip(), flush=True)
     print("Emulator SDK:", adb("shell", "getprop", "ro.build.version.sdk").strip(), flush=True)
     adb("install", "-r", str(apk), timeout=120)
+    # Instrumentation is run only on a disposable Google APIs emulator.
+    # It checks real SQLite/SAF/MediaStore code paths and NEVER runs on user devices.
+    test_apk = apk.with_name("app-debug-androidTest.apk")
+    if not test_apk.is_file():
+        raise AssertionError(f"Missing exact-build instrumentation APK: {test_apk}")
+    adb("shell", "pm", "clear", PACKAGE, timeout=40)
+    adb("install", "-r", str(test_apk), timeout=120)
+    test_output = adb("shell", "am", "instrument", "-w",
+        "-e", "class",
+        "dev.lolokeksu.legioncontrol.FullBackupInstrumentedTest",
+        PACKAGE + ".test/androidx.test.runner.AndroidJUnitRunner", timeout=190)
+    if "OK (1 test)" not in test_output or "FAILURES" in test_output:
+        raise AssertionError("Backup restore instrumentation failed: " + test_output[-1400:])
+    print("PASS: emulator-only SQLite backup/restore and corruption round-trip",flush=True)
+    adb("shell", "pm", "clear", PACKAGE, timeout=40)
     adb("shell", "am", "force-stop", PACKAGE)
     adb("shell", "am", "start", "-W", "-n", PACKAGE + "/.NavigationHostActivity", timeout=60)
 

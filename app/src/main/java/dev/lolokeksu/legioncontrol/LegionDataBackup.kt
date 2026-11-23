@@ -270,8 +270,12 @@ object LegionDataBackup {
     }
 
     private fun allTables(db: SQLiteDatabase): List<String> =
+        // Android manages android_metadata (locale) independently of our history.
+        // That table is populated even on a brand-new empty install and MUST NOT
+        // block user-data restore or be overwritten from a different device.
         db.rawQuery("SELECT name FROM sqlite_master WHERE type='table' AND " +
-            "name NOT LIKE 'sqlite_%' ORDER BY name", null).use { c ->
+            "name NOT LIKE 'sqlite_%' AND name <> 'android_metadata' ORDER BY name",
+            null).use { c ->
             buildList {
                 while (c.moveToNext()) add(c.getString(0).also {
                     check(nameRule.matches(it)) { "Недопустимое имя таблицы" }
