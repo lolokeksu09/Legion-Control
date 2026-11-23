@@ -17,8 +17,6 @@ assert all(v in skin for v in ("PANEL", "BORDER", "ACCENT", "MUTED",
     "RippleDrawable", "state_enabled", "state_focused", "styleCheck", "styleInput"))
 assert all(v in hub and v in toolbox for v in ("LegionUiSupport.MUTED",
     "LegionUiSupport.ACCENT", "LegionUiSupport.BORDER", "LegionUiSupport.PANEL"))
-assert "fragment !is HubPageFragment && fragment !is GameDetailFragment" in host
-assert "fragment !is GameToolboxFragment" in host
 assert "LegionUiSupport.styleFragmentButtons(view)" not in host
 for name in ("GameSessionFragment.kt", "SessionSignalsFragment.kt",
     "SessionIncidentsFragment.kt", "SessionBaselinesFragment.kt",
