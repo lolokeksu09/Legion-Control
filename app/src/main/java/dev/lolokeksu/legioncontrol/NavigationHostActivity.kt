@@ -29,6 +29,11 @@ class NavigationHostActivity : FragmentActivity() {
     private lateinit var back: TextView
     private val buttons = LinkedHashMap<Int, Pair<ImageView, TextView>>()
     private val Int.dp get() = (this * resources.displayMetrics.density).toInt()
+    private fun versionLabel(): String = runCatching {
+        packageManager.getPackageInfo(packageName,
+            android.content.pm.PackageManager.PackageInfoFlags.of(0L)).versionName
+            ?: "pre-release"
+    }.getOrDefault("pre-release")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -58,9 +63,11 @@ class NavigationHostActivity : FragmentActivity() {
             gravity = Gravity.CENTER
             setPadding(0, 0, 12.dp, 0)
             visibility = View.GONE
+            contentDescription = "Назад"
+            isFocusable = true
             setOnClickListener { nav.navigateUp() }
         }
-        header.addView(back, LinearLayout.LayoutParams(40.dp, 52.dp))
+        header.addView(back, LinearLayout.LayoutParams(48.dp, 52.dp))
         val titles = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         titles.addView(TextView(this).apply {
             text = "LEGION CONTROL"
@@ -70,7 +77,7 @@ class NavigationHostActivity : FragmentActivity() {
             setTypeface(Typeface.DEFAULT, Typeface.BOLD)
         })
         subtitle = TextView(this).apply {
-            text = "GAME HUB  ·  alpha.26"
+            text = "GAME HUB · " + versionLabel()
             textSize = 11.5f
             setTextColor(muted)
             setPadding(0, 4.dp, 0, 0)
@@ -161,6 +168,11 @@ class NavigationHostActivity : FragmentActivity() {
                 views.first.imageTintList = ColorStateList.valueOf(if (selected) accent else muted)
                 views.second.setTextColor(if (selected) accent else muted)
                 views.second.setTypeface(null, if (selected) Typeface.BOLD else Typeface.NORMAL)
+                buttons[id]?.let { views ->
+                    // Selection is exposed to TalkBack via the focusable tab below.
+                    views.first.isSelected = selected
+                    views.second.isSelected = selected
+                }
             }
             back.visibility = if (actual == R.id.gameDetailFragment ||
                 actual == R.id.gameSessionFragment ||
@@ -177,7 +189,7 @@ class NavigationHostActivity : FragmentActivity() {
                 actual == R.id.hardwareLabDestination ||
                 actual == R.id.gamingDiagnosticsDestination) View.VISIBLE else View.GONE
             subtitle.text = when (actual) {
-                R.id.homeFragment -> "GAME HUB  ·  alpha.26"
+                R.id.homeFragment -> "GAME HUB · " + versionLabel()
                 R.id.gamesFragment -> "ИГРОВАЯ БИБЛИОТЕКА"
                 R.id.toolsFragment -> "ВСЕ СИСТЕМНЫЕ ИНСТРУМЕНТЫ"
                 R.id.historyFragment -> "ИСТОРИЯ И ДИАГНОСТИКА"
