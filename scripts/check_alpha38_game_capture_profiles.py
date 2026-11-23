@@ -39,7 +39,7 @@ assert "editor.commit()" in storage
 assert "val parsed = linkedMapOf<String, GameCaptureProfile>()" in storage
 assert storage.index("for (i in 0 until array.length())") < storage.index("val editor = prefs.edit().clear()")
 assert 'require(!parsed.containsKey(pkg))' in storage
-assert 'require(root.keySet() == setOf("schema", "profiles"))' in storage
+assert 'require(root.keys().asSequence().toSet() == setOf("schema", "profiles"))' in storage
 assert "require(array.length() <= GameCaptureProfilePolicy.MAX_PROFILES)" in storage
 assert "GameCaptureProfilePolicy.validPackage(pkg)" in storage
 assert 'val audio = obj.opt("audio") as? Boolean' in storage
