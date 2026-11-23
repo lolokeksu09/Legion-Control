@@ -205,6 +205,11 @@ class CaptureStudioActivity : ComponentActivity() {
         action("Открыть выбранную игру Game Toolbox") { openSelectedGame() }
         action("Обновить состояние записи") { refreshStatus() }
 
+        heading("Место для записей")
+        note("Показывает объём только собственных опубликованных MP4/PNG. " +
+            "Автоматическое удаление отключено.")
+        action("ПОСМОТРЕТЬ ОБЪЁМ ЗАПИСЕЙ") { viewModel.showCaptureStorageUsage() }
+
         heading("Мои клипы")
         note("Готовые MP4 — в системной папке Movies/LegionControl/. " +
             "Здесь показываются только клипы, сохранённые самим Legion Control. " +
