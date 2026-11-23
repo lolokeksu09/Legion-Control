@@ -268,6 +268,7 @@ class MainActivity : ComponentActivity() {
         setContentView(ScrollView(this).apply {
             isFillViewport = true
             addView(layout)
+            LegionUiSupport.applyInsets(this)
         })
         // The real Rust writer survives recreation and never retains Android UI objects.
         sampleController = ViewModelProvider(this)[RustSampleController::class.java]
