@@ -657,7 +657,9 @@ class CaptureStudioActivity : ComponentActivity() {
             clipsContainer.addView(Button(this).apply {
                 text = "${clip.name}\n${size} МиБ${length}"
                 isAllCaps = false
-                minHeight = 48.dp
+                // These rows are added after setModuleActivityContent() styled the tree.
+                LegionUiSupport.styleAction(this)
+                contentDescription = "Клип: ${clip.name}, размер ${size} МиБ${length}"
                 setOnClickListener { clipActions(clip) }
             })
         }
@@ -794,7 +796,9 @@ class CaptureStudioActivity : ComponentActivity() {
             shotsContainer.addView(Button(this).apply {
                 text = "${shot.name}\n${size} МиБ"
                 isAllCaps = false
-                minHeight = 48.dp
+                // Match the static Capture Studio buttons even after an async refresh.
+                LegionUiSupport.styleAction(this)
+                contentDescription = "Снимок: ${shot.name}, размер ${size} МиБ"
                 setOnClickListener { screenshotActions(shot) }
             })
         }
