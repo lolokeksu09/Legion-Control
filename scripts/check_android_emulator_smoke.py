@@ -251,6 +251,19 @@ def main() -> None:
     expect("Домой")  # Persistent bottom navigation on formerly standalone screen
     back_until(TOOLS_MARKER)
 
+    # Standalone controller and Rust diagnostic Activities now share the
+    # same header/dock, but keep their native activity-specific behavior.
+    click("Gamepad Live")
+    stage("01d-gamepad-live", "GAMEPAD LIVE")
+    expect("ПРОВЕРКА ГЕЙМПАДА")
+    expect("Домой")
+    back_until(TOOLS_MARKER)
+    click("Диагностика Kotlin + Rust", scrolls=16)
+    stage("01e-rust-diagnostics", "Диагностика устройства")
+    expect("ДИАГНОСТИКА УСТРОЙСТВА")
+    expect("Домой")
+    back_until(TOOLS_MARKER)
+
     click("Game Session")
     stage("02-game-session", "LEGION · GAME SESSION")
     back_until(TOOLS_MARKER)
