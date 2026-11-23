@@ -38,7 +38,7 @@ object LegionDataBackup {
 
     /** A failed recovery is visible in the hub rather than being silently ignored. */
     fun recoveryWarning(): String? = lastRecoveryFailure?.let {
-        "Восстановление настроек из ZIP не завершено ($it). Откройте Capture Studio и повторите попытку; не удаляйте данные приложения."
+        "Восстановление настроек из ZIP не завершено ($it). Откройте Capture Studio → «Завершить прерванное восстановление». Не удаляйте данные приложения."
     }
     private val names = listOf(
         "legion-game-capture-profiles", "legion-capture-studio",
