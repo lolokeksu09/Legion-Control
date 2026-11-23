@@ -263,11 +263,7 @@ class ExperimentRepository(context: Context) : AutoCloseable {
         }
     }
 
-    private fun csvSafe(value:String):String {
-        val trimmed=value.trimStart()
-        val safe=if(trimmed.firstOrNull() in listOf('=','+','-','@')) "'"+value else value
-        return "\"" + safe.replace("\"","\"\"") + "\""
-    }
+    private fun csvSafe(value: String): String = CsvEscaper.cell(value)
 
     override fun close() { helper.close() }
 }
