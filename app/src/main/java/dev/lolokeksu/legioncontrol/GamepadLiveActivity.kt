@@ -18,6 +18,7 @@ import android.widget.TextView
  * AccessibilityService, event injection, or capture when activity is hidden.
  */
 class GamepadLiveActivity : Activity() {
+    private val Int.dp get() = (this * resources.displayMetrics.density).toInt()
     private lateinit var eventView: TextView
     private var lastMotionShownMs = 0L
     private val recentKeys = ArrayDeque<String>()
@@ -27,7 +28,7 @@ class GamepadLiveActivity : Activity() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.BLACK)
-            setPadding(20, 44, 20, 20)
+            setPadding(20.dp, 44.dp, 20.dp, 20.dp)
             isFocusableInTouchMode = true
         }
         root.addView(TextView(this).apply {
@@ -50,6 +51,7 @@ class GamepadLiveActivity : Activity() {
             setTextIsSelectable(true)
         }
         root.addView(Button(this).apply {
+            LegionUiSupport.styleAction(this)
             text = "Обновить список контроллеров"
             isAllCaps = false
             setOnClickListener {
@@ -58,10 +60,14 @@ class GamepadLiveActivity : Activity() {
         })
         root.addView(eventView)
         root.addView(Button(this).apply {
+            LegionUiSupport.styleAction(this)
             text = "Закончить тест"
             setOnClickListener { finish() }
         })
-        setContentView(ScrollView(this).apply { addView(root) })
+        setContentView(ScrollView(this).apply {
+            addView(root)
+            LegionUiSupport.applyInsets(this)
+        })
         root.requestFocus()
     }
 

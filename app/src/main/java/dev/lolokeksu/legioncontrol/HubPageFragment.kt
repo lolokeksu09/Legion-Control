@@ -215,7 +215,7 @@ class HubPageFragment : Fragment() {
         stat(s.profileCount.toString(), "Профили")
         stat(s.clipPreviewCount.toString(), "Клипы*")
         column.addView(stats)
-        info("* Предварительное число собственных MP4, до 100 последних записей MediaStore.")
+        info("* Быстрая сводка: не более 40 последних MP4. Все записи — в Capture Studio.")
         group("Быстрый доступ")
         tile("Мои игры", "${s.apps.count { it.isGame || it.favorite }} игровых и избранных записей") {
             NavHostFragment.findNavController(this).navigate(R.id.gamesFragment)

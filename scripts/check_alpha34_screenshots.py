@@ -52,8 +52,8 @@ assert "startForegroundService(screenshot)" in activity
 assert "CaptureScreenshotService.cancel(this)" in activity
 assert "viewModel.refreshScreenshots()" in activity
 assert "viewModel.deleteConfirmedScreenshot(shot)" in activity
-assert "CaptureScreenshotLibrary.listOwn(app)" in repo
-assert "require(screenshots().any { it.uri == screenshot.uri })" in repo
+assert "CaptureScreenshotLibrary.listOwn(app, page)" in repo
+assert "CaptureScreenshotLibrary.isOwnPublished(app, screenshot.uri)" in repo
 assert "repository.deleteOwnScreenshot(shot)" in vm
 assert "Pictures/LegionControl/" in library
 assert "OWNER_PACKAGE_NAME" in library and "IS_PENDING" in library

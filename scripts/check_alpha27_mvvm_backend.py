@@ -21,7 +21,7 @@ unit=(root/"app/src/test/java/dev/lolokeksu/legioncontrol/BackendRefactorRulesTe
 gradle=(root/"app/build.gradle.kts").read_text()
 manifest=ET.parse(root/"app/src/main/AndroidManifest.xml").getroot()
 ns="{http://schemas.android.com/apk/res/android}"
-assert 'versionCode = 27' in gradle and 'versionName = "0.1.0-alpha.27"' in gradle
+assert 'versionCode = 40' in gradle and 'versionName = "0.1.0-alpha.40"' in gradle
 assert 'applicationId = "dev.lolokeksu.legioncontrol"' in gradle
 assert "HapticLabSchema.VERSION" in read("LocalHistoryStore.kt")
 assert "private external fun recordBatterySample(" in read("RustEngine.kt")
@@ -85,9 +85,9 @@ assert "Intent.ACTION_VIEW" in capture and "Intent.ACTION_SEND" in capture
 
 assert "class CaptureStudioRepository(" in capture_repo
 assert "CapturePresetRules.requireSupported(name, value)" in capture_repo
-assert "CaptureClipLibrary.listOwn(app)" in capture_repo
+assert "CaptureClipLibrary.listOwn(app, page)" in capture_repo
 assert "CaptureClipLibrary.delete(app, clip.uri)" in capture_repo
-assert "require(clips().any { it.uri == clip.uri })" in capture_repo
+assert "CaptureClipLibrary.isOwnPublished(app, clip.uri)" in capture_repo
 assert "getSharedPreferences(CaptureRecordingService.PREFS" in capture_repo
 assert "class CaptureStudioViewModel(" in capture_vm
 assert "Executors.newSingleThreadExecutor()" in capture_vm

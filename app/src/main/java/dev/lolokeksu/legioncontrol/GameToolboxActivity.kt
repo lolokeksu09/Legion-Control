@@ -52,7 +52,7 @@ class GameToolboxActivity : Activity() {
         fun action(label: String, onClick: () -> Unit) {
             root.addView(Button(this).apply {
                 text = label
-                minHeight = 50.dp
+                LegionUiSupport.styleAction(this)
                 setOnClickListener { onClick() }
             })
         }
@@ -120,7 +120,10 @@ class GameToolboxActivity : Activity() {
             "Исходная яркость сохраняется существующим механизмом Smart Profiles; " +
             "Ручные изменения DND нужно отменять вручную; профиль имеет отдельный возврат.")
 
-        setContentView(ScrollView(this).apply { addView(root) })
+        setContentView(ScrollView(this).apply {
+            addView(root)
+            LegionUiSupport.applyInsets(this)
+        })
         renderStatus()
     }
 

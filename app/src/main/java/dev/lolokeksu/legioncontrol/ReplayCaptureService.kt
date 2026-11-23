@@ -125,6 +125,7 @@ class ReplayCaptureService : Service() {
                     Activity.RESULT_OK
                 val wanted = intent.getIntExtra(EXTRA_SECONDS, 60)
                 if (!approved || token == null || wanted !in setOf(30, 60, 120)) {
+                    CaptureCoordinator.releasePending(CaptureMode.REPLAY)
                     writeStatus("Replay не запущен: разрешение Android или параметры неверны.")
                     stopSelfResult(startId)
                     return START_NOT_STICKY
@@ -138,6 +139,7 @@ class ReplayCaptureService : Service() {
                 if (audioRequested) {
                     if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) !=
                         PackageManager.PERMISSION_GRANTED) {
+                        CaptureCoordinator.releasePending(CaptureMode.REPLAY)
                         writeStatus("Replay со звуком не запущен: RECORD_AUDIO запрещён.")
                         stopSelfResult(startId)
                         return START_NOT_STICKY
@@ -151,16 +153,23 @@ class ReplayCaptureService : Service() {
                         }.getOrNull()
                     } else null
                     if (uid == null || uid <= 0) {
+                        CaptureCoordinator.releasePending(CaptureMode.REPLAY)
                         writeStatus("Replay: игра для захвата звука не найдена.")
                         stopSelfResult(startId)
                         return START_NOT_STICKY
                     }
                     selectedGameUid = uid
                 }
+                if (!CaptureCoordinator.begin(CaptureMode.REPLAY)) {
+                    writeStatus("Replay отклонён: другой захват уже выполняется.")
+                    stopSelfResult(startId)
+                    return START_NOT_STICKY
+                }
                 try {
                     seconds = wanted
                     promoteToForeground()
                     begin(token, config, wanted)
+                    CaptureCoordinator.markActive(CaptureMode.REPLAY)
                 } catch (error: Exception) {
                     writeStatus("Replay не удалось запустить: " + error.javaClass.simpleName)
                     requestStop("Replay остановлен после ошибки запуска.")
@@ -366,6 +375,7 @@ class ReplayCaptureService : Service() {
                 codec = null
                 drainComplete = true
                 if (stopping.compareAndSet(false, true)) {
+                    CaptureCoordinator.markStopping(CaptureMode.REPLAY)
                     writeStatus("Replay остановлен: кодек завершил работу.")
                 }
                 finishIfReady()
@@ -414,6 +424,7 @@ class ReplayCaptureService : Service() {
 
     private fun requestStop(reason: String) {
         if (!stopping.compareAndSet(false, true)) return
+        CaptureCoordinator.markStopping(CaptureMode.REPLAY)
         handler.removeCallbacks(safetyStop)
         writeStatus(reason)
         active = false
@@ -448,6 +459,7 @@ class ReplayCaptureService : Service() {
         playbackAudio = null
         runCatching { projection?.stop() }
         stopForeground(STOP_FOREGROUND_REMOVE)
+        CaptureCoordinator.release(CaptureMode.REPLAY)
         stopSelf()
     }
 

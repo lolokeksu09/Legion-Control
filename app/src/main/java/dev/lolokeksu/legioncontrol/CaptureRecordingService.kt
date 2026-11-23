@@ -111,6 +111,7 @@ class CaptureRecordingService : Service() {
         val consent = intent.getParcelableExtra(EXTRA_CONSENT, Intent::class.java)
         if (intent.getIntExtra(EXTRA_RESULT, Activity.RESULT_CANCELED) != Activity.RESULT_OK ||
             consent == null || CaptureScreenshotService.active || ReplayCaptureService.active) {
+            CaptureCoordinator.releasePending(CaptureMode.RECORDING)
             writeStatus("Запись не запущена: нет согласия Android или уже выполняется скриншот")
             stopSelf(startId)
             return START_NOT_STICKY
@@ -118,6 +119,7 @@ class CaptureRecordingService : Service() {
         playbackAudioRequested = intent.getBooleanExtra(EXTRA_PLAYBACK_AUDIO, false)
         if (playbackAudioRequested &&
             checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            CaptureCoordinator.releasePending(CaptureMode.RECORDING)
             writeStatus("Нет разрешения на захват внутреннего звука. Выберите режим без звука либо выдайте разрешение.")
             stopSelfResult(startId)
             return START_NOT_STICKY
@@ -133,11 +135,17 @@ class CaptureRecordingService : Service() {
                 }.getOrNull()
             } else null
             if (uid == null || uid <= 0) {
+                CaptureCoordinator.releasePending(CaptureMode.RECORDING)
                 writeStatus("Выбранная игра не найдена. Сначала выберите её в Game Toolbox.")
                 stopSelfResult(startId)
                 return START_NOT_STICKY
             }
             selectedGameUid = uid
+        }
+        if (!CaptureCoordinator.begin(CaptureMode.RECORDING)) {
+            writeStatus("Запись отклонена: другое MediaProjection-согласие уже используется.")
+            stopSelfResult(startId)
+            return START_NOT_STICKY
         }
         try {
             // Android 14+: user consent must precede foreground mediaProjection service.
@@ -150,6 +158,7 @@ class CaptureRecordingService : Service() {
                 intent.getIntExtra(EXTRA_MINUTES, 1)
             )
             beginRecording(consent, config)
+            CaptureCoordinator.markActive(CaptureMode.RECORDING)
         } catch (e: Exception) {
             finish("Не удалось начать запись: " + e.javaClass.simpleName)
         }
@@ -332,6 +341,7 @@ class CaptureRecordingService : Service() {
     private fun finish(reason: String) {
         if (stopping) return
         stopping = true
+        CaptureCoordinator.markStopping(CaptureMode.RECORDING)
         handler.removeCallbacks(autoStop)
         handler.removeCallbacks(pauseTimeout)
         recording = false
@@ -425,6 +435,7 @@ class CaptureRecordingService : Service() {
 
     private fun stopCaptureService() {
         stopForeground(STOP_FOREGROUND_REMOVE)
+        CaptureCoordinator.release(CaptureMode.RECORDING)
         stopSelf()
     }
 

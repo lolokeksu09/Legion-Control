@@ -124,6 +124,11 @@ class ConnectivityLabViewModel(application:Application):AndroidViewModel(applica
         if(!testing.get())return
         cancelled.set(true)
         task?.cancel(true)
+        // Android's InetAddress DNS lookup may be uninterruptible. Do not claim
+        // immediate cancellation while the worker still owns the current cycle.
+        mutableState.value = ConnectivityLabUiState(
+            "Отмена запрошена. DNS-запрос Android может завершиться с задержкой; " +
+                "новые циклы не начнутся.", true, generation.get())
     }
 
     fun showHistory() = localWithRuns {

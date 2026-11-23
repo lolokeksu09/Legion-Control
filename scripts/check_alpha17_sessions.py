@@ -40,7 +40,7 @@ assert fgs.find("property") is not None
 assert manifest.find("queries/intent") is not None
 assert any(x.attrib.get(ns+"name")==".GameSessionActivity" for x in manifest.findall("./application/activity"))
 gradle=(root/"app/build.gradle.kts").read_text(encoding="utf-8")
-assert 'versionCode = 27' in gradle and 'versionName = "0.1.0-alpha.27"' in gradle
+assert 'versionCode = 40' in gradle and 'versionName = "0.1.0-alpha.40"' in gradle
 assert 'minSdk = 33' in gradle
 assert "HapticLabSchema.VERSION" in history
 assert "oldVersion !in 1..11" in history
