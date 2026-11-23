@@ -334,8 +334,15 @@ class GameToolboxFragment : Fragment() {
         status.text = result.message
         if (result.success && launchIntent != null) {
             runCatching { startActivity(launchIntent) }
-                .onFailure { status.text = "Профиль применён, но запуск игры отклонён: " +
-                    it.javaClass.simpleName }
+                .onFailure { failure ->
+                    // Applying a profile changes global volume/brightness/DND. If
+                    // Android rejects the game launch, do not leave those values
+                    // silently changed. Existing restore guards preserve any
+                    // subsequent changes made by the user.
+                    val undo = GameLaunchProfiles.restore(requireContext())
+                    status.text = "Запуск игры отклонён: " + failure.javaClass.simpleName +
+                        ". Возврат системных настроек: " + undo.message
+                }
         }
     }
 
@@ -382,7 +389,11 @@ class GameToolboxFragment : Fragment() {
         }
         if (launchIntent != null) {
             runCatching { startActivity(launchIntent) }
-                .onFailure { status.text = "Не удалось открыть игру: ${it.javaClass.simpleName}" }
+                .onFailure {
+                    GameToolboxService.stop(requireContext())
+                    status.text = "Не удалось открыть игру: ${it.javaClass.simpleName}. " +
+                        "Плавающая панель остановлена."
+                }
         } else {
             status.text = "Запуск панели запрошен. Проверьте плавающую кнопку и уведомление."
         }
