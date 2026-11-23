@@ -256,6 +256,13 @@ object LegionUiSupport {
      * (MediaProjection, Rust diagnostics, controller key events).
      * Navigation goes back to the canonical NavHost; no duplicate tab data is stored.
      */
+    /** Taller two-line navigation labels at system font scales up to 200%. */
+    fun bottomBarHeightDp(context: Context): Int = when {
+        context.resources.configuration.fontScale >= 1.8f -> 122
+        context.resources.configuration.fontScale >= 1.4f -> 99
+        else -> 78
+    }
+
     fun setModuleActivityContent(activity: Activity, content: ScrollView, subtitle: String) {
         styleModuleTree(content)
         content.setBackgroundColor(Color.BLACK)
@@ -349,17 +356,20 @@ object LegionUiSupport {
             item.addView(ImageView(activity).apply {
                 setImageResource(icons[index])
                 imageTintList = ColorStateList.valueOf(tint)
+                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
             }, LinearLayout.LayoutParams(dp(item, 21), dp(item, 21)))
             item.addView(TextView(activity).apply {
                 text = labels[index]
-                textSize = 10f
+                textSize = 12f
                 gravity = Gravity.CENTER
-                maxLines = 1
+                maxLines = 2
+                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
                 setTextColor(tint)
                 setTypeface(null, if (selected) Typeface.BOLD else Typeface.NORMAL)
                 setPadding(0, dp(this, 6), 0, 0)
             })
-            bottom.addView(item, LinearLayout.LayoutParams(0, dp(bottom, 57), 1f))
+            bottom.addView(item, LinearLayout.LayoutParams(
+                0, dp(bottom, bottomBarHeightDp(activity)), 1f))
         }
         shell.addView(bottom)
         activity.window.statusBarColor = Color.BLACK

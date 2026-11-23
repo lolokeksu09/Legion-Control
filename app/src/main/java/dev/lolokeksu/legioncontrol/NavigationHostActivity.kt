@@ -158,17 +158,20 @@ class NavigationHostActivity : FragmentActivity() {
                 setImageResource(icons[index])
                 imageTintList = ColorStateList.valueOf(muted)
             }
+            icon.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
             column.addView(icon, LinearLayout.LayoutParams(21.dp, 21.dp))
             val text = TextView(this).apply {
                 text = tabs[index].shortTitle
-                textSize = 10f
+                textSize = 12f
                 gravity = Gravity.CENTER
                 setTextColor(muted)
                 setPadding(0, 6.dp, 0, 0)
-                maxLines = 1
+                maxLines = 2
+                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
             }
             column.addView(text)
-            bottom.addView(column, LinearLayout.LayoutParams(0, 57.dp, 1f))
+            bottom.addView(column, LinearLayout.LayoutParams(0,
+                LegionUiSupport.bottomBarHeightDp(this).dp, 1f))
             buttons[id] = icon to text
             tabSurfaces[id] = column
             column.setOnClickListener {
