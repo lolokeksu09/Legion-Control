@@ -11,6 +11,25 @@ import androidx.navigation.fragment.NavHostFragment
  * This class does not trigger any backend operation, permission request or service.
  */
 object ModuleNavigation {
+    const val EXTRA_MODULE_ROUTE = "legion_module_route"
+    const val EXTRA_MODULE_ARGS = "legion_module_args"
+
+    /**
+     * Only explicit, known fragment facades use this adapter. Standalone media,
+     * diagnostics and display Activities remain separate by design.
+     */
+    fun forwardLegacyEntry(activity: android.app.Activity) {
+        val route = HubDestinationRoutes.destinationFor(activity.javaClass)
+            ?: throw IllegalArgumentException("Unknown module entry: ${activity.javaClass.simpleName}")
+        val intent = Intent(activity, NavigationHostActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            putExtra(EXTRA_MODULE_ROUTE, route)
+            activity.intent?.extras?.let { putExtra(EXTRA_MODULE_ARGS, Bundle(it)) }
+        }
+        activity.startActivity(intent)
+        activity.finish()
+    }
+
     fun open(from:Fragment, target:Class<*>, args:Bundle?=null) {
         val route=HubDestinationRoutes.destinationFor(target)
         val controller=runCatching { NavHostFragment.findNavController(from) }.getOrNull()

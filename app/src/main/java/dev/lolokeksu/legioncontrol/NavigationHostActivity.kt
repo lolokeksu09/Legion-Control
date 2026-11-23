@@ -256,7 +256,26 @@ class NavigationHostActivity : FragmentActivity() {
             nav.navigate(R.id.gameToolboxDestination)
         }
         openRequestedTab(intent)
+        if (savedInstanceState == null) openRequestedModule(intent)
         ViewModelProvider(this)[HubViewModel::class.java].refresh()
+    }
+
+    private fun openRequestedModule(request: Intent) {
+        val route = request.getIntExtra(ModuleNavigation.EXTRA_MODULE_ROUTE, -1)
+        // Never navigate to arbitrary resources supplied by external Intents.
+        val permitted = when (route) {
+            R.id.gameSessionFragment, R.id.smartProfilesDestination,
+            R.id.applicationCenterDestination, R.id.audioLabDestination,
+            R.id.hapticLabDestination, R.id.gamingDiagnosticsDestination,
+            R.id.hardwareLabDestination, R.id.compatibilityLabDestination,
+            R.id.connectivityLabDestination, R.id.experimentLabDestination -> true
+            else -> false
+        }
+        request.removeExtra(ModuleNavigation.EXTRA_MODULE_ROUTE)
+        val args = request.getBundleExtra(ModuleNavigation.EXTRA_MODULE_ARGS)
+        request.removeExtra(ModuleNavigation.EXTRA_MODULE_ARGS)
+        if (!permitted) return
+        nav.navigate(route, args, NavOptions.Builder().setLaunchSingleTop(true).build())
     }
 
     private fun openRequestedTab(request: Intent) {
@@ -278,7 +297,10 @@ class NavigationHostActivity : FragmentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        if (::nav.isInitialized) openRequestedTab(intent)
+        if (::nav.isInitialized) {
+            openRequestedTab(intent)
+            openRequestedModule(intent)
+        }
     }
 
     override fun onResume() {
