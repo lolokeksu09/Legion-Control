@@ -37,6 +37,12 @@ class HubPageFragment : Fragment() {
     private lateinit var column: LinearLayout
     private var query = ""
     private var showAllApps = false
+    private var toolQuery = ""
+    private data class CatalogAction(
+        val title: String,
+        val description: String,
+        val launch: () -> Unit
+    )
     private val Int.dp get() = (this * resources.displayMetrics.density).toInt()
 
     override fun onCreateView(inflater: LayoutInflater, parent: ViewGroup?, saved: Bundle?): View {
@@ -231,6 +237,17 @@ class HubPageFragment : Fragment() {
     private fun showGames(s: HubSnapshot) {
         section("Игровая библиотека",
             "Настоящие Android-приложения из Launcher и избранное Application Center.")
+        group("Игровые функции")
+        tile("Game Session", "Запись состояния устройства во время игры") {
+            open(GameSessionActivity::class.java)
+        }
+        tile("Game Toolbox", "Плавающая игровая панель управления") {
+            open(GameToolboxActivity::class.java)
+        }
+        tile("Smart Profiles", "Профили и правила для приложений") {
+            open(SmartProfilesActivity::class.java)
+        }
+        group("Библиотека")
         tile("Управление библиотекой", "Категории, заметки, сохранённые приложения") {
             open(ApplicationCenterActivity::class.java)
         }
@@ -304,33 +321,89 @@ class HubPageFragment : Fragment() {
         redraw()
     }
 
+    /** Searchable feature catalog; launches the existing real modules without migrating their data. */
     private fun showTools() {
-        section("Инструменты", "Все существующие функции сохранены. Ничего не включается скрыто.")
-        group("Игра и захват")
-        tile("Game Toolbox", "Плавающая панель, громкость, DND и яркость") { open(GameToolboxActivity::class.java) }
-        tile("Capture Studio", "Запись MP4 и локальная библиотека клипов") { open(CaptureStudioActivity::class.java) }
-        tile("Game Session", "Ручная запись состояния устройства во время игры") { open(GameSessionActivity::class.java) }
-        tile("Smart Profiles", "Профили, правила, резервные копии") { open(SmartProfilesActivity::class.java) }
-        group("Аудио, тактильность и контроллеры")
-        tile("Audio Lab", "Стереотесты, частоты и аудиомаршруты") { open(AudioLabActivity::class.java) }
-        tile("Haptic Lab", "Шаблоны вибрации и обратная связь") { open(HapticLabActivity::class.java) }
-        tile("Gamepad Live", "Кнопки и стики на этом экране") { open(GamepadLiveActivity::class.java) }
-        group("Устройство и диагностика")
-        tile("Gaming Lab", "Сеть, батарея, сенсор, кадры и связь") { open(GamingDiagnosticsActivity::class.java) }
-        tile("Hardware Lab", "Системные аппаратные измерения") { open(HardwareLabActivity::class.java) }
-        tile("Compatibility Lab", "Реальные Android-совместимости") { open(CompatibilityLabActivity::class.java) }
-        tile("Display Patterns", "Проверка дисплея") { open(DisplayPatternActivity::class.java) }
-        tile("Connectivity Observatory", "DNS/IPv4/IPv6/TCP/TLS по запросу") { open(ConnectivityLabActivity::class.java) }
-        tile("Experiment Lab", "Сравнения A/B и заметки") { open(ExperimentLabActivity::class.java) }
-        group("Rust и локальные данные")
-        tile("Диагностика Kotlin + Rust", "Старые измерения, сенсоры, отчёты и ZIP/CSV") {
-            open(MainActivity::class.java)
+        section("Инструменты", "Найдите инструмент по названию или назначению.")
+        val catalog = listOf(
+            "Запись и медиа" to listOf(
+                CatalogAction("Capture Studio", "Запись экрана и библиотека MP4") { open(CaptureStudioActivity::class.java) },
+                CatalogAction("Audio Lab", "Стерео, частоты и аудиомаршруты") { open(AudioLabActivity::class.java) }
+            ),
+            "Экран и управление" to listOf(
+                CatalogAction("Display Patterns", "Проверка дисплея") { open(DisplayPatternActivity::class.java) },
+                CatalogAction("Haptic Lab", "Вибрация и тактильная отдача") { open(HapticLabActivity::class.java) },
+                CatalogAction("Gamepad Live", "Кнопки и стики контроллера") { open(GamepadLiveActivity::class.java) }
+            ),
+            "Система и производительность" to listOf(
+                CatalogAction("Gaming Lab", "Батарея, сеть, сенсоры и производительность") { open(GamingDiagnosticsActivity::class.java) },
+                CatalogAction("Hardware Lab", "Аппаратные измерения и тесты") { open(HardwareLabActivity::class.java) },
+                CatalogAction("Compatibility Lab", "Совместимость функций Android") { open(CompatibilityLabActivity::class.java) },
+                CatalogAction("Диагностика Kotlin + Rust", "Батарея, датчики и отчёты CSV/ZIP") { open(MainActivity::class.java) }
+            ),
+            "Сеть" to listOf(
+                CatalogAction("Connectivity Observatory", "DNS, IPv4/IPv6, TCP и TLS") { open(ConnectivityLabActivity::class.java) }
+            ),
+            "Эксперименты" to listOf(
+                CatalogAction("Experiment Lab", "A/B-сравнения и заметки") { open(ExperimentLabActivity::class.java) }
+            )
+        )
+        val input = EditText(requireContext()).apply {
+            hint = "Поиск инструмента"
+            setTextColor(fg)
+            setHintTextColor(muted)
+            textSize = 14f
+            isSingleLine = true
+            setPadding(15.dp, 14.dp, 15.dp, 14.dp)
+            background = outline()
+            contentDescription = "Поиск по инструментам Legion Control"
+            setText(toolQuery)
         }
+        column.addView(input, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 12.dp })
+        val results = LinearLayout(requireContext()).apply { orientation = LinearLayout.VERTICAL }
+        column.addView(results)
+
+        fun redraw() {
+            results.removeAllViews()
+            val filter = toolQuery.trim().lowercase(Locale.ROOT)
+            var shown = 0
+            for ((category, entries) in catalog) {
+                val matching = entries.filter { entry ->
+                    filter.isEmpty() || (category + " " + entry.title + " " + entry.description)
+                        .lowercase(Locale.ROOT).contains(filter)
+                }
+                if (matching.isEmpty()) continue
+                results.addView(text(category.uppercase(Locale.ROOT), 12f, accent, true).apply {
+                    setPadding(0, 19.dp, 0, 11.dp)
+                    letterSpacing = 0.08f
+                })
+                for (entry in matching) {
+                    results.addView(
+                        LegionUiSupport.actionTile(requireContext(), entry.title, entry.description, entry.launch),
+                        LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 10.dp }
+                    )
+                }
+                shown += matching.size
+            }
+            if (shown == 0) {
+                results.addView(text("Инструменты не найдены. Попробуйте другое название.", 13f, muted))
+            }
+        }
+        input.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                toolQuery = s?.toString().orEmpty()
+                redraw()
+            }
+            override fun afterTextChanged(s: Editable?) {}
+        })
+        redraw()
     }
 
     private fun showHistory(s: HubSnapshot) {
-        section("История", "Все данные остались в прежней SQLite v12. Ничего не очищено.")
+        section("История", "Записи, события и результаты ручных проверок.")
+        group("Записи")
         tile("Игровые сессии", "Просмотр сохранённых Game Session") { open(GameSessionActivity::class.java) }
+        group("Анализ игровых сеансов")
         tile("Session Signals", "Хронология событий, метки, разрывы телеметрии и экспорт") {
             NavHostFragment.findNavController(this).navigate(R.id.sessionSignalsFragment)
         }
@@ -340,6 +413,7 @@ class HubPageFragment : Fragment() {
         tile("Session Incidents", "Длительность проблемных состояний, ручные метки и CSV") {
             NavHostFragment.findNavController(this).navigate(R.id.sessionIncidentsFragment)
         }
+        group("Данные устройства и приложений")
         tile("Измерения устройства", "Rust JNI, батарея, тепловая история и CSV") { open(MainActivity::class.java) }
         tile("Эксперименты", "Сравнения и заметки") { open(ExperimentLabActivity::class.java) }
         tile("Клипы MP4", "Movies/LegionControl/ · локальная библиотека") { open(CaptureStudioActivity::class.java) }
@@ -366,7 +440,7 @@ class HubPageFragment : Fragment() {
 
     private fun showSettings(s: HubSnapshot) {
         section("Настройки", "Локальные параметры. Системные спецдоступы предоставляет только Android.")
-        group("Пользовательские данные")
+        group("Настройки модулей и локальные данные")
         tile("Application Center", "${s.trackedCount} записей в библиотеке · избранное и заметки") {
             open(ApplicationCenterActivity::class.java)
         }
