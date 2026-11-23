@@ -214,9 +214,5 @@ object SessionIncidents {
         }
     }
 
-    private fun cell(raw: String): String {
-        val escaped = if (raw.trimStart().firstOrNull() in listOf('=', '+', '-', '@', '\t', '\r'))
-            "'" + raw else raw
-        return "\"" + escaped.replace("\"", "\"\"") + "\""
-    }
+    private fun cell(raw: String): String = CsvEscaper.cell(raw)
 }
