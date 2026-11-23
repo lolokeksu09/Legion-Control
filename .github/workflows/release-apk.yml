@@ -80,6 +80,7 @@ jobs:
           python3 scripts/check_alpha27_mvvm_backend.py
           python3 scripts/check_alpha38_game_capture_profiles.py
           python3 scripts/check_alpha39_replay.py
+          python3 scripts/check_alpha40_audit_remediation.py
       - name: Test local CSV and Russian plural formatting before release
         run: gradle --no-daemon testDebugUnitTest
       - name: Test and build real Rust native libraries
