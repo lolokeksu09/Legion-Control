@@ -61,7 +61,10 @@ class GamepadLiveActivity : Activity() {
             text = "Закончить тест"
             setOnClickListener { finish() }
         })
-        setContentView(ScrollView(this).apply { addView(root) })
+        setContentView(ScrollView(this).apply {
+            addView(root)
+            LegionUiSupport.applyInsets(this)
+        })
         root.requestFocus()
     }
 
