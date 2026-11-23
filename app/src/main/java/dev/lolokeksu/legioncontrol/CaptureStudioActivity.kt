@@ -562,8 +562,14 @@ class CaptureStudioActivity : ComponentActivity() {
     /** Inline screen state, not a popup re-triggered by Activity recreation. */
     private fun showClipList(clips: List<CaptureClip>) {
         clipsContainer.removeAllViews()
-        status.text = if (clips.isEmpty()) "В папке пока нет готовых MP4."
-            else "Найдено клипов: ${clips.size}"
+        status.text = if (clips.isEmpty()) "На этой странице нет готовых MP4."
+            else "MP4 · страница ${viewModel.clipsPageNumber()} · файлов: ${clips.size}"
+        if (viewModel.clipsPageNumber() > 1) {
+            clipsContainer.addView(Button(this).apply {
+                text = "ПРЕДЫДУЩАЯ СТРАНИЦА MP4"
+                setOnClickListener { viewModel.previousClipPage() }
+            })
+        }
         for (clip in clips) {
             val size = String.format(Locale.US, "%.1f", clip.bytes / 1048576.0)
             val length = if (clip.durationMs > 0) " · ${clip.durationMs / 1000} с" else ""
@@ -572,6 +578,12 @@ class CaptureStudioActivity : ComponentActivity() {
                 isAllCaps = false
                 minHeight = 48.dp
                 setOnClickListener { clipActions(clip) }
+            })
+        }
+        if (clips.size == CaptureClipLibrary.PAGE_SIZE) {
+            clipsContainer.addView(Button(this).apply {
+                text = "СЛЕДУЮЩАЯ СТРАНИЦА MP4"
+                setOnClickListener { viewModel.nextClipPage() }
             })
         }
     }
@@ -686,8 +698,14 @@ class CaptureStudioActivity : ComponentActivity() {
 
     private fun showScreenshotList(shots: List<CaptureScreenshot>) {
         shotsContainer.removeAllViews()
-        status.text = if (shots.isEmpty()) "Сохранённых PNG пока нет."
-            else "Найдено снимков: ${shots.size}"
+        status.text = if (shots.isEmpty()) "На этой странице нет PNG."
+            else "PNG · страница ${viewModel.screenshotsPageNumber()} · файлов: ${shots.size}"
+        if (viewModel.screenshotsPageNumber() > 1) {
+            shotsContainer.addView(Button(this).apply {
+                text = "ПРЕДЫДУЩАЯ СТРАНИЦА PNG"
+                setOnClickListener { viewModel.previousScreenshotPage() }
+            })
+        }
         for (shot in shots) {
             val size = String.format(Locale.US, "%.1f", shot.bytes / 1048576.0)
             shotsContainer.addView(Button(this).apply {
@@ -695,6 +713,12 @@ class CaptureStudioActivity : ComponentActivity() {
                 isAllCaps = false
                 minHeight = 48.dp
                 setOnClickListener { screenshotActions(shot) }
+            })
+        }
+        if (shots.size == CaptureScreenshotLibrary.PAGE_SIZE) {
+            shotsContainer.addView(Button(this).apply {
+                text = "СЛЕДУЮЩАЯ СТРАНИЦА PNG"
+                setOnClickListener { viewModel.nextScreenshotPage() }
             })
         }
     }
