@@ -61,6 +61,18 @@ def expect(needle: str, seconds: int = 35) -> None:
         time.sleep(1.0)
     raise AssertionError(f"Never visible: {needle}")
 
+def expect_selected_tab(label: str) -> None:
+    """Verify actual Android selected state, not just a visible tab label."""
+    expected = "Открыть раздел " + label
+    selected = [
+        n for n in hierarchy().iter("node")
+        if n.get("content-desc") == expected and n.get("selected") == "true"
+    ]
+    if len(selected) != 1:
+        raise AssertionError(f"Bottom navigation does not select {label!r}")
+    print("PASS active tab:", label, flush=True)
+
+
 
 
 def actual_focused_input() -> str:
@@ -258,6 +270,7 @@ def main() -> None:
     expect("ПОДГОТОВКА")
     expect("Главная")
     stage("00-alpha44-game-session", "LEGION · GAME SESSION")
+    expect_selected_tab("Игры")
     # The recording CTA must be available without scrolling the initial page.
     expect("НАЧАТЬ ЗАПИСЬ", seconds=5)
     back_until(GAMES_MARKER)
@@ -294,6 +307,7 @@ def main() -> None:
 
     click("Smart Profiles")
     stage("03-smart-profiles", "LEGION CONTROL · SMART PROFILES")
+    expect_selected_tab("Игры")
     click("Имя пакета приложения")
     adb("shell", "input", "text", "com.android.settings")
     adb("shell", "input", "keyevent", "KEYCODE_BACK")  # Hide IME, do not leave screen
@@ -344,6 +358,7 @@ def main() -> None:
 
     click("Audio Lab")
     stage("06-audio-lab-idle", "AUDIO LAB · ALPHA.22")
+    expect_selected_tab("Инструменты")
     back_until(TOOLS_MARKER)
     click("Haptic Lab")
     stage("07-haptic-lab-idle", "HAPTIC LAB · ALPHA.23")
@@ -387,6 +402,7 @@ def main() -> None:
     capture("12-history-tab")
     click("Session Incidents")
     stage("12a-history-to-incidents", "LEGION · SESSION INCIDENTS")
+    expect_selected_tab("История")
     back_until("ИСТОРИЯ И ДИАГНОСТИКА")
     click("Session Signals")
     stage("12b-history-to-signals", "LEGION · SESSION SIGNALS")
