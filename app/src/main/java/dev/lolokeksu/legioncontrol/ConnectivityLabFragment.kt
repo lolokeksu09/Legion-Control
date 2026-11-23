@@ -91,25 +91,6 @@ class ConnectivityLabFragment : Fragment() {
         description("Legion Control · alpha.20 · диагностика любой сети Android 13+. "+
             "Все проверки добровольные и обращаются к публичному серверу: "+
             "это НЕ ping игрового сервера, НЕ FPS и НЕ ICMP.")
-        hostButton=button("Сервер: Cloudflare · one.one.one.one") { chooseHost() }
-        singleButton=button("ОДИН ЗАМЕР · DNS / IPv4 / IPv6 / TCP / TLS") { startTest(1) }
-        stabilityButton=button("ТЕСТ СТАБИЛЬНОСТИ · до 6 циклов (~60 секунд)") { startTest(6) }
-        stopButton=button("ОСТАНОВИТЬ текущий тест") { cancelTest(true) }
-        stopButton.isEnabled=false
-        description("Каждый цикл: DNS, до одного соединения IPv4 и IPv6, "+
-            "TCP connect и TLS handshake с проверкой сертификата и имени сайта. "+
-            "DNS-кэш Android может влиять на результаты. "+
-            "При уходе с экрана запись отменяется; фоновый сервис не запускается.")
-        button("История проверок · выбрать запись") { showHistory() }
-        button("Подробный отчёт выбранной записи") { showSelected() }
-        button("Сравнить два последних запуска одного сервера") { compare() }
-        button("Сводка по этому серверу за 7 дней") { weekReport() }
-        button("Экспорт ВСЕЙ истории сетевых тестов CSV") { exportCsv() }
-        button("Поделиться выбранным отчётом") { share() }
-        button("Удалить выбранную запись (с подтверждением)") { confirmDelete() }
-        description("История и сравнения остаются локальными. CSV сохраняется только "+
-            "через системный выбор документа. DNS/TCP/TLS-результаты не доказывают "+
-            "качество подключения к конкретной игре. Новые Android разрешения не нужны.")
         resultView=TextView(requireContext()).apply {
             textSize=14f
             setTextColor(Color.WHITE)
@@ -119,6 +100,28 @@ class ConnectivityLabFragment : Fragment() {
                 "Обращение к публичному узлу начнётся только после нажатия."
         }
         root.addView(resultView)
+        root.addView(LegionUiSupport.sectionLabel(requireContext(), "ПРОВЕРКА СОЕДИНЕНИЯ"))
+        hostButton=button("Сервер: Cloudflare · one.one.one.one") { chooseHost() }
+        singleButton=button("ОДИН ЗАМЕР · DNS / IPv4 / IPv6 / TCP / TLS") { startTest(1) }
+        stabilityButton=button("ТЕСТ СТАБИЛЬНОСТИ · до 6 циклов (~60 секунд)") { startTest(6) }
+        stopButton=button("ОСТАНОВИТЬ текущий тест") { cancelTest(true) }
+        stopButton.isEnabled=false
+        description("Каждый цикл: DNS, до одного соединения IPv4 и IPv6, "+
+            "TCP connect и TLS handshake с проверкой сертификата и имени сайта. "+
+            "DNS-кэш Android может влиять на результаты. "+
+            "При уходе с экрана запись отменяется; фоновый сервис не запускается.")
+        root.addView(LegionUiSupport.sectionLabel(requireContext(), "ИСТОРИЯ И СРАВНЕНИЕ"))
+        button("История проверок · выбрать запись") { showHistory() }
+        button("Подробный отчёт выбранной записи") { showSelected() }
+        button("Сравнить два последних запуска одного сервера") { compare() }
+        button("Сводка по этому серверу за 7 дней") { weekReport() }
+        root.addView(LegionUiSupport.sectionLabel(requireContext(), "ЭКСПОРТ И УПРАВЛЕНИЕ"))
+        button("Экспорт ВСЕЙ истории сетевых тестов CSV") { exportCsv() }
+        button("Поделиться выбранным отчётом") { share() }
+        button("Удалить выбранную запись (с подтверждением)") { confirmDelete() }
+        description("История и сравнения остаются локальными. CSV сохраняется только "+
+            "через системный выбор документа. DNS/TCP/TLS-результаты не доказывают "+
+            "качество подключения к конкретной игре. Новые Android разрешения не нужны.")
         return ScrollView(requireContext()).apply { addView(root) }
     }
 
