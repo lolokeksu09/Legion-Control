@@ -332,8 +332,8 @@ class ReplayCaptureService : Service() {
                                 val bytes = ByteArray(info.size)
                                 data.get(bytes)
                                 if (videoMinusNanoClockUs == null) {
-                                    videoMinusNanoClockUs =
-                                        info.presentationTimeUs - System.nanoTime() / 1000L
+                                    videoMinusNanoClockUs = ReplayVideoClock.offsetFromDequeue(
+                                        info.presentationTimeUs, System.nanoTime() / 1000L)
                                 }
                                 buffer.add(ReplayFrame(bytes, info.presentationTimeUs,
                                     info.flags and MediaCodec.BUFFER_FLAG_KEY_FRAME != 0))
