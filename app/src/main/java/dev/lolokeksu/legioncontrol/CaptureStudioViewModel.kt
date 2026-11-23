@@ -30,6 +30,18 @@ sealed interface CaptureScreenshotsState {
 class CaptureStudioViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = CaptureStudioRepository(application)
     private var pendingCaptureConsent: ActiveGameCaptureSettings? = null
+    private var pendingReplayConsent: Pair<Int, CaptureConfig>? = null
+
+    fun rememberReplayConsent(seconds: Int, config: CaptureConfig) {
+        require(seconds in setOf(30, 60, 120))
+        pendingReplayConsent = seconds to config
+    }
+
+    fun takeReplayConsent(): Pair<Int, CaptureConfig>? =
+        pendingReplayConsent.also { pendingReplayConsent = null }
+
+    fun clearReplayConsent() { pendingReplayConsent = null }
+
     private val worker = Executors.newSingleThreadExecutor()
     private val revision = AtomicInteger(0)
     private val screenshotRevision = AtomicInteger(0)
@@ -264,6 +276,7 @@ class CaptureStudioViewModel(application: Application) : AndroidViewModel(applic
 
     override fun onCleared() {
         pendingCaptureConsent = null
+        pendingReplayConsent = null
         currentEdit.get()?.set(true)
         revision.incrementAndGet()
         screenshotRevision.incrementAndGet()
