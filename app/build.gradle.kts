@@ -17,8 +17,8 @@ android {
         applicationId = "dev.lolokeksu.legioncontrol"
         minSdk = 33
         targetSdk = 36
-        versionCode = 44
-        versionName = "0.1.0-alpha.44"
+        versionCode = 45
+        versionName = "0.1.0-alpha.45"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
     }
