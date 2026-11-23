@@ -268,7 +268,7 @@ class GameToolboxService : Service() {
                     setTextColor(Color.WHITE)
                     backgroundTintList = android.content.res.ColorStateList.valueOf(
                         0xFF292C33.toInt())
-                    minHeight = 43.dp
+                    minHeight = 48.dp
                     setOnClickListener { action() }
                 }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
             }
