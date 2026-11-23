@@ -76,10 +76,7 @@ object DiagnosticArchiveCsv {
 
     fun append(writer: Writer, cells: List<String>, untrustedText: Set<Int> = emptySet()) {
         writer.write(cells.mapIndexed { i, raw ->
-            val safe = if (i in untrustedText && raw.trimStart()
-                    .firstOrNull() in listOf('=', '+', '-', '@')
-            ) "'$raw" else raw
-            "\"" + safe.replace("\"", "\"\"") + "\""
+            CsvEscaper.cell(raw, untrusted = i in untrustedText)
         }.joinToString(","))
         writer.write("\r\n")
     }
