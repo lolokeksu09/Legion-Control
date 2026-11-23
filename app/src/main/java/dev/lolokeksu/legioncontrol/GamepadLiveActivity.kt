@@ -32,7 +32,7 @@ class GamepadLiveActivity : Activity() {
             isFocusableInTouchMode = true
         }
         root.addView(TextView(this).apply {
-            text = "LEGION CONTROL · GAMEPAD LIVE"
+            text = "GAMEPAD LIVE"
             textSize = 20f
             setTextColor(Color.WHITE)
             setTypeface(null,Typeface.BOLD)
@@ -45,7 +45,7 @@ class GamepadLiveActivity : Activity() {
         })
         eventView = TextView(this).apply {
             textSize = 16f
-            setTextColor(Color.CYAN)
+            setTextColor(LegionUiSupport.ACCENT)
             setLineSpacing(5f,1f)
             text = "Событий нет.\n" + ControllerInventory.format(ControllerInventory.connected())
             setTextIsSelectable(true)

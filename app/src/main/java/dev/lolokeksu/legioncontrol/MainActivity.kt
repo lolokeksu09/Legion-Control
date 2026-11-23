@@ -62,7 +62,7 @@ class MainActivity : ComponentActivity() {
             setBackgroundColor(Color.BLACK)
         }
         layout.addView(TextView(this).apply {
-            text = "LEGION CONTROL"
+            text = "Диагностика устройства"
             textSize = 23f
             setTextColor(Color.WHITE)
             setTypeface(typeface, Typeface.BOLD)
