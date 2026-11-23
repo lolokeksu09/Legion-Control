@@ -230,6 +230,17 @@ def main() -> None:
     click("Сервисы")
     expect(TOOLS_MARKER)
 
+    # Previously unobserved media and overlay screens: verify the real Activity
+    # launches and core labels, without invoking any MediaProjection consent.
+    click("Capture Studio")
+    stage("01a-capture-studio", "CAPTURE STUDIO")
+    expect_scrolling("INSTANT REPLAY", seconds=35)
+    capture("01b-capture-studio-replay")
+    back_until(TOOLS_MARKER)
+    click("Game Toolbox")
+    stage("01c-game-toolbox", "GAME TOOLBOX")
+    back_until(TOOLS_MARKER)
+
     click("Game Session")
     stage("02-game-session", "LEGION · GAME SESSION")
     back_until(TOOLS_MARKER)
