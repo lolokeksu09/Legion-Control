@@ -17,7 +17,7 @@ compat=(src/"AudioLabActivity.kt").read_text(encoding="utf-8")
 viewmodel=(src/"AudioLabViewModel.kt").read_text(encoding="utf-8")
 gradle=(root/"app/build.gradle.kts").read_text(encoding="utf-8")
 
-assert 'versionCode = 44' in gradle and 'versionName = "0.1.0-alpha.44"' in gradle
+assert 'versionCode = 45' in gradle and 'versionName = "0.1.0-alpha.45"' in gradle
 assert 'minSdk = 33' in gradle and 'targetSdk = 36' in gradle
 assert 'const val VERSION = 11' in schema
 assert 'newVersion != HapticLabSchema.VERSION' in store and 'oldVersion !in 1..11' in store
