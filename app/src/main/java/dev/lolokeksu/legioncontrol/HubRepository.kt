@@ -40,6 +40,7 @@ class HubRepository(context: Context) {
 
     fun read(): HubSnapshot {
         val warnings = ArrayList<String>()
+        LegionDataBackup.recoveryWarning()?.let(warnings::add)
         val tracked = runCatching {
             ApplicationCenterRepository(app).use { it.list() }
         }.getOrElse {

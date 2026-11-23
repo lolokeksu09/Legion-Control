@@ -146,6 +146,27 @@ class FullBackupInstrumentedTest {
                 assertEquals(id, requireNotNull(repo.header(sessionId)).packageName)
             }
             assertEquals("restored", prefs.getString("ci_restore_sentinel", null))
+            // Simulate interruption AFTER the SQLite transaction is committed
+            // but BEFORE any of the four SharedPreferences files are modified.
+            assertTrue(app.deleteDatabase("legion-control-history.db"))
+            assertTrue(prefs.edit().remove("ci_restore_sentinel").commit())
+            val interrupted = runCatching {
+                LegionDataBackup.restoreInterruptedForTest(app, backup) {
+                    throw IllegalStateException("SIMULATED_PROCESS_INTERRUPTION")
+                }
+            }.exceptionOrNull()
+            assertNotNull(interrupted)
+            assertEquals("SIMULATED_PROCESS_INTERRUPTION", interrupted?.message)
+            GameSessionRepository(app).use { repo ->
+                assertNotNull("SQLite committed before the fault", repo.header(sessionId))
+            }
+            assertNull("Preference replay has not yet occurred",
+                prefs.getString("ci_restore_sentinel", null))
+            assertTrue("Recovery replays committed preferences",
+                LegionDataBackup.recoverPendingRestore(app))
+            assertEquals("restored", prefs.getString("ci_restore_sentinel", null))
+            assertFalse("Recovery clears durable intent when finished",
+                LegionDataBackup.recoverPendingRestore(app))
             // A second import must reject the now populated database.
             assertTrue(runCatching {
                 LegionDataBackup.restoreOnEmptyDatabase(app, backup)
