@@ -1,0 +1,30 @@
+#!/usr/bin/env python3
+"""alpha.41 Replay correctness guard; tests run on JVM, not real game hardware."""
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+SRC = ROOT / "app/src/main/java/dev/lolokeksu/legioncontrol"
+TEST = ROOT / "app/src/test/java/dev/lolokeksu/legioncontrol"
+AUDIO = (SRC / "ReplayAudioCapture.kt").read_text()
+VIDEO = (SRC / "ReplayCaptureService.kt").read_text()
+CLOCK = (SRC / "ReplayPcmTimeline.kt").read_text()
+CLOCK_TEST = (TEST / "ReplayPcmTimelineTest.kt").read_text()
+VIDEO_TEST = (TEST / "ReplayVideoClockTest.kt").read_text()
+RELEASE = (ROOT / ".github/workflows/release-apk.yml").read_text()
+MANIFEST = (ROOT / "app/src/main/AndroidManifest.xml").read_text()
+
+assert "AudioTimestamp.TIMEBASE_MONOTONIC" in AUDIO
+assert "audio.getTimestamp(audioTimestamp" in AUDIO
+assert "ReplayPcmTimeline(48_000, 4)" in AUDIO
+assert "if (bytes > 0)" in AUDIO and "heldInputIndex = -1" in AUDIO
+assert "pcmTimeline.packetStartUs(" in AUDIO
+assert "ReplayVideoClock.offsetFromDequeue(" in VIDEO
+assert "usesAudioRecordMonotonicCaptureTimestampAndFramePosition" in CLOCK_TEST
+assert "delayedReadAndTimestampJitterDoNotCauseCumulativeDrift" in CLOCK_TEST
+assert "noPcmMeansNoCodecInputAndNoClockAdvance" in CLOCK_TEST
+assert "encoderDelayIsNotConfusedWithTimebaseOffset" in VIDEO_TEST
+assert "totalFrames * 1_000_000L / sampleRate" in CLOCK
+assert "python3 scripts/check_alpha41_replay_timestamps.py" in RELEASE
+assert "android.permission.RECORD_AUDIO" in MANIFEST
+assert "android.permission.QUERY_ALL_PACKAGES" not in MANIFEST
+print("alpha.41 Replay timeline source invariants: PASS")
