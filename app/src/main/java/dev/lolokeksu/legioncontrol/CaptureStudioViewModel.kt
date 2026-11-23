@@ -295,6 +295,17 @@ class CaptureStudioViewModel(application: Application) : AndroidViewModel(applic
         }
     }
 
+    fun showCaptureStorageUsage() {
+        worker.execute {
+            val result = runCatching {
+                CaptureStorageOverview.report(getApplication())
+            }
+            messageMutable.postValue(result.getOrElse {
+                "Не удалось прочитать место: " + (it.message ?: it.javaClass.simpleName)
+            })
+        }
+    }
+
     fun cleanStalePending() {
         worker.execute {
             val result = runCatching {
