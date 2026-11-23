@@ -67,6 +67,21 @@ class FullBackupInstrumentedTest {
         return result.toByteArray()
     }
 
+    /** Journal payloads use the exact four-file legacy preference format. */
+    private fun settingsSnapshot(sentinel: String): String {
+        val root = JSONObject()
+        for (name in listOf("legion-game-capture-profiles", "legion-capture-studio",
+                "legion-launch-profiles-v1", ToolboxPreferences.NAME)) {
+            val fields = JSONObject()
+            if (name == "legion-capture-studio") {
+                fields.put("ci_restore_sentinel", JSONObject()
+                    .put("type", "string").put("value", sentinel))
+            }
+            root.put(name, fields)
+        }
+        return root.toString()
+    }
+
     @Test fun backupCanRoundTripAndRejectsPopulatedOrTamperedTarget() {
         assertEmulatorOnly()
         val app = context()
@@ -150,6 +165,47 @@ class FullBackupInstrumentedTest {
             assertTrue(runCatching {
                 LegionDataBackup.restoreOnEmptyDatabase(app, backup)
             }.isFailure)
+
+            // Simulate process death after SQLite commit but midway through the
+            // separate SharedPreferences commits. Recovery must complete target.
+            val journal = app.getSharedPreferences(
+                "legion-backup-restore-journal", Context.MODE_PRIVATE)
+            val committedMarker = LocalHistoryStore(app).use { helper ->
+                helper.readableDatabase.rawQuery("PRAGMA application_id", null).use {
+                    assertTrue(it.moveToFirst())
+                    it.getInt(0)
+                }
+            }
+            assertTrue("Restore commit marker must be durable", committedMarker > 0)
+            assertFalse("Successful restore must clear journal",
+                journal.contains("sqlite_commit_marker"))
+            assertTrue(journal.edit()
+                .putInt("sqlite_commit_marker", committedMarker)
+                .putString("previous_settings", settingsSnapshot("old"))
+                .putString("restored_settings", settingsSnapshot("restored"))
+                .commit())
+            assertTrue(prefs.edit().putString("ci_restore_sentinel", "partial").commit())
+            assertTrue(LegionDataBackup.recoverInterruptedRestore(app))
+            assertEquals("restored", prefs.getString("ci_restore_sentinel", null))
+            assertFalse(journal.contains("sqlite_commit_marker"))
+            assertFalse(LegionDataBackup.recoverInterruptedRestore(app))
+
+            // Simulate a crash before SQLite COMMIT (different transactional
+            // marker); rollback restores previous preferences without touching DB.
+            val uncommittedMarker = if (committedMarker == Int.MAX_VALUE)
+                committedMarker - 1 else committedMarker + 1
+            assertTrue(journal.edit()
+                .putInt("sqlite_commit_marker", uncommittedMarker)
+                .putString("previous_settings", settingsSnapshot("old"))
+                .putString("restored_settings", settingsSnapshot("new"))
+                .commit())
+            assertTrue(prefs.edit().putString("ci_restore_sentinel", "partial").commit())
+            assertTrue(LegionDataBackup.recoverInterruptedRestore(app))
+            assertEquals("old", prefs.getString("ci_restore_sentinel", null))
+            assertFalse(journal.contains("sqlite_commit_marker"))
+            GameSessionRepository(app).use { repo ->
+                assertEquals(id, requireNotNull(repo.header(sessionId)).packageName)
+            }
         } finally {
             app.contentResolver.delete(backup, null, null)
             app.contentResolver.delete(tampered, null, null)
