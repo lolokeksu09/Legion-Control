@@ -27,17 +27,36 @@ sealed interface CaptureScreenshotsState {
  * Owns MediaStore library I/O across Activity recreation.
  * Does not hold, store or request a MediaProjection token. Explicit system consent remains in View.
  */
+data class ReplayConsentSettings(
+    val seconds: Int,
+    val config: CaptureConfig,
+    val playbackAudio: Boolean,
+    val selectedGame: String?
+)
+
 class CaptureStudioViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = CaptureStudioRepository(application)
     private var pendingCaptureConsent: ActiveGameCaptureSettings? = null
-    private var pendingReplayConsent: Pair<Int, CaptureConfig>? = null
+    private var pendingReplayConsent: ReplayConsentSettings? = null
+    private var pendingReplayAudioPermission: Int? = null
 
-    fun rememberReplayConsent(seconds: Int, config: CaptureConfig) {
+    fun rememberReplayAudioPermission(seconds: Int) {
         require(seconds in setOf(30, 60, 120))
-        pendingReplayConsent = seconds to config
+        pendingReplayAudioPermission = seconds
     }
 
-    fun takeReplayConsent(): Pair<Int, CaptureConfig>? =
+    fun takeReplayAudioPermission(): Int? =
+        pendingReplayAudioPermission.also { pendingReplayAudioPermission = null }
+
+    fun rememberReplayConsent(seconds: Int, selected: ActiveGameCaptureSettings) {
+        require(seconds in setOf(30, 60, 120))
+        require(!selected.profile.playbackAudio || selected.selectedGame != null)
+        pendingReplayConsent = ReplayConsentSettings(
+            seconds, selected.profile.toConfig(),
+            selected.profile.playbackAudio, selected.selectedGame)
+    }
+
+    fun takeReplayConsent(): ReplayConsentSettings? =
         pendingReplayConsent.also { pendingReplayConsent = null }
 
     fun clearReplayConsent() { pendingReplayConsent = null }
@@ -277,6 +296,7 @@ class CaptureStudioViewModel(application: Application) : AndroidViewModel(applic
     override fun onCleared() {
         pendingCaptureConsent = null
         pendingReplayConsent = null
+        pendingReplayAudioPermission = null
         currentEdit.get()?.set(true)
         revision.incrementAndGet()
         screenshotRevision.incrementAndGet()
