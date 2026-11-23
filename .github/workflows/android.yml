@@ -160,7 +160,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: success()
         with:
-          name: Legion-Control-v0.1.0-alpha.27-kotlin-rust-debug
+          name: Legion-Control-v0.1.0-alpha.40-kotlin-rust-debug
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
 
@@ -174,7 +174,7 @@ jobs:
       - name: Retrieve APK from exact Kotlin/Rust build
         uses: actions/download-artifact@v4
         with:
-          name: Legion-Control-v0.1.0-alpha.27-kotlin-rust-debug
+          name: Legion-Control-v0.1.0-alpha.40-kotlin-rust-debug
           path: smoke-apk
       - name: Enable KVM
         run: |
