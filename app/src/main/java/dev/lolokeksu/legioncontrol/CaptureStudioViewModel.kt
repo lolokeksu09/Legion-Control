@@ -254,8 +254,45 @@ class CaptureStudioViewModel(application: Application) : AndroidViewModel(applic
         }
     }
 
-data class UnusedPlaceholder { val x: Int }
-        fun cleanStalePending() {
+    data class BackupReady(val uri: android.net.Uri, val preview: LegionBackupPreview)
+    private val backupReadyMutable = MutableLiveData<BackupReady>()
+    val backupReady: LiveData<BackupReady> = backupReadyMutable
+
+    fun exportFullBackup(uri: android.net.Uri) {
+        worker.execute {
+            val result = runCatching { LegionDataBackup.export(getApplication(), uri) }
+            messageMutable.postValue(result.fold(
+                { "Архив создан: таблиц ${it.tables}, записей ${it.rows}, параметров ${it.settings}." },
+                { "Не удалось создать архив: " + (it.message ?: it.javaClass.simpleName) }
+            ))
+        }
+    }
+
+    fun inspectFullBackup(uri: android.net.Uri) {
+        worker.execute {
+            val result = runCatching { LegionDataBackup.preview(getApplication(), uri) }
+            result.onSuccess {
+                backupReadyMutable.postValue(BackupReady(uri, it))
+            }.onFailure {
+                messageMutable.postValue("Некорректный архив: " +
+                    (it.message ?: it.javaClass.simpleName))
+            }
+        }
+    }
+
+    fun restoreFullBackup(uri: android.net.Uri) {
+        worker.execute {
+            val result = runCatching {
+                LegionDataBackup.restoreOnEmptyDatabase(getApplication(), uri)
+            }
+            messageMutable.postValue(result.fold(
+                { "Восстановлено: таблиц ${it.tables}, записей ${it.rows}, параметров ${it.settings}." },
+                { "Восстановление отклонено: " + (it.message ?: it.javaClass.simpleName) }
+            ))
+        }
+    }
+
+    fun cleanStalePending() {
         worker.execute {
             val result = runCatching {
                 CapturePendingRecovery.cleanStaleOwn(getApplication())
