@@ -48,7 +48,11 @@ object LegionUiSupport {
     /** Applied once when a Navigation destination's View is created, excluding
      * the existing bespoke home tiles and bottom navigation. */
     fun styleFragmentButtons(root: View) {
-        if (root is Button) styleButtonSurface(root)
+        // Audio/Haptic/Connectivity Labs already have intentional custom
+        // GradientDrawable buttons; retain their approved appearance.
+        if (root is Button && root.background !is GradientDrawable) {
+            styleButtonSurface(root)
+        }
         if (root is ViewGroup) {
             for (index in 0 until root.childCount) styleFragmentButtons(root.getChildAt(index))
         }
