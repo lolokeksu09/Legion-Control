@@ -363,9 +363,14 @@ def main() -> None:
     stage("12c-history-to-baselines", "LEGION · SESSION BASELINES")
     expect_scrolling("минимум 3", seconds=28)
     capture("12d-baseline-insufficient-history-honest")
-    click("За последние 30 дней", scrolls=10, direction="up")
+    # Reports can be long. Return to the controls above the report and
+    # explicitly select the session package: opening Signals requires it.
+    click("Выбрать игру из локальной истории", scrolls=12, direction="up")
+    expect("История игр")
+    click("com.android.settings", scrolls=0)
+    click("За последние 30 дней", scrolls=12, direction="up")
     expect_scrolling("Окно истории: 30 дней", seconds=28)
-    click("Открыть Session Signals выбранной игры")
+    click("Открыть Session Signals выбранной игры", scrolls=12, direction="up")
     stage("12e-baselines-to-signals", "LEGION · SESSION SIGNALS")
     back_until("LEGION · SESSION BASELINES")
     back_until("ИСТОРИЯ И ДИАГНОСТИКА")
