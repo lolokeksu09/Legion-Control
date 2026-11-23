@@ -157,10 +157,16 @@ class ReplayCaptureService : Service() {
                     }
                     selectedGameUid = uid
                 }
+                if (!CaptureCoordinator.begin(CaptureMode.REPLAY)) {
+                    writeStatus("Replay отклонён: другой захват уже выполняется.")
+                    stopSelfResult(startId)
+                    return START_NOT_STICKY
+                }
                 try {
                     seconds = wanted
                     promoteToForeground()
                     begin(token, config, wanted)
+                    CaptureCoordinator.markActive(CaptureMode.REPLAY)
                 } catch (error: Exception) {
                     writeStatus("Replay не удалось запустить: " + error.javaClass.simpleName)
                     requestStop("Replay остановлен после ошибки запуска.")
@@ -366,6 +372,7 @@ class ReplayCaptureService : Service() {
                 codec = null
                 drainComplete = true
                 if (stopping.compareAndSet(false, true)) {
+                    CaptureCoordinator.markStopping(CaptureMode.REPLAY)
                     writeStatus("Replay остановлен: кодек завершил работу.")
                 }
                 finishIfReady()
@@ -414,6 +421,7 @@ class ReplayCaptureService : Service() {
 
     private fun requestStop(reason: String) {
         if (!stopping.compareAndSet(false, true)) return
+        CaptureCoordinator.markStopping(CaptureMode.REPLAY)
         handler.removeCallbacks(safetyStop)
         writeStatus(reason)
         active = false
@@ -448,6 +456,7 @@ class ReplayCaptureService : Service() {
         playbackAudio = null
         runCatching { projection?.stop() }
         stopForeground(STOP_FOREGROUND_REMOVE)
+        CaptureCoordinator.release(CaptureMode.REPLAY)
         stopSelf()
     }
 
