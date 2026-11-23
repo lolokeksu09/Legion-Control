@@ -251,23 +251,9 @@ def main() -> None:
     back_until(TOOLS_MARKER)
     click("Game Toolbox")
     stage("01c-game-toolbox", "GAME TOOLBOX")
-    expect("ИГРОВАЯ ПАНЕЛЬ")
     expect("ИГРОВАЯ ПАНЕЛЬ")  # Header owned by canonical NavigationHostActivity
     expect("Выбрать игру или приложение")
     expect("Домой")  # Persistent bottom navigation on formerly standalone screen
-    back_until(TOOLS_MARKER)
-
-    # Standalone controller and Rust diagnostic Activities now share the
-    # same header/dock, but keep their native activity-specific behavior.
-    click("Gamepad Live")
-    stage("01d-gamepad-live", "GAMEPAD LIVE")
-    expect("ПРОВЕРКА ГЕЙМПАДА")
-    expect("Домой")
-    back_until(TOOLS_MARKER)
-    click("Диагностика Kotlin + Rust", scrolls=16)
-    stage("01e-rust-diagnostics", "Диагностика устройства")
-    expect("ДИАГНОСТИКА УСТРОЙСТВА")
-    expect("Домой")
     back_until(TOOLS_MARKER)
 
     click("Game Session")
@@ -327,6 +313,14 @@ def main() -> None:
     stage("07-haptic-lab-idle", "HAPTIC LAB · ALPHA.23")
     back_until(TOOLS_MARKER)
 
+    # Controller live input keeps its Activity ownership, but the chrome
+    # should match the Hub. Visit it after Haptic Lab while scrolled nearby.
+    click("Gamepad Live")
+    stage("01d-gamepad-live", "GAMEPAD LIVE")
+    expect("ПРОВЕРКА ГЕЙМПАДА")
+    expect("Домой")
+    back_until(TOOLS_MARKER)
+
     click("Gaming Lab")
     stage("08-gaming-lab", "LEGION CONTROL · GAMING LAB")
     click("HARDWARE LAB · ещё 6 диагностик")
@@ -342,6 +336,14 @@ def main() -> None:
     back_until(TOOLS_MARKER)
     click("Experiment Lab")
     stage("12-experiment-lab", "LEGION · EXPERIMENT LAB")
+    back_until(TOOLS_MARKER)
+
+    # Rust diagnostics is at the end of Services, so open it just before
+    # switching to History rather than requiring an upward-only search.
+    click("Диагностика Kotlin + Rust", scrolls=16)
+    stage("01e-rust-diagnostics", "Диагностика устройства")
+    expect("ДИАГНОСТИКА УСТРОЙСТВА")
+    expect("Домой")
     back_until(TOOLS_MARKER)
 
     click("История")
