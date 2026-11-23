@@ -71,7 +71,7 @@ class ApplicationCenterFragment:Fragment() {
             })
         }
         title("APPLICATION CONTROL CENTER")
-        note("Legion Control alpha.21 · библиотека игр и приложений Android 13+. "+
+        note("Legion Control · библиотека игр и приложений Android 13+. "+
             "Обнаруживаются только видимые Android приложения. "+
             "Ни Root/Shizuku, ни изменения чужих разрешений не используются.")
         title("Библиотека приложений")

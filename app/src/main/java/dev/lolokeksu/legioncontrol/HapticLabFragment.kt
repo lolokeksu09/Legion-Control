@@ -93,7 +93,7 @@ class HapticLabFragment:Fragment() {
             root.addView(b,LinearLayout.LayoutParams(-1,-2).apply { bottomMargin=9.dp })
             return b
         }
-        title("HAPTIC LAB · ALPHA.23")
+        title("HAPTIC LAB")
         detail("Настоящая ручная проверка вибромотора Android, а не повторение Audio Lab "+
             "или сенсорных тестов. Все шаблоны до 1,8 секунды. "+
             "Нет повторяющихся циклов, скрытого запуска или изменения системных параметров.")

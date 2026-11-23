@@ -295,6 +295,27 @@ class CaptureStudioViewModel(application: Application) : AndroidViewModel(applic
         }
     }
 
+    /** Retry a durable recovery record without reimporting or deleting SQLite. */
+    fun retryInterruptedRestore() {
+        worker.execute {
+            val result = runCatching {
+                check(!GameSessionRecorderService.sessionActive) {
+                    "Завершите игровую сессию перед восстановлением."
+                }
+                check(CaptureCoordinator.reserveConsent(CaptureMode.MAINTENANCE)) {
+                    "Остановите захват MP4/Replay и повторите."
+                }
+                try { LegionDataBackup.recoverPendingRestore(getApplication()) }
+                finally { CaptureCoordinator.release(CaptureMode.MAINTENANCE) }
+            }
+            messageMutable.postValue(result.fold(
+                { if(it) "Прерванное восстановление настроек завершено. Перечитайте экраны." else
+                    "Нет подтверждённого незавершённого импорта SQLite: настройки не менялись." },
+                { "Не удалось завершить восстановление: " + (it.message ?: it.javaClass.simpleName) }
+            ))
+        }
+    }
+
     fun showCaptureStorageUsage() {
         worker.execute {
             val result = runCatching {

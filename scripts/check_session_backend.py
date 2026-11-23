@@ -43,8 +43,8 @@ for name in ("sampleController.resetSession()", "Intent.ACTION_SEND", "Intent.EX
              "Intent.createChooser", "AlertDialog.Builder(this)", "latestReport = null"):
     assert name in activity, name
 assert "setPositiveButton(" in activity and "setNegativeButton(" in activity
-assert "versionCode = 46" in build
-assert 'versionName = "0.1.0-alpha.46"' in build
+assert "versionCode = 47" in build
+assert 'versionName = "0.1.0-alpha.47"' in build
 for forbidden in ("WRITE_SECURE_SETTINGS", "QUERY_ALL_PACKAGES", "setprop ",
                   "pointer_speed", "moto_extend_service", "Runtime.getRuntime"):
     assert forbidden not in power + activity + controller + rust_api + native

@@ -88,7 +88,7 @@ class AudioLabFragment:Fragment() {
             root.addView(b,LinearLayout.LayoutParams(-1,-2).apply { bottomMargin=8.dp })
             return b
         }
-        title("AUDIO LAB · ALPHA.22")
+        title("AUDIO LAB")
         detail("Новый генератор оригинальных звуковых сигналов. "+
             "Для проверки каналов и маршрутизации звука. "+
             "Не измеряет громкость, задержку динамика, частотную характеристику "+
