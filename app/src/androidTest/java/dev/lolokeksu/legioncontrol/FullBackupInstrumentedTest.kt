@@ -121,7 +121,8 @@ class FullBackupInstrumentedTest {
                 val db = helper.readableDatabase
                 val nonEmpty = mutableListOf<String>()
                 db.rawQuery("SELECT name FROM sqlite_master WHERE type='table' AND " +
-                    "name NOT LIKE 'sqlite_%' ORDER BY name", null).use { tables ->
+                    "name NOT LIKE 'sqlite_%' AND name <> 'android_metadata' " +
+                    "ORDER BY name", null).use { tables ->
                     while (tables.moveToNext()) {
                         val table = tables.getString(0)
                         val safe = Regex("[A-Za-z][A-Za-z0-9_]{0,79}")
