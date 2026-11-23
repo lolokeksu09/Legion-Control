@@ -29,6 +29,19 @@ class CaptureCoordinatorTest {
         assertEquals(CapturePhase.IDLE, CaptureCoordinator.state().second)
     }
 
+    @Test fun invalidConsentCannotReleaseActiveProjection() {
+        CaptureCoordinator.release(CaptureMode.REPLAY)
+        assertTrue(CaptureCoordinator.reserveConsent(CaptureMode.REPLAY))
+        CaptureCoordinator.releasePending(CaptureMode.REPLAY)
+        assertFalse(CaptureCoordinator.busy())
+        assertTrue(CaptureCoordinator.reserveConsent(CaptureMode.REPLAY))
+        assertTrue(CaptureCoordinator.begin(CaptureMode.REPLAY))
+        CaptureCoordinator.markActive(CaptureMode.REPLAY)
+        CaptureCoordinator.releasePending(CaptureMode.REPLAY)
+        assertTrue(CaptureCoordinator.busy())
+        CaptureCoordinator.release(CaptureMode.REPLAY)
+    }
+
     @Test fun otherOwnerCannotUnlockAnActiveCapture() {
         CaptureCoordinator.release(CaptureMode.SCREENSHOT)
         assertTrue(CaptureCoordinator.reserveConsent(CaptureMode.SCREENSHOT))
