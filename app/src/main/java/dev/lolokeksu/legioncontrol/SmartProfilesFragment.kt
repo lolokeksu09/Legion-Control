@@ -70,6 +70,7 @@ class SmartProfilesFragment : Fragment() {
         })
         note("Для любых игр и приложений Android 13+. Настройки не требуют Root/Shizuku. " +
             "Запись запускается вручную; системные изменения никогда не выполняются автоматически.")
+        root.addView(LegionUiSupport.sectionLabel(requireContext(), "ПРОФИЛЬ ИГРЫ"))
         action("Выбрать установленное приложение") { chooseInstalled() }
         action("Загрузить сохранённый профиль") { loadPicker() }
         packageText=edit("Имя пакета приложения")
@@ -88,6 +89,7 @@ class SmartProfilesFragment : Fragment() {
         action("Удалить профиль (с подтверждением)") { confirmDelete() }
         note("Правила оцениваются каждые ~15 секунд только во время явно запущенной записи. " +
             "Если изменить правила в ходе записи, новые настройки применятся в следующей сессии.")
+        root.addView(LegionUiSupport.sectionLabel(requireContext(), "СВЯЗАННЫЕ ИНСТРУМЕНТЫ"))
         action("APPLICATION CENTER · библиотека, версии и права") {
             val pkg=packageNameInput()
             ModuleNavigation.open(this, ApplicationCenterActivity::class.java, Bundle().apply {
@@ -100,24 +102,29 @@ class SmartProfilesFragment : Fragment() {
                 if(SmartProfilesRepository.validatePackage(pkg)) putString("experiment_package",pkg)
             })
         }
+        root.addView(LegionUiSupport.sectionLabel(requireContext(), "АНАЛИТИКА ПРОФИЛЯ"))
         action("Сводка по выбранному приложению · 24 часа") { insights(1) }
         action("Сводка · 7 дней") { insights(7) }
         action("Сводка · 30 дней") { insights(30) }
         action("Последние предупреждения") { events() }
+        root.addView(LegionUiSupport.sectionLabel(requireContext(), "СЕТЕВАЯ ДИАГНОСТИКА"))
         action("CONNECTIVITY OBSERVATORY · подробный DNS/TCP/TLS анализ") {
             ModuleNavigation.open(this,ConnectivityLabActivity::class.java)
         }
         action("NETWORK QUALITY LAB · разовый TCP/DNS-тест") { networkProbe() }
         note("Сетевой тест запускается строго по нажатию. Не измеряет ping игрового сервера.")
+        root.addView(LegionUiSupport.sectionLabel(requireContext(), "СИСТЕМНЫЕ ВОЗМОЖНОСТИ"))
         action("Проверить возможности устройства") {
             show(SmartCompatibilityBackend.inspect(requireContext()))
         }
         action("Состояние системных переключателей") {
             show(SmartSystemControls.status(requireContext()))
         }
+        root.addView(LegionUiSupport.sectionLabel(requireContext(), "УПРАВЛЕНИЕ ГРОМКОСТЬЮ"))
         action("Громкость мультимедиа · 25%") { show(SmartSystemControls.setMediaVolume(requireContext(),25)) }
         action("Громкость мультимедиа · 75%") { show(SmartSystemControls.setMediaVolume(requireContext(),75)) }
         action("Громкость · своё значение") { setCustomVolume() }
+        root.addView(LegionUiSupport.sectionLabel(requireContext(), "РЕЖИМ «НЕ БЕСПОКОИТЬ»"))
         action("Разрешить доступ к «Не беспокоить»") {
             launchSettings(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS))
         }
@@ -127,6 +134,7 @@ class SmartProfilesFragment : Fragment() {
         action("Выключить «Не беспокоить»") {
             show(SmartSystemControls.setDoNotDisturb(requireContext(),false))
         }
+        root.addView(LegionUiSupport.sectionLabel(requireContext(), "ЭКРАН И ЯРКОСТЬ"))
         action("Разрешить изменение системных настроек") {
             launchSettings(SmartSystemControls.writeSettingsIntent(requireContext()))
         }
@@ -141,6 +149,7 @@ class SmartProfilesFragment : Fragment() {
         }
         note("Яркость/тайм-аут требуют отдельного спецдоступа WRITE_SETTINGS. " +
             "На некоторых прошивках изменение DND или системных настроек будет заблокировано.")
+        root.addView(LegionUiSupport.sectionLabel(requireContext(), "РЕЗЕРВНЫЕ КОПИИ"))
         action("Экспортировать профили и правила JSON") { createBackup() }
         action("Импортировать профили JSON (с подтверждением)") { selectBackup() }
         note("Backup включает профили и правила, не историю сессий. " +
