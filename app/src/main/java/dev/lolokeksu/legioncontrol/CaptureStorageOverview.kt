@@ -18,10 +18,12 @@ object CaptureStorageOverview {
             CaptureScreenshotLibrary.RELATIVE_DIR
         )
         fun mib(n: Long) = String.format(Locale.US, "%.1f", n / 1_048_576.0)
+        val totalBytes = if (videoBytes > Long.MAX_VALUE - imageBytes) Long.MAX_VALUE
+            else videoBytes + imageBytes
         return "Записи Legion Control (только опубликованные):\n" +
             "MP4: $videos · ${mib(videoBytes)} МиБ\n" +
             "PNG: $images · ${mib(imageBytes)} МиБ\n" +
-            "Всего: ${mib(videoBytes + imageBytes)} МиБ\n" +
+            "Всего: ${mib(totalBytes)} МиБ\n" +
             (if (videoTruncated || imageTruncated)
                 "Объём приблизительный: предел подсчёта $MAX_ITEMS на тип.\n" else "") +
             "Автоматического удаления нет. Для освобождения места удаляйте " +
