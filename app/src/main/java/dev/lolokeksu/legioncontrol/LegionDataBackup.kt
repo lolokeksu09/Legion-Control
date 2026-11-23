@@ -42,6 +42,9 @@ object LegionDataBackup {
                               val preferences: Map<String, Map<String, Any>>)
 
     fun export(context: Context, uri: Uri): LegionBackupPreview {
+        check(!GameSessionRecorderService.sessionActive) {
+            "Остановите запись игровой сессии перед созданием архива."
+        }
         check(CaptureCoordinator.reserveConsent(CaptureMode.MAINTENANCE)) {
             "Завершите MediaProjection перед резервным копированием"
         }
@@ -87,10 +90,18 @@ object LegionDataBackup {
         }
 
     fun restoreOnEmptyDatabase(context: Context, uri: Uri): LegionBackupPreview {
+        check(!GameSessionRecorderService.sessionActive) {
+            "Сначала остановите запись игровой сессии."
+        }
+        check(!context.getSharedPreferences("legion-launch-profiles-v1",
+            Context.MODE_PRIVATE).contains("pending_global_undo")) {
+            "Сначала верните системные настройки игрового профиля."
+        }
         check(CaptureCoordinator.reserveConsent(CaptureMode.MAINTENANCE)) {
             "Завершите захват и повторите восстановление"
         }
         try {
+            check(!GameSessionRecorderService.sessionActive)
             return withStaged(context, uri) { staged ->
                 val preview = inspectSQLite(context, staged.sqlite)
                     .copy(settings = countSettings(staged.preferences))
