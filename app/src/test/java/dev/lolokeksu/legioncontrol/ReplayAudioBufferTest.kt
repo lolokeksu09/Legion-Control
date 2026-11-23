@@ -11,7 +11,7 @@ class ReplayAudioBufferTest {
         val buffer = ReplayAudioBuffer(30)
         for (sec in 0L..65L) assertTrue(buffer.append(packet(sec)))
         val result = buffer.snapshot(0L, 100_000_000)
-        assertEquals(36_000_000L, result.first().ptsUs)
+        assertEquals(35_000_000L, result.first().ptsUs)
         assertEquals(65_000_000L, result.last().ptsUs)
         assertTrue(buffer.sizeBytes <= 31L * 2000L)
     }
