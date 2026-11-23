@@ -124,7 +124,7 @@ for token in ("smartEngine.evaluate(point,smartRules)","smartStorage?.logAlert("
               "checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)"):
     assert token in service,token
 assert "GameSessionRecorderService.start" not in activity
-assert "SmartProfilesFragment()" in compat
+assert "ModuleNavigation.forwardLegacyEntry(this)" in compat
 assert "state.observe(viewLifecycleOwner)" in activity
 for token in ("SmartSystemControls.setBrightness", "SmartSystemControls.setDoNotDisturb",
               "ACTION_CREATE_DOCUMENT","ACTION_OPEN_DOCUMENT",

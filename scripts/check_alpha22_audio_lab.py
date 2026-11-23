@@ -171,5 +171,5 @@ for word in ("backend.stop()", "backend.play(type,which,hz,length)", "AudioLabRe
              "AudioRouteMonitor(", "onCleared()", "LiveData"):
     assert word in viewmodel,word
 assert "startForegroundService" not in activity and "MediaRecorder" not in activity
-assert "AudioLabFragment()" in compat and "state.observe(viewLifecycleOwner)" in activity
+assert "ModuleNavigation.forwardLegacyEntry(this)" in compat and "state.observe(viewLifecycleOwner)" in activity
 print("PASS alpha22: executable SQLite v10→v11 preserves legacy, FK/cascade, all PCM and permission contracts")

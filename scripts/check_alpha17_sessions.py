@@ -132,7 +132,7 @@ for term in ("fun writeCsv(","fun exportZip(","fun recent(","fun points(","fun e
     assert term in repository,term
 assert "warnings(s)" in analysis
 assert "GameSessionActivity::class.java" in (src/"MainActivity.kt").read_text(encoding="utf-8")
-assert "GameSessionFragment()" in activity and "state.observe(viewLifecycleOwner)" in fragment
+assert "ModuleNavigation.forwardLegacyEntry(this)" in activity and "state.observe(viewLifecycleOwner)" in fragment
 # The same package-name validator must handle both typed packages and navigation
 # extras; a separately escaped regex silently discards Smart Profiles selection.
 assert "packagePattern.matches(pkg)" in fragment

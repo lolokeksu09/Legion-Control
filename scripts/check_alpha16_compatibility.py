@@ -48,7 +48,7 @@ assert "task?.cancel(true)" in viewmodel and "executor.shutdownNow()" in viewmod
 assert "generation.incrementAndGet()" in viewmodel
 assert "ViewModelProvider(this)[CompatibilityLabViewModel::class.java]" in activity
 assert "report.observe(viewLifecycleOwner)" in activity
-assert "CompatibilityLabFragment()" in compatActivity
+assert "ModuleNavigation.forwardLegacyEntry(this)" in compatActivity
 assert "display.supportedModes" in compat
 assert "hdrCapabilities.supportedHdrTypes" in compat
 assert "display.isWideColorGamut" in compat

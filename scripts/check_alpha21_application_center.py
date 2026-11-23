@@ -157,7 +157,7 @@ for phrase in ("ACTION_CREATE_DOCUMENT","fun scanAll(","fun scanOne(","fun inspe
                "fun chooseTracked(","fun usage(","fun confirmRemove()"):
     assert phrase in activity,phrase
 assert "startForegroundService" not in activity
-assert "ApplicationCenterFragment()" in compat
+assert "ModuleNavigation.forwardLegacyEntry(this)" in compat
 assert "state.observe(viewLifecycleOwner)" in activity
 assert "ViewModelProvider(this)[ApplicationCenterViewModel::class.java]" in activity
 for term in ("ApplicationInventory.inspect(", "ApplicationCenterRepository(getApplication<Application>())",

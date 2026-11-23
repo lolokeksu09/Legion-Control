@@ -167,6 +167,6 @@ for phrase in ("Future<*>", "ConnectivityProbe.capture(", "ConnectivityRepositor
                "fun cancelTest()", "onCleared()", "LiveData"):
     assert phrase in viewmodel,phrase
 assert "startForegroundService" not in ui
-assert "ConnectivityLabFragment()" in compat and "state.observe(viewLifecycleOwner)" in ui
+assert "ModuleNavigation.forwardLegacyEntry(this)" in compat and "state.observe(viewLifecycleOwner)" in ui
 assert "startActivityForResult" in ui
 print("PASS: real SQLite v8→v9 migration preserves all historic tables, FK, constraints, privacy and diagnosis contracts")

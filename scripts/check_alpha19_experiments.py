@@ -135,7 +135,7 @@ for term in ("Intent.ACTION_CREATE_DOCUMENT","fun confirmDelete()",
              "ViewModelProvider(this)"):
     assert term in activity,term
 assert "ExperimentRepository(applicationContext)" not in activity
-assert "ExperimentLabFragment()" in compat and "state.observe(viewLifecycleOwner)" in activity
+assert "ModuleNavigation.forwardLegacyEntry(this)" in compat and "state.observe(viewLifecycleOwner)" in activity
 for term in ("ExperimentRepository(getApplication<Application>())","fun selectSession(",
              "fun createExperiment(", "fun assign(", "fun exportCsv(", "onCleared()",
              "ExperimentAnalytics.formatComparison(", "it.annotate("):
