@@ -34,6 +34,7 @@ class CaptureStudioActivity : ComponentActivity() {
         private const val REQUEST_EXPORT_GAME_PROFILES = 25004
         private const val REQUEST_IMPORT_GAME_PROFILES = 25005
         private const val REQUEST_REPLAY = 25006
+        private const val REQUEST_REPLAY_AUDIO_PERMISSION = 25007
     }
 
     private val viewModel by lazy { ViewModelProvider(this)[CaptureStudioViewModel::class.java] }
@@ -167,7 +168,8 @@ class CaptureStudioActivity : ComponentActivity() {
         heading("INSTANT REPLAY")
         note("Сохраняет последние 30/60/120 секунд игры без остановки захвата. " +
             "Работает только после разового системного согласия Android. " +
-            "Этот этап Replay записывает видео H.264 БЕЗ ЗВУКА. " +
+            "Внутренний звук выбранной игры записывается при согласии Android и " +
+            "если игра допускает AudioPlaybackCapture; иначе сохраняется видео без звука. " +
             "Сохраняется только реально накопленный фрагмент.")
         action("ЗАПУСТИТЬ REPLAY-БУФЕР") {
             AlertDialog.Builder(this)
@@ -325,10 +327,21 @@ class CaptureStudioActivity : ComponentActivity() {
             status.text = "Другой захват уже работает. Сначала остановите его."
             return
         }
+        val snapshot = viewModel.captureSettings()
+        if (snapshot.profile.playbackAudio && snapshot.selectedGame == null) {
+            status.text = "Для Replay со звуком сначала выберите игру в Game Toolbox."
+            return
+        }
+        if (snapshot.profile.playbackAudio &&
+            checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            viewModel.rememberReplayAudioPermission(wantedSeconds)
+            requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO),
+                REQUEST_REPLAY_AUDIO_PERMISSION)
+            return
+        }
         runCatching {
-            val snapshot = viewModel.captureSettings()
-            // Reuse the selected game's H.264 quality profile; no new user-visible permission.
-            viewModel.rememberReplayConsent(wantedSeconds, snapshot.profile.toConfig())
+            // Freeze game package, sound flag and quality before fresh Android consent.
+            viewModel.rememberReplayConsent(wantedSeconds, snapshot)
             val manager = getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
             startActivityForResult(manager.createScreenCaptureIntent(), REQUEST_REPLAY)
         }.onFailure {
@@ -354,6 +367,16 @@ class CaptureStudioActivity : ComponentActivity() {
         requestCode: Int, permissions: Array<out String>, grantResults: IntArray
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == REQUEST_REPLAY_AUDIO_PERMISSION) {
+            val seconds = viewModel.takeReplayAudioPermission()
+            if (seconds != null && grantResults.isNotEmpty() &&
+                grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                askReplayConsent(seconds)
+            } else {
+                status.text = "Нет разрешения на звук игры. Отключите звук в профиле или выдайте разрешение."
+            }
+            return
+        }
         if (requestCode != REQUEST_PLAYBACK_PERMISSION) return
         if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
             askConsent()
@@ -407,7 +430,12 @@ class CaptureStudioActivity : ComponentActivity() {
                 status.text = "Replay не запущен: согласие Android или параметры не получены."
                 return
             }
-            val (seconds, config) = replay
+            val config = replay.config
+            if (replay.playbackAudio &&
+                checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                status.text = "Разрешение RECORD_AUDIO отозвано. Replay не запущен."
+                return
+            }
             if (ReplayCaptureService.active || CaptureRecordingService.recording ||
                 CaptureScreenshotService.active) {
                 status.text = "Другой захват уже выполняется."
@@ -417,7 +445,10 @@ class CaptureStudioActivity : ComponentActivity() {
                 action = ReplayCaptureService.ACTION_START
                 putExtra(ReplayCaptureService.EXTRA_RESULT, resultCode)
                 putExtra(ReplayCaptureService.EXTRA_CONSENT, data)
-                putExtra(ReplayCaptureService.EXTRA_SECONDS, seconds)
+                putExtra(ReplayCaptureService.EXTRA_SECONDS, replay.seconds)
+                putExtra(ReplayCaptureService.EXTRA_PLAYBACK_AUDIO, replay.playbackAudio)
+                if (replay.playbackAudio && replay.selectedGame != null)
+                    putExtra(ReplayCaptureService.EXTRA_AUDIO_GAME, replay.selectedGame)
                 putExtra(ReplayCaptureService.EXTRA_EDGE, config.maxEdge)
                 putExtra(ReplayCaptureService.EXTRA_FPS, config.fps)
                 putExtra(ReplayCaptureService.EXTRA_MBIT,
