@@ -6,6 +6,14 @@ This repository's **public** release certificate SHA-256 fingerprint:
 
 Alias: `legion-control-release`. Keystore: PKCS12, RSA 4096-bit, generated 2026-11-21 and valid through 2059-09-29. The certificate fingerprint is public; **private key and passwords are never committed or printed in CI logs**.
 
+## alpha.41 release identity
+
+Текущая версия: `versionCode=41`, `versionName=0.1.0-alpha.41`. Тот же
+`applicationId` и неизменный релизный сертификат. GitHub prerelease
+`v0.1.0-alpha.41` может публиковаться только после зелёного Android CI
+на точном коммите `main` и успешной проверки постоянной подписи.
+Обновление устанавливать поверх существующего приложения без удаления.
+
 ## alpha.40 release identity
 
 Current tested source candidate uses `applicationId=dev.lolokeksu.legioncontrol`,
@@ -23,7 +31,7 @@ an APK signed with the disposable PR CI certificate as a user upgrade.
    - `LEGION_RELEASE_KEY_ALIAS`: `legion-control-release`.
    - `LEGION_RELEASE_KEY_PASSWORD`: key password (PKCS12 uses same password).
 3. After all four are saved, use `Actions → Legion Control permanently signed APK → Run workflow` **on main**. GitHub Actions restores the keystore to runner temporary storage, builds both Rust JNI targets and Android release APK, then calls `apksigner verify`, checking the pinned public certificate hash.
-4. Download the resulting `Legion-Control-v0.1.0-alpha.40-permanent-release-apk` workflow artifact. Only distribute it after checking device installation and the real functionality; do not replace it with a debug APK in a public release.
+4. Download the resulting `Legion-Control-v0.1.0-alpha.41-permanent-release-apk` workflow artifact. Only distribute it after checking device installation and the real functionality; do not replace it with a debug APK in a public release.
 
 **No release runs on pull requests.** Signed releases run for trusted `main` source pushes and may also be triggered manually on `main`. Ordinary Android pull request CI can build a debug APK with no secrets. If release secrets are not configured, the release workflow fails clearly; `:app:assembleRelease` itself refuses to run unsigned.
 

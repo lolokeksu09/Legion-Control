@@ -23,7 +23,7 @@ sample_controller = (src/"RustSampleController.kt").read_text()
 store = (src/"LocalHistoryStore.kt").read_text()
 rust = (root/"rust-core/src/lib.rs").read_text()
 
-assert 'versionCode = 40' in gradle and 'versionName = "0.1.0-alpha.40"' in gradle
+assert 'versionCode = 41' in gradle and 'versionName = "0.1.0-alpha.41"' in gradle
 assert 'applicationId = "dev.lolokeksu.legioncontrol"' in gradle
 assert 'androidx.navigation:navigation-fragment:2.10.2' in gradle
 assert 'androidx.lifecycle:lifecycle-viewmodel:2.11.1' in gradle

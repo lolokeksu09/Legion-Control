@@ -7,6 +7,7 @@ import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioPlaybackCaptureConfiguration
 import android.media.AudioRecord
+import android.media.AudioTimestamp
 import android.media.MediaCodec
 import android.media.MediaCodecInfo
 import android.media.MediaFormat
@@ -122,6 +123,9 @@ class ReplayAudioCapture(
         var eosQueued = false
         var eosSeen = false
         var previousPts = -1L
+        val pcmTimeline = ReplayPcmTimeline(48_000, 4)
+        val audioTimestamp = AudioTimestamp()
+        var heldInputIndex = -1
         val info = MediaCodec.BufferInfo()
         var deadline = Long.MAX_VALUE
         try {
@@ -131,8 +135,9 @@ class ReplayAudioCapture(
                 }
                 if (System.nanoTime() >= deadline) break
                 if (!eosQueued) {
-                    val inputIndex = aac.dequeueInputBuffer(5_000L)
-                    if (inputIndex >= 0) {
+                    if (heldInputIndex < 0) heldInputIndex = aac.dequeueInputBuffer(5_000L)
+                    if (heldInputIndex >= 0) {
+                        val inputIndex = heldInputIndex
                         val data = requireNotNull(aac.getInputBuffer(inputIndex))
                         data.clear()
                         if (!running.get()) {
@@ -140,20 +145,32 @@ class ReplayAudioCapture(
                             aac.queueInputBuffer(inputIndex, 0, 0, pts,
                                 MediaCodec.BUFFER_FLAG_END_OF_STREAM)
                             eosQueued = true
+                            heldInputIndex = -1
                         } else {
                             val n = minOf(data.remaining(), 8192)
                             val available = n - n % 4
                             val bytes = audio.read(data, available,
                                 AudioRecord.READ_NON_BLOCKING)
                             if (bytes < 0) error("AudioRecord read returned $bytes")
-                            val accepted = if (bytes > 0 && bytes % 4 == 0) bytes else 0
-                            // Timestamp of the current PCM chunk on the nanoTime clock.
-                            // Up to one read/encoder buffer of sync uncertainty.
-                            val durationUs = accepted.toLong() * 1_000_000L / (4L * 48_000)
-                            val nowUs = System.nanoTime() / 1000L
-                            val pts = maxOf(previousPts + 1, nowUs - durationUs)
-                            previousPts = pts
-                            aac.queueInputBuffer(inputIndex, 0, accepted, pts, 0)
+                            if (bytes > 0) {
+                                // getTimestamp uses the *capture* frame position and
+                                // CLOCK_MONOTONIC, not the (jittery) time read() finished.
+                                val sample = if (audio.getTimestamp(audioTimestamp,
+                                        AudioTimestamp.TIMEBASE_MONOTONIC) ==
+                                    AudioRecord.SUCCESS) {
+                                    ReplayFrameClock(audioTimestamp.framePosition,
+                                        audioTimestamp.nanoTime)
+                                } else null
+                                val pts = requireNotNull(pcmTimeline.packetStartUs(
+                                    bytes, System.nanoTime(), sample))
+                                check(pts > previousPts)
+                                previousPts = pts
+                                aac.queueInputBuffer(inputIndex, 0, bytes, pts, 0)
+                                heldInputIndex = -1
+                            }
+                            // On READ_NON_BLOCKING returning zero, keep this codec
+                            // input index; an empty buffer with a fake PTS would
+                            // advance AAC time without any audio samples.
                         }
                     }
                 }

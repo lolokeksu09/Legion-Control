@@ -11,6 +11,8 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.fragment.app.Fragment
+import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.NavController
@@ -41,6 +43,21 @@ class NavigationHostActivity : FragmentActivity() {
         window.statusBarColor = Color.BLACK
         window.navigationBarColor = Color.BLACK
         window.decorView.systemUiVisibility = 0
+
+        // Style only the newly created destination hierarchy, without changing
+        // the home tiles, navigation icons, focus handling, or any child layout.
+        supportFragmentManager.registerFragmentLifecycleCallbacks(
+            object : FragmentManager.FragmentLifecycleCallbacks() {
+                override fun onFragmentViewCreated(
+                    fm: FragmentManager, fragment: Fragment,
+                    view: View, savedInstanceState: Bundle?
+                ) {
+                    if (fragment !is HubPageFragment) {
+                        LegionUiSupport.styleFragmentButtons(view)
+                    }
+                }
+            }, true
+        )
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL

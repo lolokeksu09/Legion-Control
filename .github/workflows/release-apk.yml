@@ -12,7 +12,8 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
+  actions: read
 
 jobs:
   signed-release:
@@ -81,6 +82,7 @@ jobs:
           python3 scripts/check_alpha38_game_capture_profiles.py
           python3 scripts/check_alpha39_replay.py
           python3 scripts/check_alpha40_audit_remediation.py
+          python3 scripts/check_alpha41_replay_timestamps.py
       - name: Test local CSV and Russian plural formatting before release
         run: gradle --no-daemon testDebugUnitTest
       - name: Test and build real Rust native libraries
@@ -108,6 +110,55 @@ jobs:
           python3 scripts/verify_release_apk.py app/build/outputs/apk/release/app-release.apk "$ANDROID_HOME/build-tools/36.0.0/apksigner"
       - uses: actions/upload-artifact@v4
         with:
-          name: Legion-Control-v0.1.0-alpha.40-permanent-release-apk
+          name: Legion-Control-v0.1.0-alpha.41-permanent-release-apk
           path: app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
+      - name: Wait for exact main commit Android CI before publication
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          verified=0
+          for attempt in $(seq 1 120); do
+            result=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow android.yml \
+              --commit "$GITHUB_SHA" --limit 10 --json headSha,status,conclusion)
+            if jq -e --arg sha "$GITHUB_SHA" \
+                 '[.[] | select(.headSha == $sha and .status == "completed" and .conclusion == "success")] | length > 0' \
+                 <<< "$result" >/dev/null; then
+              verified=1
+              break
+            fi
+            if jq -e --arg sha "$GITHUB_SHA" \
+                 '[.[] | select(.headSha == $sha and .status == "completed" and .conclusion == "failure")] | length > 0' \
+                 <<< "$result" >/dev/null; then
+              echo '::error::Android CI failed for signed commit; refusing to publish'
+              exit 1
+            fi
+            sleep 10
+          done
+          if [ "$verified" -ne 1 ]; then
+            echo '::error::Exact-commit emulator CI did not finish successfully'
+            exit 1
+          fi
+      - name: Publish pre-release with permanent certificate
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag=v0.1.0-alpha.41
+          apk=app/build/outputs/apk/release/app-release.apk
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::notice::Release $tag already exists; refusing to replace binaries"
+            exit 0
+          fi
+          test -s "$apk"
+          asset=Legion-Control-v0.1.0-alpha.41-signed.apk
+          cp "$apk" "$asset"
+          gh release create "$tag" "$asset" --repo "$GITHUB_REPOSITORY" \
+            --title 'Legion Control v0.1.0-alpha.41' \
+            --notes-file docs/ALPHA41-RELEASE-NOTES.md \
+            --prerelease --target "$GITHUB_SHA"

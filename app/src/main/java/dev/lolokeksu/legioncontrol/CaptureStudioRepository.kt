@@ -120,9 +120,9 @@ class CaptureStudioRepository(context: Context) {
         val last = prefs.getString(CaptureRecordingService.LAST_RESULT,
             "Клипов ещё нет. Для первой записи нажмите «Начать» и подтвердите запрос Android.")
         val header = when {
-            running && CaptureRecordingService.paused -> "ЗАПИСЬ НА ПАУЗЕ\\n"
-            running -> "ЗАПИСЬ АКТИВНА\\n"
-            else -> "Запись не активна\\n"
+            running && CaptureRecordingService.paused -> "ЗАПИСЬ НА ПАУЗЕ\n"
+            running -> "ЗАПИСЬ АКТИВНА\n"
+            else -> "Запись не активна\n"
         }
         return header + last
     }

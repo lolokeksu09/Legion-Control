@@ -75,8 +75,8 @@ assert "frameCapture?.stop(false)" in viewmodel
 assert "ViewModelProvider(this)[GamingDiagnosticsViewModel::class.java]" in activity
 assert 'android:exported="false"' in (root / "app/src/main/AndroidManifest.xml").read_text()
 assert "SQLiteOpenHelper" in store and "HapticLabSchema.VERSION" in store
-assert 'versionCode = 40' in gradle
-assert 'versionName = "0.1.0-alpha.40"' in gradle
+assert 'versionCode = 41' in gradle
+assert 'versionName = "0.1.0-alpha.41"' in gradle
 
 # The actual repo session query must be runnable with escaped bind values,
 # not interpolated into a SQL string.

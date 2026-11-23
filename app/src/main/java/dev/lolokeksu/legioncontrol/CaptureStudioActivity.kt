@@ -48,6 +48,9 @@ class CaptureStudioActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.statusBarColor = Color.BLACK
+        window.navigationBarColor = Color.BLACK
+        window.decorView.systemUiVisibility = 0
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(20.dp, 34.dp, 20.dp, 32.dp)
@@ -338,15 +341,15 @@ class CaptureStudioActivity : ComponentActivity() {
         val config = viewModel.config()
         val active = viewModel.captureSettings()
         choices.text = (if (active.usingGameProfile)
-                "Профиль игры: ${active.selectedGame}\\n"
+                "Профиль игры: ${active.selectedGame}\n"
             else if (active.selectedGame != null)
-                "Общие настройки (для ${active.selectedGame} профиль не сохранён)\\n"
-            else "Общие настройки · игра не выбрана\\n") +
-            "Сторона до ${config.maxEdge} px · ${config.fps} FPS запрошено\\n" +
+                "Общие настройки (для ${active.selectedGame} профиль не сохранён)\n"
+            else "Общие настройки · игра не выбрана\n") +
+            "Сторона до ${config.maxEdge} px · ${config.fps} FPS запрошено\n" +
             "${config.videoBitrate / 1_000_000} Мбит/с · " +
-            "${config.maxDurationMs / 60_000} мин максимум\\n" +
+            "${config.maxDurationMs / 60_000} мин максимум\n" +
             (if (viewModel.playbackAudioEnabled())
-                "Внутренний звук: ЗАПРОШЕН (AAC)\\nИгра: " +
+                "Внутренний звук: ЗАПРОШЕН (AAC)\nИгра: " +
                     (selectedAudioGame() ?: "НЕ ВЫБРАНА — сначала Game Toolbox")
              else "Внутренний звук: ВЫКЛЮЧЕН")
     }
