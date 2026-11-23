@@ -1,6 +1,6 @@
 # Legion Control — unified AMOLED frontend audit
 
-Source audit of the alpha.42 branch against the approved Home / Games screenshots
+Source audit of the alpha.42 baseline and alpha.43 frontend branch against the approved Home / Games screenshots
 (23 November 2026). The screenshots are a reference, not proof that every module
 was visually inspected on a phone.
 
