@@ -239,23 +239,23 @@ def main() -> None:
     expect("Готов к запуску")
     capture("01-hub-launch")
 
-    # Alpha.44 visual gate must run before recorder/backend smoke. The previous
-    # run failed on a different test before it reached legacy Gaming Lab.
-    # Capture the two exact legacy routes that previously showed gray Buttons.
-    for activity, heading, section, capture_name in (
-        ("GamingDiagnosticsActivity", "LEGION CONTROL · GAMING LAB",
-         "ПРОВЕРКИ УСТРОЙСТВА", "00-alpha44-legacy-gaming-lab"),
-        ("GameSessionActivity", "LEGION · GAME SESSION",
-         "ПОДГОТОВКА", "00-alpha44-legacy-game-session"),
-    ):
-        adb("shell", "am", "start", "-W", "-n",
-            PACKAGE + "/." + activity, timeout=60)
-        stage(capture_name, heading)
-        expect(section)
-        expect("Домой")  # Hub bottom navigation present, no standalone facade
-
-    # Exercise the real bottom tab after legacy Intent forwarding, then
-    # continue the existing long session/SQLite smoke unchanged.
+    # Alpha.44: capture both affected pages before any long recorder backend
+    # smoke. Their Activity facades are intentionally non-exported, so ADB
+    # shell must NOT launch them directly. Use the actual user-visible Hub.
+    click("Сервисы")
+    expect(TOOLS_MARKER)
+    click("Gaming Lab", scrolls=16)
+    expect("LEGION CONTROL · GAMING LAB")
+    expect("ПРОВЕРКИ УСТРОЙСТВА")
+    expect("Домой")
+    stage("00-alpha44-gaming-lab", "LEGION CONTROL · GAMING LAB")
+    back_until(TOOLS_MARKER)
+    click("Game Session", scrolls=16, direction="up")
+    expect("LEGION · GAME SESSION")
+    expect("ПОДГОТОВКА")
+    expect("Домой")
+    stage("00-alpha44-game-session", "LEGION · GAME SESSION")
+    back_until(TOOLS_MARKER)
     click("Домой", scrolls=0, exact_only=True)
     expect("Готов к запуску")
     click("Игры")
@@ -405,21 +405,17 @@ def main() -> None:
     back_until(SETTINGS_MARKER)
     click("Домой")
     stage("14-return-home", "Готов к запуску")
-    # Legacy entry is exercised from Tools so Back returns to the same
-    # expected parent and does not depend on the previous Home selection.
+    # Repeat UI traversal after the entire smoke to catch navigation and theme
+    # regressions, without exporting previously private legacy Activities.
     click("Сервисы")
     expect(TOOLS_MARKER)
-    # Explicit legacy entry points must show the SAME styled NavHost module,
-    # including header, dark action controls and five-tab navigation.
-    adb("shell", "am", "start", "-W", "-n",
-        PACKAGE + "/.GamingDiagnosticsActivity", timeout=60)
-    stage("15-legacy-gaming-entry", "LEGION CONTROL · GAMING LAB")
+    click("Gaming Lab", scrolls=16)
+    stage("15-gaming-after-smoke", "LEGION CONTROL · GAMING LAB")
     expect("ИГРОВАЯ ДИАГНОСТИКА")
     expect("Домой")
     back_until(TOOLS_MARKER)
-    adb("shell", "am", "start", "-W", "-n",
-        PACKAGE + "/.GameSessionActivity", timeout=60)
-    stage("16-legacy-session-entry", "LEGION · GAME SESSION")
+    click("Game Session", scrolls=16, direction="up")
+    stage("16-session-after-smoke", "LEGION · GAME SESSION")
     expect("ЗАПИСЬ ИГРОВОЙ СЕССИИ")
     expect("Домой")
     back_until(TOOLS_MARKER)
