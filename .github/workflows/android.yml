@@ -120,7 +120,7 @@ jobs:
       - name: Test and compile real Rust backend for Android
         run: bash scripts/build-native.sh
       - name: Build Kotlin Android APK with native Rust library
-        run: gradle --no-daemon assembleDebug assembleDebugAndroidTest lintDebug
+        run: gradle --no-daemon assembleDebug lintDebug assembleDebugAndroidTest
       - name: Validate Kotlin APK contains both Rust JNI libraries
         run: python3 scripts/verify_apk.py app/build/outputs/apk/debug/app-debug.apk
       - name: Reject unsigned release attempt when secrets are absent
