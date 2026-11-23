@@ -1,34 +1,32 @@
-# alpha.39 — Legion Replay Engine (video-only vertical slice)
+# alpha.39 — Legion Replay Engine, opt-in video + game playback AAC
 
 ## User workflow
 
-1. Choose a game in Game Toolbox and, optionally, set its recording quality in Capture Studio. Replay reuses alpha.38 per-game profiles: 1280/1920 long edge, requested 30/60 FPS and 4/8/12 Mbps.
-2. In Capture Studio choose START REPLAY and a 30/60/120 second window. Android requests a fresh MediaProjection consent for this single session.
-3. Leave the user-visible foreground service running while playing. The app retains a bounded window of already encoded H.264 frames in private process memory.
-4. Tap REPLAY SAVE in Game Toolbox, the foreground notification or Capture Studio. The service freezes its compressed frame snapshot and writes a separate MP4 under Movies/LegionControl/ without stopping capture.
-5. Stop from the notification or app. Unsaved frames are discarded. No projection consent is persisted.
+1. Select an installed game in Game Toolbox and configure its recording profile in Capture Studio. Resolution is 1280/1920 on the longer edge, video is requested at 30/60 FPS with 4/8/12 Mbps. Playback sound is separately opt-in. The operating system and game determine actual capture support.
+2. In Capture Studio select Start Replay and a 30/60/120 second retention window. Android requests a fresh MediaProjection consent for every session and, if opted into sound, RECORD_AUDIO. The application does not capture a microphone.
+3. Play with the foreground replay session running. The H.264 video packets are retained in a bounded 80 MiB in-memory ring and, when permitted, AAC packets from the selected game's UID in a separate 8 MiB audio ring.
+4. Save a recent clip by pressing Replay Save in Game Toolbox, notification or Capture Studio. Frozen encoded video and audio snapshots are muxed to a new app-owned MP4 in Movies/LegionControl/. Capture continues. An AAC failure triggers a new video-only export instead.
+5. Stop manually. Unsaved buffers are dropped. No Android consent token is persisted.
 
-## Components
+## Implementation
 
-- ReplayCaptureService: one MediaProjection and one VirtualDisplay per explicit session, one H.264 MediaCodec input surface, separate encoder drain and export threads.
-- ReplayFrameBuffer: strict PTS validation, keyframe-safe eviction and 80 MiB hard memory cap. Window duration is an upper bound, not a guaranteed length.
-- ReplayExporter: writes encoded snapshots to independent MP4 using MediaMuxer; pending MediaStore entries are deleted on any failed export.
-- Existing CaptureClipLibrary and Clip Workshop automatically see completed MP4 replays.
-- Recording, Screenshot and Replay modes guard against concurrent launch.
-- No new permissions, Root, Shizuku, SQLite migrations, JNI ABI changes, hidden OEM APIs, network calls or microphone capture.
+- ReplayCaptureService: user-started foreground MediaProjection service, exactly one VirtualDisplay and H.264 surface MediaCodec instance per session. Handles permission revocation, memory/thermal safety and user stop.
+- ReplayFrameBuffer: validates nonempty H.264 access units, keyframe-safe eviction, strictly ascending PTS, 30/60/120 second window and 80 MiB cap.
+- ReplayAudioCapture: optional AudioPlaybackCaptureConfiguration restricted to the selected currently launchable app's UID and USAGE_GAME/USAGE_MEDIA; AAC encoder and bounded packet ring. Source is playback audio, never MediaRecorder microphone.
+- ReplayAudioBuffer/ReplayAudioTimeline: 8 MiB max; audio PTS uses System.nanoTime near PCM read and is mapped to encoder video timestamps using a measured delta at the first video output. Alignment is approximate; it does not claim sample-accurate synchronization.
+- ReplayExporter: MediaMuxer app-owned MP4 with monotonic video/audio track timestamps. A failed mux deletes its pending MediaStore entry. Existing videos and screenshots are not touched. Prior Capture Studio still records separately.
+- Game Toolbox has explicit Replay Save and settings controls; existing capture modes are mutually exclusive.
+- No new manifest permissions, Root, Shizuku, Usage Access collection, hidden OEM APIs, SQLite migration, Rust/JNI ABI change or automatic recording at boot.
 
-## Explicit limitations
+## Limits and correctness
 
-- Audio is NOT yet implemented in Replay. Existing normal MP4 recording with game audio remains supported. Replaying audio requires synchronized bounded AAC packet buffering and a transactional two-track exporter; the existing alpha.36 audio recorder cannot be safely reused as a rolling audio track without a redesign.
-- Requested 60 FPS is not in-game FPS, and recording can affect game performance.
-- Encoder keyframe cadence and memory cap can shorten the actually saved tail. The status reports actual clip duration. At 12 Mbps a 120s window may be shortened by the hard cap; use 1280/30/4 Mbps for a longer retention window.
-- Screen rotation and restricted/DRM content depend on Android MediaProjection; no privileges are bypassed.
-- Source versionCode remains pinned to 27 pending a separate coordinated release bump. CI or emulator startup is not physical Legion Y70 capture verification.
+Audio capture is optional. Some games forbid Android AudioPlaybackCapture, or play silence after filtering. For those cases the MP4 contains video only; the microphone is never used as a fallback. The interface reports whether an AAC track was included, not whether its samples were audible. The game's audio policy and real synchronization require physical verification.
+Video frame rate is requested, not measured game FPS. The buffer length is a maximum, not a guaranteed exact interval. An H.264 I-frame boundary and byte cap may shorten a clip. 120 seconds at 12 Mbps may exceed the 80 MiB cap; use 1280/30/4 Mbps initially. The encoder pipeline consumes CPU/GPU and battery resources and may impact the game. Protected screen content and rotation depend on Android.
+The service has an explicit 60 minute lifetime limit, monitors Android severe thermal and memory pressure, and does not resume itself after process death.
+The source versionCode remains pinned at 27 pending coordinated release publication. No physical Legion Y70 validation is implied by emulator startup or static CI.
 
-## Acceptance checks
+## Verification
 
-- JVM unit tests must exercise keyframe starts, PTS validation, memory and time eviction, stable frozen snapshots and reset.
-- Existing Kotlin/Android Gradle, Rust native and signing checks remain. GitHub Actions executes the alpha.39 source wiring guard.
-- On Lenovo Legion Y70: verify fresh consent and denial, start, 3+ minutes continuous capture, save multiple playable MP4 clips without interrupting capture, Game Toolbox save, other-capture exclusion, revoke/stop, process death, low memory and free storage, encoder refusal, physical 30/60 FPS performance and device heat.
-
-No silent recording, no boot receiver and no claim of CPU/GPU or in-game FPS improvements.
+- JVM: H.264 keyframe/PTS/window/memory rules, AAC bound/window/invalid PTS and snapshot persistence.
+- CI: Kotlin/Android compile, Rust native tests, all existing SQLite/permission/MediaProjection regression guards and alpha.39 integration guard.
+- Physical device acceptance: deny and grant MediaProjection, deny RECORD_AUDIO and retry, 3+ min running session, 30/60/120 clips, save twice while capture remains active, verify playable MP4 audio/video in a real game, verify sound silence fallback, user switching game while consent shown, DND/app overlays, other-capture exclusion, stop/revoke, process death and low-storage failure. Measure codec performance, thermal load and audio/video drift on Legion Y70 with Motorola firmware.

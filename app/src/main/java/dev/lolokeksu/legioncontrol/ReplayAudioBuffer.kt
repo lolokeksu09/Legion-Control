@@ -59,8 +59,8 @@ object ReplayAudioTimeline {
     fun videoPts(audioClockUs: Long, offsetUs: Long): Long? {
         if (audioClockUs < 0 || offsetUs < -10_000_000_000_000L ||
             offsetUs > 10_000_000_000_000L) return null
-        val shifted = audioClockUs + offsetUs
-        return shifted.takeIf { it >= 0 && ((offsetUs >= 0 && shifted >= audioClockUs) ||
-            (offsetUs < 0 && shifted <= audioClockUs)) }
+        val shifted = runCatching { Math.addExact(audioClockUs, offsetUs) }
+            .getOrNull() ?: return null
+        return shifted.takeIf { it >= 0 }
     }
 }
