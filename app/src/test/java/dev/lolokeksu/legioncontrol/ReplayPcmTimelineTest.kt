@@ -30,7 +30,8 @@ class ReplayPcmTimelineTest {
             // 480 PCM frames = 10 ms. Read completion may be late or early.
             val expectedNs = begin + (i + 1L) * 10_000_000L
             val jitterNs = if (i % 2 == 0) 45_000_000L else -35_000_000L
-            val pts = timeline.packetStartUs(1920, expectedNs + jitterNs, null)
+            val anchor = if (i == 0) ReplayFrameClock(480L, expectedNs) else null
+            val pts = timeline.packetStartUs(1920, expectedNs + jitterNs, anchor)
             assertEquals(begin / 1_000L + i * 10_000L, pts)
         }
         assertEquals(12_000L * 480L, timeline.totalFrames)
