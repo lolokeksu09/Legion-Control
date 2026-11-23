@@ -203,11 +203,12 @@ class GameToolboxFragment : Fragment() {
         }
         tile("Восстановить прежние настройки", "Вернуть сохранённое состояние Android") {
             status.text = GameLaunchProfiles.restore(requireContext()).message
+            renderStatus()
         }
 
         group("Внешний вид")
         choices("Прозрачность плавающей кнопки",
-            listOf(60 to "60%", 80 to "80%", 100 to "100%"),
+            listOf(60 to "60%", 80 to "80%", 85 to "85%", 100 to "100%"),
             { ToolboxTuning.opacity(prefs.getInt(ToolboxPreferences.OPACITY, 85)) },
             { configureOpacity(it) })
         choices("Размер плавающей кнопки",
@@ -328,7 +329,8 @@ class GameToolboxFragment : Fragment() {
                                 status.text = if (GameLaunchProfiles.save(requireContext(), pkg, profile)) {
                                     if (profile.actionable) "Профиль игры сохранён." else "Профиль игры удалён."
                                 } else "Android не смог сохранить профиль."
-                                // Do not call renderStatus here: preserve actionable feedback.
+                                // Refresh the summary without replacing the separate actionable feedback.
+                                renderStatus()
                             }
                             .setNegativeButton("Отмена", null).show()
                     }
