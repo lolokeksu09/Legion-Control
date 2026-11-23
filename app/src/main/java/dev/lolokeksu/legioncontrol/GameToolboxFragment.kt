@@ -30,10 +30,10 @@ import java.util.Locale
 class GameToolboxFragment : Fragment() {
     private val bg = Color.BLACK
     private val fg = Color.WHITE
-    private val muted = 0xFF9CA5B0.toInt()
-    private val accent = 0xFF86B7FF.toInt()
-    private val border = 0xFF252B33.toInt()
-    private val panel = 0xFF12161C.toInt()
+    private val muted = LegionUiSupport.MUTED
+    private val accent = LegionUiSupport.ACCENT
+    private val border = LegionUiSupport.BORDER
+    private val panel = LegionUiSupport.PANEL
     private lateinit var column: LinearLayout
     private lateinit var summary: TextView
     private lateinit var status: TextView

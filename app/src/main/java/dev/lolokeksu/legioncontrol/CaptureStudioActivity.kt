@@ -53,7 +53,7 @@ class CaptureStudioActivity : ComponentActivity() {
         window.decorView.systemUiVisibility = 0
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(20.dp, 34.dp, 20.dp, 32.dp)
+            setPadding(18.dp, 20.dp, 18.dp, 28.dp)
             setBackgroundColor(Color.BLACK)
         }
         fun heading(value: String) {
@@ -266,10 +266,9 @@ class CaptureStudioActivity : ComponentActivity() {
         note("Каждый запуск требует нового согласия Android. " +
             "После подтверждения перейдите в игру — остановить запись можно из постоянного " +
             "уведомления или этого экрана. Ограничение качества/частоты зависит от кодека и прошивки.")
-        setContentView(ScrollView(this).apply {
+        LegionUiSupport.setModuleActivityContent(this, ScrollView(this).apply {
             addView(root)
-            LegionUiSupport.applyInsets(this)
-        })
+        }, "ЗАХВАТ И REPLAY")
         viewModel.settings.observe(this) { refreshChoices() }
         viewModel.playbackAudio.observe(this) { refreshChoices() }
         viewModel.message.observe(this) { status.text = it }

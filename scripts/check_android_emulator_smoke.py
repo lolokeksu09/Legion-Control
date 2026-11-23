@@ -86,7 +86,7 @@ def actual_focused_input() -> str:
     return value
 
 
-def expect_scrolling(needle: str, seconds: int = 30) -> None:
+def expect_scrolling(needle: str, seconds: int = 30, progressive: bool = False) -> None:
     width,height = dimensions()
     deadline=time.monotonic()+seconds
     step=0
@@ -94,7 +94,13 @@ def expect_scrolling(needle: str, seconds: int = 30) -> None:
         if visible(needle):
             print("PASS report:",needle,flush=True)
             return
-        y1,y2=(int(height*.3),int(height*.78)) if step%2==0 else (int(height*.78),int(height*.3))
+        # Progressive mode walks a long settings screen instead of bouncing
+        # between the same two positions. Other report checks retain two-way
+        # searching because their result might appear above the current viewport.
+        y1,y2=(int(height*.78),int(height*.3)) if progressive else (
+            (int(height*.3),int(height*.78)) if step%2==0 else
+            (int(height*.78),int(height*.3))
+        )
         adb("shell","input","swipe",str(width//2),str(y1),str(width//2),str(y2),"300")
         step+=1
         time.sleep(.65)
@@ -145,7 +151,7 @@ def find(needle: str) -> tuple[int, int] | None:
     return candidates[0][1], candidates[0][2]
 
 
-def click(needle: str, scrolls: int = 7) -> None:
+def click(needle: str, scrolls: int = 7, direction: str = "down") -> None:
     width, height = dimensions()
     for attempt in range(scrolls + 1):
         pos = find(needle)
@@ -155,8 +161,12 @@ def click(needle: str, scrolls: int = 7) -> None:
             print("TAP:", needle, flush=True)
             return
         if attempt != scrolls:
-            adb("shell", "input", "swipe", str(width//2), str(int(height*.78)),
-                str(width//2), str(int(height*.31)), "370")
+            if direction == "up":
+                y1,y2=int(height*.31),int(height*.78)
+            else:
+                y1,y2=int(height*.78),int(height*.31)
+            adb("shell", "input", "swipe", str(width//2), str(y1),
+                str(width//2), str(y2), "370")
             time.sleep(.45)
     raise AssertionError(f"Cannot find action: {needle}")
 
@@ -227,14 +237,20 @@ def main() -> None:
                 PACKAGE + "/.NavigationHostActivity", timeout=60)
     expect("Готов к запуску")
     capture("01-hub-launch")
+    click("Игры")
+    stage("01-games-tab", "ИГРОВАЯ БИБЛИОТЕКА")
+    expect("Управление библиотекой")
     click("Сервисы")
     expect(TOOLS_MARKER)
+    capture("01-tools-tab")
 
     # Previously unobserved media and overlay screens: verify the real Activity
     # launches and core labels, without invoking any MediaProjection consent.
     click("Capture Studio")
     stage("01a-capture-studio", "CAPTURE STUDIO")
-    expect_scrolling("INSTANT REPLAY", seconds=35)
+    expect("ЗАХВАТ И REPLAY")
+    expect("Домой")
+    expect_scrolling("INSTANT REPLAY", seconds=70, progressive=True)
     capture("01b-capture-studio-replay")
     back_until(TOOLS_MARKER)
     click("Game Toolbox")
@@ -301,6 +317,14 @@ def main() -> None:
     stage("07-haptic-lab-idle", "HAPTIC LAB · ALPHA.23")
     back_until(TOOLS_MARKER)
 
+    # Controller live input keeps its Activity ownership, but the chrome
+    # should match the Hub. Visit it after Haptic Lab while scrolled nearby.
+    click("Gamepad Live")
+    stage("01d-gamepad-live", "GAMEPAD LIVE")
+    expect("ПРОВЕРКА ГЕЙМПАДА")
+    expect("Домой")
+    back_until(TOOLS_MARKER)
+
     click("Gaming Lab")
     stage("08-gaming-lab", "LEGION CONTROL · GAMING LAB")
     click("HARDWARE LAB · ещё 6 диагностик")
@@ -318,8 +342,17 @@ def main() -> None:
     stage("12-experiment-lab", "LEGION · EXPERIMENT LAB")
     back_until(TOOLS_MARKER)
 
+    # Rust diagnostics is at the end of Services, so open it just before
+    # switching to History rather than requiring an upward-only search.
+    click("Диагностика Kotlin + Rust", scrolls=16)
+    stage("01e-rust-diagnostics", "Диагностика устройства")
+    expect("ДИАГНОСТИКА УСТРОЙСТВА")
+    expect("Домой")
+    back_until(TOOLS_MARKER)
+
     click("История")
     expect("ИСТОРИЯ И ДИАГНОСТИКА")
+    capture("12-history-tab")
     click("Session Incidents")
     stage("12a-history-to-incidents", "LEGION · SESSION INCIDENTS")
     back_until("ИСТОРИЯ И ДИАГНОСТИКА")
@@ -330,7 +363,7 @@ def main() -> None:
     stage("12c-history-to-baselines", "LEGION · SESSION BASELINES")
     expect_scrolling("минимум 3", seconds=28)
     capture("12d-baseline-insufficient-history-honest")
-    click("За последние 30 дней")
+    click("За последние 30 дней", scrolls=10, direction="up")
     expect_scrolling("Окно истории: 30 дней", seconds=28)
     click("Открыть Session Signals выбранной игры")
     stage("12e-baselines-to-signals", "LEGION · SESSION SIGNALS")
@@ -338,6 +371,7 @@ def main() -> None:
     back_until("ИСТОРИЯ И ДИАГНОСТИКА")
     click("Настройки")
     expect(SETTINGS_MARKER)
+    capture("13-settings-tab")
     click("Application Center")
     stage("13-application-center", "APPLICATION CONTROL CENTER")
     back_until(SETTINGS_MARKER)

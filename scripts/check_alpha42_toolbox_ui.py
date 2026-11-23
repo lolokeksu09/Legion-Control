@@ -25,7 +25,8 @@ assert 'R.id.gameToolboxDestination -> "ИГРОВАЯ ПАНЕЛЬ"' in host
 assert "actual == R.id.gameToolboxDestination" in host
 assert "R.id.applicationCenterDestination, R.id.gameToolboxDestination" in host
 for token in (
-    "0xFF9CA5B0", "0xFF86B7FF", "0xFF252B33", "0xFF12161C",
+    "LegionUiSupport.MUTED", "LegionUiSupport.ACCENT",
+    "LegionUiSupport.BORDER", "LegionUiSupport.PANEL",
     "section(\"GAME TOOLBOX\"", 'group("Текущее состояние")',
     'group("Запуск панели")', 'group("Игровой профиль")',
     'group("Внешний вид")', "stateDescription = if (checked)",
@@ -44,5 +45,5 @@ assert "android.permission.QUERY_ALL_PACKAGES" not in manifest
 assert "android.permission.WRITE_SECURE_SETTINGS" not in manifest
 assert "android.permission.BIND_ACCESSIBILITY_SERVICE" not in manifest
 assert "class GameToolboxFragment : Fragment()" in ui
-assert "versionCode = 42" in (root / "app/build.gradle.kts").read_text()
+assert "versionCode = 43" in (root / "app/build.gradle.kts").read_text()
 print("PASS alpha42: shared Game Hub shell, selectable cards, opt-in toolbox and legacy compatibility")

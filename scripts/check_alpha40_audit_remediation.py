@@ -10,7 +10,7 @@ test = lambda f: (tests / f).read_text(encoding="utf-8")
 
 gradle = (root / "app/build.gradle.kts").read_text()
 assert 'applicationId = "dev.lolokeksu.legioncontrol"' in gradle
-assert 'versionCode = 42' in gradle and 'versionName = "0.1.0-alpha.42"' in gradle
+assert 'versionCode = 43' in gradle and 'versionName = "0.1.0-alpha.43"' in gradle
 assert '"arm64-v8a", "x86_64"' in gradle
 
 coord = read("CaptureCoordinator.kt")
@@ -78,7 +78,7 @@ assert "versionLabel()" in read("NavigationHostActivity.kt")
 assert "GAME HUB  ·  alpha.26" not in read("NavigationHostActivity.kt")
 assert "contentDescription = \"Назад\"" in read("NavigationHostActivity.kt")
 assert "WindowInsets.Type.ime()" in read("LegionUiSupport.kt")
-assert "LegionUiSupport.applyInsets(this)" in read("CaptureStudioActivity.kt")
+assert "LegionUiSupport.setModuleActivityContent(this" in read("CaptureStudioActivity.kt")
 assert "Не удалось" in read("ConnectivityLabViewModel.kt")
 assert "CaptureStorageOverview.report" in vm
 assert "android.permission.MANAGE_EXTERNAL_STORAGE" not in (
