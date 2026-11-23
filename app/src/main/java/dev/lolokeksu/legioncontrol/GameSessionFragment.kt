@@ -74,13 +74,9 @@ class GameSessionFragment : Fragment() {
             setTypeface(null,Typeface.BOLD)
         })
         root.addView(description(
-            "Для любой установленной игры или приложения. Ручная запись состояния телефона " +
-            "продолжается при переходе в выбранное приложение. Ни Root, ни Shizuku не требуются."
+            "Выберите игру и начните запись состояния устройства. Root и Shizuku не требуются."
         ))
         root.addView(LegionUiSupport.sectionLabel(requireContext(), "ПОДГОТОВКА"))
-        action("Smart Profiles · сохранённые настройки") {
-            ModuleNavigation.open(this,SmartProfilesActivity::class.java)
-        }
         action("Выбрать установленное приложение") { chooseApp() }
         packageInput = EditText(requireContext()).apply {
             hint="Имя пакета · com.example.game"
@@ -97,6 +93,29 @@ class GameSessionFragment : Fragment() {
             setHintTextColor(Color.GRAY)
         }
         root.addView(labelInput)
+
+        // Keep the primary action within the first viewport of the module.
+        // Optional settings and extended documentation follow the recording controls.
+        root.addView(LegionUiSupport.sectionLabel(requireContext(), "УПРАВЛЕНИЕ ЗАПИСЬЮ"))
+        action("НАЧАТЬ ЗАПИСЬ") { startRecording() }
+        reportView = TextView(requireContext()).apply {
+            text="Выберите приложение и начните запись. Для TCP-теста или Smart Profiles " +
+                "сначала задайте дополнительные настройки ниже."
+            textSize=14f
+            setTextColor(Color.WHITE)
+            setLineSpacing(4f,1f)
+            setPadding(0,14.dp,0,20.dp)
+            accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+        }
+        root.addView(reportView)
+        action("Открыть выбранное приложение") { openSelectedApp() }
+        action("ОСТАНОВИТЬ ЗАПИСЬ") { stopRecording() }
+        action("Добавить метку во время записи") { addUserMark() }
+
+        root.addView(LegionUiSupport.sectionLabel(requireContext(), "ДОПОЛНИТЕЛЬНЫЕ НАСТРОЙКИ"))
+        action("Smart Profiles · сохранённые настройки") {
+            ModuleNavigation.open(this,SmartProfilesActivity::class.java)
+        }
         tcpOption = CheckBox(requireContext()).apply {
             text="Дополнительно: TCP-тест one.one.one.one:443 примерно раз в 2 минуты"
             isChecked=false
@@ -105,25 +124,10 @@ class GameSessionFragment : Fragment() {
         }
         root.addView(tcpOption)
         root.addView(description(
-            "Без этого флажка никакие тестовые TCP-соединения не выполняются. " +
-            "Обычные изменения сети и показания батареи записываются только локально. " +
-            "Запись не включает настоящий FPS, ping игрового сервера или перехват трафика."
+            "Без этого флажка тестовые TCP-соединения не выполняются. " +
+            "Данные батареи и сети хранятся локально. " +
+            "Запись не измеряет FPS игры и не перехватывает трафик."
         ))
-        // Keep action feedback in the same visible region as the recording controls.
-        reportView = TextView(requireContext()).apply {
-            text="Выберите приложение, нажмите «НАЧАТЬ ЗАПИСЬ», затем откройте игру. " +
-                "При завершении нажмите «ОСТАНОВИТЬ ЗАПИСЬ» в приложении или уведомлении."
-            textSize=14f
-            setTextColor(Color.WHITE)
-            setLineSpacing(4f,1f)
-            setPadding(0,14.dp,0,20.dp)
-        }
-        root.addView(reportView)
-        root.addView(LegionUiSupport.sectionLabel(requireContext(), "УПРАВЛЕНИЕ ЗАПИСЬЮ"))
-        action("НАЧАТЬ ЗАПИСЬ") { startRecording() }
-        action("Открыть выбранное приложение") { openSelectedApp() }
-        action("ОСТАНОВИТЬ ЗАПИСЬ") { stopRecording() }
-        action("Добавить метку во время записи") { addUserMark() }
         root.addView(LegionUiSupport.sectionLabel(requireContext(), "АНАЛИТИКА И ИСТОРИЯ"))
         action("Session Signals · хронология и события") { openSessionSignals() }
         action("Session Incidents · эпизоды и длительность") { openSessionIncidents() }
