@@ -1,6 +1,8 @@
 package dev.lolokeksu.legioncontrol
 
 import android.app.Activity
+import android.Manifest
+import android.content.pm.PackageManager
 import android.app.ActivityManager
 import android.app.Notification
 import android.app.NotificationChannel
@@ -45,6 +47,8 @@ class ReplayCaptureService : Service() {
         const val EXTRA_EDGE = "replay_edge"
         const val EXTRA_FPS = "replay_fps"
         const val EXTRA_MBIT = "replay_mbit"
+        const val EXTRA_PLAYBACK_AUDIO = "replay_playback_audio"
+        const val EXTRA_AUDIO_GAME = "replay_audio_game"
         private const val CHANNEL = "legion-replay-capture"
         private const val NOTICE = 3901
         private const val REPLAY_STATUS = "replay_status"
@@ -78,6 +82,10 @@ class ReplayCaptureService : Service() {
     private var codec: MediaCodec? = null
     private var surface: Surface? = null
     private var codecThread: Thread? = null
+    private var playbackAudio: ReplayAudioCapture? = null
+    private var selectedGameUid: Int? = null
+    private var audioRequested = false
+    private var audioProblem: String? = null
     private val running = AtomicBoolean(false)
     private val stopping = AtomicBoolean(false)
     private val saveRequested = AtomicBoolean(false)
@@ -124,6 +132,29 @@ class ReplayCaptureService : Service() {
                     intent.getIntExtra(EXTRA_FPS, 30),
                     intent.getIntExtra(EXTRA_MBIT, 4), 1
                 )
+                audioRequested = intent.getBooleanExtra(EXTRA_PLAYBACK_AUDIO, false)
+                if (audioRequested) {
+                    if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) !=
+                        PackageManager.PERMISSION_GRANTED) {
+                        writeStatus("Replay со звуком не запущен: RECORD_AUDIO запрещён.")
+                        stopSelfResult(startId)
+                        return START_NOT_STICKY
+                    }
+                    val game = intent.getStringExtra(EXTRA_AUDIO_GAME)
+                    val uid = if (game != null && GameCaptureProfilePolicy.validPackage(game) &&
+                        packageManager.getLaunchIntentForPackage(game) != null) {
+                        runCatching {
+                            packageManager.getApplicationInfo(game,
+                                PackageManager.ApplicationInfoFlags.of(0L)).uid
+                        }.getOrNull()
+                    } else null
+                    if (uid == null || uid <= 0) {
+                        writeStatus("Replay: игра для захвата звука не найдена.")
+                        stopSelfResult(startId)
+                        return START_NOT_STICKY
+                    }
+                    selectedGameUid = uid
+                }
                 try {
                     seconds = wanted
                     promoteToForeground()
@@ -154,7 +185,9 @@ class ReplayCaptureService : Service() {
         return Notification.Builder(this, CHANNEL)
             .setSmallIcon(android.R.drawable.presence_video_online)
             .setContentTitle("Legion Replay · буфер " + seconds + " с")
-            .setContentText("Захват активен. Сохранение — только по нажатию.")
+            .setContentText(if (playbackAudio != null)
+                "Видео + разрешённый звук игры. Сохранение — по нажатию."
+                else "Запись видео. Сохранение — только по нажатию.")
             .setContentIntent(open)
             .setOnlyAlertOnce(true)
             .setOngoing(true)
@@ -214,16 +247,32 @@ class ReplayCaptureService : Service() {
         running.set(true)
         active = true
         drainComplete = false
+        if (audioRequested) {
+            runCatching {
+                ReplayAudioCapture(this, projection, requireNotNull(selectedGameUid),
+                    windowSeconds).also {
+                    it.start()
+                    playbackAudio = it
+                }
+            }.onFailure {
+                audioProblem = "Аудиозахват недоступен: " + it.javaClass.simpleName
+            }
+        }
         codecThread = Thread({
             drainVideo(encoder, ReplayFrameBuffer(windowSeconds))
         }, "legion-replay-video").apply { start() }
         handler.postDelayed(safetyStop, 60L * 60_000L)
         writeStatus("Replay активен: буфер " + windowSeconds +
-            " с, H.264, видео без звука. Нажмите Сохранить после момента в игре.")
+            " с, H.264. " + when {
+                playbackAudio != null -> "Звук игры запрошен; приложение может запретить его."
+                audioRequested -> "Видео БЕЗ звука: " + (audioProblem ?: "Android отказал")
+                else -> "Видео без звука."
+            } + " Нажмите Сохранить после момента в игре.")
     }
 
     private fun drainVideo(encoder: MediaCodec, buffer: ReplayFrameBuffer) {
         var videoFormat: MediaFormat? = null
+        var videoMinusNanoClockUs: Long? = null
         val info = MediaCodec.BufferInfo()
         var deadline = Long.MAX_VALUE
         var nextSafetyAt = SystemClock.elapsedRealtime() + 2_000L
@@ -271,6 +320,10 @@ class ReplayCaptureService : Service() {
                                 data.limit(info.offset + info.size)
                                 val bytes = ByteArray(info.size)
                                 data.get(bytes)
+                                if (videoMinusNanoClockUs == null) {
+                                    videoMinusNanoClockUs =
+                                        info.presentationTimeUs - System.nanoTime() / 1000L
+                                }
                                 buffer.add(ReplayFrame(bytes, info.presentationTimeUs,
                                     info.flags and MediaCodec.BUFFER_FLAG_KEY_FRAME != 0))
                             }
@@ -279,7 +332,8 @@ class ReplayCaptureService : Service() {
                                 val snapshot = buffer.snapshot()
                                 if (snapshot.isNotEmpty() &&
                                     saveRequested.compareAndSet(true, false)) {
-                                    exportSnapshot(requireNotNull(videoFormat), snapshot)
+                                    exportSnapshot(requireNotNull(videoFormat), snapshot,
+                                        videoMinusNanoClockUs ?: 0L)
                                 }
                             }
                             if (isEnd) break
@@ -309,17 +363,33 @@ class ReplayCaptureService : Service() {
         }
     }
 
-    private fun exportSnapshot(format: MediaFormat, frozen: List<ReplayFrame>) {
+    private fun exportSnapshot(format: MediaFormat, frozen: List<ReplayFrame>,
+                               clockOffsetUs: Long) {
         if (!exporting.compareAndSet(false, true)) {
             writeStatus("Replay: предыдущий клип ещё сохраняется.")
             return
         }
+        val audioSnapshot = playbackAudio?.snapshot(
+            frozen.first().ptsUs, frozen.last().ptsUs, clockOffsetUs)
         Thread({
             val durationMs = (frozen.last().ptsUs - frozen.first().ptsUs) / 1000L
-            val result = runCatching { ReplayExporter.save(applicationContext, format, frozen) }
+            var audioSaved = false
+            val result = runCatching {
+                if (audioSnapshot != null) {
+                    runCatching {
+                        ReplayExporter.save(applicationContext, format, frozen,
+                            audioSnapshot, clockOffsetUs)
+                    }.fold(
+                        { audioSaved = true; it },
+                        { ReplayExporter.save(applicationContext, format, frozen) }
+                    )
+                } else ReplayExporter.save(applicationContext, format, frozen)
+            }
             writeStatus(result.fold(
                 { "Replay MP4 сохранён в Movies/LegionControl/. Длительность: " +
-                    durationMs / 1000L + " с. Захват продолжается, если не остановлен." },
+                    durationMs / 1000L + " с. " +
+                    (if (audioSaved) "Видео и AAC-звук игры." else "Видео без звука.") +
+                    " Захват продолжается, если не остановлен." },
                 { "Replay MP4 не сохранён: " + it.javaClass.simpleName }
             ))
             exporting.set(false)
@@ -338,6 +408,7 @@ class ReplayCaptureService : Service() {
         writeStatus(reason)
         active = false
         running.set(false)
+        playbackAudio?.stop()
         val encoder = codec
         if (encoder != null && codecThread != null) {
             runCatching { encoder.signalEndOfInputStream() }
@@ -363,6 +434,8 @@ class ReplayCaptureService : Service() {
         capture = null
         captureCallback = null
         if (callback != null) runCatching { projection?.unregisterCallback(callback) }
+        playbackAudio?.stop()
+        playbackAudio = null
         runCatching { projection?.stop() }
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
