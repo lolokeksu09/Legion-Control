@@ -13,7 +13,6 @@ ids=set()
 nodes=nav.findall("activity")
 expected={
     "MainActivity": "diagnosticsDestination",
-    "GameToolboxActivity": "gameToolboxDestination",
     "CaptureStudioActivity": "captureStudioDestination",
     "GamepadLiveActivity": "gamepadLiveDestination",
     "DisplayPatternActivity": "displayPatternDestination"
@@ -32,7 +31,11 @@ for node in nodes:
 assert ids==set(expected)
 assert not any(n.get(android+"id")=="@+id/gameSessionFragment" for n in nodes)
 frags={n.get(android+"id"):n for n in nav.findall("fragment")}
-assert len(frags)==19 and "@+id/gameSessionFragment" in frags
+assert len(frags)==20 and "@+id/gameSessionFragment" in frags
+assert frags["@+id/gameToolboxDestination"].get(android+"name").endswith(".GameToolboxFragment")
+assert "GameToolboxActivity::class.java to R.id.gameToolboxDestination" in mapping
+assert ".GameToolboxActivity" in registered
+assert 'putExtra("open_game_toolbox", true)' in (src/"GameToolboxActivity.kt").read_text()
 assert frags["@+id/sessionBaselinesFragment"].get(android+"name").endswith(".SessionBaselinesFragment")
 assert frags["@+id/sessionSignalsFragment"].get(android+"name").endswith(".SessionSignalsFragment")
 assert frags["@+id/applicationCenterDestination"].get(android+"name").endswith(".ApplicationCenterFragment")
@@ -112,4 +115,4 @@ for file,targets in (
         ), (file,target)
 assert "REQUEST_EXPORT" not in routing and "startForegroundService" not in routing
 assert "QUERY_ALL_PACKAGES" not in (root/"app/src/main/AndroidManifest.xml").read_text()
-print("PASS alpha29: 5 ActivityNavigator routes and ten real module Fragments with explicit-intent compatibility")
+print("PASS alpha29: 4 ActivityNavigator routes and eleven real module Fragments with explicit-intent compatibility")
