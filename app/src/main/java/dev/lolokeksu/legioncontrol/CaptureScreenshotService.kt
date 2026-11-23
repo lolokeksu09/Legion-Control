@@ -73,7 +73,7 @@ class CaptureScreenshotService : Service() {
         }
         val consent = intent.getParcelableExtra(EXTRA_CONSENT, Intent::class.java)
         if (intent.getIntExtra(EXTRA_RESULT, Activity.RESULT_CANCELED) != Activity.RESULT_OK ||
-            consent == null || CaptureRecordingService.recording
+            consent == null || CaptureRecordingService.recording || ReplayCaptureService.active
         ) {
             status("Нет нового согласия Android либо уже идёт запись видео.")
             stopSelfResult(startId)
