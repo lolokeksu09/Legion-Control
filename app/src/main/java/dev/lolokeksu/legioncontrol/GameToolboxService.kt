@@ -291,6 +291,19 @@ class GameToolboxService : Service() {
         }, "Вернуть профиль", {
             showFeedback(GameLaunchProfiles.restore(this).message)
         })
+        row("REPLAY SAVE", {
+            showFeedback(runCatching {
+                if (ReplayCaptureService.save(this))
+                    "Replay сохранение запрошено. Захват продолжается."
+                else "Replay выключен. Включите его в Capture Studio."
+            }.getOrElse { "Не удалось сохранить Replay: " + it.javaClass.simpleName })
+        }, "Replay настройки", {
+            showFeedback(runCatching {
+                startActivity(Intent(this, CaptureStudioActivity::class.java)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                "Открыт Capture Studio."
+            }.getOrElse { "Не удалось открыть Capture Studio: " + it.javaClass.simpleName })
+        })
         row("Настройки", { openController() }, "СТОП", { stopSelf() })
         feedback = TextView(this).apply {
             textSize = 12f

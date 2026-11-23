@@ -111,6 +111,8 @@ jobs:
         run: python3 scripts/check_alpha37_clip_workshop.py
       - name: Validate alpha.38 per-game Capture Studio profiles and atomic SAF backups
         run: python3 scripts/check_alpha38_game_capture_profiles.py
+      - name: Validate alpha.39 consented rolling H264 Replay and export
+        run: python3 scripts/check_alpha39_replay.py
       - name: Run pure Kotlin CSV and Russian plural regression tests
         run: gradle --no-daemon testDebugUnitTest
       - name: Test and compile real Rust backend for Android

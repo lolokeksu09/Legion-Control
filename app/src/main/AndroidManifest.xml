@@ -50,6 +50,10 @@
             android:exported="false"
             android:foregroundServiceType="mediaProjection" />
         <service
+            android:name=".ReplayCaptureService"
+            android:exported="false"
+            android:foregroundServiceType="mediaProjection" />
+        <service
             android:name=".CaptureScreenshotService"
             android:exported="false"
             android:foregroundServiceType="mediaProjection" />
