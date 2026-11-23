@@ -55,14 +55,17 @@ class HardwareLabFragment : Fragment() {
             setTextIsSelectable(true)
         }
         root.addView(result)
+        root.addView(LegionUiSupport.sectionLabel(requireContext(), "СЕТЬ"))
         addButton(root, "1 · Local Route Inspector") {
             viewModel.run(HardwareProbe.ROUTE)
         }
         addButton(root, "2 · Network Events — 30 секунд") { toggleNetworkEvents() }
+        root.addView(LegionUiSupport.sectionLabel(requireContext(), "ПАМЯТЬ И СЕНСОРЫ"))
         addButton(root, "3 · Storage Lab — 8 МиБ / SHA-256") {
             viewModel.run(HardwareProbe.STORAGE)
         }
         addButton(root, "4 · Motion Stability — 5 секунд") { toggleMotion() }
+        root.addView(LegionUiSupport.sectionLabel(requireContext(), "ЭКРАН И КОДЕКИ"))
         addButton(root, "5 · Display Patterns — пиксели и цвета") {
             AlertDialog.Builder(requireContext())
                 .setTitle("Проверка экрана")
@@ -81,6 +84,7 @@ class HardwareLabFragment : Fragment() {
         addButton(root, "6 · Codec Inspector — аппаратные видеодекодеры") {
             viewModel.run(HardwareProbe.CODEC)
         }
+        root.addView(LegionUiSupport.sectionLabel(requireContext(), "ОТЧЁТ И ДОПОЛНИТЕЛЬНАЯ ПРОВЕРКА"))
         addButton(root, "COMPATIBILITY · ещё 7 функций") {
             ModuleNavigation.open(this,CompatibilityLabActivity::class.java)
         }
