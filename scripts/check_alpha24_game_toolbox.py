@@ -10,12 +10,13 @@ ns = "{http://schemas.android.com/apk/res/android}"
 gradle = (root / "app/build.gradle.kts").read_text(encoding="utf-8")
 main = (src / "MainActivity.kt").read_text(encoding="utf-8")
 activity = (src / "GameToolboxActivity.kt").read_text(encoding="utf-8")
+ui = (src / "GameToolboxFragment.kt").read_text(encoding="utf-8")
 service = (src / "GameToolboxService.kt").read_text(encoding="utf-8")
 tuning = (src / "ToolboxTuning.kt").read_text(encoding="utf-8")
 system = (src / "SmartSystemControls.kt").read_text(encoding="utf-8")
 store = (src / "LocalHistoryStore.kt").read_text(encoding="utf-8")
 tests = (root / "app/src/test/java/dev/lolokeksu/legioncontrol/ToolboxTuningTest.kt").read_text(encoding="utf-8")
-assert "versionCode = 41" in gradle and 'versionName = "0.1.0-alpha.41"' in gradle
+assert "versionCode = 42" in gradle and 'versionName = "0.1.0-alpha.42"' in gradle
 assert "applicationId = \"dev.lolokeksu.legioncontrol\"" in gradle
 assert "HapticLabSchema.VERSION" in store, "Do not change SQLite v12 for an overlay"
 assert "GAME TOOLBOX" in main and "GameToolboxActivity::class.java" in main
@@ -50,13 +51,13 @@ assert any(p.get(ns + "name") == "android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
 activities = [x for x in manifest.findall("./application/activity")
     if x.get(ns + "name") == ".GameToolboxActivity"]
 assert len(activities) == 1 and activities[0].get(ns + "exported") == "false"
-assert "Settings.canDrawOverlays(this)" in activity
-assert "ACTION_MANAGE_OVERLAY_PERMISSION" in activity
-assert "ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS" in activity
-assert "SmartSystemControls.writeSettingsIntent(this)" in activity
-assert "getLaunchIntentForPackage" in activity and "CATEGORY_LAUNCHER" in activity
-assert "PackageManager.ResolveInfoFlags" in activity
-assert "GameToolboxService.start(this)" in activity and "GameToolboxService.stop(this)" in activity
+assert "Settings.canDrawOverlays(requireContext())" in ui
+assert "ACTION_MANAGE_OVERLAY_PERMISSION" in ui
+assert "ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS" in ui
+assert "SmartSystemControls.writeSettingsIntent(requireContext())" in ui
+assert "getLaunchIntentForPackage" in ui and "CATEGORY_LAUNCHER" in ui
+assert "PackageManager.ResolveInfoFlags" in ui
+assert "GameToolboxService.start(requireContext())" in ui and "GameToolboxService.stop(requireContext())" in ui
 assert "TYPE_APPLICATION_OVERLAY" in service and "FLAG_NOT_FOCUSABLE" in service
 assert "FLAG_NOT_TOUCH_MODAL" in service
 assert "Settings.canDrawOverlays(this)" in service
@@ -78,5 +79,6 @@ assert all(block not in service for block in (
     "MediaProjection", "AccessibilityService", "queryUsageStats",
     "queryEvents(", "Socket(", "HttpURLConnection", "takeScreenshot",
 ))
-assert all(block not in activity for block in ("QUERY_ALL_PACKAGES", "READ_EXTERNAL_STORAGE"))
+assert all(block not in activity + ui for block in ("QUERY_ALL_PACKAGES", "READ_EXTERNAL_STORAGE"))
+assert 'putExtra("open_game_toolbox", true)' in activity
 print("PASS alpha24: exact permission allowlist, opt-in overlay, non-focusable UI, manual controls, FGS stop and no SQLite migration")

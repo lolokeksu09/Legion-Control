@@ -69,9 +69,10 @@
     <activity
         android:id="@+id/diagnosticsDestination"
         android:name="dev.lolokeksu.legioncontrol.MainActivity" />
-    <activity
+    <fragment
         android:id="@+id/gameToolboxDestination"
-        android:name="dev.lolokeksu.legioncontrol.GameToolboxActivity" />
+        android:name="dev.lolokeksu.legioncontrol.GameToolboxFragment"
+        android:label="Game Toolbox" />
     <activity
         android:id="@+id/captureStudioDestination"
         android:name="dev.lolokeksu.legioncontrol.CaptureStudioActivity" />

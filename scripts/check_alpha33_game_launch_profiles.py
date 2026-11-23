@@ -7,7 +7,7 @@ root = Path(__file__).resolve().parents[1]
 src = root / "app/src/main/java/dev/lolokeksu/legioncontrol"
 policy = (src / "GameLaunchProfilePolicy.kt").read_text(encoding="utf-8")
 engine = (src / "GameLaunchProfiles.kt").read_text(encoding="utf-8")
-ui = (src / "GameToolboxActivity.kt").read_text(encoding="utf-8")
+ui = (src / "GameToolboxFragment.kt").read_text(encoding="utf-8")
 overlay = (src / "GameToolboxService.kt").read_text(encoding="utf-8")
 tests = (root / "app/src/test/java/dev/lolokeksu/legioncontrol/GameLaunchProfilePolicyTest.kt").read_text(encoding="utf-8")
 manifest = ET.parse(root / "app/src/main/AndroidManifest.xml").getroot()
@@ -19,9 +19,9 @@ assert required.issubset(actual)
 assert "android.permission.QUERY_ALL_PACKAGES" not in actual
 assert "android.permission.WRITE_SECURE_SETTINGS" not in actual
 assert "android.permission.BIND_ACCESSIBILITY_SERVICE" not in actual
-assert "GameLaunchProfiles.apply(this, pkg)" in ui and "GameLaunchProfiles.restore(this)" in ui
+assert "GameLaunchProfiles.apply(requireContext(), pkg)" in ui and "GameLaunchProfiles.restore(requireContext())" in ui
 assert "GameLaunchProfiles.apply(this, pkg)" in overlay and "GameLaunchProfiles.restore(this)" in overlay
-assert "GameLaunchProfiles.save(this, pkg, profile)" in ui
+assert "GameLaunchProfiles.save(requireContext(), pkg, profile)" in ui
 assert "getLaunchIntentForPackage(pkg)" in ui
 assert 'edit().putString(ACTIVE, snapshot.encode()).commit()' in engine
 assert engine.index('edit().putString(ACTIVE, snapshot.encode()).commit()') < engine.index('audio.setStreamVolume(')

@@ -174,7 +174,7 @@ class NavigationHostActivity : FragmentActivity() {
             val active = when (actual) {
                 R.id.gameDetailFragment -> R.id.gamesFragment
                 R.id.gameSessionFragment, R.id.sessionSignalsFragment, R.id.sessionIncidentsFragment,
-                R.id.applicationCenterDestination,
+                R.id.applicationCenterDestination, R.id.gameToolboxDestination,
                 R.id.smartProfilesDestination, R.id.audioLabDestination,
                 R.id.hapticLabDestination, R.id.connectivityLabDestination,
                 R.id.experimentLabDestination, R.id.compatibilityLabDestination,
@@ -198,6 +198,7 @@ class NavigationHostActivity : FragmentActivity() {
                 actual == R.id.sessionIncidentsFragment ||
                 actual == R.id.sessionBaselinesFragment ||
                 actual == R.id.applicationCenterDestination ||
+                actual == R.id.gameToolboxDestination ||
                 actual == R.id.smartProfilesDestination ||
                 actual == R.id.audioLabDestination ||
                 actual == R.id.hapticLabDestination ||
@@ -218,6 +219,7 @@ class NavigationHostActivity : FragmentActivity() {
                 R.id.sessionBaselinesFragment -> "ИСТОРИЧЕСКИЕ БАЗОВЫЕ ПОКАЗАТЕЛИ"
                 R.id.sessionIncidentsFragment -> "ИНТЕРВАЛЫ СОСТОЯНИЯ УСТРОЙСТВА"
                 R.id.applicationCenterDestination -> "БИБЛИОТЕКА ПРИЛОЖЕНИЙ"
+                R.id.gameToolboxDestination -> "ИГРОВАЯ ПАНЕЛЬ"
                 R.id.smartProfilesDestination -> "УМНЫЕ ПРОФИЛИ"
                 R.id.audioLabDestination -> "АУДИО ЛАБОРАТОРИЯ"
                 R.id.hapticLabDestination -> "ТАКТИЛЬНАЯ ЛАБОРАТОРИЯ"
@@ -247,6 +249,9 @@ class NavigationHostActivity : FragmentActivity() {
                 intent.getStringExtra("session_id")?.let { putString("session_id", it) }
             }
             nav.navigate(R.id.sessionIncidentsFragment, args)
+        }
+        if (savedInstanceState == null && intent.getBooleanExtra("open_game_toolbox", false)) {
+            nav.navigate(R.id.gameToolboxDestination)
         }
         ViewModelProvider(this)[HubViewModel::class.java].refresh()
     }

@@ -23,7 +23,7 @@ sample_controller = (src/"RustSampleController.kt").read_text()
 store = (src/"LocalHistoryStore.kt").read_text()
 rust = (root/"rust-core/src/lib.rs").read_text()
 
-assert 'versionCode = 41' in gradle and 'versionName = "0.1.0-alpha.41"' in gradle
+assert 'versionCode = 42' in gradle and 'versionName = "0.1.0-alpha.42"' in gradle
 assert 'applicationId = "dev.lolokeksu.legioncontrol"' in gradle
 assert 'androidx.navigation:navigation-fragment:2.10.2' in gradle
 assert 'androidx.lifecycle:lifecycle-viewmodel:2.11.1' in gradle
@@ -84,11 +84,12 @@ for old in (
 assert graph.tag == "navigation"
 assert graph.get(res+"startDestination") == "@id/homeFragment"
 nodes = graph.findall("fragment")
-assert len(nodes) == 19
+assert len(nodes) == 20
 assert {n.get(android+"id") for n in nodes} == {
     "@+id/homeFragment", "@+id/gamesFragment", "@+id/toolsFragment",
     "@+id/historyFragment", "@+id/settingsFragment", "@+id/gameDetailFragment", "@+id/gameSessionFragment", "@+id/sessionSignalsFragment", "@+id/sessionBaselinesFragment", "@+id/sessionIncidentsFragment",
     "@+id/applicationCenterDestination", "@+id/smartProfilesDestination",
+    "@+id/gameToolboxDestination",
     "@+id/audioLabDestination", "@+id/hapticLabDestination",
     "@+id/connectivityLabDestination", "@+id/experimentLabDestination",
     "@+id/compatibilityLabDestination", "@+id/hardwareLabDestination",
@@ -98,6 +99,7 @@ for node in nodes:
     assert node.get(android+"name") in {
         "dev.lolokeksu.legioncontrol.HubPageFragment",
         "dev.lolokeksu.legioncontrol.GameDetailFragment",
+        "dev.lolokeksu.legioncontrol.GameToolboxFragment",
         "dev.lolokeksu.legioncontrol.GameSessionFragment",
         "dev.lolokeksu.legioncontrol.SessionSignalsFragment",
         "dev.lolokeksu.legioncontrol.SessionBaselinesFragment",
@@ -118,7 +120,7 @@ for node in nodes:
     elif node.get(android+"id") == "@+id/sessionIncidentsFragment":
         assert [x.get(android+"name") for x in node.findall("argument")] == [
             "smart_package", "session_id"]
-    elif node.get(android+"id") in ("@+id/audioLabDestination","@+id/hapticLabDestination",
+    elif node.get(android+"id") in ("@+id/gameToolboxDestination","@+id/audioLabDestination","@+id/hapticLabDestination",
                                   "@+id/connectivityLabDestination","@+id/compatibilityLabDestination",
                                   "@+id/hardwareLabDestination", "@+id/gamingDiagnosticsDestination"):
         assert len(node.findall("argument")) == 0

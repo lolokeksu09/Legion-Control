@@ -17,7 +17,7 @@ test = (root/"app/src/test/java/dev/lolokeksu/legioncontrol/SessionIncidentsTest
 nav = ET.parse(root/"app/src/main/res/navigation/legion_nav_graph.xml").getroot()
 android = "{http://schemas.android.com/apk/res/android}"
 frags = {x.get(android+"id"):x for x in nav.findall("fragment")}
-assert len(frags) == 19
+assert len(frags) == 20
 node = frags["@+id/sessionIncidentsFragment"]
 assert node.get(android+"name") == "dev.lolokeksu.legioncontrol.SessionIncidentsFragment"
 assert [x.get(android+"name") for x in node.findall("argument")] == ["smart_package","session_id"]

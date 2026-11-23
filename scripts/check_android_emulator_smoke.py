@@ -239,6 +239,9 @@ def main() -> None:
     back_until(TOOLS_MARKER)
     click("Game Toolbox")
     stage("01c-game-toolbox", "GAME TOOLBOX")
+    expect("ИГРОВАЯ ПАНЕЛЬ")  # Header owned by canonical NavigationHostActivity
+    expect("Выбрать игру или приложение")
+    expect("Домой")  # Persistent bottom navigation on formerly standalone screen
     back_until(TOOLS_MARKER)
 
     click("Game Session")
