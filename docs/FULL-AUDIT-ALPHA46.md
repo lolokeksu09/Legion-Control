@@ -49,12 +49,12 @@
 - **Приёмка:** fault injection после каждого шага, смерть процесса в каждом checkpoint, проверка прежних/новых данных и повторяемого восстановления без полусостояния.
 - **Оговорка:** нет воспроизведённого случая потери данных на устройстве. В штатном `FullBackupInstrumentedTest` проверяются целые архивы и ошибки, но не падение процесса в середине `applyPreferences`.
 
-### AUD-03 — P1 / GAP: instrumentation-тест полного backup не исполняется в CI
+### AUD-03 — PASS / CORRECTED: instrumentation-тест backup уже исполняется в CI
 
-- **Доказательство:** `.github/workflows/android.yml` запускает `assembleDebugAndroidTest`, но job `emulator-smoke` выполняет `python3 scripts/check_android_emulator_smoke.py`, а не `connectedAndroidTest` / `am instrument`; `FullBackupInstrumentedTest.kt` существует и явно ограничивает разрушительные действия эмулятором.
-- **Влияние:** green CI **не доказывает** выполнение instrumented backup roundtrip на APK. Псевдо-прохождение сценария за счёт компиляции тестов недопустимо.
-- **Исправление:** отдельный очищенный Android CI emulator job с запуском конкретного AndroidJUnit4 теста и публикацией JUnit XML/результата, безопасный запрет запуска на физическом устройстве.
-- **Приёмка:** в Actions есть отчёт с реально исполненным тестом (не 0 тестов), PASS positive/negative/corrupted и FAIL при инъекции дефекта.
+- **Доказательство:** `scripts/check_android_emulator_smoke.py` в `main` (строки 218–231) **сам** устанавливает `app-debug-androidTest.apk`, запускает `adb shell am instrument -w -e class dev.lolokeksu.legioncontrol.FullBackupInstrumentedTest dev.lolokeksu.legioncontrol.test/androidx.test.runner.AndroidJUnitRunner` и отвергает результат без `OK (1 test)`. В логах CI API 35 есть `PASS: emulator-only SQLite backup/restore and corruption round-trip`. Это была ошибка первоначального аудита; проверка выполняется.
+- **Результат:** backup roundtrip, отказ восстановления поверх заполненной базы и искажённый SHA-256 действительно проверяются инструментальным тестом в эмуляторе. **Не покрыто:** процесс-kill внутри последовательности `applyPreferences()` — остаётся AUD-02.
+- **Исправление не требуется.** Существующую инструментальную проверку сохранить; не расширять CI без нового непокрытого сценария.
+- **Гейт:** `am instrument` требует `OK (1 test)` и отсутствие `FAILURES`; результат PASS на коммите `3cd43f24`.
 
 ### AUD-04 — P2 / CODE: отмена Connectivity до старта фоновой задачи может оставить `testing=true`
 
@@ -124,7 +124,7 @@
 | --- | --- | --- | --- |
 | L1/L2 | Pure Kotlin/JVM, 48 Python проверок, Rust и контракт разрешений | GitHub CI exact main SHA | **PASS** |
 | L3 | Debug APK, навигация, Game Session marker, SQLite для smoke, поиск, 39 кадров | Android 15 / API 35 x86_64 emulator | **PASS** |
-| L3 | Настоящий `FullBackupInstrumentedTest` | Чистый CI Android emulator | **NOT RUN** — собран, но нет test execution |
+| L3 | Настоящий `FullBackupInstrumentedTest` | Чистый CI Android emulator | **PASS** — `am instrument`, `OK (1 test)`, CI 45252918742 |
 | L3 | MediaProjection MP4/AAC, Replay, Screenshot, отрицательные разрешения | Android emulator + hardware | **NOT RUN** |
 | L2/L3 | Network immediate cancel, host swap and stale response | Controlled executor + Android | **NOT RUN** |
 | L2/L3 | Cross-store backup process-kill failure injection | CI emulator | **NOT RUN** |
@@ -134,7 +134,7 @@
 
 ## 6. План устранения и безопасный порядок
 
-1. **P1:** подписать поля порогов Smart Profiles (AUD-01); выстроить crash-safe backup restore (AUD-02); реально запустить instrumented backup suite с чистой CI базой (AUD-03).
+1. **P1:** подписать поля порогов Smart Profiles (AUD-01); выстроить crash-safe backup restore и процесс-kill regression (AUD-02). **AUD-03 закрыт без кода**: instrumented test уже запускается в CI.
 2. **P2:** исправить cancel-before-start и stale-host response в Connectivity (AUD-04/05); rollback на отказ запуска игры (AUD-06); унифицировать UI version labels и проверить fontScale/TalkBack (AUD-07/08).
 3. **P2:** добавить аппаратный smoke-план и evidence на Y70, MediaProjection, разрешения, AAC и BT controller (AUD-09).
 4. **P2/P3:** сквозной функциональный поиск, самостоятельный Settings и общий glossary (AUD-10/11).
@@ -142,4 +142,4 @@
 
 ## 7. Границы и честный вывод
 
-**Alpha 46 — реальный собираемый и опубликованный продукт**, большинство именованных модулей имеют рабочий backend. Но «весь функционал полностью готов и проверен» утверждать нельзя: функциональные пути hardware/media, crash consistency и часть UX/доступности не закрыты тестами. Дефекты AUD-01 и AUD-07 наблюдались на скриншотах; AUD-02, AUD-04, AUD-05 и AUD-06 — подтверждённые **сценарии риска в коде**, но не воспроизведённые аварии; остальные пункты — gaps. Цель Alpha 47 — адресно закрыть P1, затем P2 с доказательствами, а не переписывать приложение с нуля.
+**Alpha 46 — реальный собираемый и опубликованный продукт**, большинство именованных модулей имеют рабочий backend. Но «весь функционал полностью готов и проверен» утверждать нельзя: функциональные пути hardware/media, crash consistency и часть UX/доступности не закрыты тестами. Дефекты AUD-01 и AUD-07 наблюдались на скриншотах; AUD-02, AUD-04, AUD-05 и AUD-06 — подтверждённые **сценарии риска в коде**, но не воспроизведённые аварии; AUD-03 исправлен после проверки реального CI-скрипта; остальные пункты — gaps. Цель Alpha 47 — адресно закрыть P1, затем P2 с доказательствами, а не переписывать приложение с нуля.
