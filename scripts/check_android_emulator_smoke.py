@@ -229,7 +229,7 @@ def main() -> None:
     capture("01-hub-launch")
     click("Игры")
     stage("01-games-tab", "ИГРОВАЯ БИБЛИОТЕКА")
-    expect("Поиск игры или имени пакета")
+    expect("Управление библиотекой")
     click("Сервисы")
     expect(TOOLS_MARKER)
     capture("01-tools-tab")
