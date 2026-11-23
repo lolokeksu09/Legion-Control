@@ -307,6 +307,7 @@ def main() -> None:
 
     click("Smart Profiles")
     stage("03-smart-profiles", "LEGION CONTROL · SMART PROFILES")
+    expect_scrolling("Температура предупреждения, °C", seconds=20)
     expect_selected_tab("Игры")
     click("Имя пакета приложения")
     adb("shell", "input", "text", "com.android.settings")
@@ -357,11 +358,11 @@ def main() -> None:
     expect(TOOLS_MARKER)
 
     click("Audio Lab")
-    stage("06-audio-lab-idle", "AUDIO LAB · ALPHA.22")
+    stage("06-audio-lab-idle", "AUDIO LAB")
     expect_selected_tab("Инструменты")
     back_until(TOOLS_MARKER)
     click("Haptic Lab")
-    stage("07-haptic-lab-idle", "HAPTIC LAB · ALPHA.23")
+    stage("07-haptic-lab-idle", "HAPTIC LAB")
     back_until(TOOLS_MARKER)
 
     # Controller live input keeps its Activity ownership, but the chrome
@@ -460,7 +461,7 @@ def main() -> None:
         raise AssertionError("Tool search left unrelated modules visible")
     adb("shell", "input", "keyevent", "KEYCODE_BACK")  # Dismiss IME
     click("Audio Lab", scrolls=0)
-    stage("18-tools-search-opens-audio", "AUDIO LAB · ALPHA.22")
+    stage("18-tools-search-opens-audio", "AUDIO LAB")
     back_until(TOOLS_MARKER)
     click("Поиск по инструментам Legion Control", scrolls=0)
     adb("shell", "input", "text", "unlikelysearch999")

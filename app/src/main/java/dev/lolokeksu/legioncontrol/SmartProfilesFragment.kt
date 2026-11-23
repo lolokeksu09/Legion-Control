@@ -61,8 +61,20 @@ class SmartProfilesFragment : Fragment() {
             setTextColor(Color.WHITE)
             setHintTextColor(Color.GRAY)
             setSingleLine(true)
-            if(numeric) inputType=android.text.InputType.TYPE_CLASS_NUMBER
+            if(numeric) inputType=android.text.InputType.TYPE_CLASS_NUMBER or
+                android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
             root.addView(this)
+        }
+        fun labeledEdit(label:String,hint:String,numeric:Boolean=false):EditText {
+            val caption=TextView(requireContext()).apply {
+                text=label; textSize=14f; setTextColor(Color.WHITE)
+                setPadding(0,12.dp,0,3.dp)
+            }
+            root.addView(caption)
+            return edit(hint,numeric).also { field ->
+                field.id=View.generateViewId()
+                caption.labelFor=field.id
+            }
         }
         root.addView(TextView(requireContext()).apply {
             text="LEGION CONTROL · SMART PROFILES"
@@ -73,10 +85,12 @@ class SmartProfilesFragment : Fragment() {
         root.addView(LegionUiSupport.sectionLabel(requireContext(), "ПРОФИЛЬ ИГРЫ"))
         action("Выбрать установленное приложение") { chooseInstalled() }
         action("Загрузить сохранённый профиль") { loadPicker() }
-        packageText=edit("Имя пакета приложения")
-        labelText=edit("Название профиля")
-        hotText=edit("Температура батареи для предупреждения · °C × 10",true).also { it.setText("420") }
-        lowText=edit("Предупреждение о заряде · %",true).also { it.setText("20") }
+        packageText=labeledEdit("Пакет приложения","com.example.game")
+        labelText=labeledEdit("Название профиля","Например, Wild Rift")
+        hotText=labeledEdit("Температура предупреждения, °C","От 30,0 до 55,0",true)
+            .also { it.setText(SmartProfileTemperature.format(420)) }
+        lowText=labeledEdit("Предупреждение о низком заряде, %","От 5 до 80",true)
+            .also { it.setText("20") }
         tcpBox=CheckBox(requireContext()).apply {
             text="Разрешить TCP-тест при записи (внешняя сеть)"
             setTextColor(Color.WHITE)
@@ -185,7 +199,7 @@ class SmartProfilesFragment : Fragment() {
         if (savedInstanceState != null) {
             packageText.setText(savedInstanceState.getString("pkg").orEmpty())
             labelText.setText(savedInstanceState.getString("label").orEmpty())
-            hotText.setText(savedInstanceState.getString("hot", "420"))
+            hotText.setText(savedInstanceState.getString("hot", SmartProfileTemperature.format(420)))
             lowText.setText(savedInstanceState.getString("low", "20"))
             tcpBox.isChecked = savedInstanceState.getBoolean("tcp", false)
         } else arguments?.getString("app_center_package")?.takeIf {
@@ -200,11 +214,11 @@ class SmartProfilesFragment : Fragment() {
     private fun save() {
         val pkg=packageNameInput()
         val label=labelText.text.toString().trim()
-        val hot=hotText.text.toString().toIntOrNull()
+        val hot=SmartProfileTemperature.parseDeciC(hotText.text.toString())
         val low=lowText.text.toString().toIntOrNull()
         if(!SmartProfilesRepository.validatePackage(pkg) || label.isBlank() || label.length>100 ||
             hot==null || hot !in 300..550 || low==null || low !in 5..80) {
-            show("Некорректные данные: пакет Android, название (до 100), температура 300–550, заряд 5–80.")
+            show("Проверьте пакет и название профиля (до 100 символов), температуру 30–55 °C и заряд 5–80%.")
             return
         }
         viewModel.save(pkg, label, hot, low, tcpBox.isChecked)
@@ -238,7 +252,7 @@ class SmartProfilesFragment : Fragment() {
                 val p = profiles[index]
                 packageText.setText(p.packageName)
                 labelText.setText(p.label)
-                hotText.setText(p.hotDeciC.toString())
+                hotText.setText(SmartProfileTemperature.format(p.hotDeciC))
                 lowText.setText(p.lowPercent.toString())
                 tcpBox.isChecked = p.tcpOptIn
                 show("Загружен профиль: " + p.label)
