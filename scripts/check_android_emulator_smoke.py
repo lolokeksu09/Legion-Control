@@ -12,6 +12,7 @@ from pathlib import Path
 
 PACKAGE = "dev.lolokeksu.legioncontrol"
 TOOLS_MARKER = "ВСЕ СИСТЕМНЫЕ ИНСТРУМЕНТЫ"
+GAMES_MARKER = "ИГРОВАЯ БИБЛИОТЕКА"
 SETTINGS_MARKER = "НАСТРОЙКИ И КОНТРОЛЬ"
 EVIDENCE = Path("smoke-evidence")
 EVIDENCE.mkdir(exist_ok=True)
@@ -242,28 +243,30 @@ def main() -> None:
     # Alpha.44: capture both affected pages before any long recorder backend
     # smoke. Their Activity facades are intentionally non-exported, so ADB
     # shell must NOT launch them directly. Use the actual user-visible Hub.
-    click("Сервисы")
+    click("Инструменты")
     expect(TOOLS_MARKER)
     click("Gaming Lab", scrolls=16)
     expect("LEGION CONTROL · GAMING LAB")
     expect("ПРОВЕРКИ УСТРОЙСТВА")
-    expect("Домой")
+    expect("Главная")
     stage("00-alpha44-gaming-lab", "LEGION CONTROL · GAMING LAB")
     back_until(TOOLS_MARKER)
-    click("Game Session", scrolls=16, direction="up")
+    click("Игры")
+    expect(GAMES_MARKER)
+    click("Game Session", scrolls=16)
     expect("LEGION · GAME SESSION")
     expect("ПОДГОТОВКА")
-    expect("Домой")
+    expect("Главная")
     stage("00-alpha44-game-session", "LEGION · GAME SESSION")
     # The recording CTA must be available without scrolling the initial page.
     expect("НАЧАТЬ ЗАПИСЬ", seconds=5)
-    back_until(TOOLS_MARKER)
-    click("Домой", scrolls=0, exact_only=True)
+    back_until(GAMES_MARKER)
+    click("Главная", scrolls=0, exact_only=True)
     expect("Готов к запуску")
     click("Игры")
     stage("01-games-tab", "ИГРОВАЯ БИБЛИОТЕКА")
     expect("Управление библиотекой")
-    click("Сервисы")
+    click("Инструменты")
     expect(TOOLS_MARKER)
     capture("01-tools-tab")
 
@@ -272,20 +275,22 @@ def main() -> None:
     click("Capture Studio")
     stage("01a-capture-studio", "CAPTURE STUDIO")
     expect("ЗАХВАТ И REPLAY")
-    expect("Домой")
+    expect("Главная")
     expect_scrolling("INSTANT REPLAY", seconds=70, progressive=True)
     capture("01b-capture-studio-replay")
     back_until(TOOLS_MARKER)
+    click("Игры")
+    expect(GAMES_MARKER)
     click("Game Toolbox")
     stage("01c-game-toolbox", "GAME TOOLBOX")
     expect("ИГРОВАЯ ПАНЕЛЬ")  # Header owned by canonical NavigationHostActivity
     expect("Выбрать игру или приложение")
-    expect("Домой")  # Persistent bottom navigation on formerly standalone screen
-    back_until(TOOLS_MARKER)
+    expect("Главная")  # Persistent bottom navigation on formerly standalone screen
+    back_until(GAMES_MARKER)
 
     click("Game Session")
     stage("02-game-session", "LEGION · GAME SESSION")
-    back_until(TOOLS_MARKER)
+    back_until(GAMES_MARKER)
 
     click("Smart Profiles")
     stage("03-smart-profiles", "LEGION CONTROL · SMART PROFILES")
@@ -333,7 +338,9 @@ def main() -> None:
     back_until("LEGION · SESSION SIGNALS")
     back_until("LEGION · GAME SESSION")
     back_until("LEGION CONTROL · SMART PROFILES")
-    back_until(TOOLS_MARKER)
+    back_until(GAMES_MARKER)
+    click("Инструменты")
+    expect(TOOLS_MARKER)
 
     click("Audio Lab")
     stage("06-audio-lab-idle", "AUDIO LAB · ALPHA.22")
@@ -347,7 +354,7 @@ def main() -> None:
     click("Gamepad Live")
     stage("01d-gamepad-live", "GAMEPAD LIVE")
     expect("ПРОВЕРКА ГЕЙМПАДА")
-    expect("Домой")
+    expect("Главная")
     back_until(TOOLS_MARKER)
 
     click("Gaming Lab")
@@ -372,7 +379,7 @@ def main() -> None:
     click("Диагностика Kotlin + Rust", scrolls=16)
     stage("01e-rust-diagnostics", "Диагностика устройства")
     expect("ДИАГНОСТИКА УСТРОЙСТВА")
-    expect("Домой")
+    expect("Главная")
     back_until(TOOLS_MARKER)
 
     click("История")
@@ -405,23 +412,25 @@ def main() -> None:
     click("Application Center")
     stage("13-application-center", "APPLICATION CONTROL CENTER")
     back_until(SETTINGS_MARKER)
-    click("Домой")
+    click("Главная")
     stage("14-return-home", "Готов к запуску")
     # Repeat UI traversal after the entire smoke to catch navigation and theme
     # regressions, without exporting previously private legacy Activities.
-    click("Сервисы")
+    click("Инструменты")
     expect(TOOLS_MARKER)
     click("Gaming Lab", scrolls=16)
     stage("15-gaming-after-smoke", "LEGION CONTROL · GAMING LAB")
     expect("ИГРОВАЯ ДИАГНОСТИКА")
-    expect("Домой")
+    expect("Главная")
     back_until(TOOLS_MARKER)
-    click("Game Session", scrolls=16, direction="up")
+    click("Игры")
+    expect(GAMES_MARKER)
+    click("Game Session", scrolls=16)
     stage("16-session-after-smoke", "LEGION · GAME SESSION")
     expect("ЗАПИСЬ ИГРОВОЙ СЕССИИ")
-    expect("Домой")
-    back_until(TOOLS_MARKER)
-    click("Домой")
+    expect("Главная")
+    back_until(GAMES_MARKER)
+    click("Главная")
     stage("17-return-home-after-legacy", "Готов к запуску")
     print("PASS: Android emulator UI navigation, explicit marker persisted in SQLite,",
           "signal correlation, selected package, foreground START/STOP, back stack",flush=True)
