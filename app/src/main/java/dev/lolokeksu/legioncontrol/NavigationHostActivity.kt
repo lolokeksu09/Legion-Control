@@ -28,6 +28,7 @@ class NavigationHostActivity : FragmentActivity() {
     private lateinit var subtitle: TextView
     private lateinit var back: TextView
     private val buttons = LinkedHashMap<Int, Pair<ImageView, TextView>>()
+    private val tabSurfaces = LinkedHashMap<Int, View>()
     private val Int.dp get() = (this * resources.displayMetrics.density).toInt()
     private fun versionLabel(): String = runCatching {
         packageManager.getPackageInfo(packageName,
@@ -140,6 +141,7 @@ class NavigationHostActivity : FragmentActivity() {
             column.addView(text)
             bottom.addView(column, LinearLayout.LayoutParams(0, 57.dp, 1f))
             buttons[id] = icon to text
+            tabSurfaces[id] = column
             column.setOnClickListener {
                 if (nav.currentDestination?.id != id) {
                     nav.navigate(id, null, NavOptions.Builder()
@@ -168,10 +170,9 @@ class NavigationHostActivity : FragmentActivity() {
                 views.first.imageTintList = ColorStateList.valueOf(if (selected) accent else muted)
                 views.second.setTextColor(if (selected) accent else muted)
                 views.second.setTypeface(null, if (selected) Typeface.BOLD else Typeface.NORMAL)
-                buttons[id]?.let { views ->
-                    // Selection is exposed to TalkBack via the focusable tab below.
-                    views.first.isSelected = selected
-                    views.second.isSelected = selected
+                tabSurfaces[id]?.let { tab ->
+                    tab.isSelected = selected
+                    tab.stateDescription = if (selected) "Выбрано" else "Не выбрано"
                 }
             }
             back.visibility = if (actual == R.id.gameDetailFragment ||
