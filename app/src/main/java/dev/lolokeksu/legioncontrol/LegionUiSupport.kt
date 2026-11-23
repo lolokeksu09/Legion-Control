@@ -45,8 +45,9 @@ object LegionUiSupport {
         }
 
     private fun textStates(): ColorStateList = ColorStateList(
-        arrayOf(intArrayOf(-android.R.attr.state_enabled), intArrayOf()),
-        intArrayOf(DISABLED, Color.WHITE)
+        arrayOf(intArrayOf(-android.R.attr.state_enabled),
+            intArrayOf(android.R.attr.state_selected), intArrayOf()),
+        intArrayOf(DISABLED, ACCENT, Color.WHITE)
     )
 
     /**
@@ -57,6 +58,8 @@ object LegionUiSupport {
         val background = StateListDrawable().apply {
             addState(intArrayOf(-android.R.attr.state_enabled),
                 shape(button, 0xFF0D1015.toInt(), 0xFF202630.toInt()))
+            addState(intArrayOf(android.R.attr.state_selected),
+                shape(button, 0xFF1B2B42.toInt(), ACCENT))
             addState(intArrayOf(android.R.attr.state_focused),
                 shape(button, 0xFF1B2B42.toInt(), ACCENT))
             addState(intArrayOf(),
