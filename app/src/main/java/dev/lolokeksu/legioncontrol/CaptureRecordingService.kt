@@ -139,6 +139,11 @@ class CaptureRecordingService : Service() {
             }
             selectedGameUid = uid
         }
+        if (!CaptureCoordinator.begin(CaptureMode.RECORDING)) {
+            writeStatus("Запись отклонена: другое MediaProjection-согласие уже используется.")
+            stopSelfResult(startId)
+            return START_NOT_STICKY
+        }
         try {
             // Android 14+: user consent must precede foreground mediaProjection service.
             // Foreground service must start BEFORE getMediaProjection().
@@ -150,6 +155,7 @@ class CaptureRecordingService : Service() {
                 intent.getIntExtra(EXTRA_MINUTES, 1)
             )
             beginRecording(consent, config)
+            CaptureCoordinator.markActive(CaptureMode.RECORDING)
         } catch (e: Exception) {
             finish("Не удалось начать запись: " + e.javaClass.simpleName)
         }
@@ -332,6 +338,7 @@ class CaptureRecordingService : Service() {
     private fun finish(reason: String) {
         if (stopping) return
         stopping = true
+        CaptureCoordinator.markStopping(CaptureMode.RECORDING)
         handler.removeCallbacks(autoStop)
         handler.removeCallbacks(pauseTimeout)
         recording = false
@@ -425,6 +432,7 @@ class CaptureRecordingService : Service() {
 
     private fun stopCaptureService() {
         stopForeground(STOP_FOREGROUND_REMOVE)
+        CaptureCoordinator.release(CaptureMode.RECORDING)
         stopSelf()
     }
 
