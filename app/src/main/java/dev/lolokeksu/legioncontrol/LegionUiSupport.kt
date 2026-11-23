@@ -145,6 +145,28 @@ object LegionUiSupport {
         if (root is ViewGroup) {
             for (index in 0 until root.childCount) styleModuleTree(root.getChildAt(index))
         }
+        // Within a module content column the first bold heading is the page
+        // title; later bold headings are section dividers like those on Home.
+        // Restrict this to direct children so report cards and result content
+        // never inherit decorative section styling.
+        if (root is LinearLayout && root.orientation == LinearLayout.VERTICAL) {
+            val headings = (0 until root.childCount).mapNotNull { index ->
+                (root.getChildAt(index) as? TextView)?.takeIf {
+                    it !is Button && it.typeface?.isBold == true &&
+                        it.textSize / it.resources.displayMetrics.scaledDensity >= 18f
+                }
+            }
+            if (headings.size > 1) {
+                headings.drop(1).forEach { heading ->
+                    heading.textSize = 12f
+                    heading.setTextColor(ACCENT)
+                    heading.letterSpacing = 0.08f
+                    heading.setPadding(heading.paddingLeft,
+                        maxOf(heading.paddingTop, dp(heading, 16)),
+                        heading.paddingRight, maxOf(heading.paddingBottom, dp(heading, 11)))
+                }
+            }
+        }
     }
 
     /** Kept for callers of the earlier alpha.41 Fragment styling API. */
