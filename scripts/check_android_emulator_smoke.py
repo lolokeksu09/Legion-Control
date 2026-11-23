@@ -309,7 +309,7 @@ def main() -> None:
     stage("03-smart-profiles", "LEGION CONTROL · SMART PROFILES")
     expect_scrolling("Температура предупреждения, °C", seconds=20)
     expect_selected_tab("Игры")
-    click("Имя пакета приложения")
+    click("com.example.game", scrolls=12, direction="up")
     adb("shell", "input", "text", "com.android.settings")
     adb("shell", "input", "keyevent", "KEYCODE_BACK")  # Hide IME, do not leave screen
     click("Открыть Game Session с этим профилем")
