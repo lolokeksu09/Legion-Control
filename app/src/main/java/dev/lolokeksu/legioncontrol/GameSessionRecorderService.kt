@@ -25,6 +25,8 @@ import java.util.concurrent.TimeUnit
  */
 class GameSessionRecorderService : Service() {
     companion object {
+        @Volatile var sessionActive = false
+            private set
         const val ACTION_START = "dev.lolokeksu.legioncontrol.game.START"
         const val ACTION_STOP = "dev.lolokeksu.legioncontrol.game.STOP"
         const val ACTION_MARK = "dev.lolokeksu.legioncontrol.game.MARK"
@@ -104,6 +106,10 @@ class GameSessionRecorderService : Service() {
             return START_NOT_STICKY
         }
         if (intent?.action != ACTION_START || started || stopping) return START_NOT_STICKY
+        if (CaptureCoordinator.state().first == CaptureMode.MAINTENANCE) {
+            stopSelfResult(startId)
+            return START_NOT_STICKY
+        }
         val pkg = intent.getStringExtra(EXTRA_PACKAGE)?.trim().orEmpty()
         if (!Regex("^[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z0-9_]+)+$").matches(pkg)) {
             stopSelf()
@@ -120,9 +126,11 @@ class GameSessionRecorderService : Service() {
         } catch (e: Exception) {
             Log.e("LegionSession","Foreground service unavailable",e)
             started = false
+            sessionActive = false
             stopSelf()
             return START_NOT_STICKY
         }
+        sessionActive = true
         worker.execute {
             try {
                 val repository = GameSessionRepository(applicationContext)
@@ -292,9 +300,13 @@ class GameSessionRecorderService : Service() {
                 storage = null
                 activeId = null
                 stopForeground(STOP_FOREGROUND_REMOVE)
+                sessionActive = false
                 stopSelf()
             }
-        }.onFailure { stopSelf() }
+        }.onFailure {
+            sessionActive = false
+            stopSelf()
+        }
     }
 
     override fun onDestroy() {
@@ -312,6 +324,7 @@ class GameSessionRecorderService : Service() {
             }
         }
         worker.shutdown()
+        sessionActive = false
         super.onDestroy()
     }
 }
