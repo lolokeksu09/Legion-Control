@@ -432,6 +432,26 @@ def main() -> None:
     back_until(GAMES_MARKER)
     click("Главная")
     stage("17-return-home-after-legacy", "Готов к запуску")
+
+    # Verify the new user-facing tool catalog rather than treating static source
+    # strings as evidence that search and action routing actually work.
+    click("Инструменты")
+    expect(TOOLS_MARKER)
+    click("Поиск инструмента", scrolls=0)
+    adb("shell", "input", "text", "audio")
+    expect("Audio Lab")
+    if visible("Gaming Lab"):
+        raise AssertionError("Tool search left unrelated modules visible")
+    adb("shell", "input", "keyevent", "KEYCODE_BACK")  # Dismiss IME
+    click("Audio Lab", scrolls=0)
+    stage("18-tools-search-opens-audio", "AUDIO LAB · ALPHA.22")
+    back_until(TOOLS_MARKER)
+    click("Поиск инструмента", scrolls=0)
+    adb("shell", "input", "text", "unlikelysearch999")
+    expect("Инструменты не найдены")
+    adb("shell", "input", "keyevent", "KEYCODE_BACK")
+    click("Главная")
+    stage("19-return-home-after-search", "Готов к запуску")
     print("PASS: Android emulator UI navigation, explicit marker persisted in SQLite,",
           "signal correlation, selected package, foreground START/STOP, back stack",flush=True)
 
