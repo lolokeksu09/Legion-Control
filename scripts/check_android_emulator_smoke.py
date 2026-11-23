@@ -460,7 +460,7 @@ def main() -> None:
         raise AssertionError("Tool search left unrelated modules visible")
     adb("shell", "input", "keyevent", "KEYCODE_BACK")  # Dismiss IME
     click("Audio Lab", scrolls=0)
-    stage("18-tools-search-opens-audio", "AUDIO LAB · ALPHA.22")
+    stage("18-tools-search-opens-audio", "AUDIO LAB")
     back_until(TOOLS_MARKER)
     click("Поиск по инструментам Legion Control", scrolls=0)
     adb("shell", "input", "text", "unlikelysearch999")

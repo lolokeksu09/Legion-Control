@@ -16,6 +16,7 @@ import android.graphics.Color
 import android.graphics.Typeface
 import android.os.Bundle
 import android.provider.Settings
+import android.text.InputType
 import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
@@ -75,8 +76,27 @@ class SmartProfilesFragment : Fragment() {
         action("Загрузить сохранённый профиль") { loadPicker() }
         packageText=edit("Имя пакета приложения")
         labelText=edit("Название профиля")
-        hotText=edit("Температура батареи для предупреждения · °C × 10",true).also { it.setText("420") }
-        lowText=edit("Предупреждение о заряде · %",true).also { it.setText("20") }
+        fun labeledEdit(label: String, hint: String, numeric: Boolean = false): EditText {
+            val caption = TextView(requireContext()).apply {
+                text = label
+                textSize = 14f
+                setTextColor(Color.WHITE)
+                setPadding(0, 12.dp, 0, 5.dp)
+            }
+            root.addView(caption)
+            return edit(hint, numeric).also { field ->
+                caption.labelFor = field.id.takeIf { it != View.NO_ID }
+                    ?: View.generateViewId().also { field.id = it }
+                field.contentDescription = label
+            }
+        }
+        hotText = labeledEdit("Температура предупреждения, °C (30,0–55,0)",
+            "Например, 42,0").also {
+            it.inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
+            it.setText(SmartThresholdPresentation.showTemperature(420))
+        }
+        lowText = labeledEdit("Заряд батареи для предупреждения, % (5–80)",
+            "Например, 20", true).also { it.setText("20") }
         tcpBox=CheckBox(requireContext()).apply {
             text="Разрешить TCP-тест при записи (внешняя сеть)"
             setTextColor(Color.WHITE)
@@ -185,7 +205,7 @@ class SmartProfilesFragment : Fragment() {
         if (savedInstanceState != null) {
             packageText.setText(savedInstanceState.getString("pkg").orEmpty())
             labelText.setText(savedInstanceState.getString("label").orEmpty())
-            hotText.setText(savedInstanceState.getString("hot", "420"))
+            hotText.setText(savedInstanceState.getString("hot", "42.0"))
             lowText.setText(savedInstanceState.getString("low", "20"))
             tcpBox.isChecked = savedInstanceState.getBoolean("tcp", false)
         } else arguments?.getString("app_center_package")?.takeIf {
@@ -200,11 +220,11 @@ class SmartProfilesFragment : Fragment() {
     private fun save() {
         val pkg=packageNameInput()
         val label=labelText.text.toString().trim()
-        val hot=hotText.text.toString().toIntOrNull()
-        val low=lowText.text.toString().toIntOrNull()
+        val hot=SmartThresholdPresentation.parseTemperature(hotText.text.toString())
+        val low=SmartThresholdPresentation.parseChargePercent(lowText.text.toString())
         if(!SmartProfilesRepository.validatePackage(pkg) || label.isBlank() || label.length>100 ||
             hot==null || hot !in 300..550 || low==null || low !in 5..80) {
-            show("Некорректные данные: пакет Android, название (до 100), температура 300–550, заряд 5–80.")
+            show("Некорректные данные: пакет Android, название (до 100 символов), температура 30,0–55,0 °C, заряд 5–80%.")
             return
         }
         viewModel.save(pkg, label, hot, low, tcpBox.isChecked)
@@ -238,7 +258,7 @@ class SmartProfilesFragment : Fragment() {
                 val p = profiles[index]
                 packageText.setText(p.packageName)
                 labelText.setText(p.label)
-                hotText.setText(p.hotDeciC.toString())
+                hotText.setText(SmartThresholdPresentation.showTemperature(p.hotDeciC))
                 lowText.setText(p.lowPercent.toString())
                 tcpBox.isChecked = p.tcpOptIn
                 show("Загружен профиль: " + p.label)
