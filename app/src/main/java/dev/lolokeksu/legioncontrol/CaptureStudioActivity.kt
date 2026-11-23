@@ -94,6 +94,35 @@ class CaptureStudioActivity : ComponentActivity() {
         }
         root.addView(status)
 
+        heading("Запись")
+        action("НАЧАТЬ ЗАПИСЬ ЭКРАНА") { askConsent() }
+        action("ПОСТАВИТЬ ЗАПИСЬ НА ПАУЗУ") {
+            if (CaptureRecordingService.recording && !CaptureRecordingService.paused) {
+                runCatching { CaptureRecordingService.pause(this) }
+                    .onSuccess { status.text = "Пауза запрошена. Состояние обновится в уведомлении." }
+                    .onFailure { status.text = "Пауза недоступна: " + it.javaClass.simpleName }
+            } else {
+                status.text = if (CaptureRecordingService.paused) "Запись уже на паузе."
+                    else "Активной записи нет."
+            }
+        }
+        action("ВОЗОБНОВИТЬ ЗАПИСЬ") {
+            if (CaptureRecordingService.recording && CaptureRecordingService.paused) {
+                runCatching { CaptureRecordingService.resume(this) }
+                    .onSuccess { status.text = "Возобновление запрошено. Проверьте уведомление." }
+                    .onFailure { status.text = "Возобновление недоступно: " + it.javaClass.simpleName }
+            } else {
+                status.text = if (CaptureRecordingService.recording) "Запись уже идёт."
+                    else "Активной записи нет."
+            }
+        }
+        action("ОСТАНОВИТЬ ЗАПИСЬ") {
+            if (CaptureRecordingService.recording) {
+                CaptureRecordingService.stop(this)
+                status.text = "Остановка запрошена; результат появится после завершения кодирования."
+            } else status.text = "Активной записи нет."
+        }
+
         heading("Качество и лимиты")
         choices = TextView(this).apply {
             textSize = 14f
@@ -141,34 +170,8 @@ class CaptureStudioActivity : ComponentActivity() {
         note("Резервная копия создаётся только по вашему запросу. " +
             "При импорте заменяются игровые профили, но не общие настройки и не записи видео.")
 
-        heading("Запись")
-        action("НАЧАТЬ ЗАПИСЬ ЭКРАНА") { askConsent() }
-        action("ПОСТАВИТЬ ЗАПИСЬ НА ПАУЗУ") {
-            if (CaptureRecordingService.recording && !CaptureRecordingService.paused) {
-                runCatching { CaptureRecordingService.pause(this) }
-                    .onSuccess { status.text = "Пауза запрошена. Состояние обновится в уведомлении." }
-                    .onFailure { status.text = "Пауза недоступна: " + it.javaClass.simpleName }
-            } else {
-                status.text = if (CaptureRecordingService.paused) "Запись уже на паузе."
-                    else "Активной записи нет."
-            }
-        }
-        action("ВОЗОБНОВИТЬ ЗАПИСЬ") {
-            if (CaptureRecordingService.recording && CaptureRecordingService.paused) {
-                runCatching { CaptureRecordingService.resume(this) }
-                    .onSuccess { status.text = "Возобновление запрошено. Проверьте уведомление." }
-                    .onFailure { status.text = "Возобновление недоступно: " + it.javaClass.simpleName }
-            } else {
-                status.text = if (CaptureRecordingService.recording) "Запись уже идёт."
-                    else "Активной записи нет."
-            }
-        }
-        action("ОСТАНОВИТЬ ЗАПИСЬ") {
-            if (CaptureRecordingService.recording) {
-                CaptureRecordingService.stop(this)
-                status.text = "Остановка запрошена; результат появится после завершения кодирования."
-            } else status.text = "Активной записи нет."
-        }
+        action("Обновить состояние записи") { refreshStatus() }
+
         heading("INSTANT REPLAY")
         note("Сохраняет последние 30/60/120 секунд игры без остановки захвата. " +
             "Работает только после разового системного согласия Android. " +
@@ -205,7 +208,6 @@ class CaptureStudioActivity : ComponentActivity() {
             status.text = "Отмена снимка запрошена."
         }
         action("Открыть выбранную игру Game Toolbox") { openSelectedGame() }
-        action("Обновить состояние записи") { refreshStatus() }
 
         heading("Место для записей")
         note("Показывает объём только собственных опубликованных MP4/PNG. " +
