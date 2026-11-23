@@ -450,6 +450,8 @@ def main() -> None:
     adb("shell", "input", "text", "unlikelysearch999")
     expect("Инструменты не найдены")
     adb("shell", "input", "keyevent", "KEYCODE_BACK")
+    click("Сбросить поиск", scrolls=0)
+    expect("Capture Studio")
     click("Главная")
     stage("19-return-home-after-search", "Готов к запуску")
     print("PASS: Android emulator UI navigation, explicit marker persisted in SQLite,",
