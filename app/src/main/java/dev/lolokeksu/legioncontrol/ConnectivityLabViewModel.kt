@@ -28,7 +28,7 @@ class ConnectivityLabViewModel(application:Application):AndroidViewModel(applica
     companion object { private const val INTERVAL_MS=12_000L }
     private val worker=Executors.newSingleThreadExecutor()
     private val main=Handler(Looper.getMainLooper())
-    private val cancelled=AtomicBoolean()
+    @Volatile private var activeTicket:ConnectivityRunTicket?=null
     private val closed=AtomicBoolean()
     private val testing=AtomicBoolean()
     private val generation=AtomicInteger()
@@ -42,6 +42,7 @@ class ConnectivityLabViewModel(application:Application):AndroidViewModel(applica
 
     fun chooseHost(value:String) {
         if(testing.get() || !ConnectivityProbe.validHost(value))return
+        if(host!=value) generation.incrementAndGet() // invalidate old queued history/report
         host=value
         selectedRunId=null
         mutableState.value=ConnectivityLabUiState(
@@ -53,11 +54,13 @@ class ConnectivityLabViewModel(application:Application):AndroidViewModel(applica
     fun startTest(cycles:Int) {
         if(cycles !in listOf(1,6) || closed.get() || !testing.compareAndSet(false,true))return
         val target=host
-        cancelled.set(false)
+        val ticket=ConnectivityRunTicket()
+        activeTicket=ticket
         val request=generation.incrementAndGet()
         mutableState.value=ConnectivityLabUiState(
             "Запрошено подключение к $target:443. Запуск теста…",true,request)
         task=worker.submit {
+            if(!ticket.start()) return@submit // cancelled before task began
             var message="Нет сохранённых результатов: запрос был отменён до начала измерений."
             var runId:String?=null
             var outcome="COMPLETE"
@@ -66,7 +69,7 @@ class ConnectivityLabViewModel(application:Application):AndroidViewModel(applica
                     try {
                         runId=db.start(target,if(cycles==1)"SINGLE" else "STABILITY")
                         for(cycle in 1..cycles) {
-                            if(cancelled.get() || Thread.currentThread().isInterrupted) {
+                            if(ticket.isCancelled() || Thread.currentThread().isInterrupted) {
                                 outcome="CANCELLED"
                                 break
                             }
@@ -77,7 +80,7 @@ class ConnectivityLabViewModel(application:Application):AndroidViewModel(applica
                             val short="${cycle}/$cycles · "+
                                 readings.joinToString(" · ") { it.family+": "+it.result }
                             main.post {
-                                if(!closed.get() && !cancelled.get() && generation.get()==request)
+                                if(!closed.get() && !ticket.isCancelled() && generation.get()==request)
                                     mutableState.value=ConnectivityLabUiState(
                                         "Проверка $target:443\n$short\n"+
                                         "Оставьте экран открытым; не переключайтесь в другое приложение.",
@@ -89,13 +92,13 @@ class ConnectivityLabViewModel(application:Application):AndroidViewModel(applica
                                 if(delay>0L) Thread.sleep(delay)
                             }
                         }
-                        if(cancelled.get() || Thread.currentThread().isInterrupted)
+                        if(ticket.isCancelled() || Thread.currentThread().isInterrupted)
                             outcome="CANCELLED"
                     } catch(interrupted:InterruptedException) {
                         outcome="CANCELLED"
                         Thread.interrupted() // Clear flag before SQLite finish()
                     } catch(error:Exception) {
-                        outcome=if(cancelled.get())"CANCELLED" else "FAILED"
+                        outcome=if(ticket.isCancelled())"CANCELLED" else "FAILED"
                     } finally { runId?.let { db.finish(it,outcome) } }
                     message=runId?.let { ConnectivityAnalytics.render(db.summary(it)) } ?:
                         "Не удалось начать тест и создать запись в SQLite."
@@ -104,10 +107,13 @@ class ConnectivityLabViewModel(application:Application):AndroidViewModel(applica
                 message="Ошибка сетевого теста: "+error.javaClass.simpleName+
                     ". Приложение не выполняло скрытый фоновый тест."
             }finally {
-                testing.set(false)
+                if(activeTicket===ticket) {
+                    activeTicket=null
+                    testing.set(false)
+                }
                 main.post {
                     if(!closed.get() && generation.get()==request) {
-                        if(!cancelled.get()) {
+                        if(!ticket.isCancelled()) {
                             selectedRunId=runId
                             mutableState.value=ConnectivityLabUiState(message,false,request)
                         } else mutableState.value=ConnectivityLabUiState(
@@ -122,10 +128,21 @@ class ConnectivityLabViewModel(application:Application):AndroidViewModel(applica
     /** Idempotent: stop does not schedule a replacement or leave a repeating job. */
     fun cancelTest() {
         if(!testing.get())return
-        cancelled.set(true)
+        val ticket=activeTicket ?: return
+        val beforeStart=ticket.cancel()
         task?.cancel(true)
-        // Android's InetAddress DNS lookup may be uninterruptible. Do not claim
-        // immediate cancellation while the worker still owns the current cycle.
+        if(beforeStart) {
+            // Future.cancel may prevent the callable from ever entering its finally.
+            if(activeTicket===ticket) {
+                activeTicket=null
+                testing.set(false)
+                generation.incrementAndGet()
+                mutableState.value=ConnectivityLabUiState(
+                    "Тест отменён до начала сетевых измерений.",false,generation.get())
+            }
+            return
+        }
+        // Android DNS may be uninterruptible once the worker has begun.
         mutableState.value = ConnectivityLabUiState(
             "Отмена запрошена. DNS-запрос Android может завершиться с задержкой; " +
                 "новые циклы не начнутся.", true, generation.get())

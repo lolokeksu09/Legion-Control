@@ -334,8 +334,13 @@ class GameToolboxFragment : Fragment() {
         status.text = result.message
         if (result.success && launchIntent != null) {
             runCatching { startActivity(launchIntent) }
-                .onFailure { status.text = "Профиль применён, но запуск игры отклонён: " +
-                    it.javaClass.simpleName }
+                .onFailure { failure ->
+                    // System settings are global, so a failed activity launch
+                    // must attempt the safe compare-before-restore immediately.
+                    val rollback = GameLaunchProfiles.restore(requireContext())
+                    status.text = "Игра не запущена: " + failure.javaClass.simpleName +
+                        ". Возврат системных настроек: " + rollback.message
+                }
         }
     }
 
