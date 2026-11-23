@@ -2,6 +2,7 @@ package dev.lolokeksu.legioncontrol
 
 import android.app.Activity
 import android.content.Intent
+import android.content.Context
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.Typeface
@@ -182,6 +183,58 @@ object LegionUiSupport {
             setTypeface(Typeface.DEFAULT, Typeface.BOLD)
             setPadding(0, dp(this, 18), 0, dp(this, 11))
         }
+
+    /**
+     * One shared card for Home, Games, Services, History and Game Toolbox.
+     * A single accessibility description includes both the action and its context.
+     * This is view-only: the supplied click action retains its existing behavior.
+     */
+    fun actionTile(context: Context, title: String, detail: String,
+                   onClick: () -> Unit): LinearLayout {
+        val row = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            background = RippleDrawable(
+                ColorStateList.valueOf(0x4486B7FF),
+                shape(this, PANEL, BORDER), null
+            )
+            setPadding(dp(this, 17), dp(this, 15), dp(this, 13), dp(this, 15))
+            isClickable = true
+            isFocusable = true
+            minHeight = dp(this, 56)
+            contentDescription = if (detail.isBlank()) title else "$title. $detail"
+            setOnClickListener { onClick() }
+        }
+        val labels = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+        }
+        labels.addView(TextView(context).apply {
+            text = title
+            textSize = 15f
+            setTextColor(Color.WHITE)
+            setTypeface(Typeface.DEFAULT, Typeface.BOLD)
+            setLineSpacing(dp(this, 3).toFloat(), 1f)
+        })
+        if (detail.isNotBlank()) labels.addView(TextView(context).apply {
+            text = detail
+            textSize = 12f
+            setTextColor(MUTED)
+            setPadding(0, dp(this, 5), 0, 0)
+            setLineSpacing(dp(this, 3).toFloat(), 1f)
+        })
+        row.addView(labels, LinearLayout.LayoutParams(0,
+            LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        row.addView(TextView(context).apply {
+            text = "›"
+            textSize = 24f
+            setTextColor(ACCENT)
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        })
+        return row
+    }
+
+    /** Reuse the same 17dp panel surface in non-Hub modules. */
+    fun cardSurface(view: View): GradientDrawable = shape(view, PANEL, BORDER)
 
     /** Kept for callers of the earlier alpha.41 Fragment styling API. */
     fun styleFragmentButtons(root: View) = styleModuleTree(root)
