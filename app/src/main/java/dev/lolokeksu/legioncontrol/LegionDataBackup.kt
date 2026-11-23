@@ -116,14 +116,17 @@ object LegionDataBackup {
                         try {
                             target.beginTransaction()
                             try {
-                                // Crucial: never replace, truncate or merge a populated DB.
-                                for (table in tables) {
+                                // Check every existing table BEFORE inserting a single row.
+                                // SQLite rollback protects this entire transaction.
+                                val existingCounts = tables.map { table ->
                                     target.rawQuery("SELECT COUNT(*) FROM " + sqlName(table),
                                         null).use {
-                                        check(it.moveToFirst() && it.getLong(0) == 0L) {
-                                            "База содержит пользовательские данные. Импорт разрешён только в пустую базу."
-                                        }
+                                        check(it.moveToFirst())
+                                        it.getLong(0)
                                     }
+                                }
+                                check(BackupRestorePolicy.acceptsEmptyTarget(existingCounts)) {
+                                    "База содержит пользовательские данные. Импорт разрешён только в пустую базу."
                                 }
                                 for (table in tables) {
                                     source.rawQuery("SELECT * FROM " + sqlName(table), null)
