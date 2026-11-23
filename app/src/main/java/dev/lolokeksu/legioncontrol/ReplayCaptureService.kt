@@ -89,6 +89,7 @@ class ReplayCaptureService : Service() {
     private val running = AtomicBoolean(false)
     private val stopping = AtomicBoolean(false)
     private val saveRequested = AtomicBoolean(false)
+    @Volatile private var saveRequestedAtMs = 0L
     private val exporting = AtomicBoolean(false)
     @Volatile private var drainComplete = false
 
@@ -101,6 +102,7 @@ class ReplayCaptureService : Service() {
                     if (exporting.get() || saveRequested.get()) {
                         writeStatus("Replay: сохранение уже запрошено или выполняется.")
                     } else {
+                        saveRequestedAtMs = SystemClock.elapsedRealtime()
                         saveRequested.set(true)
                         writeStatus("Replay: сохраняю последний доступный фрагмент…")
                     }
@@ -338,10 +340,16 @@ class ReplayCaptureService : Service() {
                 // even on INFO_TRY_AGAIN_LATER, without creating another display.
                 if (saveRequested.get() && !stopping.get() && videoFormat != null &&
                     !exporting.get()) {
-                    val snapshot = buffer.snapshot()
+                    val nowVideoUs = ReplayAudioTimeline.videoPts(
+                        System.nanoTime() / 1000L, videoMinusNanoClockUs ?: 0L)
+                    val snapshot = if (nowVideoUs != null) buffer.snapshotAt(nowVideoUs)
+                        else emptyList()
                     if (snapshot.isNotEmpty() && saveRequested.compareAndSet(true, false)) {
                         exportSnapshot(requireNotNull(videoFormat), snapshot,
                             videoMinusNanoClockUs ?: 0L)
+                    } else if (SystemClock.elapsedRealtime() - saveRequestedAtMs > 5_000L &&
+                        saveRequested.compareAndSet(true, false)) {
+                        writeStatus("Replay: нет достаточного свежего видео для сохранения.")
                     }
                 }
             }

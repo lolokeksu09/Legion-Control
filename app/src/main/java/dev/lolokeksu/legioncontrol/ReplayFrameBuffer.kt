@@ -65,6 +65,22 @@ class ReplayFrameBuffer(
         return copy
     }
 
+    /** Snapshot bounded against SAVE time, not just the last generated video frame. */
+    fun snapshotAt(videoNowUs: Long): List<ReplayFrame> {
+        if (videoNowUs < 0L) return emptyList()
+        val available = snapshot()
+        if (available.isEmpty()) return emptyList()
+        val oldestUs = (videoNowUs - windowSeconds.toLong() * 1_000_000L)
+            .coerceAtLeast(0L)
+        if (available.last().ptsUs < oldestUs) return emptyList()
+        val start = available.indexOfFirst { it.keyFrame && it.ptsUs >= oldestUs }
+        if (start < 0) return emptyList()
+        val clipped = available.drop(start)
+        return if (clipped.size >= 2 &&
+            clipped.last().ptsUs - clipped.first().ptsUs >= 1_000_000L)
+            clipped else emptyList()
+    }
+
     fun clear() {
         frames.clear()
         byteCount = 0L

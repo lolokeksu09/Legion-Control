@@ -67,6 +67,16 @@ class ReplayFrameBufferTest {
         assertTrue(previous.first().keyFrame)
     }
 
+    @Test fun saveTimeWindowNeverIncludesStaleKeyframes() {
+        val buffer = ReplayFrameBuffer(30)
+        for (sec in 0..65) buffer.add(frame(sec, sec % 2 == 0))
+        val recent = buffer.snapshotAt(65_000_000L)
+        assertEquals(36_000_000L, recent.first().ptsUs)
+        assertTrue(recent.last().ptsUs <= 65_000_000L)
+        assertTrue(buffer.snapshotAt(200_000_000L).isEmpty())
+        assertTrue(buffer.snapshotAt(-1L).isEmpty())
+    }
+
     @Test fun resetDropsOnlyInMemoryFrames() {
         val buffer = ReplayFrameBuffer(60)
         buffer.add(frame(0, true))
