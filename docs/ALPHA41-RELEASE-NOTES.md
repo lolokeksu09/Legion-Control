@@ -20,6 +20,12 @@ new Android permissions, SQLite migration, or unrelated design replacement.
   timestamps, zero-byte reads, and encoder-dequeue latency.
 - Existing SQLite backup/restore instrumented emulator test remains in CI,
   followed by the Android 15 navigation/session smoke.
+- Expanded emulator screenshots include Capture Studio, Instant Replay and Game Toolbox.
+  Screenshot-derived fixes: literal \\n escape sequences in Capture Studio now render
+  as actual line breaks; standalone media/toolbox screens use black system bars.
+- Default buttons in auxiliary Navigation modules use shared AMOLED contrast and
+  disabled states. Existing bespoke Audio/Haptic/Connectivity button designs are
+  preserved. No change to navigation or the established icon set.
 
 ## Important limits
 
