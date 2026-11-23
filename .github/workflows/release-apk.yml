@@ -156,7 +156,9 @@ jobs:
             exit 0
           fi
           test -s "$apk"
-          gh release create "$tag" "$apk" --repo "$GITHUB_REPOSITORY" \
+          asset=Legion-Control-v0.1.0-alpha.41-signed.apk
+          cp "$apk" "$asset"
+          gh release create "$tag" "$asset" --repo "$GITHUB_REPOSITORY" \
             --title 'Legion Control v0.1.0-alpha.41' \
             --notes-file docs/ALPHA41-RELEASE-NOTES.md \
             --prerelease --target "$GITHUB_SHA"
