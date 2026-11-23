@@ -35,9 +35,11 @@ class ReplayFrameBuffer(
         byteCount += frame.bytes.size
         val threshold = frame.ptsUs - windowSeconds.toLong() * 1_000_000L
         while (frames.isNotEmpty() &&
-            (byteCount > byteLimit || (frames.first.ptsUs < threshold && hasSecondKey()))) {
+            (byteCount > byteLimit || frames.first.ptsUs < threshold) && hasSecondKey()) {
             evictThroughNextKey()
         }
+        // One oversized group with no next keyframe is not safe to keep or export.
+        if (byteCount > byteLimit) clear()
         return true
     }
 
