@@ -134,7 +134,9 @@ class FullBackupInstrumentedTest {
                             }
                     }
                 }
-                assertTrue("Fresh DB must be empty: " + nonEmpty, nonEmpty.isEmpty())
+                val appRows = nonEmpty.filterNot { it.startsWith("android_metadata=") }
+                assertTrue("Fresh DB must have no application rows: " + appRows,
+                    appRows.isEmpty())
             }
 
             val restored = LegionDataBackup.restoreOnEmptyDatabase(app, backup)
