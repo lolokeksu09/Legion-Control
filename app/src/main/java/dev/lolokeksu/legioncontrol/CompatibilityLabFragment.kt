@@ -53,18 +53,21 @@ class CompatibilityLabFragment : Fragment() {
             setTextIsSelectable(true)
         }
         root.addView(output)
+        root.addView(LegionUiSupport.sectionLabel(requireContext(), "ЭКРАН И ЗВУК"))
         addButton(root, "1 · Display Modes & HDR") {
             viewModel.run(CompatibilityRead.DISPLAY,requireActivity().display)
         }
         addButton(root, "2 · Audio Output Inspector") {
             viewModel.run(CompatibilityRead.AUDIO,requireActivity().display)
         }
+        root.addView(LegionUiSupport.sectionLabel(requireContext(), "КОНТРОЛЛЕРЫ"))
         addButton(root, "3 · Gamepad Inventory") {
             viewModel.run(CompatibilityRead.GAMEPADS,requireActivity().display)
         }
         addButton(root, "4 · Gamepad Live · кнопки и стики") {
             ModuleNavigation.open(this,GamepadLiveActivity::class.java)
         }
+        root.addView(LegionUiSupport.sectionLabel(requireContext(), "СОВМЕСТИМОСТЬ И ПРОИЗВОДИТЕЛЬНОСТЬ"))
         addButton(root, "5 · DRM / Widevine Compatibility") {
             viewModel.run(CompatibilityRead.DRM,requireActivity().display)
         }
@@ -74,6 +77,7 @@ class CompatibilityLabFragment : Fragment() {
         addButton(root, "7 · Quick Compute Probe · локальный CPU-тест") {
             viewModel.run(CompatibilityRead.COMPUTE,requireActivity().display)
         }
+        root.addView(LegionUiSupport.sectionLabel(requireContext(), "ОТЧЁТ"))
         addButton(root, "Полный отчёт о совместимости") { runFullReport() }
         addButton(root, "Поделиться последним завершённым отчётом") { shareLastReport() }
         addButton(root, "Вернуться в Hardware Lab") {
