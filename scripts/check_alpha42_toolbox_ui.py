@@ -25,7 +25,8 @@ assert 'R.id.gameToolboxDestination -> "ИГРОВАЯ ПАНЕЛЬ"' in host
 assert "actual == R.id.gameToolboxDestination" in host
 assert "R.id.applicationCenterDestination, R.id.gameToolboxDestination" in host
 for token in (
-    "0xFF9CA5B0", "0xFF86B7FF", "0xFF252B33", "0xFF12161C",
+    "LegionUiSupport.MUTED", "LegionUiSupport.ACCENT",
+    "LegionUiSupport.BORDER", "LegionUiSupport.PANEL",
     "section(\"GAME TOOLBOX\"", 'group("Текущее состояние")',
     'group("Запуск панели")', 'group("Игровой профиль")',
     'group("Внешний вид")', "stateDescription = if (checked)",
