@@ -89,6 +89,7 @@ assert {n.get(android+"id") for n in nodes} == {
     "@+id/homeFragment", "@+id/gamesFragment", "@+id/toolsFragment",
     "@+id/historyFragment", "@+id/settingsFragment", "@+id/gameDetailFragment", "@+id/gameSessionFragment", "@+id/sessionSignalsFragment", "@+id/sessionBaselinesFragment", "@+id/sessionIncidentsFragment",
     "@+id/applicationCenterDestination", "@+id/smartProfilesDestination",
+    "@+id/gameToolboxDestination",
     "@+id/audioLabDestination", "@+id/hapticLabDestination",
     "@+id/connectivityLabDestination", "@+id/experimentLabDestination",
     "@+id/compatibilityLabDestination", "@+id/hardwareLabDestination",
