@@ -63,7 +63,7 @@ class GameCaptureProfiles(context: Context) {
         }
         val root = JSONObject(text)
         require(root.opt("schema") == GameCaptureProfilePolicy.SCHEMA)
-        require(root.keySet() == setOf("schema", "profiles")) { "Unsupported backup schema" }
+        require(root.keys().asSequence().toSet() == setOf("schema", "profiles")) { "Unsupported backup schema" }
         val array = root.opt("profiles") as? JSONArray
             ?: throw IllegalArgumentException("Missing profiles array")
         require(array.length() <= GameCaptureProfilePolicy.MAX_PROFILES)
@@ -74,7 +74,7 @@ class GameCaptureProfiles(context: Context) {
             val pkg = obj.opt("package") as? String
                 ?: throw IllegalArgumentException("Missing package")
             require(GameCaptureProfilePolicy.validPackage(pkg))
-            require(obj.keySet() == setOf("package", "edge", "fps", "mbit", "minutes", "audio"))
+            require(obj.keys().asSequence().toSet() == setOf("package", "edge", "fps", "mbit", "minutes", "audio"))
             require(!parsed.containsKey(pkg)) { "Duplicated package" }
             parsed[pkg] = decode(obj)
         }
