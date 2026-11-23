@@ -328,18 +328,20 @@ class ReplayCaptureService : Service() {
                                     info.flags and MediaCodec.BUFFER_FLAG_KEY_FRAME != 0))
                             }
                             val isEnd = info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0
-                            if (saveRequested.get() && !stopping.get() && videoFormat != null) {
-                                val snapshot = buffer.snapshot()
-                                if (snapshot.isNotEmpty() &&
-                                    saveRequested.compareAndSet(true, false)) {
-                                    exportSnapshot(requireNotNull(videoFormat), snapshot,
-                                        videoMinusNanoClockUs ?: 0L)
-                                }
-                            }
                             if (isEnd) break
                         } finally {
                             encoder.releaseOutputBuffer(index, false)
                         }
+                    }
+                }
+                // A still game can produce no new encoded frames: process SAVE
+                // even on INFO_TRY_AGAIN_LATER, without creating another display.
+                if (saveRequested.get() && !stopping.get() && videoFormat != null &&
+                    !exporting.get()) {
+                    val snapshot = buffer.snapshot()
+                    if (snapshot.isNotEmpty() && saveRequested.compareAndSet(true, false)) {
+                        exportSnapshot(requireNotNull(videoFormat), snapshot,
+                            videoMinusNanoClockUs ?: 0L)
                     }
                 }
             }
