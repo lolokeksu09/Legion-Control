@@ -2,9 +2,9 @@ package dev.lolokeksu.legioncontrol
 
 /** Pure navigation/favorites policy; used by Android views and JVM regression tests. */
 enum class HubTab(val key: String, val title: String, val shortTitle: String) {
-    HOME("home", "Главная", "Домой"),
+    HOME("home", "Главная", "Главная"),
     GAMES("games", "Игры", "Игры"),
-    TOOLS("tools", "Инструменты", "Сервисы"),
+    TOOLS("tools", "Инструменты", "Инструменты"),
     HISTORY("history", "История", "История"),
     SETTINGS("settings", "Настройки", "Настройки");
 

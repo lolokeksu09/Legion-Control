@@ -64,23 +64,29 @@ class GamingDiagnosticsFragment : Fragment() {
         root.addView(resultView)
 
         root.addView(LegionUiSupport.sectionLabel(requireContext(), "ПРОВЕРКИ УСТРОЙСТВА"))
+        root.addView(LegionUiSupport.sectionLabel(requireContext(), "СЕТЬ И СОЕДИНЕНИЕ"))
         addButton(root, "1 · Network Analyzer — TCP/DNS") {
             viewModel.run(GamingProbe.NETWORK)
         }
+        addButton(root, "6 · Wi-Fi / LTE Inspector") {
+            viewModel.run(GamingProbe.WIFI)
+        }
+        root.addView(LegionUiSupport.sectionLabel(requireContext(), "БАТАРЕЯ И НАГРЕВ"))
         addButton(root, "2 · Battery Intelligence") {
             viewModel.run(GamingProbe.BATTERY)
         }
         addButton(root, "3 · Thermal Guard — включить/выключить события") {
             toggleThermalGuard()
         }
+        addButton(root, "8 · Charging Analyzer — сравнить с прошлым замером") {
+            viewModel.run(GamingProbe.CHARGING)
+        }
+        root.addView(LegionUiSupport.sectionLabel(requireContext(), "ЭКРАН И УПРАВЛЕНИЕ"))
         addButton(root, "4 · Touch Analyzer — мультитач и края") {
             openTouchTester()
         }
         addButton(root, "5 · Frame Pacing — 5 секунд") {
             startFramePacing()
-        }
-        addButton(root, "6 · Wi-Fi / LTE Inspector") {
-            viewModel.run(GamingProbe.WIFI)
         }
         root.addView(LegionUiSupport.sectionLabel(requireContext(), "ИГРА И АКТИВНОСТЬ"))
         packageInput = EditText(requireContext()).apply {
@@ -107,9 +113,6 @@ class GamingDiagnosticsFragment : Fragment() {
                 report("Не удалось открыть специальные настройки доступа: " +
                     it.javaClass.simpleName)
             }
-        }
-        addButton(root, "8 · Charging Analyzer — сравнить с прошлым замером") {
-            viewModel.run(GamingProbe.CHARGING)
         }
         addButton(root, "9 · Session Comparison — последние два сеанса") {
             viewModel.run(GamingProbe.SESSION)

@@ -74,10 +74,12 @@ class ApplicationCenterFragment:Fragment() {
         note("Legion Control alpha.21 · библиотека игр и приложений Android 13+. "+
             "Обнаруживаются только видимые Android приложения. "+
             "Ни Root/Shizuku, ни изменения чужих разрешений не используются.")
+        title("Библиотека приложений")
         button("Выбрать видимое установленное приложение") { chooseApp() }
         button("Найти приложение по названию / пакету") { searchApp() }
         button("Моя библиотека / избранное") { chooseTracked() }
         button("Только избранные приложения") { chooseTracked(onlyFavorites=true) }
+        title("Карточка выбранного приложения")
         packageText=edit("Пакет приложения (com.example.game)")
         aliasText=edit("Название в библиотеке")
         categoryText=edit("Категория · до 40 символов")
@@ -88,10 +90,12 @@ class ApplicationCenterFragment:Fragment() {
         }
         root.addView(favorite)
         button("СОХРАНИТЬ В БИБЛИОТЕКУ") { save() }
+        title("Проверка версий и изменений")
         button("Проверить версию и состояние выбранного") { scanOne() }
         button("Проверить изменения всех отслеживаемых приложений") { scanAll() }
         button("Карточка приложения и видимые разрешения") { inspect() }
         button("Последние события обновлений и видимости") { showEvents() }
+        title("Управление записью")
         button("Удалить из библиотеки (с подтверждением)") { confirmRemove() }
         note("Проверка вручную сравнивает видимую версию и дату обновления с "+
             "предыдущей записью. «Пакет недоступен» не означает, что он удалён.")

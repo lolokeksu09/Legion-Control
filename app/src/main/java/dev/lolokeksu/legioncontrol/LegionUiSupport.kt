@@ -308,7 +308,9 @@ object LegionUiSupport {
             LinearLayout.LayoutParams(-1, dp(shell, 1)))
         shell.addView(content, LinearLayout.LayoutParams(-1, 0, 1f))
 
-        val labels = arrayOf("Домой", "Игры", "Сервисы", "История", "Настройки")
+        // Share the same destination labels as NavigationHostActivity.
+        // Activity-only tools should never show an obsolete second tab vocabulary.
+        val labels = HubTab.entries.map { it.shortTitle }.toTypedArray()
         val icons = intArrayOf(
             android.R.drawable.ic_menu_view, android.R.drawable.ic_media_play,
             android.R.drawable.ic_menu_manage, android.R.drawable.ic_menu_recent_history,
@@ -320,8 +322,13 @@ object LegionUiSupport {
             setPadding(dp(this, 7), dp(this, 9), dp(this, 7), dp(this, 8))
             setBackgroundColor(0xFF0D0F12.toInt())
         }
+        val selectedIndex = when (activity) {
+            is GameToolboxActivity, is GameSessionActivity,
+            is SmartProfilesActivity, is ApplicationCenterActivity -> 1
+            else -> 2
+        }
         for (index in labels.indices) {
-            val selected = index == 2
+            val selected = index == selectedIndex
             val tint = if (selected) ACCENT else 0xFF858C98.toInt()
             val item = LinearLayout(activity).apply {
                 orientation = LinearLayout.VERTICAL

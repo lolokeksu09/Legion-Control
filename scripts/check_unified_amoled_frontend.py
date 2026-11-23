@@ -44,7 +44,17 @@ ns = "{http://schemas.android.com/apk/res/android}"
 nodes = graph.getroot().findall("fragment")
 assert len(nodes) == 20
 assert len([n for n in nodes if n.get(ns + "name", "").endswith("HubPageFragment")]) == 5
-assert '"Домой", "Игры", "Сервисы", "История", "Настройки"' in skin
+# Both the NavHost and the Activity-only chrome resolve the same five
+# canonical labels. Do not force an obsolete hard-coded copy of the tab names.
+tabs = read("HubNavigationRules.kt")
+assert "val labels = HubTab.entries.map { it.shortTitle }.toTypedArray()" in skin
+assert "val tabs = HubTab.entries" in host
+for name, title in (
+    ("HOME", "Главная"), ("GAMES", "Игры"), ("TOOLS", "Инструменты"),
+    ("HISTORY", "История"), ("SETTINGS", "Настройки")
+):
+    assert f'{name}(' in tabs and f'"{title}"' in tabs
+assert "val selected = index == selectedIndex" in skin
 assert "android.permission.QUERY_ALL_PACKAGES" not in (
     base / "app/src/main/AndroidManifest.xml").read_text()
 print("PASS unified frontend: 5 stable hub tabs, 20 destinations, 3 chrome-wrapped Activities, dedicated display test preserved")
