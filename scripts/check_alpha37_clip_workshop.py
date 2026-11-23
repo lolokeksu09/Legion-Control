@@ -35,7 +35,7 @@ assert "requireOwnClip(clip).uri" in repo
 assert "CaptureClipLibrary.isOwnPublished(app, it.uri)" in repo
 assert "ClipWorkshop.trim(" in repo and "ClipWorkshop.exportFrame(" in repo
 assert "CaptureClipLibrary.delete(app, clip.uri)" in repo
-assert "CaptureClipLibrary.listOwn(app)" in repo
+assert "CaptureClipLibrary.listOwn(app, page)" in repo
 assert "OWNER_PACKAGE_NAME" in video_store and "OWNER_PACKAGE_NAME" in image_store
 assert 'const val RELATIVE_DIR = "Movies/LegionControl/"' in video_store
 assert 'const val RELATIVE_DIR = "Pictures/LegionControl/"' in image_store
