@@ -37,6 +37,13 @@ object CaptureCoordinator {
         }
     }
 
+    @Synchronized fun releasePending(mode: CaptureMode) {
+        if (owner == mode && phase == CapturePhase.CONSENT_PENDING) {
+            owner = null
+            phase = CapturePhase.IDLE
+        }
+    }
+
     @Synchronized fun isPending(mode: CaptureMode) =
         owner == mode && phase == CapturePhase.CONSENT_PENDING
 
