@@ -123,6 +123,43 @@ class CaptureStudioActivity : ComponentActivity() {
             } else status.text = "Активной записи нет."
         }
 
+        heading("INSTANT REPLAY")
+        note("Сохраняет последние 30/60/120 секунд игры без остановки захвата. " +
+            "Работает только после разового системного согласия Android. " +
+            "Внутренний звук выбранной игры записывается при согласии Android и " +
+            "если игра допускает AudioPlaybackCapture; иначе сохраняется видео без звука. " +
+            "Сохраняется только реально накопленный фрагмент.")
+        action("ЗАПУСТИТЬ REPLAY-БУФЕР") {
+            AlertDialog.Builder(this)
+                .setTitle("Длительность Replay")
+                .setItems(arrayOf("30 секунд", "60 секунд", "120 секунд")) { _, chosen ->
+                    askReplayConsent(intArrayOf(30, 60, 120)[chosen])
+                }.setNegativeButton("Отмена", null).show()
+        }
+        action("СОХРАНИТЬ ПОСЛЕДНИЕ СЕКУНДЫ") {
+            status.text = if (ReplayCaptureService.save(this))
+                "Сохранение MP4 запрошено. Захват продолжается."
+            else "Replay не активен. Сначала запустите буфер."
+        }
+        action("ОСТАНОВИТЬ REPLAY") {
+            if (ReplayCaptureService.active) {
+                ReplayCaptureService.stop(this)
+                status.text = "Остановка Replay запрошена."
+            } else status.text = "Replay не активен."
+        }
+        action("ПРОВЕРИТЬ REPLAY") { status.text = ReplayCaptureService.status(this) }
+
+        heading("Скриншот")
+        note("Один PNG после отдельного согласия Android. Через 5 секунд после согласия " +
+            "будет захвачен текущий экран — переключитесь на нужную игру. " +
+            "Защищённые окна могут скрываться.")
+        action("СДЕЛАТЬ СКРИНШОТ ЭКРАНА") { askScreenshotConsent() }
+        action("ОТМЕНИТЬ СКРИНШОТ") {
+            CaptureScreenshotService.cancel(this)
+            status.text = "Отмена снимка запрошена."
+        }
+        action("Открыть выбранную игру Game Toolbox") { openSelectedGame() }
+
         heading("Качество и лимиты")
         choices = TextView(this).apply {
             textSize = 14f
@@ -171,43 +208,6 @@ class CaptureStudioActivity : ComponentActivity() {
             "При импорте заменяются игровые профили, но не общие настройки и не записи видео.")
 
         action("Обновить состояние записи") { refreshStatus() }
-
-        heading("INSTANT REPLAY")
-        note("Сохраняет последние 30/60/120 секунд игры без остановки захвата. " +
-            "Работает только после разового системного согласия Android. " +
-            "Внутренний звук выбранной игры записывается при согласии Android и " +
-            "если игра допускает AudioPlaybackCapture; иначе сохраняется видео без звука. " +
-            "Сохраняется только реально накопленный фрагмент.")
-        action("ЗАПУСТИТЬ REPLAY-БУФЕР") {
-            AlertDialog.Builder(this)
-                .setTitle("Длительность Replay")
-                .setItems(arrayOf("30 секунд", "60 секунд", "120 секунд")) { _, chosen ->
-                    askReplayConsent(intArrayOf(30, 60, 120)[chosen])
-                }.setNegativeButton("Отмена", null).show()
-        }
-        action("СОХРАНИТЬ ПОСЛЕДНИЕ СЕКУНДЫ") {
-            status.text = if (ReplayCaptureService.save(this))
-                "Сохранение MP4 запрошено. Захват продолжается."
-            else "Replay не активен. Сначала запустите буфер."
-        }
-        action("ОСТАНОВИТЬ REPLAY") {
-            if (ReplayCaptureService.active) {
-                ReplayCaptureService.stop(this)
-                status.text = "Остановка Replay запрошена."
-            } else status.text = "Replay не активен."
-        }
-        action("ПРОВЕРИТЬ REPLAY") { status.text = ReplayCaptureService.status(this) }
-
-        heading("Скриншот")
-        note("Один PNG после отдельного согласия Android. Через 5 секунд после согласия " +
-            "будет захвачен текущий экран — переключитесь на нужную игру. " +
-            "Защищённые окна могут скрываться.")
-        action("СДЕЛАТЬ СКРИНШОТ ЭКРАНА") { askScreenshotConsent() }
-        action("ОТМЕНИТЬ СКРИНШОТ") {
-            CaptureScreenshotService.cancel(this)
-            status.text = "Отмена снимка запрошена."
-        }
-        action("Открыть выбранную игру Game Toolbox") { openSelectedGame() }
 
         heading("Место для записей")
         note("Показывает объём только собственных опубликованных MP4/PNG. " +
