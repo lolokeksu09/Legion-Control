@@ -56,11 +56,17 @@ for needed in (
     "VACUUM INTO ?", "legion-control-local-backup", "SHA-256",
     "PRAGMA quick_check", "tableOrder(target)", "BackupRestorePolicy.acceptsEmptyTarget(",
     "target.beginTransaction()", "target.setTransactionSuccessful()",
-    "applyPreferences(context, previous)", "MAX_DB",
+    "savePending(context, marker, staged.preferenceBytes)",
+    "target.execSQL(\"PRAGMA application_id = $marker\")",
+    "check(recoverPendingRestore(context))",
+    "if (committed) applyPreferences(context, values)",
+    "atomic.finishWrite(output)", "MAX_DB",
     "GameSessionRecorderService.sessionActive", "CaptureMode.MAINTENANCE"
 ):
     assert needed in backup, needed
 assert "DROP TABLE" not in backup and "DELETE FROM" not in backup
+assert backup.index("savePending(context, marker, staged.preferenceBytes)") < backup.index("target.setTransactionSuccessful()")
+assert "private fun restoreCore" in backup and "restoreInterruptedForTest" in backup
 assert "refusesAnyExistingUserRows" in test("BackupRestorePolicyTest.kt")
 assert "viewModel.exportFullBackup(" in ui and "viewModel.inspectFullBackup(" in ui
 assert "viewModel.restoreFullBackup(" in ui and "setPositiveButton(\"Восстановить\")" in ui
