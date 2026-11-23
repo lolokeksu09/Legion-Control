@@ -64,7 +64,7 @@ for vm in (gamevm, profilevm, appvm, audiovm, hapticvm):
     assert "startActivity(" not in vm
 
 assert "GameSessionRecorderService.start(requireContext()," in game
-assert "GameSessionFragment()" in gameActivity
+assert "ModuleNavigation.forwardLegacyEntry(this)" in gameActivity
 assert "GameSessionRecorderService.stop(requireContext())" in game
 assert "Intent.ACTION_CREATE_DOCUMENT" in game
 assert "GameSessionRepository(getApplication())" in gamevm
@@ -94,13 +94,13 @@ assert "viewModel.stopPlayback()" in haptic
 assert "setPositiveButton(\"Удалить\")" in haptic
 assert "ViewModelProvider(this)" in game and "state.observe(viewLifecycleOwner)" in game
 assert "ViewModelProvider(this)" in apps and "state.observe(viewLifecycleOwner)" in apps
-assert "ApplicationCenterFragment()" in appsCompat
+assert "ModuleNavigation.forwardLegacyEntry(this)" in appsCompat
 assert "ViewModelProvider(this)" in profiles and "state.observe(viewLifecycleOwner)" in profiles
-assert "SmartProfilesFragment()" in profilesCompat
+assert "ModuleNavigation.forwardLegacyEntry(this)" in profilesCompat
 assert "ViewModelProvider(this)" in audio and "state.observe(viewLifecycleOwner)" in audio
-assert "AudioLabFragment()" in audioCompat
+assert "ModuleNavigation.forwardLegacyEntry(this)" in audioCompat
 assert "ViewModelProvider(this)" in haptic and "state.observe(viewLifecycleOwner)" in haptic
-assert "HapticLabFragment()" in hapticCompat
+assert "ModuleNavigation.forwardLegacyEntry(this)" in hapticCompat
 assert "ViewModelProvider(this)" in connectivity and "state.observe(viewLifecycleOwner)" in connectivity
 assert "ConnectivityProbe.capture(" in connectivityVm and "fun cancelTest()" in connectivityVm
 assert "ViewModelProvider(this)" in experiment and "state.observe(viewLifecycleOwner)" in experiment
