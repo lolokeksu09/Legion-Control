@@ -23,13 +23,18 @@ class CaptureStudioRepository(context: Context) {
                     app.packageManager.getLaunchIntentForPackage(it) != null
             }
 
-    private fun globalProfile(): GameCaptureProfile = GameCaptureProfile(
-        prefs.getInt("edge", 1280),
-        prefs.getInt("fps", 30),
-        prefs.getInt("mbit", 4),
-        prefs.getInt("minutes", 5),
-        prefs.getBoolean("playback_audio", false)
-    )
+    private fun globalProfile(): GameCaptureProfile {
+        // Retain the old CaptureConfig normalization for pre-existing preference values.
+        val c = CaptureConfig.fromOptions(
+            prefs.getInt("edge", 1280), prefs.getInt("fps", 30),
+            prefs.getInt("mbit", 4), prefs.getInt("minutes", 5)
+        )
+        return GameCaptureProfile(
+            c.maxEdge, c.fps, c.videoBitrate / 1_000_000,
+            (c.maxDurationMs / 60_000).toInt(),
+            prefs.getBoolean("playback_audio", false)
+        )
+    }
 
     fun captureSettings(): ActiveGameCaptureSettings {
         val game = selectedGame()
