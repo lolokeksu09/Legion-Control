@@ -10,16 +10,16 @@ import java.util.Locale
 /** Battery-temperature timeline for the user's most recent recorded session. */
 class GameSessionTimelineView(context: Context) : View(context) {
     private val line = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color=Color.CYAN
+        color=LegionUiSupport.ACCENT
         strokeWidth=3f*resources.displayMetrics.density
         style=Paint.Style.STROKE
     }
     private val grid = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color=0xFF363636.toInt()
+        color=LegionUiSupport.BORDER
         strokeWidth=resources.displayMetrics.density
     }
     private val label = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color=Color.LTGRAY
+        color=LegionUiSupport.MUTED
         textSize=12f*resources.displayMetrics.scaledDensity
     }
     private val warning = Paint(Paint.ANTI_ALIAS_FLAG).apply {

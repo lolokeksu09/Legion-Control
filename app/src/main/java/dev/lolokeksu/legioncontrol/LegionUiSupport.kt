@@ -172,6 +172,17 @@ object LegionUiSupport {
         }
     }
 
+    /** Compact section label used by the approved Home/Game Hub hierarchy. */
+    fun sectionLabel(context: android.content.Context, title: String): TextView =
+        TextView(context).apply {
+            text = title
+            textSize = 12f
+            letterSpacing = 0.08f
+            setTextColor(ACCENT)
+            setTypeface(Typeface.DEFAULT, Typeface.BOLD)
+            setPadding(0, dp(this, 18), 0, dp(this, 11))
+        }
+
     /** Kept for callers of the earlier alpha.41 Fragment styling API. */
     fun styleFragmentButtons(root: View) = styleModuleTree(root)
 

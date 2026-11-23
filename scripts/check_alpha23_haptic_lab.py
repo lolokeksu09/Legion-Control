@@ -17,8 +17,8 @@ compat=(src/"HapticLabActivity.kt").read_text(encoding="utf-8")
 viewmodel=(src/"HapticLabViewModel.kt").read_text(encoding="utf-8")
 gradle=(root/"app/build.gradle.kts").read_text(encoding="utf-8")
 
-assert 'versionCode = 43' in gradle
-assert 'versionName = "0.1.0-alpha.43"' in gradle
+assert 'versionCode = 44' in gradle
+assert 'versionName = "0.1.0-alpha.44"' in gradle
 assert 'minSdk = 33' in gradle and 'targetSdk = 36' in gradle
 assert 'const val VERSION=12' in schema
 assert 'newVersion != HapticLabSchema.VERSION' in store
@@ -208,6 +208,6 @@ for phrase in ("backend.stop()", "backend.perform(waveform)", "HapticLabReposito
                "fun startTest(", "fun exportCsv(", "onCleared()", "LiveData"):
     assert phrase in viewmodel,phrase
 assert "startForegroundService" not in activity
-assert "HapticLabFragment()" in compat and "state.observe(viewLifecycleOwner)" in activity
+assert "ModuleNavigation.forwardLegacyEntry(this)" in compat and "state.observe(viewLifecycleOwner)" in activity
 assert "MediaRecorder" not in backend and "VibrationEffect.createOneShot(0" not in backend
 print("PASS alpha23: real SQLite v11→v12, 17+ legacy tables preserved, haptic FK/checks and safe Android API bounds")

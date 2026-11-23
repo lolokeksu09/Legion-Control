@@ -45,21 +45,7 @@ class NavigationHostActivity : FragmentActivity() {
         window.navigationBarColor = Color.BLACK
         window.decorView.systemUiVisibility = 0
 
-        // Style only the newly created destination hierarchy, without changing
-        // the home tiles, navigation icons, focus handling, or any child layout.
-        supportFragmentManager.registerFragmentLifecycleCallbacks(
-            object : FragmentManager.FragmentLifecycleCallbacks() {
-                override fun onFragmentViewCreated(
-                    fm: FragmentManager, fragment: Fragment,
-                    view: View, savedInstanceState: Bundle?
-                ) {
-                    if (fragment !is HubPageFragment && fragment !is GameDetailFragment &&
-                        fragment !is GameToolboxFragment) {
-                        LegionUiSupport.styleFragmentButtons(view)
-                    }
-                }
-            }, true
-        )
+        // Each module styles its own View in onViewCreated, regardless of entry point.
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -256,7 +242,26 @@ class NavigationHostActivity : FragmentActivity() {
             nav.navigate(R.id.gameToolboxDestination)
         }
         openRequestedTab(intent)
+        if (savedInstanceState == null) openRequestedModule(intent)
         ViewModelProvider(this)[HubViewModel::class.java].refresh()
+    }
+
+    private fun openRequestedModule(request: Intent) {
+        val route = request.getIntExtra(ModuleNavigation.EXTRA_MODULE_ROUTE, -1)
+        // Never navigate to arbitrary resources supplied by external Intents.
+        val permitted = when (route) {
+            R.id.gameSessionFragment, R.id.smartProfilesDestination,
+            R.id.applicationCenterDestination, R.id.audioLabDestination,
+            R.id.hapticLabDestination, R.id.gamingDiagnosticsDestination,
+            R.id.hardwareLabDestination, R.id.compatibilityLabDestination,
+            R.id.connectivityLabDestination, R.id.experimentLabDestination -> true
+            else -> false
+        }
+        request.removeExtra(ModuleNavigation.EXTRA_MODULE_ROUTE)
+        val args = request.getBundleExtra(ModuleNavigation.EXTRA_MODULE_ARGS)
+        request.removeExtra(ModuleNavigation.EXTRA_MODULE_ARGS)
+        if (!permitted) return
+        nav.navigate(route, args, NavOptions.Builder().setLaunchSingleTop(true).build())
     }
 
     private fun openRequestedTab(request: Intent) {
@@ -278,7 +283,10 @@ class NavigationHostActivity : FragmentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        if (::nav.isInitialized) openRequestedTab(intent)
+        if (::nav.isInitialized) {
+            openRequestedTab(intent)
+            openRequestedModule(intent)
+        }
     }
 
     override fun onResume() {

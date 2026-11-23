@@ -146,6 +146,7 @@ class HapticLabFragment:Fragment() {
 
     override fun onViewCreated(view:View,savedInstanceState:Bundle?) {
         super.onViewCreated(view,savedInstanceState)
+        LegionUiSupport.styleModuleTree(view)
         viewModel=ViewModelProvider(this)[HapticLabViewModel::class.java]
         viewModel.state.observe(viewLifecycleOwner) { state ->
             playing = state.playing

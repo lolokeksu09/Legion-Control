@@ -44,41 +44,41 @@ assert ".ApplicationCenterActivity" in registered
 assert frags["@+id/smartProfilesDestination"].get(android+"name").endswith(".SmartProfilesFragment")
 assert "SmartProfilesActivity::class.java to R.id.smartProfilesDestination" in mapping
 assert ".SmartProfilesActivity" in registered
-assert "SmartProfilesFragment()" in (src/"SmartProfilesActivity.kt").read_text()
+assert "ModuleNavigation.forwardLegacyEntry(this)" in (src/"SmartProfilesActivity.kt").read_text()
 assert frags["@+id/audioLabDestination"].get(android+"name").endswith(".AudioLabFragment")
 assert "AudioLabActivity::class.java to R.id.audioLabDestination" in mapping
 assert ".AudioLabActivity" in registered
-assert "AudioLabFragment()" in (src/"AudioLabActivity.kt").read_text()
+assert "ModuleNavigation.forwardLegacyEntry(this)" in (src/"AudioLabActivity.kt").read_text()
 assert frags["@+id/hapticLabDestination"].get(android+"name").endswith(".HapticLabFragment")
 assert "HapticLabActivity::class.java to R.id.hapticLabDestination" in mapping
 assert ".HapticLabActivity" in registered
-assert "HapticLabFragment()" in (src/"HapticLabActivity.kt").read_text()
+assert "ModuleNavigation.forwardLegacyEntry(this)" in (src/"HapticLabActivity.kt").read_text()
 assert frags["@+id/connectivityLabDestination"].get(android+"name").endswith(".ConnectivityLabFragment")
 assert "ConnectivityLabActivity::class.java to R.id.connectivityLabDestination" in mapping
 assert ".ConnectivityLabActivity" in registered
-assert "ConnectivityLabFragment()" in (src/"ConnectivityLabActivity.kt").read_text()
+assert "ModuleNavigation.forwardLegacyEntry(this)" in (src/"ConnectivityLabActivity.kt").read_text()
 assert frags["@+id/experimentLabDestination"].get(android+"name").endswith(".ExperimentLabFragment")
 assert "ExperimentLabActivity::class.java to R.id.experimentLabDestination" in mapping
 assert ".ExperimentLabActivity" in registered
-assert "ExperimentLabFragment()" in (src/"ExperimentLabActivity.kt").read_text()
+assert "ModuleNavigation.forwardLegacyEntry(this)" in (src/"ExperimentLabActivity.kt").read_text()
 assert frags["@+id/compatibilityLabDestination"].get(android+"name").endswith(".CompatibilityLabFragment")
 assert "CompatibilityLabActivity::class.java to R.id.compatibilityLabDestination" in mapping
 assert ".CompatibilityLabActivity" in registered
-assert "CompatibilityLabFragment()" in (src/"CompatibilityLabActivity.kt").read_text()
+assert "ModuleNavigation.forwardLegacyEntry(this)" in (src/"CompatibilityLabActivity.kt").read_text()
 assert frags["@+id/hardwareLabDestination"].get(android+"name").endswith(".HardwareLabFragment")
 assert "HardwareLabActivity::class.java to R.id.hardwareLabDestination" in mapping
 assert ".HardwareLabActivity" in registered
-assert "HardwareLabFragment()" in (src/"HardwareLabActivity.kt").read_text()
+assert "ModuleNavigation.forwardLegacyEntry(this)" in (src/"HardwareLabActivity.kt").read_text()
 assert frags["@+id/gamingDiagnosticsDestination"].get(android+"name").endswith(".GamingDiagnosticsFragment")
 assert "GamingDiagnosticsActivity::class.java to R.id.gamingDiagnosticsDestination" in mapping
 assert ".GamingDiagnosticsActivity" in registered
-assert "GamingDiagnosticsFragment()" in (src/"GamingDiagnosticsActivity.kt").read_text()
-assert "ApplicationCenterFragment()" in (src/"ApplicationCenterActivity.kt").read_text()
+assert "ModuleNavigation.forwardLegacyEntry(this)" in (src/"GamingDiagnosticsActivity.kt").read_text()
+assert "ModuleNavigation.forwardLegacyEntry(this)" in (src/"ApplicationCenterActivity.kt").read_text()
 assert frags["@+id/gameSessionFragment"].get(android+"name").endswith(".GameSessionFragment")
 game=(src/"GameSessionFragment.kt").read_text()
 compat=(src/"GameSessionActivity.kt").read_text()
 assert "GameSessionRecorderService.start(requireContext()," in game
-assert "GameSessionFragment()" in compat
+assert "ModuleNavigation.forwardLegacyEntry(this)" in compat
 hub=(src/"HubPageFragment.kt").read_text()
 detail=(src/"GameDetailFragment.kt").read_text()
 assert "HubDestinationRoutes.destinationFor(cls)" in hub+detail

@@ -121,6 +121,8 @@ jobs:
         run: python3 scripts/check_alpha42_toolbox_ui.py
       - name: Verify consistent AMOLED module frontend and legacy navigation
         run: python3 scripts/check_unified_amoled_frontend.py
+      - name: Verify alpha.44 legacy route and module design parity
+        run: python3 scripts/check_alpha44_module_ui.py
       - name: Run pure Kotlin CSV and Russian plural regression tests
         run: gradle --no-daemon testDebugUnitTest
       - name: Test and compile real Rust backend for Android
@@ -173,7 +175,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: success()
         with:
-          name: Legion-Control-v0.1.0-alpha.43-kotlin-rust-debug
+          name: Legion-Control-v0.1.0-alpha.44-kotlin-rust-debug
           path: ci-apks/*.apk
           if-no-files-found: error
 
@@ -187,7 +189,7 @@ jobs:
       - name: Retrieve APK from exact Kotlin/Rust build
         uses: actions/download-artifact@v4
         with:
-          name: Legion-Control-v0.1.0-alpha.43-kotlin-rust-debug
+          name: Legion-Control-v0.1.0-alpha.44-kotlin-rust-debug
           path: smoke-apk
       - name: Enable KVM
         run: |

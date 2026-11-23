@@ -36,8 +36,8 @@ assert qs[0].get(ns+"exported")=="true"
 assert "startActivityAndCollapse(pending)" in (src/"LegionQuickTileService.kt").read_text(encoding="utf-8")
 assert "SmartProfilesActivity::class.java" in (src/"MainActivity.kt").read_text(encoding="utf-8")
 assert "const val VERSION = 7" in schema
-assert 'versionCode = 43' in (root/"app/build.gradle.kts").read_text(encoding="utf-8")
-assert 'versionName = "0.1.0-alpha.43"' in (root/"app/build.gradle.kts").read_text(encoding="utf-8")
+assert 'versionCode = 44' in (root/"app/build.gradle.kts").read_text(encoding="utf-8")
+assert 'versionName = "0.1.0-alpha.44"' in (root/"app/build.gradle.kts").read_text(encoding="utf-8")
 assert 'oldVersion !in 1..11' in history
 assert 'newVersion != HapticLabSchema.VERSION' in history
 assert 'if (oldVersion <= 5) GameSessionSchema.install(db)' in history
@@ -124,7 +124,7 @@ for token in ("smartEngine.evaluate(point,smartRules)","smartStorage?.logAlert("
               "checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)"):
     assert token in service,token
 assert "GameSessionRecorderService.start" not in activity
-assert "SmartProfilesFragment()" in compat
+assert "ModuleNavigation.forwardLegacyEntry(this)" in compat
 assert "state.observe(viewLifecycleOwner)" in activity
 for token in ("SmartSystemControls.setBrightness", "SmartSystemControls.setDoNotDisturb",
               "ACTION_CREATE_DOCUMENT","ACTION_OPEN_DOCUMENT",

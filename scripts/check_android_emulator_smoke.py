@@ -130,7 +130,7 @@ def dimensions() -> tuple[int, int]:
     return int(match.group(1)), int(match.group(2))
 
 
-def find(needle: str) -> tuple[int, int] | None:
+def find(needle: str, exact_only: bool = False) -> tuple[int, int] | None:
     tree = hierarchy()
     candidates = []
     for node in tree.iter("node"):
@@ -139,7 +139,7 @@ def find(needle: str) -> tuple[int, int] | None:
         bounds = node.get("bounds", "")
         exact = label == needle or desc == needle
         partial = needle.casefold() in (label + " " + desc).casefold()
-        if not partial:
+        if not partial or (exact_only and not exact):
             continue
         match = re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", bounds)
         if match:
@@ -151,10 +151,11 @@ def find(needle: str) -> tuple[int, int] | None:
     return candidates[0][1], candidates[0][2]
 
 
-def click(needle: str, scrolls: int = 7, direction: str = "down") -> None:
+def click(needle: str, scrolls: int = 7, direction: str = "down",
+          exact_only: bool = False) -> None:
     width, height = dimensions()
     for attempt in range(scrolls + 1):
-        pos = find(needle)
+        pos = find(needle, exact_only=exact_only)
         if pos:
             adb("shell", "input", "tap", str(pos[0]), str(pos[1]))
             time.sleep(.75)
@@ -237,6 +238,26 @@ def main() -> None:
                 PACKAGE + "/.NavigationHostActivity", timeout=60)
     expect("Готов к запуску")
     capture("01-hub-launch")
+
+    # Alpha.44: capture both affected pages before any long recorder backend
+    # smoke. Their Activity facades are intentionally non-exported, so ADB
+    # shell must NOT launch them directly. Use the actual user-visible Hub.
+    click("Сервисы")
+    expect(TOOLS_MARKER)
+    click("Gaming Lab", scrolls=16)
+    expect("LEGION CONTROL · GAMING LAB")
+    expect("ПРОВЕРКИ УСТРОЙСТВА")
+    expect("Домой")
+    stage("00-alpha44-gaming-lab", "LEGION CONTROL · GAMING LAB")
+    back_until(TOOLS_MARKER)
+    click("Game Session", scrolls=16, direction="up")
+    expect("LEGION · GAME SESSION")
+    expect("ПОДГОТОВКА")
+    expect("Домой")
+    stage("00-alpha44-game-session", "LEGION · GAME SESSION")
+    back_until(TOOLS_MARKER)
+    click("Домой", scrolls=0, exact_only=True)
+    expect("Готов к запуску")
     click("Игры")
     stage("01-games-tab", "ИГРОВАЯ БИБЛИОТЕКА")
     expect("Управление библиотекой")
@@ -275,9 +296,11 @@ def main() -> None:
     capture("04-selected-package-preserved")
 
     # Recorder can only start from this explicit tap; network test remains unchecked.
-    click("НАЧАТЬ ЗАПИСЬ")
-    expect_service(True)
+    # Exact button text is required: the status paragraph also contains
+    # «НАЧАТЬ ЗАПИСЬ» and a partial match taps a non-clickable TextView.
+    click("НАЧАТЬ ЗАПИСЬ", exact_only=True)
     expect_scrolling("Запрошен запуск записи", seconds=17)
+    expect_service(True)
     click("Добавить метку во время записи")
     expect("Отметить момент во время записи")
     adb("shell", "input", "text", "alpha30_marker")
@@ -285,7 +308,7 @@ def main() -> None:
     click("Добавить", scrolls=0)
     expect_scrolling("Отправлена ручная метка", seconds=18)
     time.sleep(3)
-    click("ОСТАНОВИТЬ ЗАПИСЬ")
+    click("ОСТАНОВИТЬ ЗАПИСЬ", exact_only=True)
     expect_service(False)
     expect_scrolling("Отправлена команда остановки", seconds=17)
     time.sleep(2)
@@ -382,6 +405,22 @@ def main() -> None:
     back_until(SETTINGS_MARKER)
     click("Домой")
     stage("14-return-home", "Готов к запуску")
+    # Repeat UI traversal after the entire smoke to catch navigation and theme
+    # regressions, without exporting previously private legacy Activities.
+    click("Сервисы")
+    expect(TOOLS_MARKER)
+    click("Gaming Lab", scrolls=16)
+    stage("15-gaming-after-smoke", "LEGION CONTROL · GAMING LAB")
+    expect("ИГРОВАЯ ДИАГНОСТИКА")
+    expect("Домой")
+    back_until(TOOLS_MARKER)
+    click("Game Session", scrolls=16, direction="up")
+    stage("16-session-after-smoke", "LEGION · GAME SESSION")
+    expect("ЗАПИСЬ ИГРОВОЙ СЕССИИ")
+    expect("Домой")
+    back_until(TOOLS_MARKER)
+    click("Домой")
+    stage("17-return-home-after-legacy", "Готов к запуску")
     print("PASS: Android emulator UI navigation, explicit marker persisted in SQLite,",
           "signal correlation, selected package, foreground START/STOP, back stack",flush=True)
 

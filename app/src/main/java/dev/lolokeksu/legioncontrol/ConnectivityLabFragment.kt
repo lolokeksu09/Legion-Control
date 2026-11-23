@@ -124,6 +124,7 @@ class ConnectivityLabFragment : Fragment() {
 
     override fun onViewCreated(view:View,savedInstanceState:Bundle?) {
         super.onViewCreated(view,savedInstanceState)
+        LegionUiSupport.styleModuleTree(view)
         viewModel=ViewModelProvider(this)[ConnectivityLabViewModel::class.java]
         viewModel.state.observe(viewLifecycleOwner) { ui ->
             testing=ui.testing

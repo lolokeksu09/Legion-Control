@@ -97,6 +97,7 @@ class HardwareLabFragment : Fragment() {
 
     override fun onViewCreated(view:View,savedInstanceState:Bundle?) {
         super.onViewCreated(view,savedInstanceState)
+        LegionUiSupport.styleModuleTree(view)
         viewModel=ViewModelProvider(this)[HardwareLabViewModel::class.java]
         viewModel.report.observe(viewLifecycleOwner) { result.text=it }
     }

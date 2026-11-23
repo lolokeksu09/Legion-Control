@@ -17,7 +17,7 @@ compat=(src/"AudioLabActivity.kt").read_text(encoding="utf-8")
 viewmodel=(src/"AudioLabViewModel.kt").read_text(encoding="utf-8")
 gradle=(root/"app/build.gradle.kts").read_text(encoding="utf-8")
 
-assert 'versionCode = 43' in gradle and 'versionName = "0.1.0-alpha.43"' in gradle
+assert 'versionCode = 44' in gradle and 'versionName = "0.1.0-alpha.44"' in gradle
 assert 'minSdk = 33' in gradle and 'targetSdk = 36' in gradle
 assert 'const val VERSION = 11' in schema
 assert 'newVersion != HapticLabSchema.VERSION' in store and 'oldVersion !in 1..11' in store
@@ -171,5 +171,5 @@ for word in ("backend.stop()", "backend.play(type,which,hz,length)", "AudioLabRe
              "AudioRouteMonitor(", "onCleared()", "LiveData"):
     assert word in viewmodel,word
 assert "startForegroundService" not in activity and "MediaRecorder" not in activity
-assert "AudioLabFragment()" in compat and "state.observe(viewLifecycleOwner)" in activity
+assert "ModuleNavigation.forwardLegacyEntry(this)" in compat and "state.observe(viewLifecycleOwner)" in activity
 print("PASS alpha22: executable SQLite v10→v11 preserves legacy, FK/cascade, all PCM and permission contracts")

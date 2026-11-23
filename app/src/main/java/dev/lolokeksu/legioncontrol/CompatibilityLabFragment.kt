@@ -88,6 +88,7 @@ class CompatibilityLabFragment : Fragment() {
 
     override fun onViewCreated(view:View,savedInstanceState:Bundle?) {
         super.onViewCreated(view,savedInstanceState)
+        LegionUiSupport.styleModuleTree(view)
         viewModel=ViewModelProvider(this)[CompatibilityLabViewModel::class.java]
         viewModel.report.observe(viewLifecycleOwner) { output.text=it }
     }

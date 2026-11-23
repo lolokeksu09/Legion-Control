@@ -17,9 +17,22 @@ assert all(v in skin for v in ("PANEL", "BORDER", "ACCENT", "MUTED",
     "RippleDrawable", "state_enabled", "state_focused", "styleCheck", "styleInput"))
 assert all(v in hub and v in toolbox for v in ("LegionUiSupport.MUTED",
     "LegionUiSupport.ACCENT", "LegionUiSupport.BORDER", "LegionUiSupport.PANEL"))
-assert "fragment !is HubPageFragment && fragment !is GameDetailFragment" in host
-assert "fragment !is GameToolboxFragment" in host
-assert "LegionUiSupport.styleFragmentButtons(view)" in host
+assert "LegionUiSupport.styleFragmentButtons(view)" not in host
+for name in ("GameSessionFragment.kt", "SessionSignalsFragment.kt",
+    "SessionIncidentsFragment.kt", "SessionBaselinesFragment.kt",
+    "ApplicationCenterFragment.kt", "SmartProfilesFragment.kt",
+    "AudioLabFragment.kt", "HapticLabFragment.kt", "ConnectivityLabFragment.kt",
+    "ExperimentLabFragment.kt", "CompatibilityLabFragment.kt",
+    "HardwareLabFragment.kt", "GamingDiagnosticsFragment.kt"):
+    assert "LegionUiSupport.styleModuleTree(view)" in read(name), name
+for name in ("GamingDiagnosticsActivity.kt", "GameSessionActivity.kt",
+    "SmartProfilesActivity.kt", "AudioLabActivity.kt", "HapticLabActivity.kt",
+    "ApplicationCenterActivity.kt", "HardwareLabActivity.kt",
+    "CompatibilityLabActivity.kt", "ConnectivityLabActivity.kt",
+    "ExperimentLabActivity.kt"):
+    assert "ModuleNavigation.forwardLegacyEntry(this)" in read(name), name
+assert "openRequestedModule(intent)" in host
+assert "EXTRA_MODULE_ROUTE" in read("ModuleNavigation.kt")
 assert "openRequestedTab(intent)" in host
 assert "override fun onNewIntent(intent: Intent)" in host
 assert "setLaunchSingleTop(true)" in host and "setRestoreState(true)" in host

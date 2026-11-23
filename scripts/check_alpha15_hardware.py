@@ -34,10 +34,10 @@ for name in (".HardwareLabActivity",".DisplayPatternActivity"):
     assert any(x.get(a+"name")==name and x.get(a+"exported")=="false"
         for x in manifest.findall("./application/activity")),name
 assert 'HardwareLabActivity::class.java' in gaming
-assert "HardwareLabFragment()" in wrapper
+assert "ModuleNavigation.forwardLegacyEntry(this)" in wrapper
 assert "report.observe(viewLifecycleOwner)" in activity
-assert 'versionCode = 43' in gradle
-assert 'versionName = "0.1.0-alpha.43"' in gradle
+assert 'versionCode = 44' in gradle
+assert 'versionName = "0.1.0-alpha.44"' in gradle
 for num,name in enumerate([
     "Local Route Inspector",
     "Network Events",

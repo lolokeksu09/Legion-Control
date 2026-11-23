@@ -17,8 +17,8 @@ rules=(src/"ApplicationAuditRules.kt").read_text(encoding="utf-8")
 usage=(src/"ApplicationUsageInspector.kt").read_text(encoding="utf-8")
 gradle=(root/"app/build.gradle.kts").read_text(encoding="utf-8")
 
-assert "versionCode = 43" in gradle
-assert 'versionName = "0.1.0-alpha.43"' in gradle
+assert "versionCode = 44" in gradle
+assert 'versionName = "0.1.0-alpha.44"' in gradle
 assert 'minSdk = 33' in gradle and 'targetSdk = 36' in gradle
 assert "const val VERSION = 10" in schema
 assert "newVersion != HapticLabSchema.VERSION" in store
@@ -157,7 +157,7 @@ for phrase in ("ACTION_CREATE_DOCUMENT","fun scanAll(","fun scanOne(","fun inspe
                "fun chooseTracked(","fun usage(","fun confirmRemove()"):
     assert phrase in activity,phrase
 assert "startForegroundService" not in activity
-assert "ApplicationCenterFragment()" in compat
+assert "ModuleNavigation.forwardLegacyEntry(this)" in compat
 assert "state.observe(viewLifecycleOwner)" in activity
 assert "ViewModelProvider(this)[ApplicationCenterViewModel::class.java]" in activity
 for term in ("ApplicationInventory.inspect(", "ApplicationCenterRepository(getApplication<Application>())",
