@@ -83,6 +83,7 @@ class SessionIncidentsFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        LegionUiSupport.styleModuleTree(view)
         vm = ViewModelProvider(this)[SessionIncidentsViewModel::class.java]
         vm.state.observe(viewLifecycleOwner) { state ->
             output.text = state.text

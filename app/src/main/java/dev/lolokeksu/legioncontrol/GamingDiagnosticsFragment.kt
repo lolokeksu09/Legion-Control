@@ -130,6 +130,7 @@ class GamingDiagnosticsFragment : Fragment() {
 
     override fun onViewCreated(view:View,savedInstanceState:Bundle?) {
         super.onViewCreated(view,savedInstanceState)
+        LegionUiSupport.styleModuleTree(view)
         viewModel=ViewModelProvider(this)[GamingDiagnosticsViewModel::class.java]
         viewModel.report.observe(viewLifecycleOwner) { report(it) }
     }

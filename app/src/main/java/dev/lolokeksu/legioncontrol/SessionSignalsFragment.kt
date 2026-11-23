@@ -89,6 +89,7 @@ class SessionSignalsFragment:Fragment() {
 
     override fun onViewCreated(view:View,saved:Bundle?) {
         super.onViewCreated(view,saved)
+        LegionUiSupport.styleModuleTree(view)
         vm=ViewModelProvider(this)[SessionSignalsViewModel::class.java]
         vm.state.observe(viewLifecycleOwner) { state ->
             report.text=state.message

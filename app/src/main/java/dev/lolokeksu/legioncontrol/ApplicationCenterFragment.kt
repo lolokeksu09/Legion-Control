@@ -142,6 +142,7 @@ class ApplicationCenterFragment:Fragment() {
 
     override fun onViewCreated(view:View,savedInstanceState:Bundle?) {
         super.onViewCreated(view,savedInstanceState)
+        LegionUiSupport.styleModuleTree(view)
         viewModel = ViewModelProvider(this)[ApplicationCenterViewModel::class.java]
         viewModel.state.observe(viewLifecycleOwner) { update ->
             show(update.message)

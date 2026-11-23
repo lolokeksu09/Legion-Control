@@ -45,21 +45,7 @@ class NavigationHostActivity : FragmentActivity() {
         window.navigationBarColor = Color.BLACK
         window.decorView.systemUiVisibility = 0
 
-        // Style only the newly created destination hierarchy, without changing
-        // the home tiles, navigation icons, focus handling, or any child layout.
-        supportFragmentManager.registerFragmentLifecycleCallbacks(
-            object : FragmentManager.FragmentLifecycleCallbacks() {
-                override fun onFragmentViewCreated(
-                    fm: FragmentManager, fragment: Fragment,
-                    view: View, savedInstanceState: Bundle?
-                ) {
-                    if (fragment !is HubPageFragment && fragment !is GameDetailFragment &&
-                        fragment !is GameToolboxFragment) {
-                        LegionUiSupport.styleFragmentButtons(view)
-                    }
-                }
-            }, true
-        )
+        // Each module styles its own View in onViewCreated, regardless of entry point.
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
