@@ -85,9 +85,9 @@ assert "Intent.ACTION_VIEW" in capture and "Intent.ACTION_SEND" in capture
 
 assert "class CaptureStudioRepository(" in capture_repo
 assert "CapturePresetRules.requireSupported(name, value)" in capture_repo
-assert "CaptureClipLibrary.listOwn(app)" in capture_repo
+assert "CaptureClipLibrary.listOwn(app, page)" in capture_repo
 assert "CaptureClipLibrary.delete(app, clip.uri)" in capture_repo
-assert "require(clips().any { it.uri == clip.uri })" in capture_repo
+assert "CaptureClipLibrary.isOwnPublished(app, clip.uri)" in capture_repo
 assert "getSharedPreferences(CaptureRecordingService.PREFS" in capture_repo
 assert "class CaptureStudioViewModel(" in capture_vm
 assert "Executors.newSingleThreadExecutor()" in capture_vm
