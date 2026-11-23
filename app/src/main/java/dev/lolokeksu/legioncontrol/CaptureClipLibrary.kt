@@ -88,11 +88,15 @@ object CaptureClipLibrary {
             "${MediaStore.MediaColumns.RELATIVE_PATH}=? AND " +
             "${MediaStore.MediaColumns.IS_PENDING}=0"
         return context.contentResolver.query(
-            uri, arrayOf(MediaStore.MediaColumns.DISPLAY_NAME), selection,
+            uri, arrayOf(MediaStore.MediaColumns.DISPLAY_NAME,
+                MediaStore.MediaColumns.OWNER_PACKAGE_NAME,
+                MediaStore.MediaColumns.RELATIVE_PATH,
+                MediaStore.MediaColumns.IS_PENDING), selection,
             arrayOf(context.packageName, RELATIVE_DIR), null
         )?.use { cursor ->
-            cursor.moveToFirst() &&
-                expected.matches(cursor.getString(0) ?: "")
+            cursor.moveToFirst() && expected.matches(cursor.getString(0) ?: "") &&
+                cursor.getString(1) == context.packageName &&
+                cursor.getString(2) == RELATIVE_DIR && cursor.getInt(3) == 0
         } == true
     }
 }
