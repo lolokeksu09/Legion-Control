@@ -312,7 +312,7 @@ object LegionDataBackup {
 
     private fun sqlName(value: String): String {
         require(nameRule.matches(value))
-        return "\\"" + value + "\\""
+        return "\"" + value + "\""
     }
 
     private fun preferencesJson(context: Context): ByteArray {
