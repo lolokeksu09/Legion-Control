@@ -65,7 +65,8 @@ class ApplicationCenterFragment:Fragment() {
             }
         fun button(label:String,action:()->Unit) {
             root.addView(Button(requireContext()).apply {
-                text=label;isAllCaps=false;minHeight=48.dp
+                text=label
+                LegionUiSupport.styleAction(this)
                 setOnClickListener { action() }
             })
         }
@@ -77,10 +78,10 @@ class ApplicationCenterFragment:Fragment() {
         button("Найти приложение по названию / пакету") { searchApp() }
         button("Моя библиотека / избранное") { chooseTracked() }
         button("Только избранные приложения") { chooseTracked(onlyFavorites=true) }
-        packageText=edit("Имя пакета · например com.example.game")
-        aliasText=edit("Название в библиотеке · до 100 символов")
+        packageText=edit("Пакет приложения (com.example.game)")
+        aliasText=edit("Название в библиотеке")
         categoryText=edit("Категория · до 40 символов")
-        noteText=edit("Локальная заметка · до 1000 символов",true)
+        noteText=edit("Локальная заметка",true)
         favorite=CheckBox(requireContext()).apply {
             text="В избранное"
             setTextColor(Color.WHITE)

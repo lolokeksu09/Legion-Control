@@ -51,6 +51,7 @@ class GamepadLiveActivity : Activity() {
             setTextIsSelectable(true)
         }
         root.addView(Button(this).apply {
+            LegionUiSupport.styleAction(this)
             text = "Обновить список контроллеров"
             isAllCaps = false
             setOnClickListener {
@@ -59,6 +60,7 @@ class GamepadLiveActivity : Activity() {
         })
         root.addView(eventView)
         root.addView(Button(this).apply {
+            LegionUiSupport.styleAction(this)
             text = "Закончить тест"
             setOnClickListener { finish() }
         })

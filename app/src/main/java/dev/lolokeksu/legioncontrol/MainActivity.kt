@@ -68,12 +68,14 @@ class MainActivity : ComponentActivity() {
             setTypeface(typeface, Typeface.BOLD)
         })
         layout.addView(TextView(this).apply {
-            text = "Kotlin + Rust · alpha.27 · диагностика Kotlin + Rust"
+            text = "Kotlin + Rust · " + LegionUiSupport.versionLabel(this@MainActivity) +
+                " · диагностика"
             textSize = 13f
             setTextColor(0xFFA5A5A5.toInt())
             setPadding(0, 8.dp, 0, 12.dp)
         })
         layout.addView(Button(this).apply {
+            LegionUiSupport.styleAction(this)
             text = "CAPTURE STUDIO · запись экрана и клипы MP4"
             minHeight = 52.dp
             setOnClickListener {
@@ -81,6 +83,7 @@ class MainActivity : ComponentActivity() {
             }
         })
         layout.addView(Button(this).apply {
+            LegionUiSupport.styleAction(this)
             text = "GAME TOOLBOX · плавающая панель поверх игр"
             minHeight = 52.dp
             setOnClickListener {
@@ -88,6 +91,7 @@ class MainActivity : ComponentActivity() {
             }
         })
         layout.addView(Button(this).apply {
+            LegionUiSupport.styleAction(this)
             text = "HAPTIC LAB · вибромотор, шаблоны и ручная оценка"
             minHeight = 52.dp
             setOnClickListener {
@@ -95,6 +99,7 @@ class MainActivity : ComponentActivity() {
             }
         })
         layout.addView(Button(this).apply {
+            LegionUiSupport.styleAction(this)
             text = "AUDIO LAB · стерео, частоты, маршруты и история"
             minHeight = 52.dp
             setOnClickListener {
@@ -102,6 +107,7 @@ class MainActivity : ComponentActivity() {
             }
         })
         layout.addView(Button(this).apply {
+            LegionUiSupport.styleAction(this)
             text = "APPLICATION CENTER · библиотека, обновления, разрешения"
             minHeight = 52.dp
             setOnClickListener {
@@ -109,6 +115,7 @@ class MainActivity : ComponentActivity() {
             }
         })
         layout.addView(Button(this).apply {
+            LegionUiSupport.styleAction(this)
             text = "CONNECTIVITY OBSERVATORY · DNS / IPv4 / IPv6 / TCP / TLS"
             minHeight = 52.dp
             setOnClickListener {
@@ -116,6 +123,7 @@ class MainActivity : ComponentActivity() {
             }
         })
         layout.addView(Button(this).apply {
+            LegionUiSupport.styleAction(this)
             text = "EXPERIMENT LAB · сессии, заметки и A/B"
             minHeight = 52.dp
             setOnClickListener {
@@ -123,6 +131,7 @@ class MainActivity : ComponentActivity() {
             }
         })
         layout.addView(Button(this).apply {
+            LegionUiSupport.styleAction(this)
             text = "SMART PROFILES · правила, аналитика и управление"
             minHeight = 52.dp
             setOnClickListener {
@@ -130,6 +139,7 @@ class MainActivity : ComponentActivity() {
             }
         })
         layout.addView(Button(this).apply {
+            LegionUiSupport.styleAction(this)
             text = "GAME SESSION · запись для любой игры/приложения"
             minHeight = 52.dp
             setOnClickListener {
@@ -137,6 +147,7 @@ class MainActivity : ComponentActivity() {
             }
         })
         layout.addView(Button(this).apply {
+            LegionUiSupport.styleAction(this)
             text = "Gaming Lab · сеть, сенсоры, производительность"
             minHeight = 52.dp
             setOnClickListener {
@@ -161,36 +172,43 @@ class MainActivity : ComponentActivity() {
         }
         layout.addView(timedView)
         layout.addView(Button(this).apply {
+            LegionUiSupport.styleAction(this)
             text = "Тест батареи · 60 секунд"
             minHeight = 48.dp
             setOnClickListener { startTimedBatteryTest() }
         })
         layout.addView(Button(this).apply {
+            LegionUiSupport.styleAction(this)
             text = "Остановить тест батареи"
             minHeight = 48.dp
             setOnClickListener { stopTimedBatteryTest() }
         })
         layout.addView(Button(this).apply {
+            LegionUiSupport.styleAction(this)
             text = "История тестов батареи"
             minHeight = 48.dp
             setOnClickListener { showTimedBatteryHistory() }
         })
         layout.addView(Button(this).apply {
+            LegionUiSupport.styleAction(this)
             text = "Обновить измерение"
             minHeight = 52.dp
             setOnClickListener { manualSample() }
         })
         layout.addView(Button(this).apply {
+            LegionUiSupport.styleAction(this)
             text = "Поделиться последним отчётом"
             minHeight = 48.dp
             setOnClickListener { shareReport() }
         })
         layout.addView(Button(this).apply {
+            LegionUiSupport.styleAction(this)
             text = "Сохранить историю в CSV"
             minHeight = 48.dp
             setOnClickListener { exportCsv() }
         })
         layout.addView(Button(this).apply {
+            LegionUiSupport.styleAction(this)
             text = "Завершить сеанс Rust"
             minHeight = 48.dp
             setOnClickListener { confirmReset() }
@@ -211,26 +229,31 @@ class MainActivity : ComponentActivity() {
         }
         layout.addView(analyticsView)
         layout.addView(Button(this).apply {
+            LegionUiSupport.styleAction(this)
             text = "Профиль последнего сеанса"
             minHeight = 48.dp
             setOnClickListener { showSessionProfile() }
         })
         layout.addView(Button(this).apply {
+            LegionUiSupport.styleAction(this)
             text = "Аналитика датчиков"
             minHeight = 48.dp
             setOnClickListener { showSensorQuality() }
         })
         layout.addView(Button(this).apply {
+            LegionUiSupport.styleAction(this)
             text = "Экспорт полной диагностики ZIP"
             minHeight = 48.dp
             setOnClickListener { exportDiagnosticArchive() }
         })
         layout.addView(Button(this).apply {
+            LegionUiSupport.styleAction(this)
             text = "Обновить список сеансов"
             minHeight = 48.dp
             setOnClickListener { showSavedHistory() }
         })
         layout.addView(Button(this).apply {
+            LegionUiSupport.styleAction(this)
             text = "Тепловая история"
             minHeight = 48.dp
             setOnClickListener { showThermalHistory() }
@@ -251,16 +274,19 @@ class MainActivity : ComponentActivity() {
         }
         layout.addView(sensorsView)
         layout.addView(Button(this).apply {
+            LegionUiSupport.styleAction(this)
             text = "Проверить доступность датчиков"
             minHeight = 48.dp
             setOnClickListener { checkSensors() }
         })
         layout.addView(Button(this).apply {
+            LegionUiSupport.styleAction(this)
             text = "Снять показания датчиков"
             minHeight = 48.dp
             setOnClickListener { startSensorCapture() }
         })
         layout.addView(Button(this).apply {
+            LegionUiSupport.styleAction(this)
             text = "Последние показания датчиков"
             minHeight = 48.dp
             setOnClickListener { showLastSensorReadings() }

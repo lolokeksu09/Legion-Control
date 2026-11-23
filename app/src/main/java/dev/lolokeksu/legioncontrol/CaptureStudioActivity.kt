@@ -74,8 +74,7 @@ class CaptureStudioActivity : ComponentActivity() {
         fun action(value: String, onClick: () -> Unit) {
             root.addView(Button(this).apply {
                 text = value
-                isAllCaps = false
-                minHeight = 51.dp
+                LegionUiSupport.styleAction(this)
                 setOnClickListener { onClick() }
             })
         }
@@ -634,6 +633,7 @@ class CaptureStudioActivity : ComponentActivity() {
         if (viewModel.clipsPageNumber() > 1) {
             clipsContainer.addView(Button(this).apply {
                 text = "ПРЕДЫДУЩАЯ СТРАНИЦА MP4"
+                LegionUiSupport.styleAction(this)
                 setOnClickListener { viewModel.previousClipPage() }
             })
         }
@@ -650,6 +650,7 @@ class CaptureStudioActivity : ComponentActivity() {
         if (clips.size == CaptureClipLibrary.PAGE_SIZE) {
             clipsContainer.addView(Button(this).apply {
                 text = "СЛЕДУЮЩАЯ СТРАНИЦА MP4"
+                LegionUiSupport.styleAction(this)
                 setOnClickListener { viewModel.nextClipPage() }
             })
         }
@@ -770,6 +771,7 @@ class CaptureStudioActivity : ComponentActivity() {
         if (viewModel.screenshotsPageNumber() > 1) {
             shotsContainer.addView(Button(this).apply {
                 text = "ПРЕДЫДУЩАЯ СТРАНИЦА PNG"
+                LegionUiSupport.styleAction(this)
                 setOnClickListener { viewModel.previousScreenshotPage() }
             })
         }
@@ -785,6 +787,7 @@ class CaptureStudioActivity : ComponentActivity() {
         if (shots.size == CaptureScreenshotLibrary.PAGE_SIZE) {
             shotsContainer.addView(Button(this).apply {
                 text = "СЛЕДУЮЩАЯ СТРАНИЦА PNG"
+                LegionUiSupport.styleAction(this)
                 setOnClickListener { viewModel.nextScreenshotPage() }
             })
         }

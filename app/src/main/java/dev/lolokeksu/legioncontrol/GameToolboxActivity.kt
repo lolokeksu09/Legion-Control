@@ -52,7 +52,7 @@ class GameToolboxActivity : Activity() {
         fun action(label: String, onClick: () -> Unit) {
             root.addView(Button(this).apply {
                 text = label
-                minHeight = 50.dp
+                LegionUiSupport.styleAction(this)
                 setOnClickListener { onClick() }
             })
         }
