@@ -201,7 +201,7 @@ object LegionUiSupport {
             setPadding(dp(this, 17), dp(this, 15), dp(this, 13), dp(this, 15))
             isClickable = true
             isFocusable = true
-            minHeight = dp(this, 56)
+            minimumHeight = dp(this, 56)
             contentDescription = if (detail.isBlank()) title else "$title. $detail"
             setOnClickListener { onClick() }
         }
