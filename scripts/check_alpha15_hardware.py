@@ -36,8 +36,8 @@ for name in (".HardwareLabActivity",".DisplayPatternActivity"):
 assert 'HardwareLabActivity::class.java' in gaming
 assert "ModuleNavigation.forwardLegacyEntry(this)" in wrapper
 assert "report.observe(viewLifecycleOwner)" in activity
-assert 'versionCode = 46' in gradle
-assert 'versionName = "0.1.0-alpha.46"' in gradle
+assert 'versionCode = 47' in gradle
+assert 'versionName = "0.1.0-alpha.47"' in gradle
 for num,name in enumerate([
     "Local Route Inspector",
     "Network Events",

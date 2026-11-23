@@ -45,5 +45,5 @@ assert "android.permission.QUERY_ALL_PACKAGES" not in manifest
 assert "android.permission.WRITE_SECURE_SETTINGS" not in manifest
 assert "android.permission.BIND_ACCESSIBILITY_SERVICE" not in manifest
 assert "class GameToolboxFragment : Fragment()" in ui
-assert "versionCode = 46" in (root / "app/build.gradle.kts").read_text()
+assert "versionCode = 47" in (root / "app/build.gradle.kts").read_text()
 print("PASS alpha42: shared Game Hub shell, selectable cards, opt-in toolbox and legacy compatibility")

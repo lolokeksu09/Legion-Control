@@ -1,6 +1,6 @@
 # Alpha 47 — исправления по аудиту Alpha 46
 
-**Основание:** [AUD-01…AUD-11](FULL-AUDIT-ALPHA46.md) (документ находится в PR #52), [Issue #53](https://github.com/lolokeksu09/Legion-Control/issues/53). **Текущая версия в Gradle остаётся Alpha 46:** до проверки исправлений новый подписанный релиз не выпускается.
+**Основание:** [AUD-01…AUD-11](FULL-AUDIT-ALPHA46.md) (документ находится в PR #52), [Issue #53](https://github.com/lolokeksu09/Legion-Control/issues/53). **Ветка готовит Alpha 47 (`versionCode=47`)**. Новая подписанная prerelease публикуется только после полного CI на точном merge SHA в `main`; предыдущая Alpha 46 не меняется.
 
 ## Реализовано в ветке исправлений
 
