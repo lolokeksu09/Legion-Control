@@ -29,7 +29,7 @@ an APK signed with the disposable PR CI certificate as a user upgrade.
 
 ## Compatibility and recovery
 
-The previous `0.1.0-alpha.1` APK was **debug signed**, not signed with the permanent certificate. Android does **not** permit updates over a differently signed package. The first release-signed build requires uninstalling the older debug package before installation, potentially deleting its app data. Do this only after preserving desired data; this alpha currently retains only an in-memory Rust history, which is lost at process exit anyway.
+The previous `0.1.0-alpha.1` APK was **debug signed**, not signed with the permanent certificate. Android does **not** permit updates over a differently signed package. The first release-signed build cannot update over an existing debug-signed package. **Uninstalling deletes app-private SQLite history and SharedPreferences.** Export the local-data SAF ZIP (and separately copy any important MP4/PNG files) before considering a fresh installation. A currently installed release-signed alpha.27 can update **in place** to release-signed alpha.40 with the same original certificate and increasing versionCode; do not uninstall a compatible signed installation.
 
 After the first permanent-release installation, subsequent releases must use **the same keystore and alias** and increasing `versionCode` (current: 40) for in-place updates. Recreating a new keystore—even using the same alias—changes the certificate and breaks update compatibility. A lost private key cannot be reconstructed from its public SHA-256 fingerprint.
 
