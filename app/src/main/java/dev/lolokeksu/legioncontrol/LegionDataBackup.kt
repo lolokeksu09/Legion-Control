@@ -154,8 +154,10 @@ object LegionDataBackup {
                                             }
                                         }
                                 }
-                                applyPreferences(context, staged.preferences)
+                                // Mark the attempt before modifying any preference file:
+                                // an error on the second file must roll back the first.
                                 settingsChanged = true
+                                applyPreferences(context, staged.preferences)
                                 target.setTransactionSuccessful()
                             } finally {
                                 target.endTransaction()
