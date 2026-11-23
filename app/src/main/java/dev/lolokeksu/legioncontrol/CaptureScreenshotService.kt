@@ -75,6 +75,7 @@ class CaptureScreenshotService : Service() {
         if (intent.getIntExtra(EXTRA_RESULT, Activity.RESULT_CANCELED) != Activity.RESULT_OK ||
             consent == null || CaptureRecordingService.recording || ReplayCaptureService.active
         ) {
+            CaptureCoordinator.releasePending(CaptureMode.SCREENSHOT)
             status("Нет нового согласия Android либо уже идёт запись видео.")
             stopSelfResult(startId)
             return START_NOT_STICKY
