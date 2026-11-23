@@ -307,6 +307,18 @@ class CaptureStudioActivity : ComponentActivity() {
         refreshStatus()
     }
 
+    override fun onDestroy() {
+        // If the user closes Capture Studio while the Android consent dialog
+        // has no callback, do not leave the app locked in CONSENT_PENDING.
+        // Never release a STARTING/ACTIVE service that already consumed consent.
+        if (isFinishing) {
+            CaptureCoordinator.releasePending(CaptureMode.RECORDING)
+            CaptureCoordinator.releasePending(CaptureMode.REPLAY)
+            CaptureCoordinator.releasePending(CaptureMode.SCREENSHOT)
+        }
+        super.onDestroy()
+    }
+
     override fun onResume() {
         super.onResume()
         if (::status.isInitialized) {
