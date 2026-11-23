@@ -308,7 +308,9 @@ object LegionUiSupport {
             LinearLayout.LayoutParams(-1, dp(shell, 1)))
         shell.addView(content, LinearLayout.LayoutParams(-1, 0, 1f))
 
-        val labels = arrayOf("Домой", "Игры", "Сервисы", "История", "Настройки")
+        // Share the same destination labels as NavigationHostActivity.
+        // Activity-only tools should never show an obsolete second tab vocabulary.
+        val labels = HubTab.entries.map { it.shortTitle }.toTypedArray()
         val icons = intArrayOf(
             android.R.drawable.ic_menu_view, android.R.drawable.ic_media_play,
             android.R.drawable.ic_menu_manage, android.R.drawable.ic_menu_recent_history,
