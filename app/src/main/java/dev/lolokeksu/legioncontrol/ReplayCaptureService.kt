@@ -1,6 +1,7 @@
 package dev.lolokeksu.legioncontrol
 
 import android.app.Activity
+import android.app.ActivityManager
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -20,6 +21,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.os.PowerManager
 import android.os.SystemClock
 import android.view.Surface
 import android.view.WindowManager
@@ -69,6 +71,7 @@ class ReplayCaptureService : Service() {
     }
 
     private val handler = Handler(Looper.getMainLooper())
+    private val safetyStop = Runnable { requestStop("Replay завершён по часовому ограничению захвата.") }
     private var capture: MediaProjection? = null
     private var captureCallback: MediaProjection.Callback? = null
     private var virtualDisplay: VirtualDisplay? = null
@@ -214,6 +217,7 @@ class ReplayCaptureService : Service() {
         codecThread = Thread({
             drainVideo(encoder, ReplayFrameBuffer(windowSeconds))
         }, "legion-replay-video").apply { start() }
+        handler.postDelayed(safetyStop, 60L * 60_000L)
         writeStatus("Replay активен: буфер " + windowSeconds +
             " с, H.264, видео без звука. Нажмите Сохранить после момента в игре.")
     }
@@ -222,14 +226,38 @@ class ReplayCaptureService : Service() {
         var videoFormat: MediaFormat? = null
         val info = MediaCodec.BufferInfo()
         var deadline = Long.MAX_VALUE
+        var nextSafetyAt = SystemClock.elapsedRealtime() + 2_000L
         try {
             while (running.get() || SystemClock.elapsedRealtime() < deadline) {
                 if (!running.get() && deadline == Long.MAX_VALUE) {
                     deadline = SystemClock.elapsedRealtime() + 2500L
                 }
+                val now = SystemClock.elapsedRealtime()
+                if (running.get() && now >= nextSafetyAt) {
+                    nextSafetyAt = now + 2_000L
+                    val thermal = runCatching {
+                        (getSystemService(POWER_SERVICE) as PowerManager).currentThermalStatus
+                    }.getOrNull()
+                    val lowMemory = runCatching {
+                        ActivityManager.MemoryInfo().also {
+                            (getSystemService(ACTIVITY_SERVICE) as ActivityManager)
+                                .getMemoryInfo(it)
+                        }.lowMemory
+                    }.getOrDefault(false)
+                    if (lowMemory || (thermal != null &&
+                        thermal >= PowerManager.THERMAL_STATUS_SEVERE)) {
+                        handler.post {
+                            requestStop(if (lowMemory) "Replay остановлен: мало доступной RAM."
+                                else "Replay остановлен: Android сообщает сильный перегрев.")
+                        }
+                    }
+                }
                 val index = encoder.dequeueOutputBuffer(info, 10_000L)
                 when {
                     index == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
+                        check(videoFormat == null) {
+                            "Encoder output format changed mid-session"
+                        }
                         videoFormat = encoder.outputFormat
                     }
                     index >= 0 -> {
@@ -306,6 +334,7 @@ class ReplayCaptureService : Service() {
 
     private fun requestStop(reason: String) {
         if (!stopping.compareAndSet(false, true)) return
+        handler.removeCallbacks(safetyStop)
         writeStatus(reason)
         active = false
         running.set(false)
