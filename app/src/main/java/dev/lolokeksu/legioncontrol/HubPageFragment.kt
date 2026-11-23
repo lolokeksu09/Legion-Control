@@ -386,6 +386,11 @@ class HubPageFragment : Fragment() {
             }
             if (shown == 0) {
                 results.addView(text("Инструменты не найдены. Попробуйте другое название.", 13f, muted))
+                results.addView(
+                    LegionUiSupport.actionTile(requireContext(), "Сбросить поиск",
+                        "Показать все инструменты") { input.setText("") },
+                    LinearLayout.LayoutParams(-1, -2).apply { topMargin = 12.dp }
+                )
             }
         }
         input.addTextChangedListener(object : TextWatcher {
