@@ -28,11 +28,11 @@ import android.widget.TextView
  * bespoke Game Toolbox and Game Detail cards retain their own approved surfaces.
  */
 object LegionUiSupport {
-    const val PANEL = 0xFF12161C.toInt()
-    const val BORDER = 0xFF252B33.toInt()
-    const val ACCENT = 0xFF86B7FF.toInt()
-    const val MUTED = 0xFF9CA5B0.toInt()
-    private const val DISABLED = 0xFF68717D.toInt()
+    val PANEL = 0xFF12161C.toInt()
+    val BORDER = 0xFF252B33.toInt()
+    val ACCENT = 0xFF86B7FF.toInt()
+    val MUTED = 0xFF9CA5B0.toInt()
+    private val DISABLED = 0xFF68717D.toInt()
 
     private fun dp(view: View, value: Int): Int =
         (value * view.resources.displayMetrics.density + 0.5f).toInt()
