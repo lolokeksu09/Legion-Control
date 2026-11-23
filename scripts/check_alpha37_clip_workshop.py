@@ -32,7 +32,7 @@ assert "nonSyncFrameIsRejected" in unit
 assert "outOfBoundsEndIsRejected" in unit
 
 assert "requireOwnClip(clip).uri" in repo
-assert "clips().firstOrNull { it.uri == clip.uri }" in repo
+assert "CaptureClipLibrary.isOwnPublished(app, it.uri)" in repo
 assert "ClipWorkshop.trim(" in repo and "ClipWorkshop.exportFrame(" in repo
 assert "CaptureClipLibrary.delete(app, clip.uri)" in repo
 assert "CaptureClipLibrary.listOwn(app)" in repo
