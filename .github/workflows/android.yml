@@ -120,7 +120,7 @@ jobs:
       - name: Test and compile real Rust backend for Android
         run: bash scripts/build-native.sh
       - name: Build Kotlin Android APK with native Rust library
-        run: gradle --no-daemon assembleDebug lintDebug
+        run: gradle --no-daemon assembleDebug assembleDebugAndroidTest lintDebug
       - name: Validate Kotlin APK contains both Rust JNI libraries
         run: python3 scripts/verify_apk.py app/build/outputs/apk/debug/app-debug.apk
       - name: Reject unsigned release attempt when secrets are absent
@@ -163,7 +163,9 @@ jobs:
         if: success()
         with:
           name: Legion-Control-v0.1.0-alpha.40-kotlin-rust-debug
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: |
+            app/build/outputs/apk/debug/app-debug.apk
+            app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
           if-no-files-found: error
 
   emulator-smoke:
