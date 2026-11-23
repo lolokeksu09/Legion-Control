@@ -77,6 +77,7 @@ class GameSessionFragment : Fragment() {
             "Для любой установленной игры или приложения. Ручная запись состояния телефона " +
             "продолжается при переходе в выбранное приложение. Ни Root, ни Shizuku не требуются."
         ))
+        root.addView(LegionUiSupport.sectionLabel(requireContext(), "ПОДГОТОВКА"))
         action("Smart Profiles · сохранённые настройки") {
             ModuleNavigation.open(this,SmartProfilesActivity::class.java)
         }
@@ -118,10 +119,12 @@ class GameSessionFragment : Fragment() {
             setPadding(0,14.dp,0,20.dp)
         }
         root.addView(reportView)
+        root.addView(LegionUiSupport.sectionLabel(requireContext(), "УПРАВЛЕНИЕ ЗАПИСЬЮ"))
         action("НАЧАТЬ ЗАПИСЬ") { startRecording() }
         action("Открыть выбранное приложение") { openSelectedApp() }
         action("ОСТАНОВИТЬ ЗАПИСЬ") { stopRecording() }
         action("Добавить метку во время записи") { addUserMark() }
+        root.addView(LegionUiSupport.sectionLabel(requireContext(), "АНАЛИТИКА И ИСТОРИЯ"))
         action("Session Signals · хронология и события") { openSessionSignals() }
         action("Session Incidents · эпизоды и длительность") { openSessionIncidents() }
         action("Session Baselines · сравнение с историей") { openSessionBaselines() }
@@ -132,6 +135,7 @@ class GameSessionFragment : Fragment() {
         }
         action("Обновить и показать последние сессии") { refresh() }
         action("Сравнить две последние сессии") { compare() }
+        root.addView(LegionUiSupport.sectionLabel(requireContext(), "ЭКСПОРТ"))
         action("Сохранить историю замеров CSV") { createFile(REQUEST_CSV) }
         action("Сохранить полный архив сессий ZIP") { createFile(REQUEST_ZIP) }
         action("Статистика использования приложений (опционально)") {

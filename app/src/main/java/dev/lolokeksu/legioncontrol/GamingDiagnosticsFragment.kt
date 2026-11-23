@@ -63,6 +63,7 @@ class GamingDiagnosticsFragment : Fragment() {
         }
         root.addView(resultView)
 
+        root.addView(LegionUiSupport.sectionLabel(requireContext(), "ПРОВЕРКИ УСТРОЙСТВА"))
         addButton(root, "1 · Network Analyzer — TCP/DNS") {
             viewModel.run(GamingProbe.NETWORK)
         }
@@ -81,6 +82,7 @@ class GamingDiagnosticsFragment : Fragment() {
         addButton(root, "6 · Wi-Fi / LTE Inspector") {
             viewModel.run(GamingProbe.WIFI)
         }
+        root.addView(LegionUiSupport.sectionLabel(requireContext(), "ИГРА И АКТИВНОСТЬ"))
         packageInput = EditText(requireContext()).apply {
             setSingleLine(true)
             textSize = 14f
@@ -112,6 +114,7 @@ class GamingDiagnosticsFragment : Fragment() {
         addButton(root, "9 · Session Comparison — последние два сеанса") {
             viewModel.run(GamingProbe.SESSION)
         }
+        root.addView(LegionUiSupport.sectionLabel(requireContext(), "СИСТЕМА И ДОПОЛНИТЕЛЬНЫЕ МОДУЛИ"))
         addButton(root, "10 · System Health") {
             viewModel.run(GamingProbe.SYSTEM,refreshHzDisplay=requireActivity().display)
         }
