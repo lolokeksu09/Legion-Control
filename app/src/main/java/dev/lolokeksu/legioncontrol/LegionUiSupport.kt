@@ -322,8 +322,13 @@ object LegionUiSupport {
             setPadding(dp(this, 7), dp(this, 9), dp(this, 7), dp(this, 8))
             setBackgroundColor(0xFF0D0F12.toInt())
         }
+        val selectedIndex = when (activity) {
+            is GameToolboxActivity, is GameSessionActivity,
+            is SmartProfilesActivity, is ApplicationCenterActivity -> 1
+            else -> 2
+        }
         for (index in labels.indices) {
-            val selected = index == 2
+            val selected = index == selectedIndex
             val tint = if (selected) ACCENT else 0xFF858C98.toInt()
             val item = LinearLayout(activity).apply {
                 orientation = LinearLayout.VERTICAL
