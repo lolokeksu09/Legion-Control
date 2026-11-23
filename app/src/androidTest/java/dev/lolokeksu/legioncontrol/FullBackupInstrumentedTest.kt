@@ -115,6 +115,28 @@ class FullBackupInstrumentedTest {
             assertTrue(prefs.edit().remove("ci_restore_sentinel").commit())
             assertNull(GameSessionRepository(app).use { it.header(sessionId) })
 
+            // Diagnostic assertion: pin down which SQLite table is unexpectedly
+            // populated after recreating the supposedly fresh database.
+            LocalHistoryStore(app).use { helper ->
+                val db = helper.readableDatabase
+                val nonEmpty = mutableListOf<String>()
+                db.rawQuery("SELECT name FROM sqlite_master WHERE type='table' AND " +
+                    "name NOT LIKE 'sqlite_%' ORDER BY name", null).use { tables ->
+                    while (tables.moveToNext()) {
+                        val table = tables.getString(0)
+                        val safe = Regex("[A-Za-z][A-Za-z0-9_]{0,79}")
+                        assertTrue(safe.matches(table))
+                        db.rawQuery("SELECT COUNT(*) FROM \"" + table + "\"", null)
+                            .use { count ->
+                                assertTrue(count.moveToFirst())
+                                if (count.getLong(0) != 0L)
+                                    nonEmpty += table + "=" + count.getLong(0)
+                            }
+                    }
+                }
+                assertTrue("Fresh DB must be empty: " + nonEmpty, nonEmpty.isEmpty())
+            }
+
             val restored = LegionDataBackup.restoreOnEmptyDatabase(app, backup)
             assertEquals(exported.rows, restored.rows)
             GameSessionRepository(app).use { repo ->
