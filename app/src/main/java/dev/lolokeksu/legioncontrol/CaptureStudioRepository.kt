@@ -127,7 +127,7 @@ class CaptureStudioRepository(context: Context) {
         return header + last
     }
 
-    fun clips(): List<CaptureClip> = CaptureClipLibrary.listOwn(app)
+    fun clips(page: Int = 0): List<CaptureClip> = CaptureClipLibrary.listOwn(app, page)
 
     /** Editing is strictly scoped to a published item from the app-owned MediaStore query. */
     fun trimOwnClip(
@@ -139,13 +139,13 @@ class CaptureStudioRepository(context: Context) {
     ) = ClipWorkshop.exportFrame(app, requireOwnClip(clip).uri, atMs, cancelled)
 
     private fun requireOwnClip(clip: CaptureClip): CaptureClip =
-        clips().firstOrNull { it.uri == clip.uri }
+        clip.takeIf { CaptureClipLibrary.isOwnPublished(app, it.uri) }
             ?: throw IllegalArgumentException("Selected clip is not in own library")
 
-    fun screenshots(): List<CaptureScreenshot> = CaptureScreenshotLibrary.listOwn(app)
+    fun screenshots(page: Int = 0): List<CaptureScreenshot> = CaptureScreenshotLibrary.listOwn(app, page)
 
     fun deleteOwnScreenshot(screenshot: CaptureScreenshot): Boolean {
-        require(screenshots().any { it.uri == screenshot.uri }) {
+        require(CaptureScreenshotLibrary.isOwnPublished(app, screenshot.uri)) {
             "Selected screenshot is not in own library"
         }
         return CaptureScreenshotLibrary.delete(app, screenshot.uri)
@@ -153,7 +153,7 @@ class CaptureStudioRepository(context: Context) {
 
     /** The dialog-confirmed URI comes only from this app's own MediaStore query. */
     fun deleteOwnClip(clip: CaptureClip): Boolean {
-        require(clips().any { it.uri == clip.uri }) { "Selected clip is not in own library" }
+        require(CaptureClipLibrary.isOwnPublished(app, clip.uri)) { "Selected clip is not in own library" }
         return CaptureClipLibrary.delete(app, clip.uri)
     }
 }
