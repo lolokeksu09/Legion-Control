@@ -35,6 +35,8 @@ class CaptureStudioActivity : ComponentActivity() {
         private const val REQUEST_IMPORT_GAME_PROFILES = 25005
         private const val REQUEST_REPLAY = 25006
         private const val REQUEST_REPLAY_AUDIO_PERMISSION = 25007
+        private const val REQUEST_EXPORT_FULL_BACKUP = 25008
+        private const val REQUEST_IMPORT_FULL_BACKUP = 25009
     }
 
     private val viewModel by lazy { ViewModelProvider(this)[CaptureStudioViewModel::class.java] }
@@ -219,6 +221,28 @@ class CaptureStudioActivity : ComponentActivity() {
         action("ОТКРЫТЬ БИБЛИОТЕКУ СНИМКОВ") { viewModel.refreshScreenshots() }
         shotsContainer = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         root.addView(shotsContainer)
+        heading("Полная локальная резервная копия")
+        note("История SQLite и настройки Legion Control в одном ZIP через SAF. " +
+            "Архив содержит сведения о ваших приложениях и сессиях — храните его приватно. " +
+            "Видеофайлы MP4 и PNG в архив НЕ входят.")
+        action("ЭКСПОРТ ИСТОРИИ И НАСТРОЕК") {
+            val choose = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+                addCategory(Intent.CATEGORY_OPENABLE)
+                type = "application/zip"
+                putExtra(Intent.EXTRA_TITLE, "LegionControl-Data-Backup.zip")
+            }
+            runCatching { startActivityForResult(choose, REQUEST_EXPORT_FULL_BACKUP) }
+                .onFailure { status.text = "SAF недоступен: " + it.javaClass.simpleName }
+        }
+        action("ПРОВЕРИТЬ И ВОССТАНОВИТЬ ИЗ ZIP") {
+            val choose = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                addCategory(Intent.CATEGORY_OPENABLE)
+                type = "application/zip"
+            }
+            runCatching { startActivityForResult(choose, REQUEST_IMPORT_FULL_BACKUP) }
+                .onFailure { status.text = "SAF недоступен: " + it.javaClass.simpleName }
+        }
+
         heading("Очистка незавершённых файлов")
         note("Только ваши временные MP4/PNG с IS_PENDING=1 старше 24 часов. " +
             "Готовые клипы и снимки не удаляются. Перед операцией остановите все захваты.")
@@ -239,6 +263,21 @@ class CaptureStudioActivity : ComponentActivity() {
         viewModel.settings.observe(this) { refreshChoices() }
         viewModel.playbackAudio.observe(this) { refreshChoices() }
         viewModel.message.observe(this) { status.text = it }
+        viewModel.backupReady.observe(this) {
+            val inspected = viewModel.takeBackupPreview() ?: return@observe
+            AlertDialog.Builder(this)
+                .setTitle("Восстановить локальные данные?")
+                .setMessage("Архив проверен: SQLite v${inspected.preview.schema}, " +
+                    "таблиц ${inspected.preview.tables}, записей ${inspected.preview.rows}, " +
+                    "параметров ${inspected.preview.settings}.\n\n" +
+                    "Импорт разрешён только в ПУСТУЮ базу и не удаляет существующую " +
+                    "историю. Все текущие пользовательские настройки будут заменены. " +
+                    "MP4/PNG и ключ подписи не импортируются.")
+                .setPositiveButton("Восстановить") { _, _ ->
+                    viewModel.restoreFullBackup(inspected.uri)
+                }
+                .setNegativeButton("Отмена", null).show()
+        }
         viewModel.library.observe(this) { state ->
             when (state) {
                 CaptureLibraryState.Idle -> Unit
@@ -428,6 +467,16 @@ class CaptureStudioActivity : ComponentActivity() {
     @Deprecated("Legacy Activity result API works without introducing AndroidX dependencies")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQUEST_EXPORT_FULL_BACKUP) {
+            if (resultCode == RESULT_OK && data?.data != null)
+                viewModel.exportFullBackup(data.data!!)
+            return
+        }
+        if (requestCode == REQUEST_IMPORT_FULL_BACKUP) {
+            if (resultCode == RESULT_OK && data?.data != null)
+                viewModel.inspectFullBackup(data.data!!)
+            return
+        }
         if (requestCode == REQUEST_EXPORT_GAME_PROFILES) {
             if (resultCode == RESULT_OK && data?.data != null) {
                 viewModel.exportGameProfiles(data.data!!)
