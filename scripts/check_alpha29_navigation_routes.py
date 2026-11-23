@@ -78,7 +78,7 @@ assert frags["@+id/gameSessionFragment"].get(android+"name").endswith(".GameSess
 game=(src/"GameSessionFragment.kt").read_text()
 compat=(src/"GameSessionActivity.kt").read_text()
 assert "GameSessionRecorderService.start(requireContext()," in game
-assert "GameSessionFragment()" in compat
+assert "ModuleNavigation.forwardLegacyEntry(this)" in compat
 hub=(src/"HubPageFragment.kt").read_text()
 detail=(src/"GameDetailFragment.kt").read_text()
 assert "HubDestinationRoutes.destinationFor(cls)" in hub+detail
