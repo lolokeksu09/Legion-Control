@@ -224,11 +224,12 @@ def main() -> None:
     adb("install", "-r", str(test_apk), timeout=120)
     test_output = adb("shell", "am", "instrument", "-w",
         "-e", "class",
-        "dev.lolokeksu.legioncontrol.FullBackupInstrumentedTest",
+        "dev.lolokeksu.legioncontrol.FullBackupInstrumentedTest,"
+        "dev.lolokeksu.legioncontrol.ConnectivityConcurrencyInstrumentedTest",
         PACKAGE + ".test/androidx.test.runner.AndroidJUnitRunner", timeout=190)
-    if "OK (1 test)" not in test_output or "FAILURES" in test_output:
-        raise AssertionError("Backup restore instrumentation failed: " + test_output[-1400:])
-    print("PASS: emulator-only SQLite backup/restore and corruption round-trip",flush=True)
+    if "OK (3 tests)" not in test_output or "FAILURES" in test_output:
+        raise AssertionError("Android instrumentation regressions failed: " + test_output[-1600:])
+    print("PASS: emulator-only backup recovery + Connectivity concurrency (3 tests)",flush=True)
     adb("shell", "pm", "clear", PACKAGE, timeout=40)
     adb("shell", "am", "force-stop", PACKAGE)
     adb("shell", "am", "start", "-W", "-n", PACKAGE + "/.NavigationHostActivity", timeout=60)
@@ -307,6 +308,8 @@ def main() -> None:
 
     click("Smart Profiles")
     stage("03-smart-profiles", "LEGION CONTROL · SMART PROFILES")
+    expect_scrolling("Температура предупреждения, °C", seconds=25)
+    expect_scrolling("Заряд батареи для предупреждения, %", seconds=25)
     expect_selected_tab("Игры")
     click("Имя пакета приложения")
     adb("shell", "input", "text", "com.android.settings")
