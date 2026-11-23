@@ -86,7 +86,7 @@ def actual_focused_input() -> str:
     return value
 
 
-def expect_scrolling(needle: str, seconds: int = 30) -> None:
+def expect_scrolling(needle: str, seconds: int = 30, progressive: bool = False) -> None:
     width,height = dimensions()
     deadline=time.monotonic()+seconds
     step=0
@@ -94,7 +94,13 @@ def expect_scrolling(needle: str, seconds: int = 30) -> None:
         if visible(needle):
             print("PASS report:",needle,flush=True)
             return
-        y1,y2=(int(height*.3),int(height*.78)) if step%2==0 else (int(height*.78),int(height*.3))
+        # Progressive mode walks a long settings screen instead of bouncing
+        # between the same two positions. Other report checks retain two-way
+        # searching because their result might appear above the current viewport.
+        y1,y2=(int(height*.78),int(height*.3)) if progressive else (
+            (int(height*.3),int(height*.78)) if step%2==0 else
+            (int(height*.78),int(height*.3))
+        )
         adb("shell","input","swipe",str(width//2),str(y1),str(width//2),str(y2),"300")
         step+=1
         time.sleep(.65)
@@ -240,7 +246,7 @@ def main() -> None:
     stage("01a-capture-studio", "CAPTURE STUDIO")
     expect("ЗАХВАТ И REPLAY")
     expect("Домой")
-    expect_scrolling("INSTANT REPLAY", seconds=35)
+    expect_scrolling("INSTANT REPLAY", seconds=70, progressive=True)
     capture("01b-capture-studio-replay")
     back_until(TOOLS_MARKER)
     click("Game Toolbox")
