@@ -382,6 +382,10 @@ def main() -> None:
     back_until(SETTINGS_MARKER)
     click("Домой")
     stage("14-return-home", "Готов к запуску")
+    # Legacy entry is exercised from Tools so Back returns to the same
+    # expected parent and does not depend on the previous Home selection.
+    click("Сервисы")
+    expect(TOOLS_MARKER)
     # Explicit legacy entry points must show the SAME styled NavHost module,
     # including header, dark action controls and five-tab navigation.
     adb("shell", "am", "start", "-W", "-n",
@@ -396,6 +400,8 @@ def main() -> None:
     expect("ЗАПИСЬ ИГРОВОЙ СЕССИИ")
     expect("Домой")
     back_until(TOOLS_MARKER)
+    click("Домой")
+    stage("17-return-home-after-legacy", "Готов к запуску")
     print("PASS: Android emulator UI navigation, explicit marker persisted in SQLite,",
           "signal correlation, selected package, foreground START/STOP, back stack",flush=True)
 
