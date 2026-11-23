@@ -79,10 +79,16 @@ class CaptureScreenshotService : Service() {
             stopSelfResult(startId)
             return START_NOT_STICKY
         }
+        if (!CaptureCoordinator.begin(CaptureMode.SCREENSHOT)) {
+            status("Снимок отклонён: другой захват уже выполняется.")
+            stopSelfResult(startId)
+            return START_NOT_STICKY
+        }
         active = true
         try {
             promote()
             begin(consent)
+            CaptureCoordinator.markActive(CaptureMode.SCREENSHOT)
         } catch (e: Exception) {
             end("Не удалось захватить экран: " + e.javaClass.simpleName)
         }
@@ -205,6 +211,7 @@ class CaptureScreenshotService : Service() {
 
     private fun end(message: String) {
         if (!finished.compareAndSet(false, true)) return
+        CaptureCoordinator.markStopping(CaptureMode.SCREENSHOT)
         // Wait for any active image+MediaStore operation to release its Image before
         // closing ImageReader or quitting the frame thread. A cancel never publishes.
         val cleanup = Runnable {
@@ -225,6 +232,7 @@ class CaptureScreenshotService : Service() {
                 frameHandler = null
                 active = false
                 status(message)
+                CaptureCoordinator.release(CaptureMode.SCREENSHOT)
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
             }
