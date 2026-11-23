@@ -254,6 +254,19 @@ class CaptureStudioViewModel(application: Application) : AndroidViewModel(applic
         }
     }
 
+    fun cleanStalePending() {
+        worker.execute {
+            val result = runCatching {
+                CapturePendingRecovery.cleanStaleOwn(getApplication())
+            }
+            messageMutable.postValue(result.fold(
+                { "Очистка завершена. Удалено незавершённых файлов: ${it.deleted}; " +
+                    "ошибок: ${it.failed}; освобождено: ${it.freedBytes / 1024L} КиБ." },
+                { "Очистка отклонена: " + (it.message ?: it.javaClass.simpleName) }
+            ))
+        }
+    }
+
     fun refreshScreenshots() {
         val token = screenshotRevision.incrementAndGet()
         screenshotsMutable.value = CaptureScreenshotsState.Loading
