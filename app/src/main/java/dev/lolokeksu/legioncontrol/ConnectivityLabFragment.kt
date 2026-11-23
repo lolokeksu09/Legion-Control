@@ -88,7 +88,7 @@ class ConnectivityLabFragment : Fragment() {
             }
         }
         title("CONNECTIVITY OBSERVATORY")
-        description("Legion Control · alpha.20 · диагностика любой сети Android 13+. "+
+        description("Диагностика сети Android 13+. "+
             "Все проверки добровольные и обращаются к публичному серверу: "+
             "это НЕ ping игрового сервера, НЕ FPS и НЕ ICMP.")
         resultView=TextView(requireContext()).apply {

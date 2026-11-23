@@ -42,6 +42,9 @@ class ConnectivityLabViewModel(application:Application):AndroidViewModel(applica
 
     fun chooseHost(value:String) {
         if(testing.get() || !ConnectivityProbe.validHost(value))return
+        // Invalidate any previously enqueued history/summary result for a different host.
+        // This does not interrupt a running test: chooseHost already rejects that case.
+        generation.incrementAndGet()
         host=value
         selectedRunId=null
         mutableState.value=ConnectivityLabUiState(
@@ -124,6 +127,20 @@ class ConnectivityLabViewModel(application:Application):AndroidViewModel(applica
         if(!testing.get())return
         cancelled.set(true)
         task?.cancel(true)
+        // Future.cancel(true) may cancel a queued task BEFORE its body starts,
+        // so its finally block never executes. The single-worker cleanup runs
+        // strictly after any currently active callback and restores idle safely.
+        val request = generation.get()
+        worker.execute {
+            if (!closed.get() && cancelled.get() && generation.get() == request &&
+                testing.compareAndSet(true, false)) {
+                main.post {
+                    if (!closed.get() && generation.get() == request)
+                        mutableState.value = ConnectivityLabUiState(
+                            "Тест отменён. Частичные данные доступны в истории.", false, request)
+                }
+            }
+        }
         // Android's InetAddress DNS lookup may be uninterruptible. Do not claim
         // immediate cancellation while the worker still owns the current cycle.
         mutableState.value = ConnectivityLabUiState(

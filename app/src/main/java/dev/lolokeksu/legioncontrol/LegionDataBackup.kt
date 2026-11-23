@@ -12,6 +12,7 @@ import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.InputStream
 import java.security.MessageDigest
+import java.security.SecureRandom
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
@@ -37,9 +38,16 @@ object LegionDataBackup {
     )
     private val nameRule = Regex("[A-Za-z][A-Za-z0-9_]{0,79}")
     private val allowedEntries = setOf("manifest.json", "preferences.json", "history.sqlite")
+    // A small durable restore journal bridges a committed SQLite transaction and
+    // four separate legacy SharedPreferences files. Existing SQLite v12 schema is unchanged.
+    private const val RESTORE_JOURNAL = "legion-backup-restore-journal"
+    private const val JOURNAL_MARKER = "sqlite_commit_marker"
+    private const val JOURNAL_BEFORE = "previous_settings"
+    private const val JOURNAL_AFTER = "restored_settings"
 
     private data class Staged(val sqlite: File, val manifest: JSONObject,
-                              val preferences: Map<String, Map<String, Any>>)
+                              val preferences: Map<String, Map<String, Any>>,
+                              val preferencesJson: String)
 
     fun export(context: Context, uri: Uri): LegionBackupPreview {
         check(!GameSessionRecorderService.sessionActive) {
@@ -102,81 +110,90 @@ object LegionDataBackup {
         }
         try {
             check(!GameSessionRecorderService.sessionActive)
+            recoverInterruptedRestore(context)
             return withStaged(context, uri) { staged ->
                 val preview = inspectSQLite(context, staged.sqlite)
                     .copy(settings = countSettings(staged.preferences))
-                val previous = parsePreferences(preferencesJson(context))
+                val previousJson = String(preferencesJson(context), Charsets.UTF_8)
                 val source = SQLiteDatabase.openDatabase(staged.sqlite.absolutePath, null,
                     SQLiteDatabase.OPEN_READONLY)
                 try {
                     LocalHistoryStore(context).use { helper ->
                         val target = helper.writableDatabase
                         val tables = tableOrder(target)
-                        var settingsChanged = false
+                        target.beginTransaction()
                         try {
-                            target.beginTransaction()
-                            try {
-                                // Check every existing table BEFORE inserting a single row.
-                                // SQLite rollback protects this entire transaction.
-                                val existingCounts = tables.map { table ->
-                                    target.rawQuery("SELECT COUNT(*) FROM " + sqlName(table),
-                                        null).use {
-                                        check(it.moveToFirst())
-                                        it.getLong(0)
-                                    }
+                            // Never overwrite an existing user's data.
+                            val existingCounts = tables.map { table ->
+                                target.rawQuery("SELECT COUNT(*) FROM " + sqlName(table),
+                                    null).use {
+                                    check(it.moveToFirst())
+                                    it.getLong(0)
                                 }
-                                check(BackupRestorePolicy.acceptsEmptyTarget(existingCounts)) {
-                                    "База содержит пользовательские данные. Импорт разрешён только в пустую базу."
-                                }
-                                for (table in tables) {
-                                    source.rawQuery("SELECT * FROM " + sqlName(table), null)
-                                        .use { cursor ->
-                                            var count = 0L
-                                            while (cursor.moveToNext()) {
-                                                check(++count <= MAX_ROWS) { "Слишком много строк" }
-                                                val values = ContentValues()
-                                                for (i in 0 until cursor.columnCount) {
-                                                    val col = cursor.getColumnName(i)
-                                                    when (cursor.getType(i)) {
-                                                        Cursor.FIELD_TYPE_NULL -> values.putNull(col)
-                                                        Cursor.FIELD_TYPE_INTEGER ->
-                                                            values.put(col, cursor.getLong(i))
-                                                        Cursor.FIELD_TYPE_FLOAT ->
-                                                            values.put(col, cursor.getDouble(i))
-                                                        Cursor.FIELD_TYPE_STRING ->
-                                                            values.put(col, cursor.getString(i))
-                                                        Cursor.FIELD_TYPE_BLOB -> {
-                                                            val bytes = cursor.getBlob(i)
-                                                            check(bytes.size <= 4 * 1024 * 1024)
-                                                            values.put(col, bytes)
-                                                        }
-                                                        else -> error("Unsupported SQLite type")
+                            }
+                            check(BackupRestorePolicy.acceptsEmptyTarget(existingCounts)) {
+                                "База содержит пользовательские данные. Импорт разрешён только в пустую базу."
+                            }
+                            val previousMarker = applicationMarker(target)
+                            var marker: Int
+                            do {
+                                marker = SecureRandom().nextInt(Int.MAX_VALUE - 1) + 1
+                            } while (marker == previousMarker)
+                            // Journal first: if process dies before SQLite COMMIT, restore
+                            // old prefs; after COMMIT, complete the target prefs on launch.
+                            prepareRestoreJournal(context, marker,
+                                previousJson, staged.preferencesJson)
+                            for (table in tables) {
+                                source.rawQuery("SELECT * FROM " + sqlName(table), null)
+                                    .use { cursor ->
+                                        var count = 0L
+                                        while (cursor.moveToNext()) {
+                                            check(++count <= MAX_ROWS) { "Слишком много строк" }
+                                            val values = ContentValues()
+                                            for (i in 0 until cursor.columnCount) {
+                                                val col = cursor.getColumnName(i)
+                                                when (cursor.getType(i)) {
+                                                    Cursor.FIELD_TYPE_NULL -> values.putNull(col)
+                                                    Cursor.FIELD_TYPE_INTEGER ->
+                                                        values.put(col, cursor.getLong(i))
+                                                    Cursor.FIELD_TYPE_FLOAT ->
+                                                        values.put(col, cursor.getDouble(i))
+                                                    Cursor.FIELD_TYPE_STRING ->
+                                                        values.put(col, cursor.getString(i))
+                                                    Cursor.FIELD_TYPE_BLOB -> {
+                                                        val bytes = cursor.getBlob(i)
+                                                        check(bytes.size <= 4 * 1024 * 1024)
+                                                        values.put(col, bytes)
                                                     }
+                                                    else -> error("Unsupported SQLite type")
                                                 }
-                                                target.insertOrThrow(table, null, values)
                                             }
+                                            target.insertOrThrow(table, null, values)
                                         }
-                                }
-                                // Mark the attempt before modifying any preference file:
-                                // an error on the second file must roll back the first.
-                                settingsChanged = true
-                                applyPreferences(context, staged.preferences)
-                                target.setTransactionSuccessful()
-                            } finally {
-                                target.endTransaction()
+                                    }
                             }
-                        } catch (failure: Exception) {
-                            if (settingsChanged) runCatching {
-                                applyPreferences(context, previous)
-                            }
-                            throw failure
+                            // SQLite header metadata is transactional and does NOT change
+                            // schema version 12; it identifies which side of crash was committed.
+                            target.execSQL("PRAGMA application_id = " + marker)
+                            target.setTransactionSuccessful()
+                        } finally {
+                            target.endTransaction()
                         }
                     }
                 } finally {
                     source.close()
                 }
+                // The journal remains until EVERY legacy preferences file has
+                // committed. A crash here is repaired before rendering Home.
+                applyPreferences(context, staged.preferences)
+                clearRestoreJournal(context)
                 preview
             }
+        } catch (failure: Exception) {
+            // If the transaction rolled back, keep old prefs; if it committed,
+            // complete new prefs. Leave the journal durable if recovery itself fails.
+            runCatching { recoverInterruptedRestore(context) }
+            throw failure
         } finally {
             CaptureCoordinator.release(CaptureMode.MAINTENANCE)
         }
@@ -231,7 +248,8 @@ object LegionDataBackup {
                 manifest.getString("preferences_sha256") == sha256(preferences)) {
                 "Контрольная сумма архива не совпадает"
             }
-            return body(Staged(file, manifest, parsePreferences(preferences)))
+            return body(Staged(file, manifest, parsePreferences(preferences),
+                String(preferences, Charsets.UTF_8)))
         } finally {
             file.delete()
         }
@@ -388,6 +406,50 @@ object LegionDataBackup {
             }
             check(editor.commit()) { "Не удалось сохранить настройки " + name }
         }
+    }
+
+    private fun restoreJournal(context: Context) =
+        context.getSharedPreferences(RESTORE_JOURNAL, Context.MODE_PRIVATE)
+
+    private fun applicationMarker(db: SQLiteDatabase): Int =
+        db.rawQuery("PRAGMA application_id", null).use {
+            check(it.moveToFirst())
+            it.getInt(0)
+        }
+
+    private fun prepareRestoreJournal(context: Context, marker: Int,
+                                      before: String, after: String) {
+        check(marker > 0)
+        check(restoreJournal(context).edit().clear()
+            .putInt(JOURNAL_MARKER, marker)
+            .putString(JOURNAL_BEFORE, before)
+            .putString(JOURNAL_AFTER, after)
+            .commit()) { "Не удалось сохранить журнал восстановления" }
+    }
+
+    private fun clearRestoreJournal(context: Context) {
+        check(restoreJournal(context).edit().clear().commit()) {
+            "Не удалось завершить журнал восстановления"
+        }
+    }
+
+    /** Idempotent process-death recovery; cheap no-op unless a restore was interrupted. */
+    @Synchronized
+    fun recoverInterruptedRestore(context: Context): Boolean {
+        val journal = restoreJournal(context)
+        if (!journal.contains(JOURNAL_MARKER)) return false
+        val marker = journal.getInt(JOURNAL_MARKER, 0)
+        check(marker > 0) { "Повреждён журнал восстановления" }
+        val before = requireNotNull(journal.getString(JOURNAL_BEFORE, null))
+        val after = requireNotNull(journal.getString(JOURNAL_AFTER, null))
+        val committed = LocalHistoryStore(context).use {
+            applicationMarker(it.readableDatabase) == marker
+        }
+        val correctSettings = parsePreferences(
+            (if (committed) after else before).toByteArray(Charsets.UTF_8))
+        applyPreferences(context, correctSettings)
+        clearRestoreJournal(context)
+        return true
     }
 
     private fun putEntry(zip: ZipOutputStream, name: String, bytes: ByteArray) {

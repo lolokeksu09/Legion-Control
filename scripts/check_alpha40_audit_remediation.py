@@ -56,10 +56,16 @@ for needed in (
     "VACUUM INTO ?", "legion-control-local-backup", "SHA-256",
     "PRAGMA quick_check", "tableOrder(target)", "BackupRestorePolicy.acceptsEmptyTarget(",
     "target.beginTransaction()", "target.setTransactionSuccessful()",
-    "applyPreferences(context, previous)", "MAX_DB",
+    "prepareRestoreJournal(context, marker,", "recoverInterruptedRestore(context)",
+    "clearRestoreJournal(context)", "PRAGMA application_id", "MAX_DB",
     "GameSessionRecorderService.sessionActive", "CaptureMode.MAINTENANCE"
 ):
     assert needed in backup, needed
+# The cross-store journal is cleared only after all four preferences commits.
+# Existing SQLite v12 tables are retained and commit is identified by header metadata.
+assert backup.index("target.setTransactionSuccessful()") < backup.index(
+    "applyPreferences(context, staged.preferences)")
+assert "commit())" in backup and "JOURNAL_BEFORE" in backup and "JOURNAL_AFTER" in backup
 assert "DROP TABLE" not in backup and "DELETE FROM" not in backup
 assert "refusesAnyExistingUserRows" in test("BackupRestorePolicyTest.kt")
 assert "viewModel.exportFullBackup(" in ui and "viewModel.inspectFullBackup(" in ui

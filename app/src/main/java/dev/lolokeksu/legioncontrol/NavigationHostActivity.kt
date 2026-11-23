@@ -10,6 +10,7 @@ import android.view.View
 import android.view.WindowInsets
 import android.widget.FrameLayout
 import android.widget.ImageView
+import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.fragment.app.Fragment
@@ -41,6 +42,29 @@ class NavigationHostActivity : FragmentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Fail closed if an interrupted cross-store restore cannot be recovered.
+        // Do not let the UI mutate or inspect partially restored user data.
+        val recovery = runCatching { LegionDataBackup.recoverInterruptedRestore(this) }
+        if (recovery.isFailure) {
+            val blocked = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setBackgroundColor(Color.BLACK)
+                setPadding(24.dp, 50.dp, 24.dp, 24.dp)
+            }
+            blocked.addView(TextView(this).apply {
+                text = "Не удалось завершить восстановление данных. " +
+                    "История и настройки не будут открыты, пока проверка не пройдёт. " +
+                    (recovery.exceptionOrNull()?.javaClass?.simpleName ?: "")
+                textSize = 18f
+                setTextColor(Color.WHITE)
+            })
+            blocked.addView(Button(this).apply {
+                text = "Повторить восстановление"
+                setOnClickListener { recreate() }
+            })
+            setContentView(blocked)
+            return
+        }
         window.statusBarColor = Color.BLACK
         window.navigationBarColor = Color.BLACK
         window.decorView.systemUiVisibility = 0
@@ -134,17 +158,20 @@ class NavigationHostActivity : FragmentActivity() {
                 setImageResource(icons[index])
                 imageTintList = ColorStateList.valueOf(muted)
             }
+            icon.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
             column.addView(icon, LinearLayout.LayoutParams(21.dp, 21.dp))
             val text = TextView(this).apply {
                 text = tabs[index].shortTitle
-                textSize = 10f
+                textSize = 12f
                 gravity = Gravity.CENTER
                 setTextColor(muted)
                 setPadding(0, 6.dp, 0, 0)
-                maxLines = 1
+                maxLines = 2
+                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
             }
             column.addView(text)
-            bottom.addView(column, LinearLayout.LayoutParams(0, 57.dp, 1f))
+            bottom.addView(column, LinearLayout.LayoutParams(0,
+                LegionUiSupport.bottomBarHeightDp(this).dp, 1f))
             buttons[id] = icon to text
             tabSurfaces[id] = column
             column.setOnClickListener {
