@@ -78,11 +78,18 @@ object CaptureScreenshotLibrary {
         if (uri != ContentUris.withAppendedId(
                 MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)) return false
         return context.contentResolver.query(
-            uri, arrayOf(MediaStore.MediaColumns.DISPLAY_NAME),
+            uri, arrayOf(MediaStore.MediaColumns.DISPLAY_NAME,
+                MediaStore.MediaColumns.OWNER_PACKAGE_NAME,
+                MediaStore.MediaColumns.RELATIVE_PATH,
+                MediaStore.MediaColumns.IS_PENDING),
             "${MediaStore.MediaColumns.OWNER_PACKAGE_NAME}=? AND " +
                 "${MediaStore.MediaColumns.RELATIVE_PATH}=? AND " +
                 "${MediaStore.MediaColumns.IS_PENDING}=0",
             arrayOf(context.packageName, RELATIVE_DIR), null
-        )?.use { it.moveToFirst() && expected.matches(it.getString(0) ?: "") } == true
+        )?.use { cursor ->
+            cursor.moveToFirst() && expected.matches(cursor.getString(0) ?: "") &&
+                cursor.getString(1) == context.packageName &&
+                cursor.getString(2) == RELATIVE_DIR && cursor.getInt(3) == 0
+        } == true
     }
 }
