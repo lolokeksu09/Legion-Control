@@ -219,6 +219,16 @@ class CaptureStudioActivity : ComponentActivity() {
         action("ОТКРЫТЬ БИБЛИОТЕКУ СНИМКОВ") { viewModel.refreshScreenshots() }
         shotsContainer = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         root.addView(shotsContainer)
+        heading("Очистка незавершённых файлов")
+        note("Только ваши временные MP4/PNG с IS_PENDING=1 старше 24 часов. " +
+            "Готовые клипы и снимки не удаляются. Перед операцией остановите все захваты.")
+        action("НАЙТИ И УДАЛИТЬ ЗАВИСШИЕ ЧЕРНОВИКИ") {
+            AlertDialog.Builder(this).setTitle("Удалить незавершённые файлы?")
+                .setMessage("Будут удалены только временные файлы Legion Control " +
+                    "старше суток, не опубликованные в MediaStore. Операция необратима.")
+                .setPositiveButton("Очистить") { _, _ -> viewModel.cleanStalePending() }
+                .setNegativeButton("Отмена", null).show()
+        }
         note("Пауза и продолжение сохраняют один MP4. Время паузы не расходует лимит " +
             "активной записи. Через 5 минут непрерывной паузы запись останавливается. " +
             "Если кодек отклонит команду, захват будет завершён.")
