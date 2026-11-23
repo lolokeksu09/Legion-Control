@@ -29,7 +29,7 @@
 | Connectivity Observatory | DNS, IPv4/6, TCP/TLS, история/экспорт имеют реализацию; экран виден | **NOT RUN**: реальная сеть/offline/timeout/cancel/host switch |
 | Audio Lab, Haptic Lab, Gamepad Live | Ручные действия, состояние idle, кнопки и маршруты видимы | **NOT RUN**: фактическое звучание, вибромотор, физический контроллер и Bluetooth |
 | Gaming, Hardware, Compatibility Lab, Kotlin/Rust diagnostics | Тесты и отчёты сгруппированы; видны экраны; JNI и библиотеки собраны | В эмуляторе не доказаны аппаратная точность, вендорские ROM и ложные/недоступные сенсоры |
-| Локальные данные, импорт, экспорт | SQLite v12, резервный ZIP с SHA-256, ограничения размера/структуры, отказ импортировать поверх непустой БД, локальные CSV и отдельные MP4 | Существуют риски crash consistency; instrumented backup test **собран, но не выполнен** |
+| Локальные данные, импорт, экспорт | SQLite v12, резервный ZIP с SHA-256, ограничения размера/структуры, отказ импортировать поверх непустой БД, локальные CSV и отдельные MP4 | Существуют риски crash consistency; instrumented backup test **исполнен успешно** (`am instrument`, один тест) |
 | Разрешения, приватность и поставка | `allowBackup=false`, `usesCleartextTraffic=false`, отсутствие Root/Shizuku/QUERY_ALL_PACKAGES; внутренняя activity/service isolation; постоянно подписанный релиз подтверждён | Точечные отказы/повторные запросы разрешений и Android 13/16 на устройствах не проверены |
 
 ## 3. Конкретные выводы
