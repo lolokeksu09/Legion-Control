@@ -403,6 +403,7 @@ class HubPageFragment : Fragment() {
         section("История", "Записи, события и результаты ручных проверок.")
         group("Записи")
         tile("Игровые сессии", "Просмотр сохранённых Game Session") { open(GameSessionActivity::class.java) }
+        tile("Клипы MP4", "Movies/LegionControl/ · локальная библиотека") { open(CaptureStudioActivity::class.java) }
         group("Анализ игровых сеансов")
         tile("Session Signals", "Хронология событий, метки, разрывы телеметрии и экспорт") {
             NavHostFragment.findNavController(this).navigate(R.id.sessionSignalsFragment)
@@ -413,10 +414,9 @@ class HubPageFragment : Fragment() {
         tile("Session Incidents", "Длительность проблемных состояний, ручные метки и CSV") {
             NavHostFragment.findNavController(this).navigate(R.id.sessionIncidentsFragment)
         }
+        tile("Эксперименты", "Сравнения и заметки") { open(ExperimentLabActivity::class.java) }
         group("Данные устройства и приложений")
         tile("Измерения устройства", "Rust JNI, батарея, тепловая история и CSV") { open(MainActivity::class.java) }
-        tile("Эксперименты", "Сравнения и заметки") { open(ExperimentLabActivity::class.java) }
-        tile("Клипы MP4", "Movies/LegionControl/ · локальная библиотека") { open(CaptureStudioActivity::class.java) }
         tile("История приложений", "Отслеживаемые версии и события") { open(ApplicationCenterActivity::class.java) }
         group("Последние восемь игровых сессий")
         if (s.recentSessions.isEmpty()) {
