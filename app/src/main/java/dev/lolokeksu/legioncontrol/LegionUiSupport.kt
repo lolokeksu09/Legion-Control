@@ -213,14 +213,14 @@ object LegionUiSupport {
             textSize = 15f
             setTextColor(Color.WHITE)
             setTypeface(Typeface.DEFAULT, Typeface.BOLD)
-            setLineSpacing(dp(this, 3).toFloat(), 1f)
+            setLineSpacing(3f, 1f)
         })
         if (detail.isNotBlank()) labels.addView(TextView(context).apply {
             text = detail
             textSize = 12f
             setTextColor(MUTED)
             setPadding(0, dp(this, 5), 0, 0)
-            setLineSpacing(dp(this, 3).toFloat(), 1f)
+            setLineSpacing(3f, 1f)
         })
         row.addView(labels, LinearLayout.LayoutParams(0,
             LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
