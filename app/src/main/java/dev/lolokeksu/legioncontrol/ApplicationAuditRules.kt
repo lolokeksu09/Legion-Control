@@ -52,9 +52,5 @@ object ApplicationAuditRules {
         return "${minutes/60} ч ${minutes%60} мин"
     }
 
-    fun csvCell(value:String):String {
-        val trimmed=value.trimStart()
-        val safe=if(trimmed.firstOrNull() in listOf('=','+','-','@')) "'"+value else value
-        return "\"" + safe.replace("\"","\"\"") + "\""
-    }
+    fun csvCell(value: String): String = CsvEscaper.cell(value)
 }
