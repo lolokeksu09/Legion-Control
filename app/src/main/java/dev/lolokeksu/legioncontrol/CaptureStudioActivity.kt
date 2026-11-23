@@ -33,6 +33,7 @@ class CaptureStudioActivity : ComponentActivity() {
         private const val REQUEST_PLAYBACK_PERMISSION = 25003
         private const val REQUEST_EXPORT_GAME_PROFILES = 25004
         private const val REQUEST_IMPORT_GAME_PROFILES = 25005
+        private const val REQUEST_REPLAY = 25006
     }
 
     private val viewModel by lazy { ViewModelProvider(this)[CaptureStudioViewModel::class.java] }
@@ -163,6 +164,31 @@ class CaptureStudioActivity : ComponentActivity() {
                 status.text = "Остановка запрошена; результат появится после завершения кодирования."
             } else status.text = "Активной записи нет."
         }
+        heading("INSTANT REPLAY")
+        note("Сохраняет последние 30/60/120 секунд игры без остановки захвата. " +
+            "Работает только после разового системного согласия Android. " +
+            "Этот этап Replay записывает видео H.264 БЕЗ ЗВУКА. " +
+            "Сохраняется только реально накопленный фрагмент.")
+        action("ЗАПУСТИТЬ REPLAY-БУФЕР") {
+            AlertDialog.Builder(this)
+                .setTitle("Длительность Replay")
+                .setItems(arrayOf("30 секунд", "60 секунд", "120 секунд")) { _, chosen ->
+                    askReplayConsent(intArrayOf(30, 60, 120)[chosen])
+                }.setNegativeButton("Отмена", null).show()
+        }
+        action("СОХРАНИТЬ ПОСЛЕДНИЕ СЕКУНДЫ") {
+            status.text = if (ReplayCaptureService.save(this))
+                "Сохранение MP4 запрошено. Захват продолжается."
+            else "Replay не активен. Сначала запустите буфер."
+        }
+        action("ОСТАНОВИТЬ REPLAY") {
+            if (ReplayCaptureService.active) {
+                ReplayCaptureService.stop(this)
+                status.text = "Остановка Replay запрошена."
+            } else status.text = "Replay не активен."
+        }
+        action("ПРОВЕРИТЬ REPLAY") { status.text = ReplayCaptureService.status(this) }
+
         heading("Скриншот")
         note("Один PNG после отдельного согласия Android. Через 5 секунд после согласия " +
             "будет захвачен текущий экран — переключитесь на нужную игру. " +
@@ -278,7 +304,7 @@ class CaptureStudioActivity : ComponentActivity() {
                 "Микрофон не используется."
             return
         }
-        if (CaptureRecordingService.recording || CaptureScreenshotService.active) {
+        if (CaptureRecordingService.recording || CaptureScreenshotService.active || ReplayCaptureService.active) {
             status.text = "Выполняется другой захват. Сначала завершите его."
             return
         }
@@ -290,6 +316,24 @@ class CaptureStudioActivity : ComponentActivity() {
         }.onFailure {
             viewModel.clearCaptureConsent()
             status.text = "Системный запрос записи недоступен: " + it.javaClass.simpleName
+        }
+    }
+
+    private fun askReplayConsent(wantedSeconds: Int) {
+        if (ReplayCaptureService.active || CaptureRecordingService.recording ||
+            CaptureScreenshotService.active) {
+            status.text = "Другой захват уже работает. Сначала остановите его."
+            return
+        }
+        runCatching {
+            val snapshot = viewModel.captureSettings()
+            // Reuse the selected game's H.264 quality profile; no new user-visible permission.
+            viewModel.rememberReplayConsent(wantedSeconds, snapshot.profile.toConfig())
+            val manager = getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+            startActivityForResult(manager.createScreenCaptureIntent(), REQUEST_REPLAY)
+        }.onFailure {
+            viewModel.clearReplayConsent()
+            status.text = "Не удалось запросить Replay: " + it.javaClass.simpleName
         }
     }
 
@@ -355,6 +399,36 @@ class CaptureStudioActivity : ComponentActivity() {
                     .setPositiveButton("Импортировать") { _, _ -> viewModel.importGameProfiles(uri) }
                     .setNegativeButton("Отмена", null).show()
             }
+            return
+        }
+        if (requestCode == REQUEST_REPLAY) {
+            val replay = viewModel.takeReplayConsent()
+            if (resultCode != RESULT_OK || data == null || replay == null) {
+                status.text = "Replay не запущен: согласие Android или параметры не получены."
+                return
+            }
+            val (seconds, config) = replay
+            if (ReplayCaptureService.active || CaptureRecordingService.recording ||
+                CaptureScreenshotService.active) {
+                status.text = "Другой захват уже выполняется."
+                return
+            }
+            val start = Intent(this, ReplayCaptureService::class.java).apply {
+                action = ReplayCaptureService.ACTION_START
+                putExtra(ReplayCaptureService.EXTRA_RESULT, resultCode)
+                putExtra(ReplayCaptureService.EXTRA_CONSENT, data)
+                putExtra(ReplayCaptureService.EXTRA_SECONDS, seconds)
+                putExtra(ReplayCaptureService.EXTRA_EDGE, config.maxEdge)
+                putExtra(ReplayCaptureService.EXTRA_FPS, config.fps)
+                putExtra(ReplayCaptureService.EXTRA_MBIT,
+                    config.videoBitrate / 1_000_000)
+            }
+            runCatching { startForegroundService(start) }
+                .onSuccess { status.text = "Replay запускается. Сохраняйте моменты из Game Toolbox." }
+                .onFailure {
+                    status.text = "Android не разрешил запуск Replay: " +
+                        it.javaClass.simpleName
+                }
             return
         }
         if (requestCode != REQUEST_CAPTURE && requestCode != REQUEST_SCREENSHOT) return
