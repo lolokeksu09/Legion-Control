@@ -16,7 +16,7 @@ tuning = (src / "ToolboxTuning.kt").read_text(encoding="utf-8")
 system = (src / "SmartSystemControls.kt").read_text(encoding="utf-8")
 store = (src / "LocalHistoryStore.kt").read_text(encoding="utf-8")
 tests = (root / "app/src/test/java/dev/lolokeksu/legioncontrol/ToolboxTuningTest.kt").read_text(encoding="utf-8")
-assert "versionCode = 42" in gradle and 'versionName = "0.1.0-alpha.42"' in gradle
+assert "versionCode = 43" in gradle and 'versionName = "0.1.0-alpha.43"' in gradle
 assert "applicationId = \"dev.lolokeksu.legioncontrol\"" in gradle
 assert "HapticLabSchema.VERSION" in store, "Do not change SQLite v12 for an overlay"
 assert "GAME TOOLBOX" in main and "GameToolboxActivity::class.java" in main
