@@ -1,7 +1,7 @@
 package dev.lolokeksu.legioncontrol
 
 /** One process-wide owner for MediaProjection (video, Replay or screenshots). */
-enum class CaptureMode { RECORDING, REPLAY, SCREENSHOT }
+enum class CaptureMode { RECORDING, REPLAY, SCREENSHOT, MAINTENANCE }
 enum class CapturePhase { IDLE, CONSENT_PENDING, STARTING, ACTIVE, STOPPING }
 
 object CaptureCoordinator {
