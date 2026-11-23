@@ -209,11 +209,7 @@ class GameSessionRepository(context: Context) : AutoCloseable {
         }
     }
 
-    private fun csv(value: String): String {
-        // Escape formula injections when the archive is opened by a spreadsheet.
-        val safe = if(value.firstOrNull() in listOf('=','+','-','@','\t','\r')) "'$value" else value
-        return "\"" + safe.replace("\"","\"\"") + "\""
-    }
+    private fun csv(value: String): String = CsvEscaper.cell(value)
 
     override fun close() { dbHelper.close() }
 }
