@@ -151,7 +151,7 @@ def find(needle: str) -> tuple[int, int] | None:
     return candidates[0][1], candidates[0][2]
 
 
-def click(needle: str, scrolls: int = 7) -> None:
+def click(needle: str, scrolls: int = 7, direction: str = "down") -> None:
     width, height = dimensions()
     for attempt in range(scrolls + 1):
         pos = find(needle)
@@ -161,8 +161,12 @@ def click(needle: str, scrolls: int = 7) -> None:
             print("TAP:", needle, flush=True)
             return
         if attempt != scrolls:
-            adb("shell", "input", "swipe", str(width//2), str(int(height*.78)),
-                str(width//2), str(int(height*.31)), "370")
+            if direction == "up":
+                y1,y2=int(height*.31),int(height*.78)
+            else:
+                y1,y2=int(height*.78),int(height*.31)
+            adb("shell", "input", "swipe", str(width//2), str(y1),
+                str(width//2), str(y2), "370")
             time.sleep(.45)
     raise AssertionError(f"Cannot find action: {needle}")
 
@@ -359,7 +363,7 @@ def main() -> None:
     stage("12c-history-to-baselines", "LEGION · SESSION BASELINES")
     expect_scrolling("минимум 3", seconds=28)
     capture("12d-baseline-insufficient-history-honest")
-    click("За последние 30 дней")
+    click("За последние 30 дней", scrolls=10, direction="up")
     expect_scrolling("Окно истории: 30 дней", seconds=28)
     click("Открыть Session Signals выбранной игры")
     stage("12e-baselines-to-signals", "LEGION · SESSION SIGNALS")
