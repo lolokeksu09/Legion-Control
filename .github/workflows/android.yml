@@ -117,6 +117,8 @@ jobs:
         run: python3 scripts/check_alpha40_audit_remediation.py
       - name: Verify alpha.41 Replay timestamp safety
         run: python3 scripts/check_alpha41_replay_timestamps.py
+      - name: Validate alpha.42 Game Toolbox unified UI routing and permissions
+        run: python3 scripts/check_alpha42_toolbox_ui.py
       - name: Run pure Kotlin CSV and Russian plural regression tests
         run: gradle --no-daemon testDebugUnitTest
       - name: Test and compile real Rust backend for Android
@@ -169,7 +171,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: success()
         with:
-          name: Legion-Control-v0.1.0-alpha.41-kotlin-rust-debug
+          name: Legion-Control-v0.1.0-alpha.42-kotlin-rust-debug
           path: ci-apks/*.apk
           if-no-files-found: error
 
@@ -183,7 +185,7 @@ jobs:
       - name: Retrieve APK from exact Kotlin/Rust build
         uses: actions/download-artifact@v4
         with:
-          name: Legion-Control-v0.1.0-alpha.41-kotlin-rust-debug
+          name: Legion-Control-v0.1.0-alpha.42-kotlin-rust-debug
           path: smoke-apk
       - name: Enable KVM
         run: |

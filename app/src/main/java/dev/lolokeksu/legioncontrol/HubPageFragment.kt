@@ -410,7 +410,7 @@ class HubPageFragment : Fragment() {
                 .onFailure { info("Настройки Android недоступны: " + it.javaClass.simpleName) }
         }
         group("О проекте")
-        info("Legion Control 0.1.0-alpha.26 · Android 13+ · Kotlin + Rust. " +
+        info("Legion Control ${LegionUiSupport.versionLabel(requireContext())} · Android 13+ · Kotlin + Rust. " +
             "Нет Root/Shizuku; 30/60 FPS записи — запрос кодеку, не реальные FPS игры. " +
             "SQLite и существующая релизная подпись сохранены.")
     }
