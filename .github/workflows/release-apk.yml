@@ -114,7 +114,7 @@ jobs:
           python3 scripts/verify_release_apk.py app/build/outputs/apk/release/app-release.apk "$ANDROID_HOME/build-tools/36.0.0/apksigner"
       - uses: actions/upload-artifact@v4
         with:
-          name: Legion-Control-v0.1.0-alpha.45-permanent-release-apk
+          name: Legion-Control-v0.1.0-alpha.46-permanent-release-apk
           path: app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
       - name: Wait for exact main commit Android CI before publication
@@ -153,16 +153,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          tag=v0.1.0-alpha.45
+          tag=v0.1.0-alpha.46
           apk=app/build/outputs/apk/release/app-release.apk
           if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "::notice::Release $tag already exists; refusing to replace binaries"
             exit 0
           fi
           test -s "$apk"
-          asset=Legion-Control-v0.1.0-alpha.45-signed.apk
+          asset=Legion-Control-v0.1.0-alpha.46-signed.apk
           cp "$apk" "$asset"
           gh release create "$tag" "$asset" --repo "$GITHUB_REPOSITORY" \
-            --title 'Legion Control v0.1.0-alpha.45' \
-            --notes-file docs/ALPHA45-RELEASE-NOTES.md \
+            --title 'Legion Control v0.1.0-alpha.46' \
+            --notes-file docs/ALPHA46-RELEASE-NOTES.md \
             --prerelease --target "$GITHUB_SHA"

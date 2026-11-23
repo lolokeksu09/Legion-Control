@@ -21,7 +21,7 @@ unit=(root/"app/src/test/java/dev/lolokeksu/legioncontrol/BackendRefactorRulesTe
 gradle=(root/"app/build.gradle.kts").read_text()
 manifest=ET.parse(root/"app/src/main/AndroidManifest.xml").getroot()
 ns="{http://schemas.android.com/apk/res/android}"
-assert 'versionCode = 45' in gradle and 'versionName = "0.1.0-alpha.45"' in gradle
+assert 'versionCode = 46' in gradle and 'versionName = "0.1.0-alpha.46"' in gradle
 assert 'applicationId = "dev.lolokeksu.legioncontrol"' in gradle
 assert "HapticLabSchema.VERSION" in read("LocalHistoryStore.kt")
 assert "private external fun recordBatterySample(" in read("RustEngine.kt")

@@ -10,7 +10,7 @@ test = lambda f: (tests / f).read_text(encoding="utf-8")
 
 gradle = (root / "app/build.gradle.kts").read_text()
 assert 'applicationId = "dev.lolokeksu.legioncontrol"' in gradle
-assert 'versionCode = 45' in gradle and 'versionName = "0.1.0-alpha.45"' in gradle
+assert 'versionCode = 46' in gradle and 'versionName = "0.1.0-alpha.46"' in gradle
 assert '"arm64-v8a", "x86_64"' in gradle
 
 coord = read("CaptureCoordinator.kt")
