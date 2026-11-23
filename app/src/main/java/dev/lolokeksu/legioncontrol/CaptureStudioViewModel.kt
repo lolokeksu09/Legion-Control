@@ -255,8 +255,10 @@ class CaptureStudioViewModel(application: Application) : AndroidViewModel(applic
     }
 
     data class BackupReady(val uri: android.net.Uri, val preview: LegionBackupPreview)
-    private val backupReadyMutable = MutableLiveData<BackupReady>()
-    val backupReady: LiveData<BackupReady> = backupReadyMutable
+    private val backupReadyMutable = MutableLiveData<Boolean>()
+    val backupReady: LiveData<Boolean> = backupReadyMutable
+    @Volatile private var pendingBackup: BackupReady? = null
+    fun takeBackupPreview(): BackupReady? = pendingBackup.also { pendingBackup = null }
 
     fun exportFullBackup(uri: android.net.Uri) {
         worker.execute {
@@ -272,7 +274,8 @@ class CaptureStudioViewModel(application: Application) : AndroidViewModel(applic
         worker.execute {
             val result = runCatching { LegionDataBackup.preview(getApplication(), uri) }
             result.onSuccess {
-                backupReadyMutable.postValue(BackupReady(uri, it))
+                pendingBackup = BackupReady(uri, it)
+                backupReadyMutable.postValue(true)
             }.onFailure {
                 messageMutable.postValue("Некорректный архив: " +
                     (it.message ?: it.javaClass.simpleName))
