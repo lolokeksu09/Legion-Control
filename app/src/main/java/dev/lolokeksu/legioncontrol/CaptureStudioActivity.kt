@@ -259,7 +259,10 @@ class CaptureStudioActivity : ComponentActivity() {
         note("Каждый запуск требует нового согласия Android. " +
             "После подтверждения перейдите в игру — остановить запись можно из постоянного " +
             "уведомления или этого экрана. Ограничение качества/частоты зависит от кодека и прошивки.")
-        setContentView(ScrollView(this).apply { addView(root) })
+        setContentView(ScrollView(this).apply {
+            addView(root)
+            LegionUiSupport.applyInsets(this)
+        })
         viewModel.settings.observe(this) { refreshChoices() }
         viewModel.playbackAudio.observe(this) { refreshChoices() }
         viewModel.message.observe(this) { status.text = it }
