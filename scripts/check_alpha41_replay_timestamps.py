@@ -27,4 +27,12 @@ assert "totalFrames * 1_000_000L / sampleRate" in CLOCK
 assert "python3 scripts/check_alpha41_replay_timestamps.py" in RELEASE
 assert "android.permission.RECORD_AUDIO" in MANIFEST
 assert "android.permission.QUERY_ALL_PACKAGES" not in MANIFEST
-print("alpha.41 Replay timeline source invariants: PASS")
+# Real emulator screenshot review: no literal backslash-n shown to users,
+# and standalone AMOLED activities have black Android system bars.
+for name in ("CaptureStudioActivity.kt", "CaptureStudioRepository.kt"):
+    assert r"\\n" not in (SRC / name).read_text(), name
+for name in ("CaptureStudioActivity.kt", "GameToolboxActivity.kt"):
+    activity = (SRC / name).read_text()
+    assert "window.statusBarColor = Color.BLACK" in activity
+    assert "window.navigationBarColor = Color.BLACK" in activity
+print("alpha.41 Replay timeline and screenshot-derived UI regressions: PASS")
