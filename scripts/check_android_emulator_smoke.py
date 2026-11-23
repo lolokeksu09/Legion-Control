@@ -255,6 +255,8 @@ def main() -> None:
     expect("ПОДГОТОВКА")
     expect("Домой")
     stage("00-alpha44-game-session", "LEGION · GAME SESSION")
+    # The recording CTA must be available without scrolling the initial page.
+    expect("НАЧАТЬ ЗАПИСЬ", seconds=5)
     back_until(TOOLS_MARKER)
     click("Домой", scrolls=0, exact_only=True)
     expect("Готов к запуску")
