@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Only app-owned dialogs use this theme. Android consent/SAF are unchanged. -->
+    <style name="LegionDialogTheme" parent="android:style/Theme.Material.Dialog.Alert">
+        <item name="android:colorAccent">#86B7FF</item>
+        <item name="android:colorControlActivated">#86B7FF</item>
+        <item name="android:colorControlNormal">#9CA5B0</item>
+        <item name="android:colorBackgroundFloating">#12161C</item>
+        <item name="android:colorBackground">#12161C</item>
+        <item name="android:textColorPrimary">#FFFFFF</item>
+        <item name="android:textColorSecondary">#9CA5B0</item>
+        <item name="android:textColorHint">#9CA5B0</item>
+        <item name="android:listPreferredItemHeightSmall">48dp</item>
+        <item name="android:listPreferredItemHeight">48dp</item>
+        <item name="android:textAppearanceListItem">@style/LegionDialogListText</item>
+        <item name="android:textAppearanceListItemSmall">@style/LegionDialogListText</item>
+        <item name="android:windowSoftInputMode">adjustResize</item>
+    </style>
+    <style name="LegionDialogListText" parent="android:style/TextAppearance.Material.Body1">
+        <item name="android:textSize">14sp</item>
+        <item name="android:textColor">#FFFFFF</item>
+    </style>
+</resources>
