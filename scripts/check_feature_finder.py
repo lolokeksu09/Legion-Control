@@ -33,9 +33,14 @@ assert len({e[0] for e in entries}) == len(entries)
 for key, module, title, anchor, _ in entries:
     source = (src / files[module]).read_text()
     assert f'"{anchor}"' in source, (key, anchor)
+    if module == "CAPTURE":
+        assert f'action("{anchor}", "{key}")' in source, key
     assert f'FeatureModule.{module}' in source, (key, module)
     assert f'FeatureModule.{module} ->' in (src / "HubPageFragment.kt").read_text()
 assert "requestRectangleOnScreen" in helper
+assert "bound.singleOrNull()" in helper
+assert ".distinct().singleOrNull()" in helper
+assert "!target.isEnabled" in helper
 assert "FeatureFinder.resolve(id, module)" in helper
 assert "performClick(" not in helper and "callOnClick(" not in helper
 assert "startService(" not in helper and "startActivity(" not in helper

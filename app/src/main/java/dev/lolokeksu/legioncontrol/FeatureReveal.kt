@@ -26,15 +26,27 @@ object FeatureReveal {
         reveal(root, id, module)
     }
 
-    private fun findLabel(root: View, anchor: String): View? {
-        if (root.visibility != View.VISIBLE) return null
-        if (root is TextView && root.text.toString() == anchor) return root
-        if (root is ViewGroup) {
-            for (index in 0 until root.childCount) {
-                findLabel(root.getChildAt(index), anchor)?.let { return it }
-            }
+    private const val TAG_PREFIX = "legion-feature:"
+
+    fun bind(view: View, featureId: String) {
+        view.tag = TAG_PREFIX + featureId
+    }
+
+    private fun matching(root: View, predicate: (View) -> Boolean): List<View> {
+        if (root.visibility != View.VISIBLE) return emptyList()
+        return buildList {
+            if(predicate(root)) add(root)
+            if(root is ViewGroup) for(index in 0 until root.childCount)
+                addAll(matching(root.getChildAt(index), predicate))
         }
-        return null
+    }
+
+    private fun findTarget(root: View, feature: FeatureEntry): View? {
+        val bound = matching(root) { it.tag == TAG_PREFIX + feature.id }
+        if(bound.isNotEmpty()) return bound.singleOrNull()?.let { targetOf(it, root) }
+        // Legacy controls: fail closed on ambiguous text, never guess first match.
+        return matching(root) { it is TextView && it.text.toString() == feature.anchor }
+            .mapNotNull { targetOf(it, root) }.distinct().singleOrNull()
     }
 
     private fun targetOf(label: View, root: View): View? {
@@ -51,14 +63,18 @@ object FeatureReveal {
         val feature = FeatureFinder.resolve(id, module) ?: return
         val action = Runnable {
             if (!root.isAttachedToWindow) return@Runnable
-            val target = findLabel(root, feature.anchor)?.let { targetOf(it, root) }
+            val target = findTarget(root, feature)
             if (target == null || target.width == 0 || target.height == 0) {
                 Toast.makeText(root.context, "Действие сейчас недоступно", Toast.LENGTH_SHORT).show()
                 return@Runnable
             }
             // requestRectangleOnScreen scrolls the ancestor ScrollView, not the button.
             target.requestRectangleOnScreen(Rect(0, 0, target.width, target.height), true)
-            target.announceForAccessibility(feature.title)
+            if(!target.isEnabled) {
+                val message = "${feature.title}: действие сейчас недоступно"
+                target.announceForAccessibility(message)
+                Toast.makeText(root.context, message, Toast.LENGTH_SHORT).show()
+            } else target.announceForAccessibility(feature.title)
         }
         if (root.isLaidOut && !root.isLayoutRequested) root.post(action)
         else root.addOnLayoutChangeListener(object : View.OnLayoutChangeListener {

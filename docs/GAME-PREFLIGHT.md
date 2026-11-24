@@ -13,7 +13,7 @@ Open official Android settings or Game Toolbox / Game Session explicitly. Share 
 ## Data and constraints
 
 - Separate private SharedPreferences file `legion-preflight-v1`, up to 256 package-specific presets; validated versioned encoding; explicit commit; no changes to existing profile data or SQLite v12.
-- These new presets are not in the existing full backup ZIP v1. Report is process-local and is not sent anywhere unless the user explicitly shares it. Existing ZIP import/export does not change the presets.
+- Full backup ZIP v2 includes these presets. ZIP v1 remains readable and does not alter the current Preflight store. Report is process-local and is not sent anywhere unless the user explicitly shares it. Older app versions cannot import v2.
 - No additional Android permissions, exported component, service, network request, root, Shizuku, GPU/CPU tuning or hidden APIs.
 - Display mode is not in-game FPS; RAM is system-wide; temperatures are battery / Android thermal status, not CPU temperatures. Freshness window of 60 seconds is a UI guard, not a guarantee that the device's state stays unchanged.
 

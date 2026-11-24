@@ -153,6 +153,18 @@ class HubPageFragment : Fragment() {
     private fun render(state: HubLoadState) {
         if (!isAdded || !::column.isInitialized) return
         column.removeAllViews()
+        if (page() == HubTab.SETTINGS) {
+            showSettings((state as? HubLoadState.Ready)?.snapshot)
+            LegionDataBackup.recoveryWarning()?.let(::info)
+            if(state is HubLoadState.Failed) {
+                info(state.message)
+                tile("Повторить чтение сводки", "Настройки и восстановление доступны независимо") {
+                    viewModel.refresh()
+                }
+            }
+            if(state is HubLoadState.Ready) state.snapshot.warnings.forEach(::info)
+            return
+        }
         when (state) {
             HubLoadState.Loading -> {
                 if (page() == HubTab.TOOLS) {
@@ -536,7 +548,7 @@ class HubPageFragment : Fragment() {
             }
     }
 
-    private fun showSettings(s: HubSnapshot) {
+    private fun showSettings(s: HubSnapshot?) {
         section("Настройки", "Разрешения, локальные данные и параметры модулей.")
         group("Разрешения Android")
         tile("Поверх других окон", if (Settings.canDrawOverlays(requireContext())) "Разрешено" else "Не разрешено") {
@@ -566,10 +578,10 @@ class HubPageFragment : Fragment() {
             tile(entry.title, "Capture Studio · локальные данные") { openFeature(entry) }
         }
         group("Параметры модулей")
-        tile("Application Center", "${s.trackedCount} записей в библиотеке · избранное и заметки") {
+        tile("Application Center", s?.let { "${it.trackedCount} записей в библиотеке · избранное и заметки" } ?: "Избранное и заметки") {
             open(ApplicationCenterActivity::class.java)
         }
-        tile("Smart Profiles", "${s.profileCount} профилей · импорт и экспорт JSON") {
+        tile("Smart Profiles", s?.let { "${it.profileCount} профилей · импорт и экспорт JSON" } ?: "Импорт и экспорт JSON") {
             open(SmartProfilesActivity::class.java)
         }
         tile("Game Toolbox", "Размер, прозрачность, выбранная игра") {

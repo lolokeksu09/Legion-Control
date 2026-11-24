@@ -5,9 +5,14 @@ import android.os.SystemClock
 
 /** Separate private presets; no mutation of existing profiles or SQLite. */
 object PreflightPresets {
-    private const val STORE = "legion-preflight-v1"
+    internal const val STORE = "legion-preflight-v1"
     private const val PREFIX = "preset_"
-    private const val LIMIT = 256
+    internal const val LIMIT = 256
+
+    internal fun validBackupEntry(key: String, value: Any?): Boolean =
+        key.startsWith(PREFIX) &&
+            GameLaunchProfilePolicy.validPackage(key.removePrefix(PREFIX)) &&
+            value is String && PreflightPreset.decode(value)?.encode() == value
     private val lock = Any()
 
     private fun prefs(context: Context) = context.applicationContext

@@ -56,7 +56,7 @@ for needed in (
     "VACUUM INTO ?", "legion-control-local-backup", "SHA-256",
     "PRAGMA quick_check", "tableOrder(target)", "BackupRestorePolicy.acceptsEmptyTarget(",
     "target.beginTransaction()", "target.setTransactionSuccessful()",
-    "savePending(context, marker, staged.preferenceBytes)",
+    "savePending(context, marker, staged.preferenceBytes, staged.manifest.getInt(\"version\"))",
     "target.execSQL(\"PRAGMA application_id = $marker\")",
     "check(recoverPendingRestore(context))",
     "if (committed) applyPreferences(context, values)",
@@ -65,7 +65,7 @@ for needed in (
 ):
     assert needed in backup, needed
 assert "DROP TABLE" not in backup and "DELETE FROM" not in backup
-assert backup.index("savePending(context, marker, staged.preferenceBytes)") < backup.index("target.setTransactionSuccessful()")
+assert backup.index("savePending(context, marker, staged.preferenceBytes, staged.manifest.getInt(\"version\"))") < backup.index("target.setTransactionSuccessful()")
 assert "private fun restoreCore" in backup and "restoreInterruptedForTest" in backup
 assert "refusesAnyExistingUserRows" in test("BackupRestorePolicyTest.kt")
 assert "viewModel.exportFullBackup(" in ui and "viewModel.inspectFullBackup(" in ui
