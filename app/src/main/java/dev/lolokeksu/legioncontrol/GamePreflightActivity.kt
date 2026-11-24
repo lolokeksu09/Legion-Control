@@ -120,6 +120,7 @@ class GamePreflightActivity : FragmentActivity() {
 
     private fun render(s:PreflightState) {
         status.text=s.message
+        LegionUiSupport.notice(status, if(s.busy) LegionUiSupport.Notice.LOADING else LegionUiSupport.Notice.INFO)
         selection.text=s.selected?.let { "${it.label}\n${it.packageName}" } ?: "Игра не выбрана."
         requirements.text=if(s.selected==null) "Требования появятся после выбора игры." else with(s.preset) {
             "Дисплей: ${if(targetHz==0) "не задано" else "$targetHz Гц"} · заряд: ≥$minBattery%\n" +
@@ -138,6 +139,7 @@ class GamePreflightActivity : FragmentActivity() {
         val report=s.report
         if(report==null) {
             reportSummary.text="Проверка ещё не выполнялась."
+            LegionUiSupport.notice(reportSummary, LegionUiSupport.Notice.EMPTY)
             return
         }
         val fresh=s.launchFresh && PreflightRules.fresh(report.checkedAtElapsed,SystemClock.elapsedRealtime())
@@ -145,20 +147,21 @@ class GamePreflightActivity : FragmentActivity() {
         reportSummary.text="Ограничения: ${report.critical} · предупреждения: ${report.warnings} · неизвестно: ${report.unknown}\n" +
             if(fresh) "Снимок выполнен по запросу. Не является FPS или ping игры." else
                 "Снимок устарел для запуска. Выполните проверку снова."
+        LegionUiSupport.notice(reportSummary, if(!fresh || report.warnings>0) LegionUiSupport.Notice.WARNING
+            else if(report.critical>0) LegionUiSupport.Notice.ERROR else LegionUiSupport.Notice.INFO)
         for(f in report.findings) {
             val row=LinearLayout(this).apply {
                 orientation=LinearLayout.VERTICAL
-                background=LegionUiSupport.cardSurface(this)
-                setPadding(15.dp,12.dp,15.dp,12.dp)
+                LegionUiSupport.reportSurface(this)
             }
             row.addView(TextView(this).apply {
                 text="${f.level.label} · ${f.title}"
                 textSize=15f
                 setTypeface(Typeface.DEFAULT,Typeface.BOLD)
                 setTextColor(when(f.level) {
-                    PreflightLevel.CRITICAL -> 0xFFFF8B8B.toInt()
-                    PreflightLevel.WARNING -> 0xFFFFCF87.toInt()
-                    PreflightLevel.PASS -> 0xFFA7DBB4.toInt()
+                    PreflightLevel.CRITICAL -> LegionUiSupport.DANGER
+                    PreflightLevel.WARNING -> LegionUiSupport.WARNING
+                    PreflightLevel.PASS -> LegionUiSupport.SUCCESS
                     else -> LegionUiSupport.MUTED
                 })
             })
