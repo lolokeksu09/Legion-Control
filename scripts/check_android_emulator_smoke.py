@@ -9,6 +9,7 @@ import sys
 import time
 import xml.etree.ElementTree as ET
 from pathlib import Path
+from performance_profile import PerformanceProfile
 
 PACKAGE = "dev.lolokeksu.legioncontrol"
 TOOLS_MARKER = "ВСЕ СИСТЕМНЫЕ ИНСТРУМЕНТЫ"
@@ -165,15 +166,16 @@ def find(needle: str, exact_only: bool = False) -> tuple[int, int] | None:
 
 
 def click(needle: str, scrolls: int = 7, direction: str = "down",
-          exact_only: bool = False) -> None:
+          exact_only: bool = False) -> float:
     width, height = dimensions()
     for attempt in range(scrolls + 1):
         pos = find(needle, exact_only=exact_only)
         if pos:
+            tapped_at = time.monotonic()
             adb("shell", "input", "tap", str(pos[0]), str(pos[1]))
             time.sleep(.75)
             print("TAP:", needle, flush=True)
-            return
+            return tapped_at
         if attempt != scrolls:
             if direction == "up":
                 y1,y2=int(height*.31),int(height*.78)
@@ -212,6 +214,7 @@ def main() -> None:
     apk = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("smoke-apk/app-debug.apk")
     if not apk.is_file():
         raise AssertionError(f"No actual APK artifact: {apk}")
+    perf = PerformanceProfile(adb, apk, EVIDENCE)
     print("Emulator ABI:", adb("shell", "getprop", "ro.product.cpu.abi").strip(), flush=True)
     print("Emulator SDK:", adb("shell", "getprop", "ro.build.version.sdk").strip(), flush=True)
     adb("install", "-r", str(apk), timeout=120)
@@ -342,8 +345,11 @@ def main() -> None:
     back_until(TOOLS_MARKER)
     click("Игры")
     expect(GAMES_MARKER)
-    click("Game Toolbox")
+    tap_at = click("Game Toolbox")
+    expect("GAME TOOLBOX")
+    observed_at = time.monotonic()
     stage("01c-game-toolbox", "GAME TOOLBOX")
+    perf.screen("game-toolbox", tap_at, observed_at)
     expect("ИГРОВАЯ ПАНЕЛЬ")  # Header owned by canonical NavigationHostActivity
     expect("Выбрать игру или приложение")
     expect("Главная")  # Persistent bottom navigation on formerly standalone screen
@@ -427,8 +433,11 @@ def main() -> None:
 
     click("Gaming Lab")
     stage("08-gaming-lab", "LEGION CONTROL · GAMING LAB")
-    click("HARDWARE LAB · ещё 6 диагностик")
+    tap_at = click("HARDWARE LAB · ещё 6 диагностик")
+    expect("LEGION CONTROL · HARDWARE LAB")
+    observed_at = time.monotonic()
     stage("09-hardware-lab", "LEGION CONTROL · HARDWARE LAB")
+    perf.screen("battery-hardware", tap_at, observed_at)
     click("Графики батареи")
     click("График: мощность")
     click("температура", exact_only=True)
@@ -441,8 +450,11 @@ def main() -> None:
     back_until("LEGION CONTROL · GAMING LAB")
     back_until(TOOLS_MARKER)
 
-    click("Connectivity Observatory")
+    tap_at = click("Connectivity Observatory")
+    expect("CONNECTIVITY OBSERVATORY")
+    observed_at = time.monotonic()
     stage("11-connectivity-idle", "CONNECTIVITY OBSERVATORY")
+    perf.screen("network-observatory", tap_at, observed_at)
     click("Графики сети")
     click("График: TCP")
     click("DNS", exact_only=True)
@@ -616,6 +628,9 @@ def main() -> None:
     expect_selected_tab("История")
     click("Главная")
     expect_scrolling("Готов к запуску", seconds=25)
+    perf.screen("home-existing-data")
+    expect_service(False)
+    perf.cold_start(lambda: expect_scrolling("Готов к запуску", seconds=25))
     print("PASS: Android emulator UI navigation, explicit marker persisted in SQLite,",
           "signal correlation, selected package, foreground START/STOP, back stack",flush=True)
 
