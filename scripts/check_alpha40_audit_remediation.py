@@ -67,6 +67,9 @@ for needed in (
 assert "DROP TABLE" not in backup and "DELETE FROM" not in backup
 assert backup.index("savePending(context, marker, staged.preferenceBytes, staged.manifest.getInt(\"version\"))") < backup.index("target.setTransactionSuccessful()")
 assert "private fun restoreCore" in backup and "restoreInterruptedForTest" in backup
+assert "readBounded(it, MAX_PREFS * 2 + MAX_META)" in backup
+assert backup.index("check(identity(staged.manifest) == confirmed)") < backup.index("target.beginTransaction()")
+assert "restoreOnEmptyDatabase(getApplication(), uri, confirmed)" in vm
 assert "refusesAnyExistingUserRows" in test("BackupRestorePolicyTest.kt")
 assert "viewModel.exportFullBackup(" in ui and "viewModel.inspectFullBackup(" in ui
 assert "viewModel.restoreFullBackup(" in ui and "setPositiveButton(\"Восстановить\")" in ui
