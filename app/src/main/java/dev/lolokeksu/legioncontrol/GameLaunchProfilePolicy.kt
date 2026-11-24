@@ -102,6 +102,12 @@ object GameLaunchProfilePolicy {
         return ((percent.toLong() * max + 50) / 100).toInt()
     }
 
+    /** A platform setter returning normally is not proof of the restored value. */
+    internal fun restoreAndVerify(read:()->Int,write:(Int)->Unit,change:LaunchSettingChange) {
+        write(change.original)
+        check(read()==change.original) { "Android did not confirm restored setting" }
+    }
+
     /** Do not undo a setting that the user or another app changed meanwhile. */
     fun restoreChoice(current: Int, change: LaunchSettingChange): RestoreChoice = when (current) {
         change.original -> RestoreChoice.ALREADY_ORIGINAL

@@ -9,6 +9,8 @@ import sys
 import time
 import xml.etree.ElementTree as ET
 from pathlib import Path
+from performance_profile import PerformanceProfile
+from smoke_ui_selector import locate
 
 PACKAGE = "dev.lolokeksu.legioncontrol"
 TOOLS_MARKER = "ВСЕ СИСТЕМНЫЕ ИНСТРУМЕНТЫ"
@@ -144,36 +146,20 @@ def dimensions() -> tuple[int, int]:
 
 
 def find(needle: str, exact_only: bool = False) -> tuple[int, int] | None:
-    tree = hierarchy()
-    candidates = []
-    for node in tree.iter("node"):
-        label = node.get("text", "")
-        desc = node.get("content-desc", "")
-        bounds = node.get("bounds", "")
-        exact = label == needle or desc == needle
-        partial = needle.casefold() in (label + " " + desc).casefold()
-        if not partial or (exact_only and not exact):
-            continue
-        match = re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", bounds)
-        if match:
-            x1,y1,x2,y2 = map(int, match.groups())
-            candidates.append((0 if exact else 1, (x1+x2)//2,(y1+y2)//2))
-    if not candidates:
-        return None
-    candidates.sort()
-    return candidates[0][1], candidates[0][2]
+    return locate(hierarchy(), needle, exact_only)
 
 
 def click(needle: str, scrolls: int = 7, direction: str = "down",
-          exact_only: bool = False) -> None:
+          exact_only: bool = False) -> float:
     width, height = dimensions()
     for attempt in range(scrolls + 1):
         pos = find(needle, exact_only=exact_only)
         if pos:
+            tapped_at = time.monotonic()
             adb("shell", "input", "tap", str(pos[0]), str(pos[1]))
             time.sleep(.75)
-            print("TAP:", needle, flush=True)
-            return
+            print("TAP:", needle, "at", pos, flush=True)
+            return tapped_at
         if attempt != scrolls:
             if direction == "up":
                 y1,y2=int(height*.31),int(height*.78)
@@ -212,6 +198,7 @@ def main() -> None:
     apk = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("smoke-apk/app-debug.apk")
     if not apk.is_file():
         raise AssertionError(f"No actual APK artifact: {apk}")
+    perf = PerformanceProfile(adb, apk, EVIDENCE)
     print("Emulator ABI:", adb("shell", "getprop", "ro.product.cpu.abi").strip(), flush=True)
     print("Emulator SDK:", adb("shell", "getprop", "ro.build.version.sdk").strip(), flush=True)
     adb("install", "-r", str(apk), timeout=120)
@@ -235,6 +222,18 @@ def main() -> None:
     if "OK (5 tests)" not in monitor_output or "FAILURES" in monitor_output:
         raise AssertionError("Live Monitor instrumentation failed: " + monitor_output[-1400:])
     print("PASS: actual monitor readings, baseline, foreground lifecycle and explicit restart", flush=True)
+    automation_output = adb("shell", "am", "instrument", "-w", "-e", "class",
+        PACKAGE + ".GameAutomationOwnershipInstrumentedTest",
+        PACKAGE + ".test/androidx.test.runner.AndroidJUnitRunner", timeout=120)
+    if "OK (1 test)" not in automation_output or "FAILURES" in automation_output:
+        raise AssertionError("Game Automation ownership instrumentation failed: " + automation_output[-1400:])
+    print("PASS: automatic undo ownership and changed-profile rejection", flush=True)
+    battery_lab_output = adb("shell", "am", "instrument", "-w", "-e", "class",
+        PACKAGE + ".BatteryLabArchiveInstrumentedTest",
+        PACKAGE + ".test/androidx.test.runner.AndroidJUnitRunner", timeout=120)
+    if "OK (2 tests)" not in battery_lab_output or "FAILURES" in battery_lab_output:
+        raise AssertionError("Battery Lab instrumentation failed: " + battery_lab_output[-1400:])
+    print("PASS: isolated battery archive and public Android battery reading", flush=True)
     preflight_output = adb("shell", "am", "instrument", "-w", "-e", "class",
         PACKAGE + ".GamePreflightInstrumentedTest",
         PACKAGE + ".test/androidx.test.runner.AndroidJUnitRunner", timeout=120)
@@ -253,6 +252,18 @@ def main() -> None:
     if "OK (1 test)" not in library_output or "FAILURES" in library_output:
         raise AssertionError("Session Library instrumentation failed: " + library_output[-1400:])
     print("PASS: local library pagination, package/state isolation and selected session ZIP", flush=True)
+    resource_output = adb("shell", "am", "instrument", "-w", "-e", "class",
+        PACKAGE + ".ResourceOptimizationInstrumentedTest",
+        PACKAGE + ".test/androidx.test.runner.AndroidJUnitRunner", timeout=120)
+    if "OK (2 tests)" not in resource_output or "FAILURES" in resource_output:
+        raise AssertionError("Resource optimization instrumentation failed: " + resource_output[-1400:])
+    print("PASS: real indexed lookup, profile count and bounded public launcher/Hub signals", flush=True)
+    live_network_output = adb("shell", "am", "instrument", "-w", "-e", "class",
+        PACKAGE + ".LiveNetworkArchiveInstrumentedTest",
+        PACKAGE + ".test/androidx.test.runner.AndroidJUnitRunner", timeout=120)
+    if "OK (2 tests)" not in live_network_output or "FAILURES" in live_network_output:
+        raise AssertionError("Live network archive instrumentation failed: " + live_network_output[-1400:])
+    print("PASS: isolated live network archive round-trip, deduplication and explicit deletion", flush=True)
     adb("shell", "pm", "clear", PACKAGE, timeout=40)
     adb("shell", "am", "force-stop", PACKAGE)
     adb("shell", "am", "start", "-W", "-n", PACKAGE + "/.NavigationHostActivity", timeout=60)
@@ -281,6 +292,7 @@ def main() -> None:
     # shell must NOT launch them directly. Use the actual user-visible Hub.
     click("Инструменты")
     expect(TOOLS_MARKER)
+    expect_selected_tab("Инструменты")
     click("Gaming Lab", scrolls=16)
     expect("LEGION CONTROL · GAMING LAB")
     expect("ПРОВЕРКИ УСТРОЙСТВА")
@@ -318,11 +330,18 @@ def main() -> None:
     back_until(TOOLS_MARKER)
     click("Игры")
     expect(GAMES_MARKER)
-    click("Game Toolbox")
+    tap_at = click("Game Toolbox")
+    expect("GAME TOOLBOX")
+    observed_at = time.monotonic()
     stage("01c-game-toolbox", "GAME TOOLBOX")
+    perf.screen("game-toolbox", tap_at, observed_at)
     expect("ИГРОВАЯ ПАНЕЛЬ")  # Header owned by canonical NavigationHostActivity
     expect("Выбрать игру или приложение")
     expect("Главная")  # Persistent bottom navigation on formerly standalone screen
+    click("Доступ для автоматизации")
+    expect("Доступ к статистике использования")
+    capture("01c-game-automation-expanded")
+    click("Доступ для автоматизации")
     back_until(GAMES_MARKER)
 
     click("Game Session")
@@ -399,16 +418,34 @@ def main() -> None:
 
     click("Gaming Lab")
     stage("08-gaming-lab", "LEGION CONTROL · GAMING LAB")
-    click("HARDWARE LAB · ещё 6 диагностик")
+    tap_at = click("HARDWARE LAB · ещё 6 диагностик")
+    expect("LEGION CONTROL · HARDWARE LAB")
+    observed_at = time.monotonic()
     stage("09-hardware-lab", "LEGION CONTROL · HARDWARE LAB")
+    perf.screen("battery-hardware", tap_at, observed_at)
+    click("Графики батареи")
+    click("График: мощность")
+    click("температура", exact_only=True)
+    expect("График: температура")
+    capture("09-battery-chart-selector")
+    click("Графики батареи",direction="up")
     click("COMPATIBILITY · ещё 7 функций")
     stage("10-compatibility", "LEGION CONTROL · COMPATIBILITY")
     back_until("LEGION CONTROL · HARDWARE LAB")
     back_until("LEGION CONTROL · GAMING LAB")
     back_until(TOOLS_MARKER)
 
-    click("Connectivity Observatory")
+    tap_at = click("Connectivity Observatory")
+    expect("CONNECTIVITY OBSERVATORY")
+    observed_at = time.monotonic()
     stage("11-connectivity-idle", "CONNECTIVITY OBSERVATORY")
+    perf.screen("network-observatory", tap_at, observed_at)
+    click("Графики сети")
+    click("График: TCP")
+    click("DNS", exact_only=True)
+    expect("График: DNS")
+    capture("11-network-chart-selector")
+    click("Графики сети",direction="up")
     back_until(TOOLS_MARKER)
     click("Experiment Lab")
     stage("12-experiment-lab", "LEGION · EXPERIMENT LAB")
@@ -576,6 +613,9 @@ def main() -> None:
     expect_selected_tab("История")
     click("Главная")
     expect_scrolling("Готов к запуску", seconds=25)
+    perf.screen("home-existing-data")
+    expect_service(False)
+    perf.cold_start(lambda: expect_scrolling("Готов к запуску", seconds=25))
     print("PASS: Android emulator UI navigation, explicit marker persisted in SQLite,",
           "signal correlation, selected package, foreground START/STOP, back stack",flush=True)
 

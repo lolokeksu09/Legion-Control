@@ -1,8 +1,6 @@
 package dev.lolokeksu.legioncontrol
 
 import android.content.Context
-import android.content.pm.ApplicationInfo
-import android.content.pm.PackageManager
 
 /** Read-only screen state; everything is derived from the already installed backend. */
 data class HubApp(
@@ -50,16 +48,10 @@ class HubRepository(context: Context) {
         val favoriteCount = tracked.count { it.favorite }
         val trackedByPackage = tracked.associateBy { it.packageName }
         val available = ApplicationInventory.launchable(app)
-        val pm = app.packageManager
         val apps = available.map { item ->
             val favorite = trackedByPackage[item.packageName]
-            val isGame = runCatching {
-                pm.getApplicationInfo(
-                    item.packageName, PackageManager.ApplicationInfoFlags.of(0L)
-                ).category == ApplicationInfo.CATEGORY_GAME
-            }.getOrDefault(false)
             HubApp(item.packageName, favorite?.alias?.takeIf { it.isNotBlank() } ?: item.label,
-                isGame, favorite?.favorite == true, true, favorite != null)
+                item.isGame, favorite?.favorite == true, true, favorite != null)
         }.toMutableList()
 
         // Favorite can be missing from public launcher query without being uninstalled.
@@ -72,7 +64,7 @@ class HubRepository(context: Context) {
             .thenByDescending { it.isGame }.thenBy { it.label.lowercase() })
 
         val profileCount = runCatching {
-            SmartProfilesRepository(app).use { it.list().size }
+            SmartProfilesRepository(app).use { it.count() }
         }.getOrElse {
             warnings += "Профили недоступны: " + it.javaClass.simpleName
             0
@@ -89,7 +81,7 @@ class HubRepository(context: Context) {
             warnings += "Библиотека клипов недоступна: " + it.javaClass.simpleName
             0
         }
-        val telemetry = runCatching { GameSessionTelemetry.snapshot(app) }.getOrNull()
+        val telemetry = runCatching { GameSessionTelemetry.hubSignals(app) }.getOrNull()
         return HubSnapshot(
             apps = apps,
             trackedCount = tracked.size,
@@ -97,8 +89,8 @@ class HubRepository(context: Context) {
             profileCount = profileCount,
             clipPreviewCount = clips,
             recentSessions = sessions,
-            batteryPercent = telemetry?.batteryPercent,
-            refreshHz = telemetry?.refreshHz,
+            batteryPercent = telemetry?.first,
+            refreshHz = telemetry?.second,
             warnings = warnings
         )
     }

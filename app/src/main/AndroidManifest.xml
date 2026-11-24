@@ -44,7 +44,7 @@
             android:foregroundServiceType="specialUse">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Explicit user-started non-focusable overlay for manual game toolbox actions" />
+                android:value="Explicit user-started non-focusable game overlay and separately confirmed one-shot game profile automation" />
         </service>
         <service
             android:name=".CaptureRecordingService"

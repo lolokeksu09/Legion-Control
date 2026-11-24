@@ -36,6 +36,7 @@ class GameToolboxFragment : Fragment() {
     private lateinit var column: LinearLayout
     private lateinit var summary: TextView
     private lateinit var status: TextView
+    private lateinit var automationState: TextView
     private val prefs by lazy {
         requireContext().getSharedPreferences(ToolboxPreferences.NAME, Context.MODE_PRIVATE)
     }
@@ -151,7 +152,7 @@ class GameToolboxFragment : Fragment() {
         }
         summary = text("", 13f, muted)
         stateCard.addView(summary)
-        status = text("Действия выполняются только по нажатию.", 12f, accent).apply {
+        status = text("Ручные действия или отдельно подтверждённая авто-сессия.", 12f, accent).apply {
             setPadding(0, 10.dp, 0, 0)
             isFocusable = true
             accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
@@ -161,18 +162,43 @@ class GameToolboxFragment : Fragment() {
 
         group("Запуск панели")
         tile("Выбрать игру или приложение", "Список приложений из Android Launcher") { selectGame() }
+        group("Game Automation")
+        automationState=text("",12f,muted).apply{
+            setPadding(0,0,0,8.dp)
+            accessibilityLiveRegion=View.ACCESSIBILITY_LIVE_REGION_POLITE
+        }
+        column.addView(automationState)
+        column.addView(CompactLabUi.button(requireContext(),"Авто-профиль · запустить игру"){ startAutomation() })
+        column.addView(CompactLabUi.row(requireContext(),
+            CompactLabUi.button(requireContext(),"Завершить авто-сессию"){
+                runCatching { GameToolboxService.stopAutomation(requireContext()) }
+                    .onSuccess { status.text="Запрошена остановка автоматизации." }
+                    .onFailure { status.text="Не удалось отправить запрос остановки." }
+                renderStatus()
+            },
+            CompactLabUi.button(requireContext(),"Последний отчёт"){
+                LegionDialogs.builder(requireContext()).setTitle("Game Automation")
+                    .setMessage(GameAutomationController.lastReport(requireContext()) ?: "Отчётов пока нет.")
+                    .setPositiveButton("Закрыть",null).show()
+            }))
+        column.addView(CompactLabUi.disclosure(requireContext(),"Доступ для автоматизации",
+            CompactLabUi.button(requireContext(),"Доступ к статистике использования"){
+                runCatching{startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))}
+                    .onFailure{status.text="Не удалось открыть Usage Access."}
+            }))
+        
         tile("Разрешение поверх других окон", "Открыть системные настройки доступа") { overlaySettings() }
         tile("Включить плавающую панель", "Показать кнопку поверх приложений") { launchToolbox(false) }
         tile("Запустить панель и игру", "Открыть выбранную игру вместе с панелью") { launchToolbox(true) }
-        tile("Остановить плавающую панель", "Не сбрасывает яркость, громкость и DND") {
+        tile("Остановить плавающую панель", "Завершает авто-сессию; ручной профиль возвращается отдельно") {
             GameToolboxService.stop(requireContext())
-            status.text = "Запрошена остановка панели. Громкость, DND и яркость не сбрасываются автоматически."
+            status.text = "Запрошена остановка панели. Авто-сессия попробует вернуть только свои изменения."
         }
 
         group("Игровой профиль")
         column.addView(text(
             "Сохраняет громкость, яркость и «Не беспокоить» для выбранной игры. " +
-                "Изменения общесистемные и применяются только по нажатию.",
+                "Изменения общесистемные; автоматический режим требует отдельного согласия.",
             13f, muted
         ).apply { setPadding(0, 0, 0, 12.dp) })
         tile("Настроить профиль", "Выбрать громкость, яркость и режим DND", "toolbox.profile") {
@@ -215,7 +241,7 @@ class GameToolboxFragment : Fragment() {
             status.text = SmartSystemControls.restoreScreenSettings(requireContext())
         }
         column.addView(text(
-            "Закрытие панели не отменяет системные изменения. Ручные изменения DND " +
+            "Закрытие панели пытается вернуть только принадлежащие автоматизации настройки. Ручные изменения DND " +
                 "нужно отменять вручную; игровой профиль имеет отдельный возврат.",
             12f, muted
         ).apply { setPadding(0, 4.dp, 0, 20.dp) })
@@ -233,6 +259,18 @@ class GameToolboxFragment : Fragment() {
         val enabled = Settings.canDrawOverlays(requireContext())
         val pkg = prefs.getString(ToolboxPreferences.GAME, null)
         val label = prefs.getString(ToolboxPreferences.LABEL, null)
+        if(::automationState.isInitialized) {
+            val usage=GameUsageDiagnostics.hasUsageAccess(requireContext())
+            val profile=pkg?.let{GameLaunchProfiles.profile(requireContext(),it)}
+            val undo=GameLaunchProfiles.pendingPackage(requireContext())
+            automationState.text=when{
+                undo!=null -> "Есть запись возврата настроек · "+undo
+                !usage -> "Требуется Usage Access"
+                !enabled -> "Требуется доступ поверх окон"
+                profile?.actionable!=true -> "Сначала настройте профиль выбранной игры"
+                else -> "Профиль настроен · одноразовый запуск до 2 часов"
+            }
+        }
         summary.text = buildString {
             append("Показ поверх окон: ")
             append(if (enabled) "РАЗРЕШЁН" else "НЕТ ДОСТУПА")
@@ -344,6 +382,36 @@ class GameToolboxFragment : Fragment() {
                         ". Возврат системных настроек: " + rollback.message
                 }
         }
+    }
+
+    private fun startAutomation() {
+        val ctx=requireContext()
+        val pkg=prefs.getString(ToolboxPreferences.GAME,null)
+        if(pkg==null || !GameLaunchProfilePolicy.validPackage(pkg) || pkg==ctx.packageName) {
+            status.text="Сначала выберите игру.";return
+        }
+        val profile=GameLaunchProfiles.profile(ctx,pkg)
+        if(profile==null || !profile.actionable){status.text="Сначала сохраните профиль.";return}
+        if(GameLaunchProfiles.pendingPackage(ctx)!=null){status.text="Сначала восстановите предыдущий профиль.";return}
+        if(!Settings.canDrawOverlays(ctx)){status.text="Разрешите показ поверх окон.";overlaySettings();return}
+        if(!GameUsageDiagnostics.hasUsageAccess(ctx)){status.text="Выдайте Usage Access вручную.";return}
+        val nm=ctx.getSystemService(android.app.NotificationManager::class.java)
+        if(nm?.areNotificationsEnabled()!=true){status.text="Разрешите уведомления для явного контроля авто-сессии.";return}
+        val launch=ctx.packageManager.getLaunchIntentForPackage(pkg)
+        if(launch==null){status.text="Игра недоступна для запуска.";return}
+        LegionDialogs.builder(ctx).setTitle("Включить одноразовую автоматизацию?")
+            .setMessage("Приложение: "+pkg+"\nГромкость: "+(profile.mediaPercent?.let{"$it%"} ?: "не менять")+
+                " · яркость: "+(profile.brightnessPercent?.let{"$it%"} ?: "не менять")+
+                " · DND: "+(profile.focusEnabled?.let{if(it)"вкл" else "выкл"} ?: "не менять")+
+                "\nПанель наблюдает события Android только до завершения этой сессии (максимум 2 часа). При выходе, блокировке или остановке попытка вернуть собственные значения. Android может задержать события или завершить процесс; тогда возврат доступен вручную. Уведомление должно оставаться включено.")
+            .setPositiveButton("Включить и открыть"){_,_->
+                val result=runCatching { GameToolboxService.startAutomation(ctx,pkg,profile) }
+                if(result.isFailure){status.text="Запуск автоматизации отклонён Android.";return@setPositiveButton}
+                runCatching{startActivity(launch)}.onFailure{
+                    runCatching{GameToolboxService.stopAutomation(ctx)}
+                    status.text="Игра не запущена. Запрошено завершение авто-сессии."
+                }
+            }.setNegativeButton("Отмена",null).show()
     }
 
     private fun overlaySettings() {

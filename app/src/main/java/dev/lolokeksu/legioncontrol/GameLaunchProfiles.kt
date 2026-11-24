@@ -8,15 +8,31 @@ import android.provider.Settings
 data class GameLaunchResult(val success: Boolean, val message: String)
 
 /**
- * Explicit, per-package, on-device launch actions. No automatic monitoring of games,
- * no foreground-app observation and no privileged OEM APIs. All writes are global
+ * Explicit per-package launch actions, including separately approved one-shot automation.
+ * No privileged OEM APIs. All writes are global
  * Android settings, so an undo ticket is committed BEFORE the first write.
  */
 object GameLaunchProfiles {
     private const val NAME = "legion-launch-profiles-v1"
     private const val ACTIVE = "pending_global_undo"
+    private const val OWNER = "pending_auto_owner"
     private const val PREFIX = "profile_"
     private val lock = Any()
+    private var restoreOwner:Thread?=null
+
+    /** Reserve preference replay without holding the settings lock during disk I/O. */
+    internal fun <T> withRestoreProtection(context:Context,body:()->T):T {
+        val caller=Thread.currentThread()
+        val outer=synchronized(lock) {
+            check(restoreOwner==null || restoreOwner==caller){"Восстановление уже выполняется."}
+            check(!prefs(context).contains(ACTIVE)){"Сначала верните системные настройки игрового профиля."}
+            (restoreOwner==null).also{if(it)restoreOwner=caller}
+        }
+        return try {body()} finally {if(outer)synchronized(lock){restoreOwner=null}}
+    }
+
+    private fun writesAllowed(context:Context):Boolean = restoreOwner==null &&
+        runCatching { LegionDataBackup.checkLabWritesAllowed(context) }.isSuccess
 
     private fun prefs(context: Context) =
         context.applicationContext.getSharedPreferences(NAME, Context.MODE_PRIVATE)
@@ -29,6 +45,7 @@ object GameLaunchProfiles {
     fun save(context: Context, pkg: String, profile: GameLaunchProfile): Boolean {
         require(GameLaunchProfilePolicy.validPackage(pkg))
         synchronized(lock) {
+            if(!writesAllowed(context))return false
             val edit = prefs(context).edit()
             if (profile.actionable) edit.putString(PREFIX + pkg, profile.encode())
             else edit.remove(PREFIX + pkg)
@@ -45,12 +62,30 @@ object GameLaunchProfiles {
      * Preflight ALL required access and snapshots before modifying ANY setting.
      * A pending ticket prevents one game from overwriting another game's restore data.
      */
-    fun apply(context: Context, pkg: String): GameLaunchResult = synchronized(lock) {
+    fun apply(context: Context, pkg: String): GameLaunchResult = applyInternal(context,pkg,null,null)
+
+    internal fun applyAutomatic(context:Context,pkg:String,owner:String,approved:GameLaunchProfile):GameLaunchResult =
+        applyInternal(context,pkg,owner,approved)
+
+    internal fun ownsAutomatic(context:Context,owner:String):Boolean = synchronized(lock) {
+        prefs(context).contains(ACTIVE) && prefs(context).getString(OWNER,null)==owner
+    }
+
+    internal fun restoreAutomatic(context:Context,owner:String):GameLaunchResult = synchronized(lock) {
+        if(!ownsAutomatic(context,owner)) GameLaunchResult(true,"Нет записи возврата этой авто-сессии.")
+        else restore(context)
+    }
+
+    private fun applyInternal(context:Context,pkg:String,owner:String?,approved:GameLaunchProfile?):GameLaunchResult = synchronized(lock) {
+        if(!writesAllowed(context))return@synchronized GameLaunchResult(false,"Сначала завершите восстановление ZIP.")
         if (!GameLaunchProfilePolicy.validPackage(pkg)) {
             return@synchronized GameLaunchResult(false, "Некорректный пакет приложения.")
         }
         val p = profile(context, pkg)
             ?: return@synchronized GameLaunchResult(false, "Сначала сохраните профиль этой игры.")
+        if (owner!=null && (approved==null || p!=approved)) {
+            return@synchronized GameLaunchResult(false,"Профиль изменился после подтверждения. Запустите автоматизацию заново.")
+        }
         if (!p.actionable) {
             return@synchronized GameLaunchResult(false, "Профиль не содержит действий.")
         }
@@ -109,7 +144,9 @@ object GameLaunchProfiles {
         if (!snapshot.pending) {
             return@synchronized GameLaunchResult(true, "Настройки уже соответствуют профилю.")
         }
-        if (!prefs(context).edit().putString(ACTIVE, snapshot.encode()).commit()) {
+        val journal=prefs(context).edit().putString(ACTIVE, snapshot.encode())
+        if(owner!=null) journal.putString(OWNER,owner) else journal.remove(OWNER)
+        if (!journal.commit()) {
             return@synchronized GameLaunchResult(false,
                 "Не удалось сохранить запись для возврата. Ничего не изменено.")
         }
@@ -131,7 +168,8 @@ object GameLaunchProfiles {
                 nm.setInterruptionFilter(it.requested)
             }
             GameLaunchResult(true,
-                "Изменения запрошены у Android. Исходные значения сохранены; возврат вручную.")
+                if(owner==null) "Изменения запрошены у Android. Исходные значения сохранены; возврат вручную."
+                else "Изменения запрошены у Android. Исходные значения сохранены для авто-возврата.")
         } catch (e: Exception) {
             val undo = restore(context)
             GameLaunchResult(false, "Применение прервано: ${e.javaClass.simpleName}. " +
@@ -164,7 +202,7 @@ object GameLaunchProfiles {
                     RestoreChoice.ALREADY_ORIGINAL -> null
                     RestoreChoice.CHANGED_BY_USER -> { conflicts++; null }
                     RestoreChoice.RESTORE -> {
-                        write(change.original)
+                        GameLaunchProfilePolicy.restoreAndVerify(read,write,change)
                         restored++
                         null
                     }
@@ -192,7 +230,10 @@ object GameLaunchProfiles {
             runCatching { Settings.System.getInt(resolver, Settings.System.SCREEN_BRIGHTNESS) }
                 .getOrNull()?.let { it != change.original && it != change.requested } == true
         } == true
-        val mode = if (manualBrightness) {
+        val mode = if (brightness != null) {
+            // Do not reactivate adaptive brightness while its value still needs retry.
+            ticket.brightnessMode
+        } else if (manualBrightness) {
             if (ticket.brightnessMode != null) conflicts++
             null
         } else restoreField(ticket.brightnessMode,
@@ -211,7 +252,7 @@ object GameLaunchProfiles {
             brightnessMode = mode, focus = focus)
         val saved = if (remaining.pending) {
             prefs(context).edit().putString(ACTIVE, remaining.encode()).commit()
-        } else prefs(context).edit().remove(ACTIVE).commit()
+        } else prefs(context).edit().remove(ACTIVE).remove(OWNER).commit()
         val summary = "Восстановлено: $restored; изменения пользователя не тронуты: $conflicts; " +
             "ошибок Android: $failures."
         if (!saved) GameLaunchResult(false, "$summary Не удалось сохранить результат возврата.")

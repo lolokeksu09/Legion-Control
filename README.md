@@ -13,7 +13,7 @@
 
 См. `rust-core/`, `android-core/`, `docs/BACKEND.md`. Следующие шаги: Rust unit tests в CI, Android JNI сборка, затем легковесный Kotlin-интерфейс. Никаких заявлений об улучшении FPS, сенсорного отклика или Bypass.
 
-Текущая готовящаяся версия приложения: `0.1.0-alpha.48`. До успешной проверки точной ревизии и публикации подписанного APK используйте [Alpha 47](https://github.com/lolokeksu09/Legion-Control/releases/tag/v0.1.0-alpha.47).
+Последняя опубликованная версия: [Alpha 49](https://github.com/lolokeksu09/Legion-Control/releases/tag/v0.1.0-alpha.49). Кандидат Beta 1 объединяет Alpha 50–58; подписанный релиз пока не выпущен. [Изменения Beta 1](docs/BETA1-RELEASE-NOTES.md) · [Условия готовности](docs/ALPHA58-PREBETA-AUDIT.md).
 
 ## v0.1.0-alpha.48 — мониторинг и игровая аналитика
 
@@ -269,3 +269,9 @@ A new **real audio test module** (not another output metadata list): gentle gene
 ## v0.1.0-alpha.23 — Haptic Lab
 
 **Completely new standalone vibrator-testing module** for Android 13+: five bounded original haptic waveforms, three user-selected digital levels with amplitude-control fallback, Android vibrator/effect/primitive capability inspector, immediate Stop and on-screen-only playback, local subjective user feedback, SQLite v12 test history, last-two comparisons and opt-in CSV export. No Root/Shizuku, background requests or physical-intensity claims; adds only the normal Android `VIBRATE` permission. [Haptic Lab guide](docs/ALPHA23-HAPTIC-LAB.md) · [implementation plan](docs/ALPHA23-HAPTIC-LAB-PLAN.md).
+
+- Alpha 55 development: [ZIP v3 — Network/Battery archive backup](docs/ALPHA55-COMPLETE-BACKUP.md). This is a development candidate, not a signed release.
+
+- Alpha 57 development: [reproducible process performance profiling](docs/ALPHA57-PERFORMANCE-PROFILING.md). Debug emulator measurements, not hardware benchmarks.
+
+- Alpha 58 development: [pre-Beta audit and release gates](docs/ALPHA58-PREBETA-AUDIT.md). Not yet a beta release.

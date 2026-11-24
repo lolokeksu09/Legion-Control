@@ -10,7 +10,7 @@ test = lambda f: (tests / f).read_text(encoding="utf-8")
 
 gradle = (root / "app/build.gradle.kts").read_text()
 assert 'applicationId = "dev.lolokeksu.legioncontrol"' in gradle
-assert 'versionCode = 49' in gradle and 'versionName = "0.1.0-alpha.49"' in gradle
+assert 'versionCode = 59' in gradle and 'versionName = "0.1.0-beta.1"' in gradle
 assert '"arm64-v8a", "x86_64"' in gradle
 
 coord = read("CaptureCoordinator.kt")
@@ -56,18 +56,20 @@ for needed in (
     "VACUUM INTO ?", "legion-control-local-backup", "SHA-256",
     "PRAGMA quick_check", "tableOrder(target)", "BackupRestorePolicy.acceptsEmptyTarget(",
     "target.beginTransaction()", "target.setTransactionSuccessful()",
-    "savePending(context, marker, staged.preferenceBytes, staged.manifest.getInt(\"version\"))",
+    "savePending(context, marker, staged.preferenceBytes, staged.manifest.getInt(\"version\"),staged.labBytes)",
     "target.execSQL(\"PRAGMA application_id = $marker\")",
     "check(recoverPendingRestore(context))",
-    "if (committed) applyPreferences(context, values)",
+    "if (committed) {", "labs?.let { LabBackup.restore(context,it) }",
+    "applyPreferences(context, values)",
     "atomic.finishWrite(output)", "MAX_DB",
     "GameSessionRecorderService.sessionActive", "CaptureMode.MAINTENANCE"
 ):
     assert needed in backup, needed
+assert backup.index("if (committed) {") < backup.index("labs?.let { LabBackup.restore(context,it) }") < backup.index("applyPreferences(context, values)") < backup.index("atomic.delete()")
 assert "DROP TABLE" not in backup and "DELETE FROM" not in backup
-assert backup.index("savePending(context, marker, staged.preferenceBytes, staged.manifest.getInt(\"version\"))") < backup.index("target.setTransactionSuccessful()")
+assert backup.index("savePending(context, marker, staged.preferenceBytes, staged.manifest.getInt(\"version\"),staged.labBytes)") < backup.index("target.setTransactionSuccessful()")
 assert "private fun restoreCore" in backup and "restoreInterruptedForTest" in backup
-assert "readBounded(it, MAX_PREFS * 2 + MAX_META)" in backup
+assert "readBounded(it, MAX_JOURNAL)" in backup
 assert backup.index("check(identity(staged.manifest) == confirmed)") < backup.index("target.beginTransaction()")
 assert "restoreOnEmptyDatabase(getApplication(), uri, confirmed)" in vm
 assert "refusesAnyExistingUserRows" in test("BackupRestorePolicyTest.kt")
