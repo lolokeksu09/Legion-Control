@@ -13,6 +13,7 @@ import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.security.MessageDigest
+import java.util.UUID
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.util.zip.ZipEntry
@@ -99,6 +100,26 @@ class FullBackupInstrumentedTest {
         return result.toByteArray()
     }
 
+    private fun rewriteLabs(source:ByteArray,change:(JSONObject)->Unit):ByteArray {
+        val entries=linkedMapOf<String,ByteArray>()
+        ZipInputStream(ByteArrayInputStream(source)).use{input->
+            while(true){val e=input.nextEntry?:break;entries[e.name]=input.readBytes();input.closeEntry()}
+        }
+        val labs=JSONObject(String(entries.getValue("labs.json"),Charsets.UTF_8))
+        change(labs)
+        val bytes=labs.toString().toByteArray(Charsets.UTF_8)
+        entries["labs.json"]=bytes
+        val manifest=JSONObject(String(entries.getValue("manifest.json"),Charsets.UTF_8))
+        manifest.put("labs_sha256",MessageDigest.getInstance("SHA-256").digest(bytes)
+            .joinToString(""){"%02x".format(it.toInt() and 0xff)})
+        entries["manifest.json"]=manifest.toString().toByteArray(Charsets.UTF_8)
+        return ByteArrayOutputStream().also{result->
+            ZipOutputStream(result).use{out->entries.forEach{(name,data)->
+                out.putNextEntry(ZipEntry(name));out.write(data);out.closeEntry()
+            }}
+        }.toByteArray()
+    }
+
     @Test fun recoveryReadRejectsOversizeBeforeAllocatingTheWholeInput() {
         val exact = ByteArray(8192) { 7 }
         assertArrayEquals(exact, LegionDataBackup.readBounded(ByteArrayInputStream(exact), exact.size))
@@ -115,6 +136,9 @@ class FullBackupInstrumentedTest {
         val tampered = createZip(app, "altered")
         val legacy = createZip(app, "legacy-v1")
         val invalidPreset = createZip(app, "invalid-preset")
+        val legacyV2=createZip(app,"legacy-v2")
+        val invalidLabs=createZip(app,"invalid-labs")
+        val changedLabs=createZip(app,"changed-labs")
         val presetA = PreflightPreset(120,30,41,3,true)
         val presetB = PreflightPreset(60,10,44,1,false)
         val preflight = app.getSharedPreferences("legion-preflight-v1", Context.MODE_PRIVATE)
@@ -122,6 +146,18 @@ class FullBackupInstrumentedTest {
         val pkgB = "com.example.legionci.b"
         val longPkg = "com." + "x".repeat(180)
         val id = "com.example.legionci"
+        val net=LiveNetworkRecord(UUID.randomUUID().toString(),"dns.google",100L,LiveNetworkPlan.QUICK,LiveNetworkEnd.CANCELLED,
+            listOf(LiveNetworkPoint(0L,"WIFI",777L,"8.8.8.8",15.0,"OK",2.0,"OK","192.168.1.1",dnsMs=3.0,family="IPV4",validated=true)),LiveIpMode.IPV4)
+        val bat=BatteryLabRun(UUID.randomUUID().toString(),200L,BatteryLabPlan.QUICK,BatteryLabEnd.USER_STOP,
+            listOf(BatteryLabPoint(0L,70,320,1_000_000,4000,null,null,null,BatteryLabStatus.CHARGING,BatteryLabPlug.AC,0)))
+        fun assertLabs(){
+            assertEquals(listOf(net.redacted()),LiveNetworkArchive(app).use{it.list()})
+            assertEquals(listOf(bat),BatteryLabArchive(app).use{it.list()})
+        }
+        fun clearLabs(){
+            assertTrue(app.deleteDatabase("legion_live_network.db"))
+            assertTrue(app.deleteDatabase("legion_battery_lab.db"))
+        }
         try {
             // The caller CI script clears this emulator-only app before this test.
             GameSessionRepository(app).use { repo ->
@@ -137,8 +173,12 @@ class FullBackupInstrumentedTest {
             assertTrue(PreflightPresets.save(app, pkgA, presetA))
             assertTrue(PreflightPresets.save(app, pkgB, presetB))
             assertTrue(PreflightPresets.save(app, longPkg, presetA))
+            LiveNetworkArchive(app).use{it.save(net)}
+            BatteryLabArchive(app).use{it.save(bat)}
             val exported = LegionDataBackup.export(app, backup)
             assertEquals(3, exported.archiveVersion)
+            assertEquals(1,exported.networkRuns);assertEquals(1,exported.batteryRuns)
+            assertLabs()
             assertTrue(exported.rows >= 2)
             assertTrue(exported.settings >= 1)
             val preview = LegionDataBackup.preview(app, backup)
@@ -159,6 +199,16 @@ class FullBackupInstrumentedTest {
             }
             requireNotNull(app.contentResolver.openOutputStream(legacy, "wt")).use { it.write(legacyBytes) }
             assertEquals(1, LegionDataBackup.preview(app, legacy).archiveVersion)
+            val v2=rewritePreferences(originalBytes,2){}
+            requireNotNull(app.contentResolver.openOutputStream(legacyV2,"wt")).use{it.write(v2)}
+            assertEquals(2,LegionDataBackup.preview(app,legacyV2).archiveVersion)
+            assertEquals(0,LegionDataBackup.preview(app,legacyV2).networkRuns)
+            val duplicate=rewriteLabs(originalBytes){root->val a=root.getJSONArray("network");a.put(a.getJSONObject(0))}
+            requireNotNull(app.contentResolver.openOutputStream(invalidLabs,"wt")).use{it.write(duplicate)}
+            assertTrue(runCatching{LegionDataBackup.preview(app,invalidLabs)}.isFailure)
+            val altered=rewriteLabs(originalBytes){root->root.getJSONArray("network").getJSONObject(0).put("host","dns.quad9.net")}
+            requireNotNull(app.contentResolver.openOutputStream(changedLabs,"wt")).use{it.write(altered)}
+            assertNotEquals(preview.identity,LegionDataBackup.preview(app,changedLabs).identity)
             val invalidBytes = rewritePreferences(originalBytes, 2) {
                 it.getJSONObject("legion-preflight-v1").put("preset_" + pkgA,
                     JSONObject().put("type","string").put("value","v1|120|999|41|3|1"))
@@ -205,6 +255,13 @@ class FullBackupInstrumentedTest {
             }
 
             assertTrue(preflight.edit().clear().commit())
+            // Main history is empty, but a v3 import must still reject populated labs.
+            assertTrue(runCatching{LegionDataBackup.restoreOnEmptyDatabase(app,backup)}.isFailure)
+            assertNull(GameSessionRepository(app).use{it.header(sessionId)})
+            assertLabs()
+            clearLabs()
+            assertTrue(runCatching{LegionDataBackup.restoreOnEmptyDatabase(app,changedLabs,requireNotNull(preview.identity))}.isFailure)
+            assertNull(GameSessionRepository(app).use{it.header(sessionId)})
             // Same SAF URI, different valid contents: the previously approved hash must reject it.
             val confirmed = requireNotNull(preview.identity)
             val replacement = rewritePreferences(originalBytes, 3) {
@@ -225,13 +282,16 @@ class FullBackupInstrumentedTest {
             assertEquals(presetB, PreflightPresets.read(app, pkgB))
             assertEquals(presetA, PreflightPresets.read(app, longPkg))
             assertEquals(exported.rows, restored.rows)
+            assertEquals(1,restored.networkRuns);assertEquals(1,restored.batteryRuns)
+            assertLabs()
             GameSessionRepository(app).use { repo ->
                 assertEquals(id, requireNotNull(repo.header(sessionId)).packageName)
             }
             assertEquals("restored", prefs.getString("ci_restore_sentinel", null))
             // Simulate interruption AFTER the SQLite transaction is committed
-            // but BEFORE any SharedPreferences files are modified.
+            // but BEFORE lab archives and SharedPreferences files are modified.
             assertTrue(app.deleteDatabase("legion-control-history.db"))
+            clearLabs()
             assertTrue(prefs.edit().remove("ci_restore_sentinel").commit())
             assertTrue(preflight.edit().clear().commit())
             val interrupted = runCatching {
@@ -247,11 +307,18 @@ class FullBackupInstrumentedTest {
             assertNull("Preference replay has not yet occurred",
                 prefs.getString("ci_restore_sentinel", null))
             assertEquals(PreflightPreset(), PreflightPresets.read(app, pkgA))
+            assertTrue(LiveNetworkArchive(app).use{it.list().isEmpty()})
+            assertTrue(BatteryLabArchive(app).use{it.list().isEmpty()})
+            // Normal edits cannot race pending recovery. Simulate crash after first archive committed.
+            assertTrue(runCatching{LiveNetworkArchive(app).use{it.save(net)}}.isFailure)
+            assertTrue(runCatching{BatteryLabArchive(app).use{it.delete(bat.id)}}.isFailure)
+            LiveNetworkArchive(app).use{it.restoreRecords(listOf(net.redacted()))}
             assertTrue("Recovery replays committed preferences",
                 LegionDataBackup.recoverPendingRestore(app))
             assertEquals("restored", prefs.getString("ci_restore_sentinel", null))
             assertEquals(presetA, PreflightPresets.read(app, pkgA))
             assertEquals(presetB, PreflightPresets.read(app, pkgB))
+            assertLabs()
             assertFalse("Recovery clears durable intent when finished",
                 LegionDataBackup.recoverPendingRestore(app))
             // A second import must reject the now populated database.
@@ -271,8 +338,15 @@ class FullBackupInstrumentedTest {
             assertEquals(presetB, PreflightPresets.read(app, pkgA))
             assertEquals(presetB, PreflightPresets.read(app, pkgB))
             assertEquals(presetA, PreflightPresets.read(app, longPkg))
+            assertLabs()
+            assertTrue(app.deleteDatabase("legion-control-history.db"))
+            LegionDataBackup.restoreOnEmptyDatabase(app,legacyV2)
+            assertLabs()
         } finally {
             app.contentResolver.delete(legacy, null, null)
+            app.contentResolver.delete(legacyV2,null,null)
+            app.contentResolver.delete(invalidLabs,null,null)
+            app.contentResolver.delete(changedLabs,null,null)
             app.contentResolver.delete(invalidPreset, null, null)
             preflight.edit().clear().commit()
             app.contentResolver.delete(backup, null, null)

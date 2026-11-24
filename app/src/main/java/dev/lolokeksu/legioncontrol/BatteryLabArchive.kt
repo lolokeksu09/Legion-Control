@@ -7,7 +7,7 @@ import android.database.sqlite.SQLiteOpenHelper
 import org.json.JSONObject
 import org.json.JSONArray
 
-/** Separate explicit-save archive. Existing diagnostics database and backups untouched. */
+/** Separate explicit-save archive. Separate from legacy v12; typed snapshots included in ZIP v3. */
 internal class BatteryLabArchive(context:Context,name:String="legion_battery_lab.db"):
     SQLiteOpenHelper(context.applicationContext,name,null,1) {
     private val app=context.applicationContext

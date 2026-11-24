@@ -7,7 +7,7 @@ import android.database.sqlite.SQLiteOpenHelper
 import org.json.JSONArray
 import org.json.JSONObject
 
-/** Dedicated private archive. No changes to the legacy v12 schema or ZIP format. */
+/** Dedicated private archive. Separate from legacy v12; typed snapshots included in ZIP v3. */
 internal class LiveNetworkArchive(context:Context,name:String="legion_live_network.db"):
     SQLiteOpenHelper(context.applicationContext,name,null,1) {
     private val app=context.applicationContext

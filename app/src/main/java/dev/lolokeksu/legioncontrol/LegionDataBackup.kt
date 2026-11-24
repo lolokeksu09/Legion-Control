@@ -27,10 +27,10 @@ data class BackupArchiveIdentity(val version: Int, val databaseSha256: String,
                                  val preferencesSha256: String,val labsSha256:String?=null)
 
 /**
- * Local, portable recovery for all v12 SQLite tables plus non-secret user preferences.
+ * Local, portable recovery for all v12 SQLite tables, lab archives and non-secret preferences.
  * The backup has no videos, screenshots, keystore or cloud storage.
  *
- * Restore NEVER overwrites a populated database. The user must choose a clean
+ * Restore NEVER overwrites a populated database or v3 lab archive. The user must choose a clean
  * installation and explicitly confirm after archive validation.
  */
 object LegionDataBackup {
@@ -401,7 +401,7 @@ object LegionDataBackup {
                 "Контрольная сумма архива не совпадает"
             }
             val version=manifest.getInt("version")
-            require(seen==if(version==3) allowedEntries else legacyEntries)
+            require(seen==(if(version==3) allowedEntries else legacyEntries))
             val labBytes=raw["labs.json"]
             val labs=if(version==3) {
                 requireNotNull(labBytes)
