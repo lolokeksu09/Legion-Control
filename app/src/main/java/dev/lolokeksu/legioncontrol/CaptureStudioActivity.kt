@@ -297,7 +297,9 @@ class CaptureStudioActivity : ComponentActivity() {
                     else "ZIP v2 включает требования Game Preflight. ") +
                     "MP4/PNG и ключ подписи не импортируются.")
                 .setPositiveButton("Восстановить") { _, _ ->
-                    viewModel.restoreFullBackup(inspected.uri)
+                    val confirmed = inspected.preview.identity
+                    if(confirmed == null) status.text = "Архив нужно проверить заново."
+                    else viewModel.restoreFullBackup(inspected.uri, confirmed)
                 }
                 .setNegativeButton("Отмена", null).show()
         }
