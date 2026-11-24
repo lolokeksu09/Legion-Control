@@ -72,7 +72,7 @@ class LiveMonitorActivity : FragmentActivity() {
             val intervals = MonitorPolicy.intervals
             AlertDialog.Builder(this).setTitle("Интервал измерений")
                 .setSingleChoiceItems(intervals.map { "${it / 1000} с" }.toTypedArray(),
-                    intervals.indexOf(model.state.value?.intervalMs)) { dialog, index ->
+                    intervals.indexOf(model.state.value?.intervalMs ?: 5000L)) { dialog, index ->
                     model.interval(intervals[index])
                     dialog.dismiss()
                 }.setNegativeButton("Отмена", null).show()
@@ -124,7 +124,7 @@ class LiveMonitorActivity : FragmentActivity() {
         value?.let { "${MonitorPolicy.fmt(it)} $unit" } ?: "н/д"
 
     private fun render(state: MonitorState) {
-        status.text = state.message
+        status.text = state.message + "\nИнтервал: ${state.intervalMs / 1000} с"
         intervalButton.isEnabled = !state.running
         // Keep the stable action anchor for the finder.
         intervalButton.text = "Интервал измерений"

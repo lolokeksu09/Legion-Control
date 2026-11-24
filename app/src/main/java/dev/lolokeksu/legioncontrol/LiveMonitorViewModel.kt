@@ -53,8 +53,9 @@ class LiveMonitorViewModel(app: Application) : AndroidViewModel(app) {
     private fun sample() {
         if (!visible || !current().running) return
         val token = generation
-        val elapsed = (SystemClock.elapsedRealtime() - started).coerceAtLeast(0)
+        val runStart = started
         pending = worker.submit {
+            val elapsed = (SystemClock.elapsedRealtime() - runStart).coerceAtLeast(0)
             val app = getApplication<Application>()
             val telemetry = runCatching { GameSessionTelemetry.snapshot(app) }.getOrNull()
             val resources = runCatching { ResourceTelemetryBackend.read(app) }.getOrNull()
@@ -109,6 +110,7 @@ class LiveMonitorViewModel(app: Application) : AndroidViewModel(app) {
         // Freeze the selected run before touching a document provider.
         val points = current().points.toList()
         if (points.isEmpty() || current().running) return
+        val token = generation
         worker.execute {
             val result = runCatching {
                 val stream = getApplication<Application>().contentResolver.openOutputStream(uri, "wt")
@@ -116,6 +118,7 @@ class LiveMonitorViewModel(app: Application) : AndroidViewModel(app) {
                 stream.bufferedWriter(Charsets.UTF_8).use { it.write(MonitorCsv.render(points)) }
             }
             main.post {
+                if (token != generation) return@post
                 mutable.value = current().copy(message = if (result.isSuccess)
                     "CSV сохранён: ${points.size} замеров." else "Не удалось сохранить CSV.")
             }

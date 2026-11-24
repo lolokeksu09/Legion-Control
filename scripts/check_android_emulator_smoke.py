@@ -229,6 +229,12 @@ def main() -> None:
     if "OK (1 test)" not in test_output or "FAILURES" in test_output:
         raise AssertionError("Backup restore instrumentation failed: " + test_output[-1400:])
     print("PASS: emulator-only SQLite backup/restore and corruption round-trip",flush=True)
+    monitor_output = adb("shell", "am", "instrument", "-w", "-e", "class",
+        PACKAGE + ".LiveMonitorInstrumentedTest",
+        PACKAGE + ".test/androidx.test.runner.AndroidJUnitRunner", timeout=120)
+    if "OK (1 test)" not in monitor_output or "FAILURES" in monitor_output:
+        raise AssertionError("Live Monitor instrumentation failed: " + monitor_output[-1400:])
+    print("PASS: actual monitor readings, baseline, foreground lifecycle and explicit restart", flush=True)
     adb("shell", "pm", "clear", PACKAGE, timeout=40)
     adb("shell", "am", "force-stop", PACKAGE)
     adb("shell", "am", "start", "-W", "-n", PACKAGE + "/.NavigationHostActivity", timeout=60)
@@ -502,6 +508,19 @@ def main() -> None:
     back_until(SETTINGS_MARKER)
     click("Главная")
     stage("19-return-home-after-search", "Готов к запуску")
+    click("Live Monitor", scrolls=10, exact_only=True)
+    stage("20-live-monitor-idle", "ЖИВОЙ МОНИТОР УСТРОЙСТВА")
+    expect("Показаний пока нет")
+    click("НАЧАТЬ МОНИТОРИНГ", exact_only=True)
+    expect(" / 120 замеров")
+    click("ОСТАНОВИТЬ МОНИТОРИНГ", exact_only=True)
+    expect("Мониторинг остановлен пользователем")
+    capture("21-live-monitor-stopped")
+    expect_scrolling("Доступная RAM:", seconds=20)
+    click("ЗАФИКСИРОВАТЬ КОНТРОЛЬНУЮ ТОЧКУ", scrolls=10, exact_only=True)
+    expect("Изменение относительно сохранённого замера")
+    capture("22-live-monitor-baseline")
+    back_until("Готов к запуску")
     print("PASS: Android emulator UI navigation, explicit marker persisted in SQLite,",
           "signal correlation, selected package, foreground START/STOP, back stack",flush=True)
 
