@@ -337,7 +337,12 @@ class HubPageFragment : Fragment() {
     private fun openFeature(entry: FeatureEntry) {
         val args = Bundle().apply { putString(FeatureFinder.EXTRA_FEATURE_ID, entry.id) }
         when (entry.module) {
-            FeatureModule.CAPTURE -> open(CaptureStudioActivity::class.java, args)
+            FeatureModule.CAPTURE -> runCatching {
+                startActivity(Intent(requireContext(), CaptureStudioActivity::class.java).putExtras(args))
+            }.onFailure {
+                AlertDialog.Builder(requireContext()).setTitle("Не удалось открыть действие")
+                    .setMessage(it.javaClass.simpleName).setPositiveButton("Понятно", null).show()
+            }.let { Unit }
             FeatureModule.AUDIO -> open(AudioLabActivity::class.java, args)
             FeatureModule.HAPTIC -> open(HapticLabActivity::class.java, args)
             FeatureModule.NETWORK -> open(ConnectivityLabActivity::class.java, args)

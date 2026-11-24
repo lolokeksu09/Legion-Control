@@ -125,6 +125,8 @@ jobs:
         run: python3 scripts/check_alpha44_module_ui.py
       - name: Verify AMOLED design-system audit fixes
         run: python3 scripts/check_amoled_design_system_audit.py
+      - name: Verify function finder action bindings
+        run: python3 scripts/check_feature_finder.py
       - name: Run pure Kotlin CSV and Russian plural regression tests
         run: gradle --no-daemon testDebugUnitTest
       - name: Test and compile real Rust backend for Android

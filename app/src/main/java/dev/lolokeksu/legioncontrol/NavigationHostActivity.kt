@@ -52,8 +52,9 @@ class NavigationHostActivity : FragmentActivity() {
             setBackgroundColor(Color.BLACK)
         }
         root.setOnApplyWindowInsetsListener { view, insets ->
-            val bars = insets.getInsets(WindowInsets.Type.systemBars())
-            view.setPadding(0, bars.top, 0, bars.bottom)
+            val bars = insets.getInsets(WindowInsets.Type.systemBars() or
+                WindowInsets.Type.displayCutout() or WindowInsets.Type.ime())
+            view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
             insets
         }
 
@@ -132,6 +133,7 @@ class NavigationHostActivity : FragmentActivity() {
             }
             val icon = ImageView(this).apply {
                 setImageResource(icons[index])
+                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
                 imageTintList = ColorStateList.valueOf(muted)
             }
             column.addView(icon, LinearLayout.LayoutParams(21.dp, 21.dp))
@@ -141,10 +143,12 @@ class NavigationHostActivity : FragmentActivity() {
                 gravity = Gravity.CENTER
                 setTextColor(muted)
                 setPadding(0, 6.dp, 0, 0)
-                maxLines = 1
+                maxLines = 2
+                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
             }
-            column.addView(text)
-            bottom.addView(column, LinearLayout.LayoutParams(0, 57.dp, 1f))
+            column.minimumHeight = 57.dp
+            column.addView(text, LinearLayout.LayoutParams(-1, -2))
+            bottom.addView(column, LinearLayout.LayoutParams(0, -2, 1f))
             buttons[id] = icon to text
             tabSurfaces[id] = column
             column.setOnClickListener {

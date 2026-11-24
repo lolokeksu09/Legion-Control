@@ -348,18 +348,21 @@ object LegionUiSupport {
             }
             item.addView(ImageView(activity).apply {
                 setImageResource(icons[index])
+                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
                 imageTintList = ColorStateList.valueOf(tint)
             }, LinearLayout.LayoutParams(dp(item, 21), dp(item, 21)))
             item.addView(TextView(activity).apply {
                 text = labels[index]
                 textSize = 10f
                 gravity = Gravity.CENTER
-                maxLines = 1
+                maxLines = 2
+                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
                 setTextColor(tint)
                 setTypeface(null, if (selected) Typeface.BOLD else Typeface.NORMAL)
                 setPadding(0, dp(this, 6), 0, 0)
-            })
-            bottom.addView(item, LinearLayout.LayoutParams(0, dp(bottom, 57), 1f))
+            }, LinearLayout.LayoutParams(-1, -2))
+            item.minimumHeight = dp(bottom, 57)
+            bottom.addView(item, LinearLayout.LayoutParams(0, -2, 1f))
         }
         shell.addView(bottom)
         activity.window.statusBarColor = Color.BLACK

@@ -455,12 +455,38 @@ def main() -> None:
     click("Инструменты")
     expect(TOOLS_MARKER)
     click("Поиск по инструментам Legion Control", scrolls=0)
+    adb("shell", "input", "text", "stereo")
+    expect("Проверка стерео")
+    adb("shell", "input", "keyevent", "KEYCODE_BACK")
+    click("Проверка стерео", scrolls=0)
+    # The specific control must be visible without manual swiping or activation.
+    expect("Стерео · 440 Гц")
+    capture("18a-finder-stereo-anchor")
+    back_until(TOOLS_MARKER)
+    click("Поиск по инструментам Legion Control", scrolls=0)
+    adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
+    # Clear any restored search text, then select a standalone Activity target.
+    for _ in range(48):
+        adb("shell", "input", "keyevent", "KEYCODE_DEL")
+    adb("shell", "input", "text", "replay")
+    expect("Мгновенный повтор")
+    adb("shell", "input", "keyevent", "KEYCODE_BACK")
+    click("Мгновенный повтор", scrolls=0)
+    expect("ЗАПУСТИТЬ REPLAY-БУФЕР")
+    capture("18b-finder-replay-anchor")
+    if "ReplayCaptureService" in adb("shell", "dumpsys", "activity", "services", PACKAGE):
+        raise AssertionError("Opening a finder result unexpectedly started Replay")
+    back_until(TOOLS_MARKER)
+    click("Поиск по инструментам Legion Control", scrolls=0)
+    adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
+    for _ in range(48):
+        adb("shell", "input", "keyevent", "KEYCODE_DEL")
     adb("shell", "input", "text", "audio")
     expect("Audio Lab")
     if visible("Gaming Lab"):
         raise AssertionError("Tool search left unrelated modules visible")
     adb("shell", "input", "keyevent", "KEYCODE_BACK")  # Dismiss IME
-    click("Audio Lab", scrolls=0)
+    click("Audio Lab", scrolls=7)
     stage("18-tools-search-opens-audio", "AUDIO LAB")
     back_until(TOOLS_MARKER)
     click("Поиск по инструментам Legion Control", scrolls=0)
@@ -469,6 +495,13 @@ def main() -> None:
     adb("shell", "input", "keyevent", "KEYCODE_BACK")
     click("Сбросить поиск", scrolls=0)
     expect("Capture Studio")
+    click("Настройки")
+    expect(SETTINGS_MARKER)
+    expect("Поверх других окон")
+    click("Резервная копия ZIP", scrolls=12)
+    expect("ЭКСПОРТ ИСТОРИИ И НАСТРОЕК")
+    capture("18c-settings-backup-anchor")
+    back_until(SETTINGS_MARKER)
     click("Главная")
     stage("19-return-home-after-search", "Готов к запуску")
     print("PASS: Android emulator UI navigation, explicit marker persisted in SQLite,",
