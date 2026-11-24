@@ -11,9 +11,9 @@ import java.net.NetworkInterface
 /** Explicit visible-only probes. TCP is bound to the captured Android Network. */
 internal class LiveNetworkProbe(context: Context) {
     private val cm=requireNotNull(context.getSystemService(ConnectivityManager::class.java))
-    fun capture(host: String,offsetMs: Long): LiveNetworkPoint {
+    fun capture(host: String,offsetMs: Long,isCancelled:()->Boolean={false}): LiveNetworkPoint {
         require(LiveNetworkPolicy.host(host)==host)
-        fun checkCancel() { if(Thread.currentThread().isInterrupted) throw InterruptedException() }
+        fun checkCancel() { if(Thread.currentThread().isInterrupted || isCancelled()) throw InterruptedException() }
         fun elapsed(start:Long)=((SystemClock.elapsedRealtimeNanos()-start)/1_000_000.0)
         checkCancel()
         val net=cm.activeNetwork ?: return LiveNetworkPoint(offsetMs,"NONE",null,null,null,"NO_NETWORK",null,"UNAVAILABLE")
@@ -35,6 +35,7 @@ internal class LiveNetworkProbe(context: Context) {
             gatewayAddress=gateway?.hostAddress
             val iface=link?.interfaceName?.let { runCatching { NetworkInterface.getByName(it) }.getOrNull() }
             if(gateway!=null && iface!=null) {
+                checkCancel()
                 val start=SystemClock.elapsedRealtimeNanos()
                 // Platform reachability may use ICMP or TCP echo; no claim of ICMP RTT.
                 val reachable=runCatching { gateway.isReachable(iface,0,900) }.getOrNull()
@@ -53,6 +54,7 @@ internal class LiveNetworkProbe(context: Context) {
             tcpState="TCP_ERROR"
             try {
                 net.socketFactory.createSocket().use { socket ->
+                    checkCancel()
                     socket.connect(InetSocketAddress(address,443),1500)
                     tcpMs=elapsed(start)
                     tcpState="OK"

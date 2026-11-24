@@ -9,3 +9,11 @@ Base: published Alpha 49 / 5b0b957. First vertical slice, inside existing Connec
 - NET-05: existing DNS/TCP/TLS history/export remains separate. Live mode is RAM-only in this increment; no saved live history or historical graph.
 
 Acceptance: unit cases for host rejection, missing samples, failure denominator, route/endpoint changes and jitter gaps; exact PR Android Kotlin/Rust CI, visual smoke (existing general smoke is not proof of new live mode). Physical Wi-Fi, cellular, VPN, failed DNS, gateway non-response and screen-stop checks pending. No release claim until version gates are updated and signed release authorized.
+
+## Increment 2 — local archive and reproducible comparisons
+
+- NET-06: explicit 10/20/40-probe plans (1/1/3-second pause after a probe); DNS may extend elapsed time. Cancellation token also checked inside the probe after DNS and before connecting.
+- NET-07: explicit Save on complete/partial run; private SQLite archive `legion_live_network.db` separate from existing v12 database, 50 records maximum, no automatic deletion. Duplicate ID does not overwrite. Route handles, resolved IPs and gateway addresses are redacted to run-local group IDs; user-entered target is stored intentionally. Unsaved results are not guaranteed to survive screen recreation/process death.
+- NET-08: reopen saved result with charts, median/p95/max, failures and gateway stats. A/B compares distinct complete runs with identical target and plan, not causal diagnosis. CSV exports a frozen selected report through SAF; no automatic sharing. Explicit confirmation before single-record deletion.
+- NET-09: archive independent of existing legacy CSV/ZIP backup; no schema migration or new dependency/permission. Archive is NOT included in full-backup ZIP in this increment. Physical network and SAF/UI verification remain pending.
+- Verification additions: pure JVM redaction/comparison/CSV tests and emulator-only real archive persistence/deduplication/delete test, explicitly gated in smoke script. Exact candidate CI required.
