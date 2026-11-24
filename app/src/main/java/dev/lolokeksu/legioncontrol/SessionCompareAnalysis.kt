@@ -9,7 +9,9 @@ enum class CompareMeasure(val label:String,val unit:String) {
     DISPLAY("Медиана частоты дисплея","Гц"),
     SEVERE("Thermal Status ≥ SEVERE","% замеров"),
     POWER("Энергосбережение","% замеров"),
-    NETWORK("Сеть не подтверждена Android","% замеров")
+    NETWORK("Сеть не подтверждена Android","% замеров");
+
+    val deltaUnit: String get() = if(unit == "% замеров") "п.п." else unit
 }
 
 data class CompareValue(val value:Double?,val known:Int,val total:Int) {
@@ -20,7 +22,10 @@ data class CompareWindow(
     val gaps:Int,val duplicateOrOutside:Int,val issues:List<String>,
     val metrics:Map<CompareMeasure,CompareValue>,
     val series:List<GameTelemetryPoint>
-)
+) {
+    val firstOffsetMs:Long? get() = series.firstOrNull()?.let { it.timeMs-header.startedAtMs }
+    val lastOffsetMs:Long? get() = series.lastOrNull()?.let { it.timeMs-header.startedAtMs }
+}
 data class ComparePair(val a:CompareWindow,val b:CompareWindow) {
     val comparable:Boolean get()=a.issues.isEmpty() && b.issues.isEmpty()
     fun delta(m:CompareMeasure):Double? {
@@ -88,7 +93,7 @@ object SessionCompareAnalysis {
             CompareMeasure.NETWORK to ratio(points.mapNotNull { it.networkValidated?.let { v->!v } })
         )
         return CompareWindow(h,minutes,points.size,coverage,gaps,inWindow.size-points.size+
-            bounded.count { it.timeMs<h.startedAtMs },issues,metrics,points)
+            bounded.size-inWindow.size,issues,metrics,points)
     }
     fun compare(a:CompareWindow,b:CompareWindow):ComparePair {
         require(a.header.packageName==b.header.packageName && a.header.id!=b.header.id)
@@ -102,19 +107,23 @@ object SessionCompareAnalysis {
         for((label,w) in listOf("A" to pair.a,"B" to pair.b)) {
             append(label).append(": ").append(w.header.appLabel).append(" · ").append(w.header.startedAtMs)
                 .append(" · точек ").append(w.points).append(" · покрытие ").append(format(w.coverage*100)).append("%\n")
+            append("Первый/последний замер от старта: ")
+                .append(format(w.firstOffsetMs?.div(1000.0))).append(" / ")
+                .append(format(w.lastOffsetMs?.div(1000.0))).append(" с; исключено повторов и точек вне окна: ")
+                .append(w.duplicateOrOutside).append('\n')
             w.issues.forEach { append("• ").append(it).append('\n') }
         }
         for(m in CompareMeasure.entries) {
             val a=pair.a.metrics.getValue(m); val b=pair.b.metrics.getValue(m)
             append(m.label).append(": A ").append(format(a.value)).append(" (").append(a.known).append('/').append(a.total)
                 .append("), B ").append(format(b.value)).append(" (").append(b.known).append('/').append(b.total)
-                .append("), Δ B−A ").append(format(pair.delta(m))).append(' ').append(m.unit).append('\n')
+                .append("), Δ B−A ").append(format(pair.delta(m))).append(' ').append(m.deltaUnit).append('\n')
         }
         append("Доля замеров не равна доле времени. Заряд может расти при зарядке; условия нагрузки неизвестны. ")
         append("Дельты скрываются при неполном окне или недостатке значений. Гц дисплея не FPS, валидация сети не ping.")
     }
     fun csv(pair:ComparePair):String=buildString {
-        append("package,session_a,session_b,window_minutes,metric,unit,a_value,a_known,a_total,b_value,b_known,b_total,delta_b_minus_a,a_coverage,b_coverage,a_issues,b_issues\r\n")
+        append("package,session_a,session_b,window_minutes,metric,unit,a_value,a_known,a_total,b_value,b_known,b_total,delta_b_minus_a,a_coverage,b_coverage,a_issues,b_issues,delta_unit,a_first_offset_ms,a_last_offset_ms,b_first_offset_ms,b_last_offset_ms,a_excluded,b_excluded\r\n")
         for(m in CompareMeasure.entries) {
             val a=pair.a.metrics.getValue(m);val b=pair.b.metrics.getValue(m)
             fun num(v:Double?)=v?.let(::format).orEmpty()
@@ -124,7 +133,10 @@ object SessionCompareAnalysis {
                 num(b.value),b.known.toString(),b.total.toString(),num(pair.delta(m)),
                 format(pair.a.coverage),format(pair.b.coverage),
                 CsvEscaper.cell(pair.a.issues.joinToString(" | ")),
-                CsvEscaper.cell(pair.b.issues.joinToString(" | "))).joinToString(",")).append("\r\n")
+                CsvEscaper.cell(pair.b.issues.joinToString(" | ")),CsvEscaper.cell(m.deltaUnit),
+                pair.a.firstOffsetMs?.toString().orEmpty(),pair.a.lastOffsetMs?.toString().orEmpty(),
+                pair.b.firstOffsetMs?.toString().orEmpty(),pair.b.lastOffsetMs?.toString().orEmpty(),
+                pair.a.duplicateOrOutside.toString(),pair.b.duplicateOrOutside.toString()).joinToString(",")).append("\r\n")
         }
     }
 }
