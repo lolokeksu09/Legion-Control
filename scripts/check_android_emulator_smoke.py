@@ -235,6 +235,12 @@ def main() -> None:
     if "OK (5 tests)" not in monitor_output or "FAILURES" in monitor_output:
         raise AssertionError("Live Monitor instrumentation failed: " + monitor_output[-1400:])
     print("PASS: actual monitor readings, baseline, foreground lifecycle and explicit restart", flush=True)
+    battery_lab_output = adb("shell", "am", "instrument", "-w", "-e", "class",
+        PACKAGE + ".BatteryLabArchiveInstrumentedTest",
+        PACKAGE + ".test/androidx.test.runner.AndroidJUnitRunner", timeout=120)
+    if "OK (2 tests)" not in battery_lab_output or "FAILURES" in battery_lab_output:
+        raise AssertionError("Battery Lab instrumentation failed: " + battery_lab_output[-1400:])
+    print("PASS: isolated battery archive and public Android battery reading", flush=True)
     preflight_output = adb("shell", "am", "instrument", "-w", "-e", "class",
         PACKAGE + ".GamePreflightInstrumentedTest",
         PACKAGE + ".test/androidx.test.runner.AndroidJUnitRunner", timeout=120)

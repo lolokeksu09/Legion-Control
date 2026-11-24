@@ -16,7 +16,7 @@ import java.util.Date
 import java.util.UUID
 import java.util.concurrent.Executors
 
-internal class BatteryLabPanel(context:Context):LinearLayout(context) {
+internal class BatteryLabPanel(context:Context,private val exportRequest:(String)->Unit):LinearLayout(context) {
     private val main=Handler(Looper.getMainLooper())
     private val worker=Executors.newSingleThreadExecutor()
     private val io=Executors.newSingleThreadExecutor()
@@ -28,7 +28,7 @@ internal class BatteryLabPanel(context:Context):LinearLayout(context) {
     private var plan=BatteryLabPlan.QUICK
     private var began=0L
     private var started=0L
-    private var id=""
+    private var runId=""
     private var failures=0
     private var points=mutableListOf<BatteryLabPoint>()
     private var run:BatteryLabRun?=null
@@ -46,6 +46,7 @@ internal class BatteryLabPanel(context:Context):LinearLayout(context) {
     private val historyButton=button("История Battery Lab"){history()}
     private val compareButton=button("Сравнить тесты A/B"){compare()}
     private val shareButton=button("Поделиться отчётом"){share()}
+    private val exportButton=button("Экспорт CSV"){run?.let{exportRequest(BatteryLabReport.csv(it))}}
     private val deleteButton=button("Удалить сохранённый тест"){delete()}
     init {
         orientation=VERTICAL
@@ -54,7 +55,7 @@ internal class BatteryLabPanel(context:Context):LinearLayout(context) {
         addView(planButton);addView(startButton);addView(stopButton);addView(report)
         addView(chartButton)
         addView(chart,LayoutParams(LayoutParams.MATCH_PARENT,(180*resources.displayMetrics.density).toInt()))
-        addView(notice);addView(saveButton);addView(historyButton);addView(compareButton);addView(shareButton);addView(deleteButton)
+        addView(notice);addView(saveButton);addView(historyButton);addView(compareButton);addView(shareButton);addView(exportButton);addView(deleteButton)
         buttons()
     }
     private fun chartButtonLabel(){chartButton.text="График: "+chart.metric.label}
@@ -64,7 +65,7 @@ internal class BatteryLabPanel(context:Context):LinearLayout(context) {
         planButton.isEnabled=ready;startButton.isEnabled=ready;stopButton.isEnabled=running
         saveButton.isEnabled=ready&&run!=null&&!saved
         historyButton.isEnabled=ready;compareButton.isEnabled=ready&&run?.end==BatteryLabEnd.COMPLETE
-        shareButton.isEnabled=ready&&run!=null;deleteButton.isEnabled=ready&&saved&&run!=null
+        shareButton.isEnabled=ready&&run!=null;exportButton.isEnabled=ready&&run!=null;deleteButton.isEnabled=ready&&saved&&run!=null
     }
     private fun choosePlan() {
         if(!startButton.isEnabled)return
@@ -84,7 +85,7 @@ internal class BatteryLabPanel(context:Context):LinearLayout(context) {
     private fun startRun() {
         if(!startButton.isEnabled)return
         token++;running=true;failures=0;points.clear();run=null;saved=false
-        id=UUID.randomUUID().toString();began=SystemClock.elapsedRealtime();started=System.currentTimeMillis().coerceAtLeast(1)
+        runId=UUID.randomUUID().toString();began=SystemClock.elapsedRealtime();started=System.currentTimeMillis().coerceAtLeast(1)
         report.text="Ожидание измерения…";chart.update(emptyList());buttons();sample()
     }
     private fun sample() {
@@ -112,7 +113,7 @@ internal class BatteryLabPanel(context:Context):LinearLayout(context) {
     private fun finish(reason:BatteryLabEnd) {
         if(!running)return
         token++;running=false;main.removeCallbacks(tick)
-        run=points.takeIf{it.isNotEmpty()}?.let{BatteryLabRun(id,started,plan,reason,it.toList())}
+        run=points.takeIf{it.isNotEmpty()}?.let{BatteryLabRun(runId,started,plan,reason,it.toList())}
         report.text=(when(reason){
             BatteryLabEnd.HOT -> "Остановка: батарея ≥45 °C или Android thermal SEVERE+."
             BatteryLabEnd.COMPLETE -> "Тест завершён."
@@ -181,12 +182,24 @@ internal class BatteryLabPanel(context:Context):LinearLayout(context) {
                 notice.text=if(removed)"Удалена одна запись." else "Запись отсутствует."
             }}.setNegativeButton("Отмена",null).show()
     }
+    fun writeCsv(uri:android.net.Uri,csv:String) {
+        if(closed||ioBusy||running)return
+        ioBusy=true;buttons()
+        io.execute {
+            val result=runCatching {
+                require(csv.length<=150_000)
+                val stream=requireNotNull(context.applicationContext.contentResolver.openOutputStream(uri,"wt"))
+                stream.bufferedWriter(Charsets.UTF_8).use{it.write(csv)}
+            }
+            main.post{if(!closed){ioBusy=false;notice.text=if(result.isSuccess)"CSV сохранён." else "Ошибка экспорта CSV.";buttons()}}
+        }
+    }
     fun close(){setVisible(false);closed=true;token++;worker.shutdownNow();io.shutdown();buttons()}
 }
 internal enum class BatteryLabMetric(val label:String,val unit:String) {
     POWER("мощность","Вт"), TEMPERATURE("температура","°C"), CURRENT("ток","мА"), CHARGE("заряд","%");
     fun value(p:BatteryLabPoint):Double?=when(this){
-        POWER->p.watts;TEMPERATURE->p.tempDeciC?.div(10.0);CURRENT->p.currentMicroA?.div(1000.0);CHARGE->p.percent?.toDouble()
+        POWER->p.watts;TEMPERATURE->p.tempDeciC?.takeIf{it in -400..1200}?.div(10.0);CURRENT->p.currentMicroA?.takeIf{it in -50_000_000..50_000_000}?.div(1000.0);CHARGE->p.percent?.takeIf{it in 0..100}?.toDouble()
     }
 }
 private class BatteryLabChart(context:Context):View(context) {
