@@ -13,7 +13,7 @@
 
 См. `rust-core/`, `android-core/`, `docs/BACKEND.md`. Следующие шаги: Rust unit tests в CI, Android JNI сборка, затем легковесный Kotlin-интерфейс. Никаких заявлений об улучшении FPS, сенсорного отклика или Bypass.
 
-Последняя опубликованная версия: [Alpha 49](https://github.com/lolokeksu09/Legion-Control/releases/tag/v0.1.0-alpha.49). Alpha 54 — [интеграционный кандидат](docs/ALPHA54-INTEGRATION.md) с изменениями Alpha 50–53; подписанный релиз пока не выпущен.
+Последняя опубликованная версия: [Alpha 49](https://github.com/lolokeksu09/Legion-Control/releases/tag/v0.1.0-alpha.49). Кандидат Beta 1 объединяет Alpha 50–58; подписанный релиз пока не выпущен. [Изменения Beta 1](docs/BETA1-RELEASE-NOTES.md) · [Условия готовности](docs/ALPHA58-PREBETA-AUDIT.md).
 
 ## v0.1.0-alpha.48 — мониторинг и игровая аналитика
 
