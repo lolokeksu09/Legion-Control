@@ -66,6 +66,24 @@ class SessionLibraryInstrumentedTest {
             assertTrue(entries.getValue("samples.csv").contains(selected))
             assertTrue(entries.getValue("events.csv").contains("fixture-0"))
             assertFalse(entries.values.any { it.contains(foreign) || it.contains("DO_NOT_EXPORT_OTHER") })
+            // Exact limit is complete; only the sentinel row establishes actual truncation.
+            LocalHistoryStore(context).use { helper ->
+                val db=helper.writableDatabase
+                db.beginTransaction()
+                try {
+                    for(i in 1 until SessionLibraryPolicy.MAX_EVENTS)
+                        db.execSQL("INSERT INTO game_events(session_id,recorded_at_ms,event_type,details) VALUES(?,?,?,?)",
+                            arrayOf(selected,at+1+i,"USER_MARK","boundary-$i"))
+                    db.setTransactionSuccessful()
+                } finally { db.endTransaction() }
+            }
+            val exact=repo.libraryDetail(selected)
+            assertEquals(SessionLibraryPolicy.MAX_EVENTS,exact.events.size)
+            assertFalse(exact.eventLimited)
+            repo.event(selected,"USER_MARK","overflow",at+9000)
+            val truncated=repo.libraryDetail(selected)
+            assertEquals(SessionLibraryPolicy.MAX_EVENTS,truncated.events.size)
+            assertTrue(truncated.eventLimited)
             repo.finish(open,"INTERRUPTED",at+5000)
         }
     }
