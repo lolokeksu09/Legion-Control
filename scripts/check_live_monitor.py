@@ -14,10 +14,15 @@ activity = manifest.find("./application/activity[@"+a+"name='.LiveMonitorActivit
 assert activity is not None and activity.get(a+"exported") == "false"
 assert all("LiveMonitor" not in x.get(a+"name", "") for x in manifest.findall("./application/service"))
 assert "MAX_POINTS = 120" in model
-assert "GameSessionTelemetry.snapshot(app)" in vm and "ResourceTelemetryBackend.read(app)" in vm
+assert "GameSessionTelemetry.snapshot(app)" in vm and "ResourceTelemetryBackend.readForMonitor(app)" in vm
 assert "override fun onStop()" in ui and "model.setVisible(false)" in ui
 assert "token != generation" in vm and "main.removeCallbacks(tick)" in vm
 assert "ActivityResultContracts.CreateDocument" in ui and "openOutputStream(uri" in vm
+assert "pendingDocument.begin(s.points.toList())" in vm and "model.beginExport()" in ui
+assert "pendingDocument.take()" in vm and "model.finishExport(uri)" in ui
+assert "m.deltaUnit" in ui
+resource = (src / "ResourceTelemetryBackend.kt").read_text()
+assert "fun readForMonitor(" in resource
 assert "previousX = null" in chart and "point.elapsedMs" in chart
 assert "CsvEscaper.cell" in model
 for banned in ("startForegroundService(", "startService(", "WorkManager", "WakeLock", "Settings.System.put", "Runtime.getRuntime", "ProcessBuilder", "HttpURLConnection"):
