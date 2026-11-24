@@ -9,7 +9,10 @@ Base: Alpha 57 corrected head ee79845. Prior CI 45444672713: Kotlin/Rust build P
 | STAB-02 | Network archive action accepted a callback while screen hidden; delete dialogs captured a record independently of current selection. | Visible-screen guard and exact selected record ID recheck at confirmation in both diagnostic archives. No automatic deletion or data migration. |
 | STAB-03 | Benchmark custom instrumentation status omitted in actual runner output. | Fixed in parent PR #84, raw instrument output retained, private calibration file. No fabricated measurements. |
 
-## Follow-up correction\nA second lock-order review found that automatic rollback took the profile monitor before the maintenance gate, opposite to ZIP replay and manual profile operations. Refactored automatic rollback to use the same gate → profile monitor order and a shared locked restore implementation. The existing Alpha 33 source contract now guards this order.\n\n## Remaining acceptance
+## Follow-up correction
+A second lock-order review found that automatic rollback took the profile monitor before the maintenance gate, opposite to ZIP replay and manual profile operations. Refactored automatic rollback to use the same gate → profile monitor order and a shared locked restore implementation. The existing Alpha 33 source contract now guards this order.
+
+## Remaining acceptance
 - Exact new build, source checks and Android emulator smoke must pass. Actual benchmark samples still unknown. No before/after speedup claim.
 - Physical Legion Y70: ARM64 launch; camera/MediaProjection/audio; Android/OEM permission flows; usage-event delays and DND/brightness readback; actual network and battery probes; signed update and ZIP/SAF on physical device. No physical connection available in this session.
 - Full visual review of new screens at real device font scale. Existing tests are layout and interaction checks, not a human visual audit.
