@@ -4,7 +4,6 @@ import android.app.Activity
 import android.graphics.Rect
 import android.view.View
 import android.view.ViewGroup
-import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 
@@ -41,12 +40,10 @@ object FeatureReveal {
         }
     }
 
-    private fun findTarget(root: View, feature: FeatureEntry): View? {
+    internal fun findTarget(root: View, feature: FeatureEntry): View? {
         val bound = matching(root) { it.tag == TAG_PREFIX + feature.id }
-        if(bound.isNotEmpty()) return bound.singleOrNull()?.let { targetOf(it, root) }
-        // Legacy controls: fail closed on ambiguous text, never guess first match.
-        return matching(root) { it is TextView && it.text.toString() == feature.anchor }
-            .mapNotNull { targetOf(it, root) }.distinct().singleOrNull()
+        // Missing or duplicate identity is unavailable; never infer a target from its label.
+        return bound.singleOrNull()?.let { targetOf(it, root) }
     }
 
     private fun targetOf(label: View, root: View): View? {

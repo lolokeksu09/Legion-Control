@@ -72,8 +72,9 @@ class ExperimentLabFragment : Fragment() {
                 setText(defaultText)
                 layout.addView(this)
             }
-        fun action(text:String,click:()->Unit) {
+        fun action(text:String,featureId:String?=null,click:()->Unit) {
             layout.addView(Button(requireContext()).apply {
+                if(featureId!=null) FeatureReveal.bind(this,featureId)
                 this.text=text
                 minHeight=48.dp
                 setOnClickListener { click() }
@@ -104,15 +105,15 @@ class ExperimentLabFragment : Fragment() {
         hypothesis=input("Гипотеза/цель · до 500")
         labelA=input("Условие A, например Wi-Fi 5 ГГц","A")
         labelB=input("Условие B, например мобильная сеть","B")
-        action("Создать эксперимент") { create() }
+        action("Создать эксперимент", "experiment.create") { create() }
         action("Выбрать сохранённый эксперимент") { pickExperiment() }
         action("Изменить название и условия выбранного") { updateExperiment() }
         action("Назначить выбранную сессию → A") { assign("A") }
         action("Назначить выбранную сессию → B") { assign("B") }
         action("Убрать выбранную сессию из эксперимента") { unassign() }
         action("Показать состав A/B и метки сессий") { showTrialRoster() }
-        action("Показать сравнение A/B") { compare() }
-        action("Экспортировать A/B данные CSV") { exportCsv() }
+        action("Показать сравнение A/B", "experiment.compare") { compare() }
+        action("Экспортировать A/B данные CSV", "experiment.csv") { exportCsv() }
         action("Поделиться сравнением текстом") { shareComparison() }
         action("Удалить эксперимент (с подтверждением)") { confirmDelete() }
         subtitle("Пики температуры относятся к БАТАРЕЕ. Заряд оценивается в п.п./час, "+

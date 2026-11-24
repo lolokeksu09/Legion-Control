@@ -65,27 +65,27 @@ class GamingDiagnosticsFragment : Fragment() {
 
         root.addView(LegionUiSupport.sectionLabel(requireContext(), "ПРОВЕРКИ УСТРОЙСТВА"))
         root.addView(LegionUiSupport.sectionLabel(requireContext(), "СЕТЬ И СОЕДИНЕНИЕ"))
-        addButton(root, "1 · Network Analyzer — TCP/DNS") {
+        addButton(root, "1 · Network Analyzer — TCP/DNS", "gaming.network") {
             viewModel.run(GamingProbe.NETWORK)
         }
-        addButton(root, "6 · Wi-Fi / LTE Inspector") {
+        addButton(root, "6 · Wi-Fi / LTE Inspector", "gaming.wifi") {
             viewModel.run(GamingProbe.WIFI)
         }
         root.addView(LegionUiSupport.sectionLabel(requireContext(), "БАТАРЕЯ И НАГРЕВ"))
-        addButton(root, "2 · Battery Intelligence") {
+        addButton(root, "2 · Battery Intelligence", "gaming.battery") {
             viewModel.run(GamingProbe.BATTERY)
         }
-        addButton(root, "3 · Thermal Guard — включить/выключить события") {
+        addButton(root, "3 · Thermal Guard — включить/выключить события", "gaming.thermal") {
             toggleThermalGuard()
         }
-        addButton(root, "8 · Charging Analyzer — сравнить с прошлым замером") {
+        addButton(root, "8 · Charging Analyzer — сравнить с прошлым замером", "gaming.charging") {
             viewModel.run(GamingProbe.CHARGING)
         }
         root.addView(LegionUiSupport.sectionLabel(requireContext(), "ЭКРАН И УПРАВЛЕНИЕ"))
-        addButton(root, "4 · Touch Analyzer — мультитач и края") {
+        addButton(root, "4 · Touch Analyzer — мультитач и края", "gaming.touch") {
             openTouchTester()
         }
-        addButton(root, "5 · Frame Pacing — 5 секунд") {
+        addButton(root, "5 · Frame Pacing — 5 секунд", "gaming.frames") {
             startFramePacing()
         }
         root.addView(LegionUiSupport.sectionLabel(requireContext(), "ИГРА И АКТИВНОСТЬ"))
@@ -118,7 +118,7 @@ class GamingDiagnosticsFragment : Fragment() {
             viewModel.run(GamingProbe.SESSION)
         }
         root.addView(LegionUiSupport.sectionLabel(requireContext(), "СИСТЕМА И ДОПОЛНИТЕЛЬНЫЕ МОДУЛИ"))
-        addButton(root, "10 · System Health") {
+        addButton(root, "10 · System Health", "gaming.health") {
             viewModel.run(GamingProbe.SYSTEM,refreshHzDisplay=requireActivity().display)
         }
         addButton(root, "HARDWARE LAB · ещё 6 диагностик") {
@@ -144,8 +144,9 @@ class GamingDiagnosticsFragment : Fragment() {
 
     private val Int.dp: Int get() = (this * resources.displayMetrics.density).toInt()
 
-    private fun addButton(root: LinearLayout, title: String, action: () -> Unit) {
+    private fun addButton(root: LinearLayout, title: String, featureId: String? = null, action: () -> Unit) {
         root.addView(Button(requireContext()).apply {
+            if(featureId!=null) FeatureReveal.bind(this,featureId)
             text = title
             minHeight = 48.dp
             isAllCaps = false

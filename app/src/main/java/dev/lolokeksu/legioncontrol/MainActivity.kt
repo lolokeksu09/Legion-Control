@@ -96,6 +96,7 @@ class MainActivity : ComponentActivity() {
         layout.addView(Button(this).apply {
             LegionUiSupport.styleAction(this)
             text = "Обновить измерение"
+            FeatureReveal.bind(this, "diag.measure")
             minHeight = 52.dp
             setOnClickListener { manualSample() }
         })
@@ -111,6 +112,7 @@ class MainActivity : ComponentActivity() {
         layout.addView(Button(this).apply {
             LegionUiSupport.styleAction(this)
             text = "Тест батареи · 60 секунд"
+            FeatureReveal.bind(this, "diag.battery")
             minHeight = 48.dp
             setOnClickListener { startTimedBatteryTest() }
         })
@@ -175,6 +177,7 @@ class MainActivity : ComponentActivity() {
         layout.addView(Button(this).apply {
             LegionUiSupport.styleAction(this)
             text = "Экспорт полной диагностики ZIP"
+            FeatureReveal.bind(this, "diag.zip")
             minHeight = 48.dp
             setOnClickListener { exportDiagnosticArchive() }
         })
@@ -187,6 +190,7 @@ class MainActivity : ComponentActivity() {
         layout.addView(Button(this).apply {
             LegionUiSupport.styleAction(this)
             text = "Тепловая история"
+            FeatureReveal.bind(this, "diag.thermal")
             minHeight = 48.dp
             setOnClickListener { showThermalHistory() }
         })
@@ -215,6 +219,7 @@ class MainActivity : ComponentActivity() {
         layout.addView(Button(this).apply {
             LegionUiSupport.styleAction(this)
             text = "Снять показания датчиков"
+            FeatureReveal.bind(this, "diag.sensors")
             minHeight = 48.dp
             setOnClickListener { startSensorCapture() }
         })

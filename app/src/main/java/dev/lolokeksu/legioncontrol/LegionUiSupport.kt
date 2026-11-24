@@ -75,13 +75,14 @@ object LegionUiSupport {
         button.isAllCaps = false
         button.gravity = Gravity.CENTER_VERTICAL or Gravity.START
         button.setTypeface(Typeface.DEFAULT, Typeface.BOLD)
-        button.minHeight = dp(button, 56)
-        button.setPadding(dp(button, 17), dp(button, 13), dp(button, 15), dp(button, 13))
+        button.minHeight = dp(button, 48)
+        button.minimumHeight = dp(button, 48)
+        button.setPadding(dp(button, 14), dp(button, 9), dp(button, 14), dp(button, 9))
         val parent = button.parent
         val params = button.layoutParams
         if (parent is LinearLayout && parent.orientation == LinearLayout.VERTICAL &&
             params is LinearLayout.LayoutParams) {
-            params.bottomMargin = maxOf(params.bottomMargin, dp(button, 10))
+            params.bottomMargin = maxOf(params.bottomMargin, dp(button, 6))
             button.layoutParams = params
         }
     }
@@ -181,7 +182,8 @@ object LegionUiSupport {
             letterSpacing = 0.08f
             setTextColor(ACCENT)
             setTypeface(Typeface.DEFAULT, Typeface.BOLD)
-            setPadding(0, dp(this, 18), 0, dp(this, 11))
+            isAccessibilityHeading = true
+            setPadding(0, dp(this, 14), 0, dp(this, 8))
         }
 
     /**
@@ -198,15 +200,16 @@ object LegionUiSupport {
                 ColorStateList.valueOf(0x4486B7FF),
                 shape(this, PANEL, BORDER), null
             )
-            setPadding(dp(this, 17), dp(this, 15), dp(this, 13), dp(this, 15))
+            setPadding(dp(this, 14), dp(this, 10), dp(this, 12), dp(this, 10))
             isClickable = true
             isFocusable = true
-            minimumHeight = dp(this, 56)
+            minimumHeight = dp(this, 48)
             contentDescription = if (detail.isBlank()) title else "$title. $detail"
             setOnClickListener { onClick() }
         }
         val labels = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
         }
         labels.addView(TextView(context).apply {
             text = title
@@ -248,7 +251,7 @@ object LegionUiSupport {
         button.layoutParams = LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT,
             LinearLayout.LayoutParams.WRAP_CONTENT
-        ).apply { bottomMargin = dp(button, 10) }
+        ).apply { bottomMargin = dp(button, 6) }
     }
 
     /**
@@ -319,7 +322,7 @@ object LegionUiSupport {
         val bottom = LinearLayout(activity).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
-            setPadding(dp(this, 7), dp(this, 9), dp(this, 7), dp(this, 8))
+            setPadding(dp(this, 5), dp(this, 5), dp(this, 5), dp(this, 5))
             setBackgroundColor(0xFF0D0F12.toInt())
         }
         val selectedIndex = when (activity) {
@@ -336,7 +339,7 @@ object LegionUiSupport {
                 gravity = Gravity.CENTER
                 isClickable = true
                 isFocusable = true
-                contentDescription = "Открыть раздел " + labels[index]
+                contentDescription = "Открыть раздел " + HubTab.entries[index].title
                 isSelected = selected
                 stateDescription = if (selected) "Выбрано" else "Не выбрано"
                 setOnClickListener {
@@ -354,15 +357,14 @@ object LegionUiSupport {
             }, LinearLayout.LayoutParams(dp(item, 21), dp(item, 21)))
             item.addView(TextView(activity).apply {
                 text = labels[index]
-                textSize = 10f
+                textSize = 12f
                 gravity = Gravity.CENTER
-                maxLines = 2
                 importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
                 setTextColor(tint)
                 setTypeface(null, if (selected) Typeface.BOLD else Typeface.NORMAL)
                 setPadding(0, dp(this, 6), 0, 0)
             }, LinearLayout.LayoutParams(-1, -2))
-            item.minimumHeight = dp(bottom, 57)
+            item.minimumHeight = dp(bottom, 48)
             bottom.addView(item, LinearLayout.LayoutParams(0, -2, 1f))
         }
         shell.addView(bottom)

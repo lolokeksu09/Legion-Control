@@ -90,7 +90,7 @@ class NavigationHostActivity : FragmentActivity() {
             setPadding(0, 4.dp, 0, 0)
         }
         titles.addView(subtitle)
-        header.addView(titles)
+        header.addView(titles, LinearLayout.LayoutParams(0, -2, 1f))
         root.addView(header)
 
         val separator = View(this).apply { setBackgroundColor(0xFF22262B.toInt()) }
@@ -101,7 +101,7 @@ class NavigationHostActivity : FragmentActivity() {
         val bottom = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
-            setPadding(7.dp, 9.dp, 7.dp, 8.dp)
+            setPadding(5.dp, 5.dp, 5.dp, 5.dp)
             setBackgroundColor(0xFF0D0F12.toInt())
         }
         root.addView(bottom)
@@ -139,14 +139,13 @@ class NavigationHostActivity : FragmentActivity() {
             column.addView(icon, LinearLayout.LayoutParams(21.dp, 21.dp))
             val text = TextView(this).apply {
                 text = tabs[index].shortTitle
-                textSize = 10f
+                textSize = 12f
                 gravity = Gravity.CENTER
                 setTextColor(muted)
                 setPadding(0, 6.dp, 0, 0)
-                maxLines = 2
                 importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
             }
-            column.minimumHeight = 57.dp
+            column.minimumHeight = 48.dp
             column.addView(text, LinearLayout.LayoutParams(-1, -2))
             bottom.addView(column, LinearLayout.LayoutParams(0, -2, 1f))
             buttons[id] = icon to text

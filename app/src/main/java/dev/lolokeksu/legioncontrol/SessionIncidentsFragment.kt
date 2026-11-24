@@ -49,8 +49,9 @@ class SessionIncidentsFragment : Fragment() {
             setTextColor(0xFFB4B4B4.toInt())
             setPadding(0, 12.dp, 0, 16.dp)
         })
-        fun button(label: String, onClick: () -> Unit) {
+        fun button(label: String, featureId: String? = null, onClick: () -> Unit) {
             root.addView(Button(requireContext()).apply {
+                if(featureId!=null) FeatureReveal.bind(this,featureId)
                 text = label
                 isAllCaps = false
                 minHeight = 48.dp
@@ -59,8 +60,8 @@ class SessionIncidentsFragment : Fragment() {
         }
         button("Выбрать записанную сессию") { vm.pickSessions() }
         button("Обновить эпизоды") { vm.refresh() }
-        button("Фильтр категорий") { pickFilter() }
-        button("Сохранить эпизоды CSV") { exportCsv() }
+        button("Фильтр категорий", "incidents.filter") { pickFilter() }
+        button("Сохранить эпизоды CSV", "incidents.csv") { exportCsv() }
         button("Поделиться результатом") { share() }
         button("Открыть Session Signals") {
             val report = vm.state.value?.report
