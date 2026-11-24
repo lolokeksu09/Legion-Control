@@ -141,7 +141,7 @@ class GamePreflightActivity : FragmentActivity() {
             reportSummary.text="Проверка ещё не выполнялась."
             return
         }
-        val fresh=PreflightRules.fresh(report.checkedAtElapsed,SystemClock.elapsedRealtime())
+        val fresh=s.launchFresh && PreflightRules.fresh(report.checkedAtElapsed,SystemClock.elapsedRealtime())
         reportSummary.text="Ограничения: ${report.critical} · предупреждения: ${report.warnings} · неизвестно: ${report.unknown}\n" +
             if(fresh) "Снимок выполнен по запросу. Не является FPS или ping игры." else
                 "Снимок устарел для запуска. Выполните проверку снова."
@@ -252,8 +252,9 @@ class GamePreflightActivity : FragmentActivity() {
     }
 
     private fun requestLaunch() {
-        val report=model.state.value?.report ?: return
-        if(!PreflightRules.fresh(report.checkedAtElapsed,SystemClock.elapsedRealtime())) {
+        val state=model.state.value ?: return
+        val report=state.report ?: return
+        if(!state.launchFresh || !PreflightRules.fresh(report.checkedAtElapsed,SystemClock.elapsedRealtime())) {
             status.text="Снимок устарел. Выполните проверку снова."
             return
         }
@@ -275,7 +276,7 @@ class GamePreflightActivity : FragmentActivity() {
 
     private fun launchChecked(report:PreflightReport) {
         val s=model.state.value ?: return
-        if(s.busy || s.report!==report || s.selected?.packageName!=report.packageName ||
+        if(s.busy || !s.launchFresh || s.report!==report || s.selected?.packageName!=report.packageName ||
             !PreflightRules.fresh(report.checkedAtElapsed,SystemClock.elapsedRealtime())) {
             status.text="Игра или проверка изменились. Выполните проверку снова."
             return
@@ -289,6 +290,16 @@ class GamePreflightActivity : FragmentActivity() {
         runCatching { startActivity(intent) }.onFailure {
             status.text="Android не открыл экран: " + it.javaClass.simpleName
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        model.setVisible(true)
+    }
+
+    override fun onStop() {
+        model.setVisible(false)
+        super.onStop()
     }
 
     override fun onResume() {

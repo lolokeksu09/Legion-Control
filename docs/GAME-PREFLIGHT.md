@@ -8,7 +8,7 @@ Open **Game Preflight** from Games, Tools, feature search, or a specific game de
 
 Check explicitly. Eleven findings cover thermal status, battery temperature, battery level, power saving, display refresh versus target and reported modes, available RAM, network validation, launcher availability, Capture Studio, Game Session, and unfinished global profile undo. Unknown values are not counted as normal. No performance score. No ping probe.
 
-Open official Android settings or Game Toolbox / Game Session explicitly. Share the current report as plain text through Android's chooser. The checked-launch path rejects stale or changed snapshots, asks for confirmation if warnings or unknown values remain, and advises waiting if thermal limits are reported. Re-resolves Launcher Intent before launch; does not apply any system profile.
+Open official Android settings or Game Toolbox / Game Session explicitly. Share the current report as plain text through Android's chooser. The checked-launch path rejects stale or changed snapshots (including leaving the Activity and returning from Android settings), asks for confirmation if warnings or unknown values remain, and advises waiting if thermal limits are reported. Re-resolves Launcher Intent before launch; does not apply any system profile.
 
 ## Data and constraints
 

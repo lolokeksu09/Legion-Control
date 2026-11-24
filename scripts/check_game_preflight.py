@@ -20,6 +20,8 @@ assert "DeviceCapabilitiesBackend.read(context)" in backend
 assert "LIMIT = 256" in backend and ".commit()" in backend
 assert "report=null" in vm and "ApplicationInventory.launchable(app)" in vm
 assert "PreflightRules.fresh" in ui and "s.report!==report" in ui
+assert "model.setVisible(false)" in ui and "!s.launchFresh" in ui
+assert "visibilityGeneration" in vm and "launchFresh=false" in vm
 assert "report.critical>0" in ui and "ApplicationInventory.launchIntent(this,report.packageName)" in ui
 assert "GamePreflightActivity.EXTRA_PACKAGE" in graph
 for banned in ("startForegroundService(", "startService(", "WorkManager", "Settings.System.put", "GameLaunchProfiles.apply(", "Runtime.getRuntime", "ProcessBuilder"):

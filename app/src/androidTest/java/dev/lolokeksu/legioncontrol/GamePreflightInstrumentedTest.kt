@@ -1,6 +1,7 @@
 package dev.lolokeksu.legioncontrol
 
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -62,6 +63,13 @@ class GamePreflightInstrumentedTest {
                 assertTrue(PreflightRules.fresh(report.checkedAtElapsed,android.os.SystemClock.elapsedRealtime()))
                 assertFalse(GameSessionRecorderService.sessionActive)
                 assertFalse(CaptureCoordinator.busy())
+                assertTrue(state.launchFresh)
+            }
+            scenario.moveToState(Lifecycle.State.CREATED)
+            scenario.moveToState(Lifecycle.State.RESUMED)
+            scenario.onActivity {
+                assertNotNull("Stopped screen retains shareable report",vm.state.value!!.report)
+                assertFalse("Returning to screen requires a new launch check",vm.state.value!!.launchFresh)
                 vm.savePreset(presetB)
             }
             await("Changing requirements invalidates prior report") {

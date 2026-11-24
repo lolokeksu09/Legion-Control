@@ -13,6 +13,7 @@ data class PreflightState(
     val selected: LaunchableApp? = null,
     val preset: PreflightPreset = PreflightPreset(),
     val report: PreflightReport? = null,
+    val launchFresh: Boolean = false,
     val busy: Boolean = false,
     val message: String = "Выберите игру из списка приложений Android."
 )
@@ -24,6 +25,16 @@ class GamePreflightViewModel(app: Application): AndroidViewModel(app) {
     val state: LiveData<PreflightState> = mutable
     private var initialized = false
     private var closed = false
+    private var visible = false
+    private var visibilityGeneration = 0L
+
+    fun setVisible(value:Boolean) {
+        if (visible == value) return
+        visible=value
+        visibilityGeneration++
+        if(!value) update(current().copy(launchFresh=false))
+    }
+
     private fun current() = requireNotNull(mutable.value)
     private fun update(s: PreflightState) { if (!closed) mutable.value = s }
 
@@ -35,7 +46,7 @@ class GamePreflightViewModel(app: Application): AndroidViewModel(app) {
 
     fun loadApps(preferred: String? = current().selected?.packageName) {
         if (current().busy) return
-        update(current().copy(busy=true,report=null,message="Читаю видимые приложения Android…"))
+        update(current().copy(busy=true,report=null,launchFresh=false,message="Читаю видимые приложения Android…"))
         worker.execute {
             val app = getApplication<Application>()
             val result = runCatching {
@@ -63,7 +74,7 @@ class GamePreflightViewModel(app: Application): AndroidViewModel(app) {
         val old = current()
         if (old.busy) return
         val chosen = old.apps.firstOrNull { it.packageName == pkg } ?: return
-        update(old.copy(busy=true,selected=null,report=null,message="Загружаю требования игры…"))
+        update(old.copy(busy=true,selected=null,report=null,launchFresh=false,message="Загружаю требования игры…"))
         worker.execute {
             val result = runCatching { PreflightPresets.read(getApplication(),pkg) }
             main.post {
@@ -80,7 +91,7 @@ class GamePreflightViewModel(app: Application): AndroidViewModel(app) {
         val old=current()
         val app=old.selected ?: return
         if(old.busy) return
-        update(old.copy(busy=true,report=null,message="Сохраняю требования…"))
+        update(old.copy(busy=true,report=null,launchFresh=false,message="Сохраняю требования…"))
         worker.execute {
             val saved=runCatching { PreflightPresets.save(getApplication(),app.packageName,preset) }
                 .getOrDefault(false)
@@ -88,7 +99,7 @@ class GamePreflightViewModel(app: Application): AndroidViewModel(app) {
                 if(closed) return@post
                 update(current().copy(busy=false,preset=if(saved) preset else old.preset,
                     message=if(saved) "Требования сохранены для ${app.label}. Обновите проверку."
-                        else "Не удалось сохранить требования. Прежний профиль не изменён."))
+                        else "Не удалось подтвердить сохранение. Обновите список и проверьте сохранённые требования."))
             }
         }
     }
@@ -96,15 +107,20 @@ class GamePreflightViewModel(app: Application): AndroidViewModel(app) {
     fun check() {
         val old=current()
         val app=old.selected ?: return
-        if(old.busy) return
-        update(old.copy(busy=true,report=null,message="Проверяю состояние устройства…"))
+        if(old.busy || !visible) return
+        val token=visibilityGeneration
+        update(old.copy(busy=true,report=null,launchFresh=false,message="Проверяю состояние устройства…"))
         worker.execute {
             val result=runCatching { GamePreflightBackend.check(getApplication(),app,old.preset) }
             main.post {
                 if(closed) return@post
-                update(current().copy(busy=false,report=result.getOrNull(),
-                    message=if(result.isSuccess) "Проверка завершена. Результат действителен для запуска 60 секунд."
-                        else "Не удалось завершить проверку. Повторите попытку."))
+                val fresh=result.isSuccess && visible && token==visibilityGeneration
+                update(current().copy(busy=false,report=result.getOrNull(),launchFresh=fresh,
+                    message=when {
+                        fresh -> "Проверка завершена. Результат действителен для запуска 60 секунд."
+                        result.isSuccess -> "Снимок сохранён для отчёта. Для запуска выполните проверку снова."
+                        else -> "Не удалось завершить проверку. Повторите попытку."
+                    }))
             }
         }
     }
