@@ -11,7 +11,8 @@ internal data class LiveNetworkPoint(
     val tcpMs: Double?,
     val tcpState: String,
     val gatewayMs: Double?,
-    val gatewayState: String
+    val gatewayState: String,
+    val gatewayAddress: String? = null
 )
 
 internal data class LiveNetworkSummary(

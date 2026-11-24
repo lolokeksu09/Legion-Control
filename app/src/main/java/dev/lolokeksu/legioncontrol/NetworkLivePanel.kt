@@ -104,9 +104,23 @@ internal class NetworkLivePanel(context:Context,private val onRunningChanged:()-
         val s=LiveNetworkPolicy.summarize(points)
         fun fmt(v:Double?)=v?.let { String.format(Locale.US,"%.1f",it) } ?: "н/д"
         val p=points.lastOrNull()
+        fun state(value:String?)=when(value) {
+            "OK" -> "успех"
+            "TCP_ERROR" -> "ошибка TCP"
+            "DNS_ERROR" -> "ошибка DNS"
+            "NO_NETWORK" -> "нет сети"
+            "SWITCHED" -> "сеть изменилась"
+            "NO_REPLY" -> "нет ответа"
+            "UNAVAILABLE" -> "недоступно"
+            else -> "—"
+        }
+        val prior=points.getOrNull(points.lastIndex-1)
+        val delta=if(p!=null && prior!=null && LiveNetworkPolicy.connected(prior,p) &&
+            LiveNetworkPolicy.valid(p.tcpMs) && LiveNetworkPolicy.valid(prior.tcpMs)) p.tcpMs!!-prior.tcpMs!! else null
         status.text=prefix+" · "+(p?.network ?: "—")+"\n"+
-            "TCP: "+fmt(p?.tcpMs)+" мс · "+(p?.tcpState ?: "—")+"\n"+
-            "Шлюз: "+fmt(p?.gatewayMs)+" мс · "+(p?.gatewayState ?: "—")+"\n"+
+            "TCP: "+fmt(p?.tcpMs)+" мс · "+state(p?.tcpState)+"\n"+
+            "Шлюз: "+(p?.gatewayAddress ?: "н/д")+" · "+fmt(p?.gatewayMs)+" мс · "+state(p?.gatewayState)+"\n"+
+            "Изменение TCP между соседними пробами: "+fmt(delta)+" мс\n"+
             "Джиттер TCP: "+fmt(s.jitterMs)+" мс · ошибки: "+fmt(s.failurePercent)+"%\n"+
             "Успех / ошибка / недоступно: "+s.successful+" / "+s.failed+" / "+s.unavailable+
             " · смены сети: "+s.switches+"\n"+

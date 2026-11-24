@@ -10,7 +10,7 @@ import java.net.NetworkInterface
 
 /** Explicit visible-only probes. TCP is bound to the captured Android Network. */
 internal class LiveNetworkProbe(context: Context) {
-    private val cm=context.getSystemService(ConnectivityManager::class.java)
+    private val cm=requireNotNull(context.getSystemService(ConnectivityManager::class.java))
     fun capture(host: String,offsetMs: Long): LiveNetworkPoint {
         require(LiveNetworkPolicy.host(host)==host)
         fun checkCancel() { if(Thread.currentThread().isInterrupted) throw InterruptedException() }
@@ -28,9 +28,11 @@ internal class LiveNetworkProbe(context: Context) {
         }
         var gatewayMs:Double?=null
         var gatewayState="UNAVAILABLE"
+        var gatewayAddress:String?=null
         if(transport=="WIFI") {
             val link=cm.getLinkProperties(net)
             val gateway=link?.routes?.firstOrNull { it.isDefaultRoute && it.gateway is Inet4Address }?.gateway
+            gatewayAddress=gateway?.hostAddress
             val iface=link?.interfaceName?.let { runCatching { NetworkInterface.getByName(it) }.getOrNull() }
             if(gateway!=null && iface!=null) {
                 val start=SystemClock.elapsedRealtimeNanos()
@@ -59,6 +61,6 @@ internal class LiveNetworkProbe(context: Context) {
         }
         checkCancel()
         if(cm.activeNetwork!=net) return LiveNetworkPoint(offsetMs,transport,net.networkHandle,null,null,"SWITCHED",null,"UNAVAILABLE")
-        return LiveNetworkPoint(offsetMs,transport,net.networkHandle,address?.hostAddress,tcpMs,tcpState,gatewayMs,gatewayState)
+        return LiveNetworkPoint(offsetMs,transport,net.networkHandle,address?.hostAddress,tcpMs,tcpState,gatewayMs,gatewayState,gatewayAddress)
     }
 }
