@@ -107,6 +107,7 @@ class GameSessionFragment : Fragment() {
             setPadding(0,14.dp,0,20.dp)
             accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
         }
+        LegionUiSupport.reportSurface(reportView)
         root.addView(reportView)
         action("Открыть выбранное приложение") { openSelectedApp() }
         action("ОСТАНОВИТЬ ЗАПИСЬ") { stopRecording() }
