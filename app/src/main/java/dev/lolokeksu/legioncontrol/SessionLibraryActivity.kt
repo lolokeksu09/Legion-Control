@@ -36,7 +36,7 @@ class SessionLibraryActivity:FragmentActivity() {
         val current=vm.state.value
         if(uri==null) {
             current?.let(::render)
-        } else if(selected!=null && current?.detail===selected && current.busy==false) {
+        } else if(selected!=null && current!=null && current.detail===selected && !current.busy) {
             vm.export(uri,selected)
         } else {
             current?.let(::render)
