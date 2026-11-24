@@ -10,6 +10,7 @@ import org.json.JSONObject
 /** Dedicated private archive. No changes to the legacy v12 schema or ZIP format. */
 internal class LiveNetworkArchive(context:Context,name:String="legion_live_network.db"):
     SQLiteOpenHelper(context.applicationContext,name,null,1) {
+    private val app=context.applicationContext
     companion object { const val LIMIT=50 }
     override fun onCreate(db:SQLiteDatabase) {
         db.execSQL("CREATE TABLE live_runs(id TEXT PRIMARY KEY NOT NULL, started INTEGER NOT NULL, payload TEXT NOT NULL)")
@@ -17,7 +18,8 @@ internal class LiveNetworkArchive(context:Context,name:String="legion_live_netwo
     override fun onUpgrade(db:SQLiteDatabase,oldVersion:Int,newVersion:Int) {
         error("Unsupported live network archive migration")
     }
-    fun save(record:LiveNetworkRecord) {
+    fun save(record:LiveNetworkRecord) = synchronized(LegionDataBackup) {
+        LegionDataBackup.checkLabWritesAllowed(app)
         val r=record.redacted()
         val payload=encode(r)
         val db=writableDatabase
@@ -39,8 +41,34 @@ internal class LiveNetworkArchive(context:Context,name:String="legion_live_netwo
     ).use { cursor->
         buildList { while(cursor.moveToNext()) add(decode(cursor.getString(0))) }
     }
-    fun delete(id:String):Boolean = writableDatabase.delete("live_runs","id=?",arrayOf(id))==1
-    private fun encode(r:LiveNetworkRecord):String=JSONObject().apply {
+    fun delete(id:String):Boolean = synchronized(LegionDataBackup) {
+        LegionDataBackup.checkLabWritesAllowed(app)
+        writableDatabase.delete("live_runs","id=?",arrayOf(id))==1
+    }
+
+    internal fun count():Int = readableDatabase.rawQuery("SELECT COUNT(*) FROM live_runs",null)
+        .use { check(it.moveToFirst());it.getInt(0) }
+
+    internal fun restoreRecords(records:List<LiveNetworkRecord>) {
+        require(records.size<=LIMIT && records.map{it.id}.toSet().size==records.size)
+        val wanted=records.associateBy{it.id}
+        val db=writableDatabase
+        db.beginTransaction()
+        try {
+            val existing=list()
+            check(count()==existing.size && existing.all{wanted[it.id]==it}) {
+                "Архив содержит записи, отличные от журнала восстановления."
+            }
+            val ids=existing.mapTo(HashSet()){it.id}
+            records.filter{it.id !in ids}.forEach { item->
+                db.insertOrThrow("live_runs",null,ContentValues().apply{
+                    put("id",item.id);put("started",item.startedAt);put("payload",encode(item))
+                })
+            }
+            db.setTransactionSuccessful()
+        } finally {db.endTransaction()}
+    }
+    internal fun encode(r:LiveNetworkRecord):String=JSONObject().apply {
         put("v",2);put("ipMode",r.ipMode.name);put("id",r.id);put("host",r.host);put("started",r.startedAt)
         put("plan",r.plan.name);put("end",r.end.name)
         put("points",JSONArray().apply {
@@ -52,7 +80,7 @@ internal class LiveNetworkArchive(context:Context,name:String="legion_live_netwo
             }) }
         })
     }.toString()
-    private fun decode(raw:String):LiveNetworkRecord {
+    internal fun decode(raw:String):LiveNetworkRecord {
         require(raw.length<=100_000)
         val obj=JSONObject(raw)
         val version=obj.getInt("v")

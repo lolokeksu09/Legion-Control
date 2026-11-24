@@ -84,6 +84,7 @@ class FullBackupInstrumentedTest {
         entries["preferences.json"] = bytes
         val manifest = JSONObject(String(entries.getValue("manifest.json"), Charsets.UTF_8))
         manifest.put("version", version)
+        if(version<3){entries.remove("labs.json");manifest.remove("labs_sha256")}
         manifest.put("preferences_sha256", MessageDigest.getInstance("SHA-256")
             .digest(bytes).joinToString("") { "%02x".format(it.toInt() and 0xff) })
         entries["manifest.json"] = manifest.toString().toByteArray(Charsets.UTF_8)
@@ -137,7 +138,7 @@ class FullBackupInstrumentedTest {
             assertTrue(PreflightPresets.save(app, pkgB, presetB))
             assertTrue(PreflightPresets.save(app, longPkg, presetA))
             val exported = LegionDataBackup.export(app, backup)
-            assertEquals(2, exported.archiveVersion)
+            assertEquals(3, exported.archiveVersion)
             assertTrue(exported.rows >= 2)
             assertTrue(exported.settings >= 1)
             val preview = LegionDataBackup.preview(app, backup)
@@ -206,7 +207,7 @@ class FullBackupInstrumentedTest {
             assertTrue(preflight.edit().clear().commit())
             // Same SAF URI, different valid contents: the previously approved hash must reject it.
             val confirmed = requireNotNull(preview.identity)
-            val replacement = rewritePreferences(originalBytes, 2) {
+            val replacement = rewritePreferences(originalBytes, 3) {
                 it.getJSONObject("legion-capture-studio").put("ci_restore_sentinel",
                     JSONObject().put("type","string").put("value","replacement"))
             }

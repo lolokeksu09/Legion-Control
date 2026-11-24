@@ -234,7 +234,7 @@ class CaptureStudioActivity : ComponentActivity() {
         heading("Полная локальная резервная копия")
         note("История SQLite и настройки Legion Control в одном ZIP через SAF. " +
             "Архив содержит сведения о ваших приложениях и сессиях — храните его приватно. " +
-            "ZIP v2 включает индивидуальные требования Game Preflight. Старые ZIP v1 поддерживаются. " +
+            "ZIP v3 включает Game Preflight и архивы Network/Battery. Старые ZIP v1/v2 поддерживаются. " +
             "Видеофайлы MP4 и PNG в архив НЕ входят.")
         action("ЭКСПОРТ ИСТОРИИ И НАСТРОЕК", "capture.backup") {
             val choose = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
@@ -289,12 +289,14 @@ class CaptureStudioActivity : ComponentActivity() {
                 .setTitle("Восстановить локальные данные?")
                 .setMessage("Архив проверен: SQLite v${inspected.preview.schema}, " +
                     "таблиц ${inspected.preview.tables}, записей ${inspected.preview.rows}, " +
-                    "параметров ${inspected.preview.settings}.\n\n" +
+                    "параметров ${inspected.preview.settings}.\n" +
+                    "Network: ${inspected.preview.networkRuns}; Battery: ${inspected.preview.batteryRuns}.\n\n" +
                     "Импорт разрешён только в ПУСТУЮ базу и не удаляет существующую " +
                     "историю. Настройки, включённые в архив, будут заменены. " +
                     (if(inspected.preview.archiveVersion == 1)
-                        "ZIP v1 не содержит Game Preflight: текущие требования игр сохранятся. "
-                    else "ZIP v2 включает требования Game Preflight. ") +
+                        "ZIP v1 не содержит Game Preflight и Network/Battery: эти данные сохранятся. "
+                    else if(inspected.preview.archiveVersion==2) "ZIP v2 включает Game Preflight; архивы Network/Battery не меняются. "
+                    else "ZIP v3 требует пустые Network/Battery архивы. ") +
                     "MP4/PNG и ключ подписи не импортируются.")
                 .setPositiveButton("Восстановить") { _, _ ->
                     val confirmed = inspected.preview.identity
