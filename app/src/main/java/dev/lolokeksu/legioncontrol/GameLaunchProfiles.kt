@@ -257,7 +257,7 @@ object GameLaunchProfiles {
         } else prefs(context).edit().remove(ACTIVE).remove(OWNER).commit()
         val summary = "Восстановлено: $restored; изменения пользователя не тронуты: $conflicts; " +
             "ошибок Android: $failures."
-        if (!saved) GameLaunchResult(false, "$summary Не удалось сохранить результат возврата.")
+        return if (!saved) GameLaunchResult(false, "$summary Не удалось сохранить результат возврата.")
         else GameLaunchResult(!remaining.pending,
             "$summary " + if (remaining.pending) "Есть незавершённые действия, повторите возврат."
             else "Возврат завершён.")

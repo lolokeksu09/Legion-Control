@@ -39,6 +39,10 @@ manual_restore = engine[engine.index("fun restore(context"):engine.index("privat
 assert auto_restore.index("ProfileMaintenanceGate.tryRun") < auto_restore.index("synchronized(lock)")
 assert manual_restore.index("ProfileMaintenanceGate.tryRun") < manual_restore.index("synchronized(lock)")
 assert "private fun restoreLocked(context: Context)" in engine
+restore_locked = engine[engine.index("private fun restoreLocked"):engine.rindex("\\n}")]
+assert "return@synchronized" not in restore_locked
+assert "return if (!saved)" in restore_locked
+
 
 assert "ACTION_MANAGE_WRITE_SETTINGS" not in engine
 assert all(forbidden not in engine for forbidden in (
