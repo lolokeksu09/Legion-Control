@@ -532,7 +532,13 @@ def main() -> None:
     click("ЗАФИКСИРОВАТЬ КОНТРОЛЬНУЮ ТОЧКУ", scrolls=10, exact_only=True)
     expect("Изменение относительно сохранённого замера")
     capture("22-live-monitor-baseline")
-    back_until("Готов к запуску")
+    # The origin Home is scrolled down to the Live Monitor tile. Its title may
+    # be offscreen or loading. Press Back once and wait for the fixed host header;
+    # repeated Back presses on Home would exit to Android Launcher.
+    adb("shell", "input", "keyevent", "KEYCODE_BACK")
+    expect("GAME HUB ·")
+    expect_selected_tab("Главная")
+    expect_scrolling("Готов к запуску", seconds=25)
     click("Игры")
     click("Game Preflight", scrolls=8, exact_only=True)
     stage("23-game-preflight-idle", "ПРОВЕРКА ПЕРЕД ИГРОЙ")
@@ -543,9 +549,17 @@ def main() -> None:
     click("Session Compare", scrolls=10, exact_only=True)
     stage("24-session-compare-idle", "СРАВНЕНИЕ ИГРОВЫХ СЕССИЙ")
     expect("ВЫБРАТЬ ИГРУ ИЗ ИСТОРИИ")
-    back_until("История игр")
+    adb("shell", "input", "keyevent", "KEYCODE_BACK")
+    expect("ИСТОРИЯ И ДИАГНОСТИКА")
+    expect_selected_tab("История")
+    click("Session Library", scrolls=10, direction="up", exact_only=True)
+    stage("25-session-library", "БИБЛИОТЕКА ИГРОВЫХ СЕССИЙ")
+    expect("Фильтр по игре")
+    adb("shell", "input", "keyevent", "KEYCODE_BACK")
+    expect("ИСТОРИЯ И ДИАГНОСТИКА")
+    expect_selected_tab("История")
     click("Главная")
-    expect("Готов к запуску")
+    expect_scrolling("Готов к запуску", seconds=25)
     print("PASS: Android emulator UI navigation, explicit marker persisted in SQLite,",
           "signal correlation, selected package, foreground START/STOP, back stack",flush=True)
 

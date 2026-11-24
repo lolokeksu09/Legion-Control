@@ -80,6 +80,7 @@
         <activity android:name=".LiveMonitorActivity" android:exported="false" />
         <activity android:name=".GamePreflightActivity" android:exported="false" />
         <activity android:name=".SessionCompareActivity" android:exported="false" />
+        <activity android:name=".SessionLibraryActivity" android:exported="false" />
         <activity android:name=".HardwareLabActivity" android:exported="false" />
         <activity android:name=".DisplayPatternActivity" android:exported="false" />
         <activity android:name=".GamingDiagnosticsActivity" android:exported="false" />

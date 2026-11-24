@@ -371,6 +371,7 @@ class HubPageFragment : Fragment() {
             FeatureModule.MONITOR -> openStandaloneFeature(LiveMonitorActivity::class.java, args)
             FeatureModule.PREFLIGHT -> openStandaloneFeature(GamePreflightActivity::class.java, args)
             FeatureModule.COMPARE -> openStandaloneFeature(SessionCompareActivity::class.java, args)
+            FeatureModule.LIBRARY -> openStandaloneFeature(SessionLibraryActivity::class.java, args)
         }
     }
 
@@ -400,7 +401,8 @@ class HubPageFragment : Fragment() {
             ),
             "Эксперименты" to listOf(
                 CatalogAction("Experiment Lab", "A/B-сравнения и заметки") { open(ExperimentLabActivity::class.java) },
-                CatalogAction("Session Compare", "Две выбранные сессии и совмещённые графики") { open(SessionCompareActivity::class.java) }
+                CatalogAction("Session Compare", "Две выбранные сессии и совмещённые графики") { open(SessionCompareActivity::class.java) },
+                CatalogAction("Session Library", "Фильтры истории и ZIP одной записи") { open(SessionLibraryActivity::class.java) }
             )
         )
         val input = EditText(requireContext()).apply {
@@ -480,6 +482,7 @@ class HubPageFragment : Fragment() {
         group("Записи")
         tile("Игровые сессии", "Просмотр сохранённых Game Session") { open(GameSessionActivity::class.java) }
         tile("Клипы MP4", "Movies/LegionControl/ · локальная библиотека") { open(CaptureStudioActivity::class.java) }
+        tile("Session Library", "Фильтры, страницы и архив отдельной записи") { open(SessionLibraryActivity::class.java) }
         group("Анализ игровых сеансов")
         tile("Session Compare", "Две выбранные записи одной игры · сравнение одинаковых интервалов") {
             open(SessionCompareActivity::class.java)

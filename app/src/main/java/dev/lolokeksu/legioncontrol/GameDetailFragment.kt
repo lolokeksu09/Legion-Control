@@ -163,6 +163,9 @@ class GameDetailFragment : Fragment() {
                 it.putExtra("app_center_package", pkg)
             }
         }
+        addAction("Session Library", "Открыть историю записей этой игры") {
+            open(SessionLibraryActivity::class.java) { it.putExtra(SessionLibraryActivity.EXTRA_PACKAGE,pkg) }
+        }
         addAction("Session Compare", "Сравнить одинаковые интервалы двух записей этой игры") {
             open(SessionCompareActivity::class.java) { it.putExtra(SessionCompareActivity.EXTRA_PACKAGE,pkg) }
         }

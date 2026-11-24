@@ -18,7 +18,8 @@ enum class FeatureModule(val displayName: String) {
     GAMEPAD("Gamepad Live"),
     MONITOR("Live Monitor"),
     PREFLIGHT("Game Preflight"),
-    COMPARE("Session Compare")
+    COMPARE("Session Compare"),
+    LIBRARY("Session Library")
 }
 
 data class FeatureEntry(
@@ -111,7 +112,11 @@ object FeatureFinder {
         FeatureEntry("compare.window", FeatureModule.COMPARE, "Сравнение одинаковых временных окон", "Выбрать окно сравнения", "session compare 5 10 15 30 минут"),
         FeatureEntry("compare.run", FeatureModule.COMPARE, "Сравнить выбранные записи", "СРАВНИТЬ ВЫБРАННЫЕ СЕССИИ", "session compare заряд нагрев сеть дисплей"),
         FeatureEntry("compare.graph", FeatureModule.COMPARE, "Совмещённый график сессий", "Выбрать показатель сравнения", "session compare график температура заряд герцы"),
-        FeatureEntry("compare.csv", FeatureModule.COMPARE, "Экспорт сравнения двух сессий CSV", "СОХРАНИТЬ СРАВНЕНИЕ CSV", "session compare экспорт csv")
+        FeatureEntry("compare.csv", FeatureModule.COMPARE, "Экспорт сравнения двух сессий CSV", "СОХРАНИТЬ СРАВНЕНИЕ CSV", "session compare экспорт csv"),
+        FeatureEntry("library.game", FeatureModule.LIBRARY, "Фильтрация истории по игре", "Фильтр по игре", "session library игры история"),
+        FeatureEntry("library.period", FeatureModule.LIBRARY, "Фильтрация записей по периоду", "Фильтр по периоду", "session library дата 7 30 90"),
+        FeatureEntry("library.state", FeatureModule.LIBRARY, "Фильтрация завершённых и прерванных сессий", "Фильтр по завершению", "session library статус"),
+        FeatureEntry("library.zip", FeatureModule.LIBRARY, "Архив одной игровой сессии", "ЭКСПОРТ ВЫБРАННОЙ СЕССИИ ZIP", "session library zip экспорт телеметрия события")
     )
 
     fun resolve(id: String?, module: FeatureModule): FeatureEntry? =
