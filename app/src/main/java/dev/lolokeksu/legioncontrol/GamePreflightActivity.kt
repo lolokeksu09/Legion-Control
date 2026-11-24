@@ -133,8 +133,8 @@ class GamePreflightActivity : FragmentActivity() {
         check.isEnabled=edit.isEnabled
         appInfo.isEnabled=edit.isEnabled
         session.isEnabled=edit.isEnabled
-        launch.isEnabled=!s.busy && s.report!=null
-        share.isEnabled=launch.isEnabled
+        launch.isEnabled=false
+        share.isEnabled=!s.busy && s.report!=null
         results.removeAllViews()
         val report=s.report
         if(report==null) {
@@ -142,6 +142,7 @@ class GamePreflightActivity : FragmentActivity() {
             return
         }
         val fresh=s.launchFresh && PreflightRules.fresh(report.checkedAtElapsed,SystemClock.elapsedRealtime())
+        launch.isEnabled=!s.busy && fresh
         reportSummary.text="Ограничения: ${report.critical} · предупреждения: ${report.warnings} · неизвестно: ${report.unknown}\n" +
             if(fresh) "Снимок выполнен по запросу. Не является FPS или ping игры." else
                 "Снимок устарел для запуска. Выполните проверку снова."
