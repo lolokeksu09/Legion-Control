@@ -79,8 +79,9 @@ class HapticLabFragment:Fragment() {
             root.addView(control,LinearLayout.LayoutParams(-1,-2).apply { bottomMargin=12.dp })
             return control
         }
-        fun action(t:String,run:()->Unit):Button {
+        fun action(t:String,featureId:String?=null,run:()->Unit):Button {
             val b=Button(requireContext()).apply {
+                if(featureId!=null) FeatureReveal.bind(this,featureId)
                 text=t;isAllCaps=false;minHeight=48.dp;textSize=14f
                 setTextColor(Color.WHITE)
                 background=GradientDrawable().apply {
@@ -105,7 +106,7 @@ class HapticLabFragment:Fragment() {
         levelSpinner=spinner("Цифровая интенсивность",listOf(
             "GENTLE · 48/255","MEDIUM · 96/255","STRONG · 160/255"))
         startButton=action("ЗАПУСТИТЬ ТАКТИЛЬНЫЙ ТЕСТ") { startSelected() }
-        action("Быстрая проверка: один короткий импульс") { startTest("TAP","GENTLE") }
+        action("Быстрая проверка: один короткий импульс", "haptic.test") { startTest("TAP","GENTLE") }
         action("Два коротких импульса") { startTest("DOUBLE_TAP","MEDIUM") }
         action("Три импульса") { startTest("TRIPLE_PULSE","MEDIUM") }
         action("Медленная последовательность") { startTest("SLOW_PULSE","GENTLE") }
@@ -115,7 +116,7 @@ class HapticLabFragment:Fragment() {
         }
         stopButton.isEnabled=false
         title("Возможности вибромотора")
-        action("Проверить Android Vibra-capabilities") { inspect() }
+        action("Проверить Android Vibra-capabilities", "haptic.capabilities") { inspect() }
         action("Сохранить проверенные возможности в историю") { saveCapabilities() }
         action("Последний сохранённый снимок возможностей") { savedCapabilities() }
         action("Открыть системные настройки звука и вибрации") {
