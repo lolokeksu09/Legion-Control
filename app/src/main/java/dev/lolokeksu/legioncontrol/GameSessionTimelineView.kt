@@ -2,79 +2,58 @@ package dev.lolokeksu.legioncontrol
 
 import android.content.Context
 import android.graphics.Canvas
-import android.graphics.Color
 import android.graphics.Paint
 import android.view.View
-import java.util.Locale
 
 /** Battery-temperature timeline for the user's most recent recorded session. */
 class GameSessionTimelineView(context: Context) : View(context) {
+    private val frame = LegionChartFrame(this)
     private val line = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color=LegionUiSupport.ACCENT
-        strokeWidth=3f*resources.displayMetrics.density
-        style=Paint.Style.STROKE
-    }
-    private val grid = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color=LegionUiSupport.BORDER
-        strokeWidth=resources.displayMetrics.density
-    }
-    private val label = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color=LegionUiSupport.MUTED
-        textSize=12f*resources.displayMetrics.scaledDensity
+        strokeWidth=frame.lineWidth
     }
     private val warning = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color=0xFFFF7360.toInt()
+        color=LegionUiSupport.DANGER
         style=Paint.Style.FILL
+    }
+    init {
+        background=LegionUiSupport.cardSurface(this)
+        importantForAccessibility=IMPORTANT_FOR_ACCESSIBILITY_YES
+        contentDescription="Температура батареи: нет данных."
     }
     private var samples: List<GameTelemetryPoint> = emptyList()
 
     fun setPoints(points: List<GameTelemetryPoint>) {
         samples=points.filter { it.batteryTempDeciC in -400..1200 }
+        contentDescription=if(samples.isEmpty()) "Температура батареи: нет данных."
+        else "Температура батареи: от ${samples.minOf { it.batteryTempDeciC!! }/10.0} до ${samples.maxOf { it.batteryTempDeciC!! }/10.0} °C. Замеров: ${samples.size}."
         invalidate()
     }
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-        canvas.drawColor(Color.BLACK)
-        val left=54f*resources.displayMetrics.density
-        val right=width-14f*resources.displayMetrics.density
-        val top=26f*resources.displayMetrics.density
-        val bottom=height-30f*resources.displayMetrics.density
-        if(right<=left || bottom<=top) return
-        canvas.drawText("ТЕМПЕРАТУРА БАТАРЕИ · °C",left,top-8f*resources.displayMetrics.density,label)
-        if (samples.size < 2) {
-            canvas.drawText("Недостаточно замеров для графика",left,top+36f,label)
-            return
-        }
-        val minC=(samples.minOf { it.batteryTempDeciC!! }/10.0)
-        val maxC=(samples.maxOf { it.batteryTempDeciC!! }/10.0)
-        val range=(maxC-minC).coerceAtLeast(1.0)
-        for(i in 0..3) {
-            val y=top+(bottom-top)*i/3
-            canvas.drawLine(left,y,right,y,grid)
-            val value=maxC-range*i/3
-            canvas.drawText(String.format(Locale.US,"%.1f",value),3f,y+4f,label)
-        }
+        if(samples.isEmpty()) { frame.empty(canvas); return }
+        val minC=samples.minOf { it.batteryTempDeciC!! }/10.0
+        val maxC=samples.maxOf { it.batteryTempDeciC!! }/10.0
         val start=samples.first().timeMs
         val span=(samples.last().timeMs-start).coerceAtLeast(1)
-        fun x(p: GameTelemetryPoint)=left+(right-left)*(p.timeMs-start).toFloat()/span
-        fun y(p: GameTelemetryPoint)=bottom-(bottom-top)*((p.batteryTempDeciC!!/10.0-minC)/range).toFloat()
+        val plot=frame.axes(canvas,minC,maxC,span,"°C") ?: return
+        fun x(p:GameTelemetryPoint)=plot.left+plot.width()*(p.timeMs-start).toFloat()/span
+        fun y(p:GameTelemetryPoint)=frame.y(plot,p.batteryTempDeciC!!/10.0,minC,maxC)
 
         // Reduce rendering while preserving the first, last and extrema in every bucket.
         val bucket=(samples.size/250).coerceAtLeast(1)
-        val plot=samples.chunked(bucket).flatMap { block ->
+        val reduced=samples.chunked(bucket).flatMap { block ->
             if(block.size==1) block else listOf(block.first(),
                 block.minBy { it.batteryTempDeciC!! },block.maxBy { it.batteryTempDeciC!! },
                 block.last()).distinct().sortedBy { it.timeMs }
         }.distinctBy { it.timeMs }
-        for(i in 1 until plot.size) {
-            canvas.drawLine(x(plot[i-1]),y(plot[i-1]),x(plot[i]),y(plot[i]),line)
+        for(i in 1 until reduced.size) {
+            canvas.drawLine(x(reduced[i-1]),y(reduced[i-1]),x(reduced[i]),y(reduced[i]),line)
         }
-        plot.filter { (it.thermalStatus ?: -1)>=3 }.forEach {
+        if(reduced.size == 1) canvas.drawCircle(x(reduced[0]),y(reduced[0]),frame.pointRadius,line)
+        reduced.filter { (it.thermalStatus ?: -1)>=3 }.forEach {
             canvas.drawCircle(x(it),y(it),4f*resources.displayMetrics.density,warning)
         }
-        canvas.drawText("0 мин",left,bottom+20f*resources.displayMetrics.density,label)
-        canvas.drawText("${span/60_000} мин",right-44f*resources.displayMetrics.density,
-            bottom+20f*resources.displayMetrics.density,label)
     }
 }
