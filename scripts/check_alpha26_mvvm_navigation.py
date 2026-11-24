@@ -166,8 +166,10 @@ assert "ApplicationInventory.launchable(app)" in repo
 assert "HubFavoriteRules.toggle(" in repo
 assert "repository.save(pkg, fields.alias, fields.category, fields.note, fields.favorite)" in repo
 assert "ToolboxPreferences.GAME" in repo
-assert "PackageManager.ApplicationInfoFlags.of(0L)" in repo
-assert "CATEGORY_GAME" in repo
+inventory = (src/"ApplicationInventory.kt").read_text()
+assert "info.activityInfo.applicationInfo?.category==ApplicationInfo.CATEGORY_GAME" in inventory
+assert "item.isGame" in repo
+assert "getApplicationInfo(" not in repo
 assert "READ_MEDIA_VIDEO" not in repo
 assert "fun toggle(" in rules and "current.copy(favorite = !current.favorite)" in rules
 assert "HubNavigationRulesTest" in tests and tests.count("@Test") >= 5
