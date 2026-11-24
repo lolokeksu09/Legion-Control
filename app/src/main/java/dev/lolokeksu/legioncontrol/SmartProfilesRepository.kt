@@ -36,6 +36,10 @@ class SmartProfilesRepository(context: Context) : AutoCloseable {
         fun validatePackage(s: String): Boolean = s.length <= 200 && PACKAGE.matches(s)
     }
 
+    /** Count without allocating profile rows for Game Hub. */
+    fun count():Int = helper.readableDatabase.rawQuery("SELECT COUNT(*) FROM smart_profiles",null)
+        .use { c -> check(c.moveToFirst());c.getInt(0) }
+
     fun list(): List<SmartProfile> {
         val out = mutableListOf<SmartProfile>()
         helper.readableDatabase.rawQuery("""

@@ -12,6 +12,21 @@ import android.view.Display
 
 /** Reads public APIs only. Every missing OEM field stays null. */
 object GameSessionTelemetry {
+    /** Hub only displays battery level and refresh rate; skip unrelated Binder reads. */
+    fun hubSignals(context:Context):Pair<Int?,Float?> {
+        val intent=runCatching {
+            context.registerReceiver(null,IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        }.getOrNull()
+        val level=intent?.getIntExtra(BatteryManager.EXTRA_LEVEL,-1) ?: -1
+        val scale=intent?.getIntExtra(BatteryManager.EXTRA_SCALE,-1) ?: -1
+        val percent=if(level>=0 && scale>0 && level<=scale) (level.toLong()*100/scale).toInt() else null
+        val hz=runCatching {
+            val display=context.getSystemService(Context.DISPLAY_SERVICE) as? DisplayManager
+            display?.getDisplay(Display.DEFAULT_DISPLAY)?.mode?.refreshRate
+        }.getOrNull()?.takeIf{it.isFinite() && it in 1f..500f}
+        return percent to hz
+    }
+
     fun snapshot(context: Context): GameTelemetryPoint {
         val intent = runCatching {
             context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
