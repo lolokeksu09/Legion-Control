@@ -58,6 +58,7 @@ CHECKS = (
     "check_game_preflight.py",
     "check_session_compare.py",
     "check_session_library.py",
+    "check_runtime_sbom.py",
 )
 
 def main():
