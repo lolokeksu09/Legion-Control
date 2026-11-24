@@ -5,7 +5,7 @@ from performance_profile import startup_metrics, memory_metrics, proc_stat, cpu_
 assert startup_metrics("Status: ok\nLaunchState: COLD\nTotalTime: 421\nWaitTime: 430\n") == {
     "status":"ok", "launch_state":"COLD", "android_total_ms":421, "android_wait_ms":430}
 assert startup_metrics("Status: ok\n")["android_total_ms"] is None
-assert memory_metrics(" Java Heap: 123\n Native Heap: 456\n TOTAL PSS: 789 TOTAL RSS: 999\n")["pss_kib"] == 789
+assert memory_metrics(" Java Heap: 123\n Native Heap: 456\n TOTAL PSS: 789 TOTAL RSS: 999 TOTAL SWAP PSS: 12\n") == {"pss_kib":789,"rss_kib":999,"java_heap_pss_kib":123,"native_heap_pss_kib":456,"swap_pss_kib":12}
 assert memory_metrics(" TOTAL  1024  100  200  0\n")["pss_kib"] == 1024
 assert memory_metrics("unavailable")["pss_kib"] is None
 assert memory_metrics(" TOTAL PSS: 0\n")["pss_kib"] == 0

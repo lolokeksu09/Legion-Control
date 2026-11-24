@@ -32,10 +32,10 @@ def memory_metrics(output: str) -> dict:
     if pss is None:
         pss = number(r"^\s*TOTAL\s+(\d+)\s+\d+\s+\d+")
     return {"pss_kib": pss,
-            "rss_kib": number(r"^\s*TOTAL RSS:\s*(\d+)\b"),
+            "rss_kib": number(r"\bTOTAL RSS:\s*(\d+)\b"),
             "java_heap_pss_kib": number(r"^\s*Java Heap:\s*(\d+)\b"),
             "native_heap_pss_kib": number(r"^\s*Native Heap:\s*(\d+)\b"),
-            "swap_pss_kib": number(r"^\s*TOTAL SWAP PSS:\s*(\d+)\b")}
+            "swap_pss_kib": number(r"\bTOTAL SWAP PSS:\s*(\d+)\b")}
 
 
 def proc_stat(output: str, expected_pid: int):
@@ -144,14 +144,16 @@ class PerformanceProfile:
         pid = self.pid()
         row["pid"] = pid
         if pid is not None:
+            first_begin = time.monotonic()
             first = self.stat(pid)
-            begin = time.monotonic()
+            begin = (first_begin + time.monotonic()) / 2
             time.sleep(5)
+            second_begin = time.monotonic()
             second = self.stat(pid)
-            elapsed = time.monotonic() - begin
+            elapsed = (second_begin + time.monotonic()) / 2 - begin
             mem = self.optional("shell", "dumpsys", "meminfo", str(pid))
             cpu = self.optional("shell", "dumpsys", "cpuinfo")
-            if self.pid() != pid:
+            if self.pid() != pid or (first is not None and second is not None and first[1] != second[1]):
                 row["state"] = "process_changed"
             else:
                 row.update(memory_metrics(mem or ""))
