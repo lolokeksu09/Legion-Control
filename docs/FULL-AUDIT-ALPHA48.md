@@ -162,7 +162,7 @@
 | e7a15934 / 45320940051 | build PASS; backup+monitor+preflight instrumentation PASS; UI smoke FAIL |
 | d6ed39f3 / 45321500240 | build PASS; backup+monitor+preflight+compare fixture instrumentation PASS; UI smoke FAIL; 46 кадров просмотрены |
 | 3c0b96e3 / 45324619575 | build PASS; emulator running на момент аудита |
-| e537c8a0 / 45326107579 | build running на момент аудита; emulator pending; **exact-candidate L4 не закрыт** |
+| e537c8a0 / 45326107579 | build **PASS** (job 138215979173); emulator **IN PROGRESS** (job 138218353640); **exact-candidate L4 не закрыт** |
 | Alpha 48 exact main signed APK | NOT RUN / не опубликован |
 | Physical Android 13 Lenovo, Android 16, TalkBack/200%, performance, security dynamic | NOT RUN |
 
@@ -177,3 +177,18 @@
 5. Для каждой правки приложить exact SHA, тест, артефакт/лог и статус. Доказательство с другой ревизии не закрывает exact-SHA gate. Отдельное ревью safety/data paths желательнее новых косметических патчей.
 
 **Итог:** подтверждены реальные прежние runtime-пути и качественные свойства новых исходников, есть конкретные ограничения и 14 задач приёмки/устранения (2 P1, 11 P2, 1 P3). Не обнаружено подтверждённых P0 в рассмотренных материалах. Это результат аудита, а не сертификат production-readiness. Изменения аудита документальные; исправления не заявлены как выполненные, кроме уже существующих CH и smoke correction.
+
+
+## 8. Дополнительная сверка 24 ноября 2026
+
+Проверен неизменённый кандидат `e537c8a0ab41cf0618ea6c1277258c9743eabdee` по GitHub API. [Run 45326107579](https://github.com/lolokeksu09/Legion-Control/actions/runs/45326107579): [build job 138215979173](https://github.com/lolokeksu09/Legion-Control/actions/runs/45326107579/job/138215979173) completed/success; пройдены source contracts (включая пять новых модулей), JVM unit tests, Rust build/tests, assembleDebug/lintDebug/assembleDebugAndroidTest, проверка двух JNI ABI, отказ unsigned release и проверка отклонения временного сертификата. [Emulator job 138218353640](https://github.com/lolokeksu09/Legion-Control/actions/runs/45326107579/job/138218353640) in_progress; шаг Install and launch on Android 35 emulator ещё не завершён. Это не подтверждение release signing на Alpha 48. PR #59 остаётся draft; main 5004071a не изменён. Локальное клонирование недоступно (DNS), поэтому свежая проверка является GitHub source/CI review, а не новым локальным запуском APK.
+
+### Дополнение к A48-09/12 — RISK: восстановление на старте процесса
+
+`LegionApplication.kt:8–14` синхронно вызывает `recoverPendingRestore` из Application.onCreate. При наличии журнала `LegionDataBackup.kt:91–118, 462–475` выполняет чтение, JSON/SHA256, открытие SQLite и последовательные synchronous SharedPreferences.commit. При отсутствии журнала путь короткий. Это риск блокировки main thread после прерванного восстановления, а не наблюдённый ANR. Не переносить recovery в фон без барьера доступности данных: сохранить порядок восстановления до чтения настроек, предусмотреть controlled startup/recovery state. Приёмка: cold start normal/pending journal, slow I/O, process death; StrictMode/trace и фактические времена. Статус: NOT RUN.
+
+### Дополнение к A48-12 — CODE/RISK: устаревшая мутация выбранной записи Connectivity
+
+`ConnectivityLabViewModel.kt:43–52, 186–192, 221–237`: generation защищает доставку LiveData, но delete() сбрасывает selectedRunId непосредственно из worker, до проверки поколения. Если после запуска удаления пользователь сменит host/выбор, завершение старого удаления может очистить новый выбор. Это подтверждённый неограждённый путь записи состояния; пользовательский сценарий не воспроизведён. Исправление: snapshot target/id, изменять selection на main thread только если актуальное поколение и selectedRunId совпадают с удалённой записью; локальное удаление остаётся явно запрошенным. Приёмка: delayed delete + host change/reselection, cancel/close, повторное удаление; regression test. Статус: OPEN / runtime NOT RUN.
+
+Оба дополнения расширяют существующие A48-09/12, не меняют приоритеты и не создают дублирующие задачи. Итоговый реестр остаётся 14 задач. Проверены конкретные исходники на exact candidate; визуальная оценка и аппаратная проверка не расширялись. Приложение, main, права, SQLite и сертификат не изменялись.
