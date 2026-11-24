@@ -149,8 +149,11 @@ jobs:
       - name: Preinstall Android 35 emulator image with bounded retries
         shell: bash
         run: |
-          set -euo pipefail
+          set -eu
+          # sdkmanager exits as soon as all licenses are accepted; yes may then
+          # receive SIGPIPE. Keep pipefail disabled for this expected pipeline only.
           yes | sdkmanager --licenses >/dev/null
+          set -o pipefail
           image_dir="$ANDROID_HOME/system-images/android-35/google_apis/x86_64"
           for attempt in 1 2 3; do
             if [[ -s "$image_dir/source.properties" && -s "$image_dir/system.img" ]]; then
