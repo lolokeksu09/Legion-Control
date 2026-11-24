@@ -10,6 +10,48 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class LiveMonitorInstrumentedTest {
+    @Test fun finderUsesIdentityNotLabelAndNeverClicks() {
+        ActivityScenario.launch(LiveMonitorActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                val root = android.widget.LinearLayout(activity)
+                val target = android.widget.Button(activity).apply { text = "Original title" }
+                val decoy = android.widget.Button(activity).apply { text = "Original title" }
+                var clicks = 0
+                target.setOnClickListener { clicks++ }
+                decoy.setOnClickListener { clicks++ }
+                root.addView(decoy)
+                root.addView(target)
+                val feature = requireNotNull(FeatureFinder.resolve("monitor.start", FeatureModule.MONITOR))
+                assertNull(FeatureReveal.findTarget(root, feature))
+                FeatureReveal.bind(target, feature.id)
+                assertSame(target, FeatureReveal.findTarget(root, feature))
+                target.text = "Changed title"
+                assertSame(target, FeatureReveal.findTarget(root, feature))
+                target.isEnabled = false
+                assertSame(target, FeatureReveal.findTarget(root, feature))
+                FeatureReveal.bind(decoy, feature.id)
+                assertNull("Duplicate visible IDs must fail closed", FeatureReveal.findTarget(root, feature))
+                decoy.visibility = android.view.View.GONE
+                assertSame(target, FeatureReveal.findTarget(root, feature))
+                assertEquals(0, clicks)
+            }
+        }
+    }
+
+    @Test fun sharedButtonUsesCompactMinimumWithoutFixedHeight() {
+        ActivityScenario.launch(LiveMonitorActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                val button = android.widget.Button(activity).apply { text = "Long action label" }
+                LegionUiSupport.styleAction(button)
+                val expected = (48 * activity.resources.displayMetrics.density + 0.5f).toInt()
+                assertEquals(expected, button.minHeight)
+                assertEquals(expected, button.minimumHeight)
+                assertEquals(android.view.ViewGroup.LayoutParams.WRAP_CONTENT, button.layoutParams.height)
+                assertFalse(button.isAllCaps)
+            }
+        }
+    }
+
     @Test fun realReadingsStopWhenScreenStopsAndRequireExplicitRestart() {
         ActivityScenario.launch(LiveMonitorActivity::class.java).use { scenario ->
             lateinit var model: LiveMonitorViewModel
