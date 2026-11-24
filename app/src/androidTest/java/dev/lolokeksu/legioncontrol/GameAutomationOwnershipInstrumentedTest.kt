@@ -27,6 +27,19 @@ class GameAutomationOwnershipInstrumentedTest {
             assertFalse(GameLaunchProfiles.applyAutomatic(context,pkg,"owner-b",GameLaunchProfile(mediaPercent=20)).success)
             assertEquals("owner-a",prefs.getString(keys[1],null))
             assertEquals(ticket,prefs.getString(keys[0],null))
+            assertTrue(runCatching{GameLaunchProfiles.withRestoreProtection(context){error("Must not enter with pending undo")}}.isFailure)
+            assertEquals(ticket,prefs.getString(keys[0],null))
+            assertTrue(prefs.edit().remove(keys[0]).remove(keys[1]).commit())
+            GameLaunchProfiles.withRestoreProtection(context){
+                assertFalse(GameLaunchProfiles.save(context,pkg,GameLaunchProfile(mediaPercent=30)))
+                assertFalse(GameLaunchProfiles.applyAutomatic(context,pkg,"owner-b",GameLaunchProfile(mediaPercent=20)).success)
+                GameLaunchProfiles.withRestoreProtection(context){
+                    assertFalse(GameLaunchProfiles.save(context,pkg,GameLaunchProfile(mediaPercent=30)))
+                }
+                assertFalse(GameLaunchProfiles.save(context,pkg,GameLaunchProfile(mediaPercent=30)))
+            }
+            assertTrue(GameLaunchProfiles.save(context,pkg,GameLaunchProfile(mediaPercent=30)))
+            assertEquals(GameLaunchProfile(mediaPercent=30),GameLaunchProfiles.profile(context,pkg))
         } finally {
             val edit=prefs.edit()
             previous.forEach{(key,value)->if(value==null)edit.remove(key)else edit.putString(key,value)}

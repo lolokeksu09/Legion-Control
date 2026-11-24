@@ -150,6 +150,7 @@ object LegionDataBackup {
             return false
         }
         try {
+            return GameLaunchProfiles.withRestoreProtection(context) {
             val bytes = atomic.openRead().use { readBounded(it, MAX_JOURNAL) }
             require(bytes.size in 1..MAX_JOURNAL)
             val entry = JSONObject(String(bytes, Charsets.UTF_8))
@@ -174,7 +175,8 @@ object LegionDataBackup {
             }
             atomic.delete()
             lastRecoveryFailure = null
-            return committed
+            committed
+            }
         } catch (error: Exception) {
             lastRecoveryFailure = error.javaClass.simpleName
             throw error
@@ -257,16 +259,13 @@ object LegionDataBackup {
         check(!GameSessionRecorderService.sessionActive) {
             "Сначала остановите запись игровой сессии."
         }
-        check(!context.getSharedPreferences("legion-launch-profiles-v1",
-            Context.MODE_PRIVATE).contains("pending_global_undo")) {
-            "Сначала верните системные настройки игрового профиля."
-        }
+        return GameLaunchProfiles.withRestoreProtection(context) {
         check(CaptureCoordinator.reserveConsent(CaptureMode.MAINTENANCE)) {
             "Завершите захват и повторите восстановление"
         }
         try {
             check(!GameSessionRecorderService.sessionActive)
-            return withStaged(context, uri) { staged ->
+            withStaged(context, uri) { staged ->
                 check(identity(staged.manifest) == confirmed) {
                     "Архив изменился после проверки. Откройте и подтвердите его заново."
                 }
@@ -347,6 +346,7 @@ object LegionDataBackup {
             }
         } finally {
             CaptureCoordinator.release(CaptureMode.MAINTENANCE)
+        }
         }
     }
 

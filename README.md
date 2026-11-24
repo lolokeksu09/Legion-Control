@@ -273,3 +273,5 @@ A new **real audio test module** (not another output metadata list): gentle gene
 - Alpha 55 development: [ZIP v3 — Network/Battery archive backup](docs/ALPHA55-COMPLETE-BACKUP.md). This is a development candidate, not a signed release.
 
 - Alpha 57 development: [reproducible process performance profiling](docs/ALPHA57-PERFORMANCE-PROFILING.md). Debug emulator measurements, not hardware benchmarks.
+
+- Alpha 58 development: [pre-Beta audit and release gates](docs/ALPHA58-PREBETA-AUDIT.md). Not yet a beta release.

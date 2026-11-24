@@ -23,5 +23,7 @@ assert cpu_delta((120,600),(110,600),5,100)["cpu_ticks"] is None
 assert cpu_delta((120,600),(170,600),0,100)["cpu_ticks"] is None
 assert system_cpu("  2.3% 42/dev.lolokeksu.legioncontrol: 1% user",42) == 2.3
 assert system_cpu("  2.3% 42/dev.lolokeksu.legioncontrol:service: 1% user",42) is None
+assert system_cpu("  2.3% 43/dev.lolokeksu.legioncontrol: 1% user",42) is None
+assert system_cpu("  0% 42/dev.lolokeksu.legioncontrol: 0% user",42) == 0.0
 assert positive_int("100") == 100 and positive_int("0") is None and positive_int(None) is None
 print("PASS: performance parser fixtures, process identity, missing counters and CPU units")

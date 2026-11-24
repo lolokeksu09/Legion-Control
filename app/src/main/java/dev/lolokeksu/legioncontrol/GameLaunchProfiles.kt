@@ -18,6 +18,21 @@ object GameLaunchProfiles {
     private const val OWNER = "pending_auto_owner"
     private const val PREFIX = "profile_"
     private val lock = Any()
+    private var restoreOwner:Thread?=null
+
+    /** Reserve preference replay without holding the settings lock during disk I/O. */
+    internal fun <T> withRestoreProtection(context:Context,body:()->T):T {
+        val caller=Thread.currentThread()
+        val outer=synchronized(lock) {
+            check(restoreOwner==null || restoreOwner==caller){"Восстановление уже выполняется."}
+            check(!prefs(context).contains(ACTIVE)){"Сначала верните системные настройки игрового профиля."}
+            (restoreOwner==null).also{if(it)restoreOwner=caller}
+        }
+        return try {body()} finally {if(outer)synchronized(lock){restoreOwner=null}}
+    }
+
+    private fun writesAllowed(context:Context):Boolean = restoreOwner==null &&
+        runCatching { LegionDataBackup.checkLabWritesAllowed(context) }.isSuccess
 
     private fun prefs(context: Context) =
         context.applicationContext.getSharedPreferences(NAME, Context.MODE_PRIVATE)
@@ -30,6 +45,7 @@ object GameLaunchProfiles {
     fun save(context: Context, pkg: String, profile: GameLaunchProfile): Boolean {
         require(GameLaunchProfilePolicy.validPackage(pkg))
         synchronized(lock) {
+            if(!writesAllowed(context))return false
             val edit = prefs(context).edit()
             if (profile.actionable) edit.putString(PREFIX + pkg, profile.encode())
             else edit.remove(PREFIX + pkg)
@@ -61,6 +77,7 @@ object GameLaunchProfiles {
     }
 
     private fun applyInternal(context:Context,pkg:String,owner:String?,approved:GameLaunchProfile?):GameLaunchResult = synchronized(lock) {
+        if(!writesAllowed(context))return@synchronized GameLaunchResult(false,"Сначала завершите восстановление ZIP.")
         if (!GameLaunchProfilePolicy.validPackage(pkg)) {
             return@synchronized GameLaunchResult(false, "Некорректный пакет приложения.")
         }
