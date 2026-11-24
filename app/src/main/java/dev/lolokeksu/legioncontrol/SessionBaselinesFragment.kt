@@ -76,6 +76,7 @@ class SessionBaselinesFragment:Fragment() {
             setLineSpacing(4f,1f)
             setPadding(0,18.dp,0,32.dp)
         }
+        LegionUiSupport.reportSurface(output)
         root.addView(output)
         return ScrollView(requireContext()).apply { addView(root) }
     }

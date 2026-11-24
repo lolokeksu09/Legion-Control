@@ -122,6 +122,7 @@ class HapticLabFragment:Fragment() {
             setTextIsSelectable(true);setPadding(0,15.dp,0,32.dp)
             text="Сначала выберите шаблон или просмотрите возможности устройства."
         }
+        LegionUiSupport.reportSurface(output)
         root.addView(output)
         return ScrollView(requireContext()).apply { addView(root) }
     }

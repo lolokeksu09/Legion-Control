@@ -83,6 +83,7 @@ class SessionSignalsFragment:Fragment() {
             setPadding(0,18.dp,0,28.dp)
             text="Чтение не начинается до открытия этого экрана."
         }
+        LegionUiSupport.reportSurface(report)
         root.addView(report)
         return ScrollView(requireContext()).apply{addView(root)}
     }

@@ -53,6 +53,7 @@ class HardwareLabFragment : Fragment() {
             setPadding(0, 12.dp, 0, 20.dp)
             setTextIsSelectable(true)
         }
+        LegionUiSupport.reportSurface(result)
         root.addView(result)
         root.addView(LegionUiSupport.sectionLabel(requireContext(), "СЕТЬ"))
         addButton(root, "1 · Local Route Inspector", "hardware.route") {

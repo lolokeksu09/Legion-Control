@@ -61,6 +61,7 @@ class GamingDiagnosticsFragment : Fragment() {
             setPadding(4.dp, 12.dp, 4.dp, 20.dp)
             setTextIsSelectable(true)
         }
+        LegionUiSupport.reportSurface(resultView)
         root.addView(resultView)
 
         root.addView(LegionUiSupport.sectionLabel(requireContext(), "ПРОВЕРКИ УСТРОЙСТВА"))

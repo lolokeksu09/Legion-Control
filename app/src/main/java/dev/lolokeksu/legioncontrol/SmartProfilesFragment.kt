@@ -177,6 +177,7 @@ class SmartProfilesFragment : Fragment() {
             setLineSpacing(4f,1f)
             text="Профили хранятся только на устройстве. Выберите приложение или загрузите профиль."
         }
+        LegionUiSupport.reportSurface(result)
         root.addView(result)
         return ScrollView(requireContext()).apply { addView(root) }
     }

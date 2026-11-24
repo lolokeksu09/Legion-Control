@@ -99,6 +99,7 @@ class ConnectivityLabFragment : Fragment() {
             text="Сервер диагностики выбран. Чтобы проверить сеть, нажмите замер. "+
                 "Обращение к публичному узлу начнётся только после нажатия."
         }
+        LegionUiSupport.reportSurface(resultView)
         root.addView(resultView)
         root.addView(LegionUiSupport.sectionLabel(requireContext(), "ПРОВЕРКА СОЕДИНЕНИЯ"))
         hostButton=button("Сервер: Cloudflare · one.one.one.one") { chooseHost() }

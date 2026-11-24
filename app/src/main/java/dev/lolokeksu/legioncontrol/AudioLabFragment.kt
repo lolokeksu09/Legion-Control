@@ -129,6 +129,7 @@ class AudioLabFragment:Fragment() {
             text="Выберите тест и проверьте громкость. "+
                 "Никакой звук не воспроизводится без вашего нажатия."
         }
+        LegionUiSupport.reportSurface(result)
         root.addView(result)
         return ScrollView(requireContext()).apply { addView(root) }
     }

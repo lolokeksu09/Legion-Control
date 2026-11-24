@@ -124,6 +124,7 @@ class ExperimentLabFragment : Fragment() {
             setPadding(0,18.dp,0,32.dp)
             text="Выберите приложение и сохранённую сессию. Измерения не будут изменены."
         }
+        LegionUiSupport.reportSurface(status)
         layout.addView(status)
         return ScrollView(requireContext()).apply { addView(layout) }
     }

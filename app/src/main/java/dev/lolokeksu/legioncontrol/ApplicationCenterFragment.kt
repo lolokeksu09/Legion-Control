@@ -140,6 +140,7 @@ class ApplicationCenterFragment:Fragment() {
             setPadding(0,16.dp,0,30.dp)
             text="Выберите приложение. Все проверки запускаются только по нажатию."
         }
+        LegionUiSupport.reportSurface(output)
         root.addView(output)
         return ScrollView(requireContext()).apply { addView(root) }
     }
