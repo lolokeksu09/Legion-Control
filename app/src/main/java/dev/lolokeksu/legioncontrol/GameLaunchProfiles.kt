@@ -185,9 +185,9 @@ object GameLaunchProfiles {
 
     private fun restoreLocked(context: Context): GameLaunchResult {
         val raw = prefs(context).getString(ACTIVE, null)
-            ?: return@synchronized GameLaunchResult(true, "Нет применённого профиля для возврата.")
+            ?: return GameLaunchResult(true, "Нет применённого профиля для возврата.")
         val ticket = GameLaunchUndo.decode(raw)
-            ?: return@synchronized GameLaunchResult(false,
+            ?: return GameLaunchResult(false,
                 "Запись возврата повреждена. Автоматические системные изменения запрещены.")
         var restored = 0
         var conflicts = 0
