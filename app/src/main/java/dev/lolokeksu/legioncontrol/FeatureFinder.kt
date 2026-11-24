@@ -16,7 +16,8 @@ enum class FeatureModule(val displayName: String) {
     BASELINES("Session Baselines"),
     DIAGNOSTICS("Диагностика Kotlin + Rust"),
     GAMEPAD("Gamepad Live"),
-    MONITOR("Live Monitor")
+    MONITOR("Live Monitor"),
+    PREFLIGHT("Game Preflight")
 }
 
 data class FeatureEntry(
@@ -100,7 +101,11 @@ object FeatureFinder {
         FeatureEntry("monitor.start", FeatureModule.MONITOR, "Живой монитор устройства", "НАЧАТЬ МОНИТОРИНГ", "live monitor ram температура заряд частота дисплея"),
         FeatureEntry("monitor.chart", FeatureModule.MONITOR, "График показаний", "Выбрать показатель графика", "live monitor graph ram температура"),
         FeatureEntry("monitor.baseline", FeatureModule.MONITOR, "Контрольная точка мониторинга", "ЗАФИКСИРОВАТЬ КОНТРОЛЬНУЮ ТОЧКУ", "live monitor baseline сравнение"),
-        FeatureEntry("monitor.csv", FeatureModule.MONITOR, "Экспорт мониторинга CSV", "СОХРАНИТЬ МОНИТОРИНГ CSV", "live monitor export csv")
+        FeatureEntry("monitor.csv", FeatureModule.MONITOR, "Экспорт мониторинга CSV", "СОХРАНИТЬ МОНИТОРИНГ CSV", "live monitor export csv"),
+        FeatureEntry("preflight.game", FeatureModule.PREFLIGHT, "Выбор игры для предпусковой проверки", "ВЫБРАТЬ ИГРУ ДЛЯ ПРОВЕРКИ", "game preflight игра запуск проверка"),
+        FeatureEntry("preflight.requirements", FeatureModule.PREFLIGHT, "Требования конкретной игры", "НАСТРОИТЬ ТРЕБОВАНИЯ ИГРЫ", "preflight target fps hz требования ram батарея"),
+        FeatureEntry("preflight.check", FeatureModule.PREFLIGHT, "Проверка перед запуском игры", "ВЫПОЛНИТЬ ПРОВЕРКУ ПЕРЕД ЗАПУСКОМ", "game preflight энергосбережение дисплей температура сеть"),
+        FeatureEntry("preflight.report", FeatureModule.PREFLIGHT, "Поделиться результатами предпусковой проверки", "Поделиться отчётом проверки", "preflight report отчет")
     )
 
     fun resolve(id: String?, module: FeatureModule): FeatureEntry? =

@@ -78,6 +78,7 @@
         <activity android:name=".CompatibilityLabActivity" android:exported="false" />
         <activity android:name=".GamepadLiveActivity" android:exported="false" />
         <activity android:name=".LiveMonitorActivity" android:exported="false" />
+        <activity android:name=".GamePreflightActivity" android:exported="false" />
         <activity android:name=".HardwareLabActivity" android:exported="false" />
         <activity android:name=".DisplayPatternActivity" android:exported="false" />
         <activity android:name=".GamingDiagnosticsActivity" android:exported="false" />

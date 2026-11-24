@@ -253,6 +253,9 @@ class HubPageFragment : Fragment() {
         section("Игровая библиотека",
             "Настоящие Android-приложения из Launcher и избранное Application Center.")
         group("Игровые функции")
+        tile("Game Preflight", "Проверка требований выбранной игры перед запуском") {
+            open(GamePreflightActivity::class.java)
+        }
         tile("Game Session", "Запись состояния устройства во время игры") {
             open(GameSessionActivity::class.java)
         }
@@ -366,6 +369,7 @@ class HubPageFragment : Fragment() {
             FeatureModule.DIAGNOSTICS -> openStandaloneFeature(MainActivity::class.java, args)
             FeatureModule.GAMEPAD -> openStandaloneFeature(GamepadLiveActivity::class.java, args)
             FeatureModule.MONITOR -> openStandaloneFeature(LiveMonitorActivity::class.java, args)
+            FeatureModule.PREFLIGHT -> openStandaloneFeature(GamePreflightActivity::class.java, args)
         }
     }
 
@@ -383,6 +387,7 @@ class HubPageFragment : Fragment() {
                 CatalogAction("Gamepad Live", "Кнопки и стики контроллера") { open(GamepadLiveActivity::class.java) }
             ),
             "Система и производительность" to listOf(
+                CatalogAction("Game Preflight", "Предпусковая проверка выбранной игры") { open(GamePreflightActivity::class.java) },
                 CatalogAction("Live Monitor", "Живые замеры, график и сравнение") { open(LiveMonitorActivity::class.java) },
                 CatalogAction("Gaming Lab", "Батарея, сеть, сенсоры и производительность") { open(GamingDiagnosticsActivity::class.java) },
                 CatalogAction("Hardware Lab", "Аппаратные измерения и тесты") { open(HardwareLabActivity::class.java) },
