@@ -1,0 +1,7 @@
+# Beta 1 active workload profiling
+
+Independent test branch: no application or release candidate modifications. Uses the already successful exact candidate a02654b / run 45405804990 / artifact 14925518313. Debug Android 35 Pixel 5 x86_64 emulator.
+
+Four paired scenarios: session recorder targeting Android Settings, live network probes to the default explicit one.one.one.one:443 endpoint, collapsed Toolbox overlay, and silent MediaProjection capture. Three five-second CPU windows per idle/active state, PSS/RSS snapshots, median/delta with missing values retained; same PID requirement. Workload presence checked at both ends of each observation, not proof of continuous activity. No causal comparison with different devices. Network test may return actual DNS/TCP errors; not game ping. Overlay app-op granted only on disposable emulator and reset. Real MediaProjection system consent is necessary; unsupported dialog or encoder failure is reported, never bypassed. Captured output contains synthetic emulator screens only. No recording of a real user/game, no phone reset. Any incomplete scenario fails this independent experiment while preserving individual evidence.
+
+Wild Rift impact is NOT measured: no game installed in CI and no access to physical Lenovo. To determine FPS/frametime impact, compare equivalent game scenes with Legion Control off/on, same settings, refresh rate, temperature and network. No claim of game FPS or battery drain from emulator PSS/CPU.
