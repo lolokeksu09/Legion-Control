@@ -219,6 +219,7 @@ class GameToolboxFragment : Fragment() {
             12f, muted
         ).apply { setPadding(0, 4.dp, 0, 20.dp) })
         renderStatus()
+        FeatureReveal.fromFragment(this, scroll, FeatureModule.TOOLBOX)
         return scroll
     }
 

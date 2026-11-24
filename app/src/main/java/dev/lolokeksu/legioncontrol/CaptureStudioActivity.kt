@@ -316,6 +316,7 @@ class CaptureStudioActivity : ComponentActivity() {
         }
         refreshChoices()
         refreshStatus()
+        FeatureReveal.fromActivity(this, root, FeatureModule.CAPTURE)
     }
 
     override fun onDestroy() {

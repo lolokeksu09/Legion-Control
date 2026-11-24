@@ -159,6 +159,7 @@ class GameSessionFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         LegionUiSupport.styleModuleTree(view)
+        FeatureReveal.fromFragment(this, view, FeatureModule.SESSION)
         viewModel = ViewModelProvider(this)[GameSessionViewModel::class.java]
         viewModel.state.observe(viewLifecycleOwner) { snapshot ->
             reportView.text = snapshot.report
