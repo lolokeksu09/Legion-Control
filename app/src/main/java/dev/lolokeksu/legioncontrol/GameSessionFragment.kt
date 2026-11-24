@@ -132,6 +132,14 @@ class GameSessionFragment : Fragment() {
         action("Session Signals · хронология и события") { openSessionSignals() }
         action("Session Incidents · эпизоды и длительность") { openSessionIncidents() }
         action("Session Baselines · сравнение с историей") { openSessionBaselines() }
+        action("Session Compare · выбрать две записи") {
+            val pkg=packageInput.text.toString().trim()
+            runCatching {
+                startActivity(Intent(requireContext(),SessionCompareActivity::class.java).apply {
+                    if(ApplicationInventory.isPackageName(pkg))putExtra(SessionCompareActivity.EXTRA_PACKAGE,pkg)
+                })
+            }.onFailure { reportView.text="Не удалось открыть сравнение." }
+        }
         action("Разрешить уведомления о записи (Android 13+)") {
             if (requireContext().checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)
                 requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS),REQUEST_NOTIFICATION)

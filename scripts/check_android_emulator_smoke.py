@@ -241,6 +241,12 @@ def main() -> None:
     if "OK (1 test)" not in preflight_output or "FAILURES" in preflight_output:
         raise AssertionError("Game Preflight instrumentation failed: " + preflight_output[-1400:])
     print("PASS: actual per-game preflight report and isolated persistent presets", flush=True)
+    compare_output = adb("shell", "am", "instrument", "-w", "-e", "class",
+        PACKAGE + ".SessionCompareInstrumentedTest",
+        PACKAGE + ".test/androidx.test.runner.AndroidJUnitRunner", timeout=120)
+    if "OK (1 test)" not in compare_output or "FAILURES" in compare_output:
+        raise AssertionError("Session Compare instrumentation failed: " + compare_output[-1400:])
+    print("PASS: emulator-only seeded SQLite sessions, equal windows, A/B swap and data isolation", flush=True)
     adb("shell", "pm", "clear", PACKAGE, timeout=40)
     adb("shell", "am", "force-stop", PACKAGE)
     adb("shell", "am", "start", "-W", "-n", PACKAGE + "/.NavigationHostActivity", timeout=60)
@@ -533,6 +539,11 @@ def main() -> None:
     expect("ВЫБРАТЬ ИГРУ ДЛЯ ПРОВЕРКИ")
     expect("Игра не выбрана")
     back_until(GAMES_MARKER)
+    click("История")
+    click("Session Compare", scrolls=10, exact_only=True)
+    stage("24-session-compare-idle", "СРАВНЕНИЕ ИГРОВЫХ СЕССИЙ")
+    expect("ВЫБРАТЬ ИГРУ ИЗ ИСТОРИИ")
+    back_until("История игр")
     click("Главная")
     expect("Готов к запуску")
     print("PASS: Android emulator UI navigation, explicit marker persisted in SQLite,",

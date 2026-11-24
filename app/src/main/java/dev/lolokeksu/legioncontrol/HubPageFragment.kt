@@ -370,6 +370,7 @@ class HubPageFragment : Fragment() {
             FeatureModule.GAMEPAD -> openStandaloneFeature(GamepadLiveActivity::class.java, args)
             FeatureModule.MONITOR -> openStandaloneFeature(LiveMonitorActivity::class.java, args)
             FeatureModule.PREFLIGHT -> openStandaloneFeature(GamePreflightActivity::class.java, args)
+            FeatureModule.COMPARE -> openStandaloneFeature(SessionCompareActivity::class.java, args)
         }
     }
 
@@ -398,7 +399,8 @@ class HubPageFragment : Fragment() {
                 CatalogAction("Connectivity Observatory", "DNS, IPv4/IPv6, TCP и TLS") { open(ConnectivityLabActivity::class.java) }
             ),
             "Эксперименты" to listOf(
-                CatalogAction("Experiment Lab", "A/B-сравнения и заметки") { open(ExperimentLabActivity::class.java) }
+                CatalogAction("Experiment Lab", "A/B-сравнения и заметки") { open(ExperimentLabActivity::class.java) },
+                CatalogAction("Session Compare", "Две выбранные сессии и совмещённые графики") { open(SessionCompareActivity::class.java) }
             )
         )
         val input = EditText(requireContext()).apply {
@@ -479,6 +481,9 @@ class HubPageFragment : Fragment() {
         tile("Игровые сессии", "Просмотр сохранённых Game Session") { open(GameSessionActivity::class.java) }
         tile("Клипы MP4", "Movies/LegionControl/ · локальная библиотека") { open(CaptureStudioActivity::class.java) }
         group("Анализ игровых сеансов")
+        tile("Session Compare", "Две выбранные записи одной игры · сравнение одинаковых интервалов") {
+            open(SessionCompareActivity::class.java)
+        }
         tile("Session Signals", "Хронология событий, метки, разрывы телеметрии и экспорт") {
             NavHostFragment.findNavController(this).navigate(R.id.sessionSignalsFragment)
         }
