@@ -133,6 +133,8 @@ jobs:
         run: python3 scripts/check_game_preflight.py
       - name: Verify offline equal-window session comparison
         run: python3 scripts/check_session_compare.py
+      - name: Verify local session library and selected archive
+        run: python3 scripts/check_session_library.py
       - name: Run pure Kotlin CSV and Russian plural regression tests
         run: gradle --no-daemon testDebugUnitTest
       - name: Test and compile real Rust backend for Android

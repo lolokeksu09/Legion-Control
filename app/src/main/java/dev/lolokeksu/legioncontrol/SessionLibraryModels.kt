@@ -2,7 +2,7 @@ package dev.lolokeksu.legioncontrol
 
 enum class LibraryStatus(val label:String) {
     ALL("Все"), FINISHED("Завершённые пользователем"),
-    INTERRUPTED("Прерванные"), OPEN("Без записи завершения")
+    INTERRUPTED("Завершены не вручную"), OPEN("Без записи завершения")
 }
 enum class LibraryPeriod(val label:String,val days:Int?) {
     ALL("Весь период",null), WEEK("7 дней",7), MONTH("30 дней",30), QUARTER("90 дней",90)
@@ -29,6 +29,7 @@ object SessionLibraryPolicy {
             clauses+="started_at_ms>=? AND started_at_ms<=?"
             args+=(now-it*86400000L).coerceAtLeast(0L).toString();args+=now.toString()
         }
+        if(filter.period==LibraryPeriod.ALL) { clauses+="started_at_ms<=?";args+=now.toString() }
         when(filter.status) {
             LibraryStatus.ALL -> Unit
             LibraryStatus.FINISHED -> clauses+="ended_at_ms IS NOT NULL AND end_reason='USER_STOP'"

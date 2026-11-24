@@ -247,6 +247,12 @@ def main() -> None:
     if "OK (1 test)" not in compare_output or "FAILURES" in compare_output:
         raise AssertionError("Session Compare instrumentation failed: " + compare_output[-1400:])
     print("PASS: emulator-only seeded SQLite sessions, equal windows, A/B swap and data isolation", flush=True)
+    library_output = adb("shell", "am", "instrument", "-w", "-e", "class",
+        PACKAGE + ".SessionLibraryInstrumentedTest",
+        PACKAGE + ".test/androidx.test.runner.AndroidJUnitRunner", timeout=120)
+    if "OK (1 test)" not in library_output or "FAILURES" in library_output:
+        raise AssertionError("Session Library instrumentation failed: " + library_output[-1400:])
+    print("PASS: local library pagination, package/state isolation and selected session ZIP", flush=True)
     adb("shell", "pm", "clear", PACKAGE, timeout=40)
     adb("shell", "am", "force-stop", PACKAGE)
     adb("shell", "am", "start", "-W", "-n", PACKAGE + "/.NavigationHostActivity", timeout=60)

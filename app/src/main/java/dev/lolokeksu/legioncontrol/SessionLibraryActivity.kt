@@ -29,6 +29,7 @@ class SessionLibraryActivity:FragmentActivity() {
     private lateinit var previous:Button
     private lateinit var export:Button
     private var pendingExport:LibraryDetail?=null
+    private var lastDetail:LibraryDetail?=null
     private val Int.dp get()=(this*resources.displayMetrics.density+.5f).toInt()
     private val document=registerForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
         val selected=pendingExport
@@ -103,6 +104,7 @@ class SessionLibraryActivity:FragmentActivity() {
         game.isEnabled=!s.busy;period.isEnabled=!s.busy;stateButton.isEnabled=!s.busy;refresh.isEnabled=!s.busy
         previous.isEnabled=!s.busy && s.previous.isNotEmpty()
         next.isEnabled=!s.busy && s.next!=null && s.previous.size<499
+        if(s.next!=null && s.previous.size>=499) filters.append("\nЛимит 500 страниц. Уточните фильтр.")
         export.isEnabled=!s.busy && s.detail!=null
         list.removeAllViews()
         if(s.rows.isEmpty())list.addView(TextView(this).apply {
@@ -117,6 +119,8 @@ class SessionLibraryActivity:FragmentActivity() {
             },LinearLayout.LayoutParams(-1,-2).apply { bottomMargin=8.dp })
         }
         val d=s.detail
+        val newlySelected=d!=null && d!==lastDetail
+        lastDetail=d
         detail.text=if(d==null)"Выберите завершённую запись." else buildString {
             append(GameSessionAnalysis.render(GameSessionAnalysis.summarize(d.header,d.points)))
             append("\n\nСобытий в архиве: ").append(d.events.size)
@@ -124,6 +128,10 @@ class SessionLibraryActivity:FragmentActivity() {
             append("\nПоследние 10 событий из доступного окна:\n")
             d.events.takeLast(10).forEach { append(date.format(Date(it.timeMs))).append(" · ").append(it.kind)
                 .append(" · ").append(it.details).append('\n') }
+        }
+        if(newlySelected) detail.post {
+            detail.requestRectangleOnScreen(android.graphics.Rect(0,0,detail.width,
+                minOf(detail.height,96.dp)),true)
         }
     }
 }
