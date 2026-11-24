@@ -50,6 +50,16 @@ class SessionCompareAnalysisTest {
         assertEquals(packages[0],SessionCompareAnalysis.selectPackage(packages,null))
         assertEquals(packages[1],SessionCompareAnalysis.selectPackage(packages,packages[1]))
     }
+    @Test fun shareAndCsvExposeObservedOffsetsAndDeltaUnits() {
+        val a=SessionCompareAnalysis.analyze(header(),points().drop(1),5)
+        val b=SessionCompareAnalysis.analyze(header("b"),points(),5)
+        val pair=SessionCompareAnalysis.compare(a,b)
+        assertEquals(15000L,a.firstOffsetMs!!)
+        assertEquals("п.п.",CompareMeasure.NETWORK.deltaUnit)
+        assertEquals("Гц",CompareMeasure.DISPLAY.deltaUnit)
+        assertTrue(SessionCompareAnalysis.report(pair).contains("15.00 / 300.00"))
+        assertTrue(SessionCompareAnalysis.csv(pair).contains("delta_unit,a_first_offset_ms"))
+    }
     @Test fun sameIdDifferentGameAndDifferentWindowAreRejected() {
         val a=SessionCompareAnalysis.analyze(header(),points(),5)
         for(b in listOf(a,SessionCompareAnalysis.analyze(header("b","com.other.game"),points(),5),
@@ -61,7 +71,9 @@ class SessionCompareAnalysisTest {
         val p=points()
         val a=SessionCompareAnalysis.analyze(header(),p+listOf(p[0],p[0].copy(timeMs=start-1)),5)
         assertEquals(21,a.points)
-        assertEquals(2,a.duplicateOrOutside)
+        assertEquals(22,a.duplicateOrOutside)
+        assertEquals(0L,a.firstOffsetMs!!)
+        assertEquals(300000L,a.lastOffsetMs!!)
         assertEquals(1.0,a.coverage,0.001)
     }
 }
