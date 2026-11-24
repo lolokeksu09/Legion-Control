@@ -1,7 +1,6 @@
 package dev.lolokeksu.legioncontrol
 
 import android.app.Activity
-import android.app.AlertDialog
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
@@ -113,7 +112,7 @@ class SessionSignalsFragment:Fragment() {
             it.appLabel+" · "+fmt.format(Date(it.startedAtMs))+"\n"+
                 (it.endReason?:"Идёт запись / нет отметки завершения")
         }.toTypedArray()
-        AlertDialog.Builder(requireContext()).setTitle("Сессии · "+sessions.size)
+        LegionDialogs.builder(requireContext()).setTitle("Сессии · "+sessions.size)
             .setItems(labels){_,idx -> vm.select(sessions[idx].id)}
             .setNegativeButton("Отмена",null).show()
     }

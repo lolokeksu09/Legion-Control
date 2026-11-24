@@ -7,7 +7,6 @@ import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.NavHostFragment
 import androidx.lifecycle.ViewModelProvider
-import android.app.AlertDialog
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
@@ -234,7 +233,7 @@ class SmartProfilesFragment : Fragment() {
             .distinctBy { it.activityInfo.packageName }
             .sortedBy { it.loadLabel(requireContext().packageManager).toString().lowercase() }
         if(applications.isEmpty()) { show("Лаунчер не вернул приложения; введите пакет вручную.");return }
-        AlertDialog.Builder(requireContext()).setTitle("Выбор приложения")
+        LegionDialogs.builder(requireContext()).setTitle("Выбор приложения")
             .setItems(applications.map {
                 it.loadLabel(requireContext().packageManager).toString()+"\n"+it.activityInfo.packageName
             }.toTypedArray()) { _,index ->
@@ -249,7 +248,7 @@ class SmartProfilesFragment : Fragment() {
 
     private fun showSavedProfiles(profiles: List<SmartProfile>) {
         if (profiles.isEmpty()) { show("Пока нет сохранённых профилей."); return }
-        AlertDialog.Builder(requireContext()).setTitle("Сохранённые профили")
+        LegionDialogs.builder(requireContext()).setTitle("Сохранённые профили")
             .setItems(profiles.map { it.label + "\n" + it.packageName }.toTypedArray()) { _,index ->
                 val p = profiles[index]
                 packageText.setText(p.packageName)
@@ -272,7 +271,7 @@ class SmartProfilesFragment : Fragment() {
     private fun showRulesDialog(pkg: String, rules: List<SmartRule>) {
         if (rules.isEmpty()) { show("Сначала сохраните профиль."); return }
         val flags = rules.map { it.enabled }.toBooleanArray()
-        AlertDialog.Builder(requireContext()).setTitle("Правила · " + pkg)
+        LegionDialogs.builder(requireContext()).setTitle("Правила · " + pkg)
             .setMultiChoiceItems(rules.map {
                 it.kind.title + " · " + it.kind.describe(it.threshold)
             }.toTypedArray(), flags) { _,index,checked -> flags[index] = checked }
@@ -297,9 +296,9 @@ class SmartProfilesFragment : Fragment() {
     private fun confirmDelete() {
         val pkg=packageNameInput()
         if(!SmartProfilesRepository.validatePackage(pkg)) { show("Не выбран профиль.");return }
-        AlertDialog.Builder(requireContext()).setTitle("Удалить профиль?")
+        LegionDialogs.builder(requireContext()).setTitle("Удалить профиль?")
             .setMessage("Профиль $pkg и его правила будут удалены. Старые сессии сохранятся.")
-            .setPositiveButton("Удалить") { _,_ ->
+            .setDestructive().setPositiveButton("Удалить") { _,_ ->
                 viewModel.delete(pkg)
             }.setNegativeButton("Отмена",null).show()
     }
@@ -319,7 +318,7 @@ class SmartProfilesFragment : Fragment() {
             hint="0–100"
             inputType=android.text.InputType.TYPE_CLASS_NUMBER
         }
-        AlertDialog.Builder(requireContext()).setTitle("Громкость мультимедиа, %")
+        LegionDialogs.builder(requireContext()).setTitle("Громкость мультимедиа, %")
             .setView(edit).setPositiveButton("Применить") { _,_ ->
                 val p=edit.text.toString().toIntOrNull()
                 if(p==null || p !in 0..100) show("Укажите процент 0–100.")
@@ -358,7 +357,7 @@ class SmartProfilesFragment : Fragment() {
         val uri=data?.data ?: return
         when(requestCode) {
             EXPORT -> viewModel.export(uri)
-            IMPORT -> AlertDialog.Builder(requireContext()).setTitle("Импортировать профили?")
+            IMPORT -> LegionDialogs.builder(requireContext()).setTitle("Импортировать профили?")
                 .setMessage("Совпадающие профили и их настройки будут перезаписаны. " +
                     "Другие профили и история измерений сохранятся. " +
                     "Файл должен быть экспортом Legion Control версии 1.")

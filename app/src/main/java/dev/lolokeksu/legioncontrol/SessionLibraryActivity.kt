@@ -1,6 +1,5 @@
 package dev.lolokeksu.legioncontrol
 
-import android.app.AlertDialog
 import android.graphics.Color
 import android.graphics.Typeface
 import android.os.Bundle
@@ -66,7 +65,7 @@ class SessionLibraryActivity:FragmentActivity() {
         game=button("Фильтр по игре", "library.game") {
             val s=vm.state.value ?: return@button
             val packages=(s.packages+listOfNotNull(s.filter.packageName)).distinct()
-            AlertDialog.Builder(this).setTitle("Игра")
+            LegionDialogs.builder(this).setTitle("Игра")
                 .setItems((listOf("Все игры")+packages).toTypedArray()) { _,i ->
                     vm.refresh(s.filter.copy(packageName=packages.getOrNull(i-1)))
                 }.setNegativeButton("Отмена",null).show()
@@ -74,14 +73,14 @@ class SessionLibraryActivity:FragmentActivity() {
         period=button("Фильтр по периоду", "library.period") {
             val s=vm.state.value ?: return@button
             val options=LibraryPeriod.entries
-            AlertDialog.Builder(this).setTitle("Период").setItems(options.map { it.label }.toTypedArray()) { _,i->
+            LegionDialogs.builder(this).setTitle("Период").setItems(options.map { it.label }.toTypedArray()) { _,i->
                 vm.refresh(s.filter.copy(period=options[i]))
             }.setNegativeButton("Отмена",null).show()
         }
         stateButton=button("Фильтр по завершению", "library.state") {
             val s=vm.state.value ?: return@button
             val options=LibraryStatus.entries
-            AlertDialog.Builder(this).setTitle("Состояние записи").setItems(options.map { it.label }.toTypedArray()) { _,i->
+            LegionDialogs.builder(this).setTitle("Состояние записи").setItems(options.map { it.label }.toTypedArray()) { _,i->
                 vm.refresh(s.filter.copy(status=options[i]))
             }.setNegativeButton("Отмена",null).show()
         }
