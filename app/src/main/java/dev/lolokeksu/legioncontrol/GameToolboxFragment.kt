@@ -69,9 +69,11 @@ class GameToolboxFragment : Fragment() {
         })
     }
 
-    private fun tile(title: String, detail: String, onClick: () -> Unit) {
+    private fun tile(title: String, detail: String, featureId: String? = null, onClick: () -> Unit) {
         column.addView(
-            LegionUiSupport.actionTile(requireContext(), title, detail, onClick),
+            LegionUiSupport.actionTile(requireContext(), title, detail, onClick).apply {
+                if(featureId!=null) FeatureReveal.bind(this,featureId)
+            },
             LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 10.dp }
         )
     }
@@ -174,14 +176,14 @@ class GameToolboxFragment : Fragment() {
                 "Изменения общесистемные и применяются только по нажатию.",
             13f, muted
         ).apply { setPadding(0, 0, 0, 12.dp) })
-        tile("Настроить профиль", "Выбрать громкость, яркость и режим DND") {
+        tile("Настроить профиль", "Выбрать громкость, яркость и режим DND", "toolbox.profile") {
             configureGameLaunchProfile()
         }
         tile("Применить профиль", "Без запуска игры") { applyGameLaunchProfile(false) }
         tile("Применить профиль и запустить игру", "Сохранить возможность отката") {
             applyGameLaunchProfile(true)
         }
-        tile("Восстановить прежние настройки", "Вернуть сохранённое состояние Android") {
+        tile("Восстановить прежние настройки", "Вернуть сохранённое состояние Android", "toolbox.undo") {
             status.text = GameLaunchProfiles.restore(requireContext()).message
             renderStatus()
         }
