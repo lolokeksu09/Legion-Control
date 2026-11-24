@@ -30,13 +30,16 @@ import android.widget.TextView
 
 /**
  * Explicit, user-started, non-focusable overlay. It only receives touches inside its
- * own visible bubble/panel, never records input from another app and never samples games.
+ * own visible bubble/panel, never records input from another app. An independently
+ * confirmed one-shot automation may observe Android UsageEvents.
  */
 class GameToolboxService : Service() {
     companion object {
         const val ACTION_START = "dev.lolokeksu.legioncontrol.toolbox.START"
         const val ACTION_STOP = "dev.lolokeksu.legioncontrol.toolbox.STOP"
         const val ACTION_REFRESH = "dev.lolokeksu.legioncontrol.toolbox.REFRESH"
+        const val ACTION_AUTO = "dev.lolokeksu.legioncontrol.toolbox.AUTO"
+        const val ACTION_AUTO_STOP = "dev.lolokeksu.legioncontrol.toolbox.AUTO_STOP"
         private const val CHANNEL = "game-toolbox"
         private const val NOTIFICATION_ID = 2401
         @Volatile private var active = false
@@ -51,6 +54,15 @@ class GameToolboxService : Service() {
             context.startService(
                 Intent(context, GameToolboxService::class.java).setAction(ACTION_STOP)
             )
+        }
+
+        internal fun startAutomation(context:Context,pkg:String,profile:GameLaunchProfile) {
+            context.startForegroundService(Intent(context,GameToolboxService::class.java).setAction(ACTION_AUTO)
+                .putExtra("auto_pkg",pkg).putExtra("auto_profile",profile.encode())
+                .putExtra("auto_confirmed_at",System.currentTimeMillis()))
+        }
+        internal fun stopAutomation(context:Context) {
+            if(active) context.startService(Intent(context,GameToolboxService::class.java).setAction(ACTION_AUTO_STOP))
         }
 
         fun refresh(context: Context) {
@@ -71,6 +83,7 @@ class GameToolboxService : Service() {
     private var feedback: TextView? = null
     private var expanded = false
     private var startedAt = 0L
+    private var automation:GameAutomationController?=null
     private val Int.dp: Int get() = (this * resources.displayMetrics.density).toInt()
 
     private val clock = object : Runnable {
@@ -85,6 +98,11 @@ class GameToolboxService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if(intent?.action==ACTION_AUTO_STOP) {
+            automation?.stop("Остановка пользователем")
+            if(overlay==null) stopSelfResult(startId)
+            return START_NOT_STICKY
+        }
         if (intent?.action == ACTION_STOP) {
             stopSelf()
             return START_NOT_STICKY
@@ -93,6 +111,7 @@ class GameToolboxService : Service() {
             if (overlay != null) applyPreferences()
             return START_NOT_STICKY
         }
+        if(intent?.action!=ACTION_START && intent?.action!=ACTION_AUTO) { if(overlay==null) stopSelfResult(startId);return START_NOT_STICKY }
         if (!Settings.canDrawOverlays(this)) {
             stopSelf()
             return START_NOT_STICKY
@@ -110,7 +129,25 @@ class GameToolboxService : Service() {
         } else {
             applyPreferences()
         }
+        if(intent.action==ACTION_AUTO && overlay!=null && active) {
+            val pkg=intent.getStringExtra("auto_pkg")
+            val profile=GameLaunchProfile.decode(intent.getStringExtra("auto_profile"))
+            val confirmed=intent.getLongExtra("auto_confirmed_at",0L)
+            if(automation!=null) showFeedback("Авто-сессия уже активна.")
+            else if(pkg!=null && profile!=null && System.currentTimeMillis()-confirmed in 0L..15_000L) {
+                val controller=GameAutomationController(this,pkg,profile,confirmed,{ message ->
+                    showFeedback(message); updateAutomationNotification(message)
+                },{ message ->
+                    automation=null;showFeedback(message);updateAutomationNotification("Автоматизация завершена. "+message)
+                })
+                automation=controller;controller.start()
+            }
+        }
         return START_NOT_STICKY
+    }
+
+    private fun updateAutomationNotification(message:String) {
+        runCatching { (getSystemService(NOTIFICATION_SERVICE) as NotificationManager).notify(NOTIFICATION_ID,buildNotification(message)) }
     }
 
     private fun promoteToForeground() {
@@ -118,27 +155,31 @@ class GameToolboxService : Service() {
         manager.createNotificationChannel(
             NotificationChannel(CHANNEL, "Legion Game Toolbox", NotificationManager.IMPORTANCE_LOW)
         )
+        val notification=buildNotification("Плавающая панель включена вручную · нажмите для настроек")
+        if (Build.VERSION.SDK_INT >= 34) {
+            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+        } else startForeground(NOTIFICATION_ID, notification)
+    }
+
+    private fun buildNotification(message:String):Notification {
         val openIntent = Intent(this, GameToolboxActivity::class.java)
         val open = PendingIntent.getActivity(this, 2401, openIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val stop = PendingIntent.getService(this, 2402,
             Intent(this, GameToolboxService::class.java).setAction(ACTION_STOP),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        val notification = Notification.Builder(this, CHANNEL)
+        val autoStop=PendingIntent.getService(this,2403,Intent(this,GameToolboxService::class.java).setAction(ACTION_AUTO_STOP),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        val builder=Notification.Builder(this, CHANNEL)
             .setSmallIcon(android.R.drawable.ic_menu_manage)
             .setContentTitle("Legion Control · Game Toolbox")
-            .setContentText("Плавающая панель включена вручную · нажмите для настроек")
+            .setContentText(message.take(180))
             .setContentIntent(open)
             .setOngoing(true)
             .setCategory(Notification.CATEGORY_SERVICE)
             .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Остановить", stop)
-            .build()
-        if (Build.VERSION.SDK_INT >= 34) {
-            startForeground(NOTIFICATION_ID, notification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
-        } else {
-            startForeground(NOTIFICATION_ID, notification)
-        }
+        if(automation!=null) builder.addAction(android.R.drawable.ic_menu_close_clear_cancel,"Завершить авто",autoStop)
+        return builder.build()
     }
 
     private fun rounded(color: Int, radius: Int, border: Int = 0): GradientDrawable =
@@ -404,6 +445,8 @@ class GameToolboxService : Service() {
 
     override fun onDestroy() {
         active = false
+        automation?.stop("Панель остановлена")
+        automation=null
         handler.removeCallbacks(clock)
         overlay?.let { runCatching { windows.removeView(it) } }
         overlay = null
