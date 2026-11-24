@@ -24,6 +24,7 @@ import java.util.concurrent.Future
 class HardwareLabFragment : Fragment() {
     private lateinit var viewModel: HardwareLabViewModel
     private lateinit var result: TextView
+    private var batteryLab: BatteryLabPanel? = null
 
 
     override fun onCreateView(inflater:LayoutInflater,container:ViewGroup?,savedInstanceState:Bundle?):View {
@@ -55,6 +56,7 @@ class HardwareLabFragment : Fragment() {
         }
         LegionUiSupport.reportSurface(result)
         root.addView(result)
+        batteryLab=BatteryLabPanel(requireContext()).also { root.addView(it) }
         root.addView(LegionUiSupport.sectionLabel(requireContext(), "СЕТЬ"))
         addButton(root, "1 · Local Route Inspector", "hardware.route") {
             viewModel.run(HardwareProbe.ROUTE)
@@ -139,9 +141,17 @@ class HardwareLabFragment : Fragment() {
     override fun onStart() {
         super.onStart()
         viewModel.setVisible(true)
+        batteryLab?.setVisible(true)
+    }
+
+    override fun onDestroyView() {
+        batteryLab?.close()
+        batteryLab=null
+        super.onDestroyView()
     }
 
     override fun onStop() {
+        batteryLab?.setVisible(false)
         viewModel.setVisible(false)
         viewModel.cancelAll()
         super.onStop()
