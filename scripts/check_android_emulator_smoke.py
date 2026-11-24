@@ -536,13 +536,18 @@ def main() -> None:
     capture("21-live-monitor-stopped")
     expect_scrolling("Доступная RAM:", seconds=20)
     click("ЗАФИКСИРОВАТЬ КОНТРОЛЬНУЮ ТОЧКУ", scrolls=10, exact_only=True)
-    expect("Изменение относительно сохранённого замера")
+    # The comparison is below the fold after the shared report surface changes.
+    # Require the same actual report, but scroll towards it instead of waiting
+    # on the preceding viewport. Pinning updates the status message as well.
+    expect_scrolling("Изменение относительно сохранённого замера", seconds=35, progressive=True)
     capture("22-live-monitor-baseline")
     click("НАЧАТЬ МОНИТОРИНГ", scrolls=12, direction="up", exact_only=True)
     expect("Начать новый мониторинг?")
     capture("22a-shared-confirmation-dialog")
     click("Отмена", scrolls=0, exact_only=True)
-    expect("Мониторинг остановлен пользователем")
+    expect_scrolling("Контрольная точка сохранена.", seconds=25)
+    expect_scrolling("Изменение относительно сохранённого замера", seconds=35, progressive=True)
+    capture("22b-cancel-preserves-baseline")
     # The origin Home is scrolled down to the Live Monitor tile. Its title may
     # be offscreen or loading. Press Back once and wait for the fixed host header;
     # repeated Back presses on Home would exit to Android Launcher.
