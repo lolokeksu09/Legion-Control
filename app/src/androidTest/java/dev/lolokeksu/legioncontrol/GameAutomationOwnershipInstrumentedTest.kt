@@ -27,7 +27,9 @@ class GameAutomationOwnershipInstrumentedTest {
             assertFalse(GameLaunchProfiles.applyAutomatic(context,pkg,"owner-b",GameLaunchProfile(mediaPercent=20)).success)
             assertEquals("owner-a",prefs.getString(keys[1],null))
             assertEquals(ticket,prefs.getString(keys[0],null))
-            assertTrue(runCatching{GameLaunchProfiles.withRestoreProtection(context){error("Must not enter with pending undo")}}.isFailure)
+            var entered=false
+            assertTrue(runCatching{GameLaunchProfiles.withRestoreProtection(context){entered=true}}.isFailure)
+            assertFalse("Pending undo must prevent entering preference replay",entered)
             assertEquals(ticket,prefs.getString(keys[0],null))
             assertTrue(prefs.edit().remove(keys[0]).remove(keys[1]).commit())
             GameLaunchProfiles.withRestoreProtection(context){
