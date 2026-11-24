@@ -97,6 +97,31 @@ class GameSessionRepository(context: Context) : AutoCloseable {
         return out
     }
 
+    /** Stable, parameterized paging over local history, including unfinished records. */
+    fun libraryPage(filter:LibraryFilter,now:Long,cursor:LibraryCursor?=null):LibraryPage {
+        val query=SessionLibraryPolicy.query(filter,now,cursor)
+        val out=mutableListOf<GameSessionHeader>()
+        dbHelper.readableDatabase.rawQuery(
+            "SELECT session_id,package_name,app_label,started_at_ms,ended_at_ms,end_reason,tcp_opt_in FROM game_sessions"+
+                query.where+" ORDER BY started_at_ms DESC,session_id DESC LIMIT ?",
+            (query.args+(SessionLibraryPolicy.PAGE_SIZE+1).toString()).toTypedArray()
+        ).use { c ->
+            while(c.moveToNext())out+=GameSessionHeader(c.getString(0),c.getString(1),c.getString(2),
+                c.getLong(3),if(c.isNull(4))null else c.getLong(4),if(c.isNull(5))null else c.getString(5),c.getInt(6)==1)
+        }
+        return SessionLibraryPolicy.page(out)
+    }
+
+    /** Freeze a selected, completed record before offering an export. */
+    fun libraryDetail(id:String):LibraryDetail {
+        val h=header(id) ?: error("Session unavailable")
+        require(h.endedAtMs!=null) { "Only ended records can be exported" }
+        val samples=points(id,SessionLibraryPolicy.MAX_SAMPLES)
+        val events=eventsChronological(id,SessionLibraryPolicy.MAX_EVENTS)
+        return LibraryDetail(h,samples,events,samples.size>=SessionLibraryPolicy.MAX_SAMPLES,
+            events.size>=SessionLibraryPolicy.MAX_EVENTS)
+    }
+
     /** Exact package history, not last-N-global. Safe for baseline comparisons. */
     fun recentForPackage(packageName:String, limit:Int=25):List<GameSessionHeader> {
         require(Regex("^[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z0-9_]+)+$").matches(packageName))
