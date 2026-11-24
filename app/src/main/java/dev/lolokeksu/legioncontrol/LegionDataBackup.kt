@@ -19,7 +19,11 @@ import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
 data class LegionBackupPreview(val tables: Int, val rows: Long, val schema: Int,
-                               val settings: Int, val archiveVersion: Int = 2)
+                               val settings: Int, val archiveVersion: Int = 2,
+                               val identity: BackupArchiveIdentity? = null)
+
+data class BackupArchiveIdentity(val version: Int, val databaseSha256: String,
+                                 val preferencesSha256: String)
 
 /**
  * Local, portable recovery for all v12 SQLite tables plus non-secret user preferences.
@@ -60,6 +64,33 @@ object LegionDataBackup {
 
     private fun pendingFile(context: Context): AtomicFile =
         AtomicFile(File(context.filesDir, PENDING_JOURNAL))
+
+    /** Bound memory before reading a damaged journal, not after allocating its contents. */
+    internal fun readBounded(input: InputStream, maxBytes: Int): ByteArray {
+        require(maxBytes > 0)
+        val result = ByteArrayOutputStream()
+        val block = ByteArray(minOf(8192, maxBytes))
+        var remaining = maxBytes
+        while (remaining > 0) {
+            val n = input.read(block, 0, minOf(block.size, remaining))
+            if (n < 0) return result.toByteArray()
+            if (n == 0) {
+                val one = input.read()
+                if (one < 0) return result.toByteArray()
+                result.write(one)
+                remaining--
+            } else {
+                result.write(block, 0, n)
+                remaining -= n
+            }
+        }
+        require(input.read() == -1) { "Recovery journal exceeds size limit" }
+        return result.toByteArray()
+    }
+
+    private fun identity(manifest: JSONObject) = BackupArchiveIdentity(
+        manifest.getInt("version"), manifest.getString("database_sha256"),
+        manifest.getString("preferences_sha256"))
 
     private fun sqliteMarker(db: SQLiteDatabase): Int =
         db.rawQuery("PRAGMA application_id", null).use { cursor ->
@@ -103,7 +134,7 @@ object LegionDataBackup {
             return false
         }
         try {
-            val bytes = atomic.openRead().use { it.readBytes() }
+            val bytes = atomic.openRead().use { readBounded(it, MAX_PREFS * 2 + MAX_META) }
             require(bytes.size in 1..(MAX_PREFS * 2 + MAX_META))
             val entry = JSONObject(String(bytes, Charsets.UTF_8))
             val version = entry.getInt("version")
@@ -133,8 +164,9 @@ object LegionDataBackup {
         check(CaptureCoordinator.reserveConsent(CaptureMode.MAINTENANCE)) {
             "Завершите MediaProjection перед резервным копированием"
         }
-        val tmp = newStagingFile(context)
+        var temporary: File? = null
         try {
+            val tmp = newStagingFile(context).also { temporary = it }
             val prefs = preferencesJson(context)
             LocalHistoryStore(context).use { helper ->
                 helper.readableDatabase.execSQL("VACUUM INTO ?", arrayOf(tmp.absolutePath))
@@ -161,9 +193,10 @@ object LegionDataBackup {
                 FileInputStream(tmp).use { it.copyTo(zip) }
                 zip.closeEntry()
             }
-            return preview.copy(settings = countSettings(parsePreferences(prefs, FORMAT_VERSION)))
+            return preview.copy(settings = countSettings(parsePreferences(prefs, FORMAT_VERSION)),
+                identity = identity(manifest))
         } finally {
-            tmp.delete()
+            temporary?.delete()
             CaptureCoordinator.release(CaptureMode.MAINTENANCE)
         }
     }
@@ -171,18 +204,25 @@ object LegionDataBackup {
     fun preview(context: Context, uri: Uri): LegionBackupPreview =
         withStaged(context, uri) { stage ->
             inspectSQLite(context, stage.sqlite)
-                .copy(settings = countSettings(stage.preferences), archiveVersion = stage.manifest.getInt("version"))
+                .copy(settings = countSettings(stage.preferences), archiveVersion = stage.manifest.getInt("version"),
+                    identity = identity(stage.manifest))
         }
 
-    fun restoreOnEmptyDatabase(context: Context, uri: Uri): LegionBackupPreview =
-        restoreCore(context, uri, null)
+    fun restoreOnEmptyDatabase(context: Context, uri: Uri,
+                               confirmed: BackupArchiveIdentity): LegionBackupPreview =
+        restoreCore(context, uri, confirmed, null)
+
+    /** Emulator fixtures already operate on explicitly constructed local archives. */
+    internal fun restoreOnEmptyDatabase(context: Context, uri: Uri): LegionBackupPreview =
+        restoreCore(context, uri, requireNotNull(preview(context, uri).identity), null)
 
     /** Test seam: simulate a process interruption after DB COMMIT but before settings. */
     internal fun restoreInterruptedForTest(context: Context, uri: Uri,
                                           interrupt: () -> Unit): LegionBackupPreview =
-        restoreCore(context, uri, interrupt)
+        restoreCore(context, uri, requireNotNull(preview(context, uri).identity), interrupt)
 
     @Synchronized private fun restoreCore(context: Context, uri: Uri,
+                                          confirmed: BackupArchiveIdentity,
                                           afterDbCommit: (() -> Unit)?): LegionBackupPreview {
         recoverPendingRestore(context) // complete or discard a prior interrupted attempt
         check(!GameSessionRecorderService.sessionActive) {
@@ -198,8 +238,12 @@ object LegionDataBackup {
         try {
             check(!GameSessionRecorderService.sessionActive)
             return withStaged(context, uri) { staged ->
+                check(identity(staged.manifest) == confirmed) {
+                    "Архив изменился после проверки. Откройте и подтвердите его заново."
+                }
                 val preview = inspectSQLite(context, staged.sqlite)
-                    .copy(settings = countSettings(staged.preferences), archiveVersion = staged.manifest.getInt("version"))
+                    .copy(settings = countSettings(staged.preferences), archiveVersion = staged.manifest.getInt("version"),
+                        identity = identity(staged.manifest))
                 val source = SQLiteDatabase.openDatabase(staged.sqlite.absolutePath, null,
                     SQLiteDatabase.OPEN_READONLY)
                 try {

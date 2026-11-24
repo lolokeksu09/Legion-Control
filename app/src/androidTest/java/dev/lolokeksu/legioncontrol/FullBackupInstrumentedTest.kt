@@ -98,6 +98,14 @@ class FullBackupInstrumentedTest {
         return result.toByteArray()
     }
 
+    @Test fun recoveryReadRejectsOversizeBeforeAllocatingTheWholeInput() {
+        val exact = ByteArray(8192) { 7 }
+        assertArrayEquals(exact, LegionDataBackup.readBounded(ByteArrayInputStream(exact), exact.size))
+        val oversized = ByteArrayInputStream(ByteArray(32_768))
+        assertTrue(runCatching { LegionDataBackup.readBounded(oversized, 8192) }.isFailure)
+        assertEquals(32_768 - 8193, oversized.available())
+    }
+
     @Test fun backupCanRoundTripAndRejectsPopulatedOrTamperedTarget() {
         assertEmulatorOnly()
         val app = context()
@@ -196,7 +204,22 @@ class FullBackupInstrumentedTest {
             }
 
             assertTrue(preflight.edit().clear().commit())
-            val restored = LegionDataBackup.restoreOnEmptyDatabase(app, backup)
+            // Same SAF URI, different valid contents: the previously approved hash must reject it.
+            val confirmed = requireNotNull(preview.identity)
+            val replacement = rewritePreferences(originalBytes, 2) {
+                it.getJSONObject("legion-capture-studio").put("ci_restore_sentinel",
+                    JSONObject().put("type","string").put("value","replacement"))
+            }
+            requireNotNull(app.contentResolver.openOutputStream(backup, "wt")).use { it.write(replacement) }
+            assertNotEquals(confirmed, LegionDataBackup.preview(app, backup).identity)
+            val rejected = runCatching { LegionDataBackup.restoreOnEmptyDatabase(app, backup, confirmed) }.exceptionOrNull()
+            assertNotNull(rejected)
+            assertTrue(rejected?.message.orEmpty().contains("Архив изменился"))
+            assertNull(GameSessionRepository(app).use { it.header(sessionId) })
+            assertNull(prefs.getString("ci_restore_sentinel", null))
+            assertEquals(PreflightPreset(), PreflightPresets.read(app, pkgA))
+            requireNotNull(app.contentResolver.openOutputStream(backup, "wt")).use { it.write(originalBytes) }
+            val restored = LegionDataBackup.restoreOnEmptyDatabase(app, backup, confirmed)
             assertEquals(presetA, PreflightPresets.read(app, pkgA))
             assertEquals(presetB, PreflightPresets.read(app, pkgB))
             assertEquals(presetA, PreflightPresets.read(app, longPkg))

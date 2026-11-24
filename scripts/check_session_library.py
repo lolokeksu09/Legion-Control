@@ -19,6 +19,11 @@ assert "query.args+" in repo and "require(h.endedAtMs!=null)" in repo
 assert "s.detail!==detail" in vm and "detail.header.id==row.id" in vm
 assert "ActivityResultContracts.CreateDocument" in ui
 assert "CsvEscaper.cell" in export
+assert "OutputStreamWriter(zip,Charsets.UTF_8).buffered()" in export
+assert "writer.flush()" in export and "buildString" not in export
+assert "MAX_SAMPLES+1" in repo and "MAX_EVENTS+1" in repo
+assert "samples.size>SessionLibraryPolicy.MAX_SAMPLES" in repo
+assert "events.size>SessionLibraryPolicy.MAX_EVENTS" in repo
 for name in ("session.csv","samples.csv","events.csv","README.txt"):
     assert name in export
 for banned in ("startForegroundService(", "startService(", "deleteDatabase(", "repo.start(", "repo.record(", "repo.finish(", "Settings.System.put"):

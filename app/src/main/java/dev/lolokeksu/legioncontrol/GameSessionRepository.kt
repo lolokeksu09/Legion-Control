@@ -116,10 +116,11 @@ class GameSessionRepository(context: Context) : AutoCloseable {
     fun libraryDetail(id:String):LibraryDetail {
         val h=header(id) ?: error("Session unavailable")
         require(h.endedAtMs!=null) { "Only ended records can be exported" }
-        val samples=points(id,SessionLibraryPolicy.MAX_SAMPLES)
-        val events=eventsChronological(id,SessionLibraryPolicy.MAX_EVENTS)
-        return LibraryDetail(h,samples,events,samples.size>=SessionLibraryPolicy.MAX_SAMPLES,
-            events.size>=SessionLibraryPolicy.MAX_EVENTS)
+        val samples=readPoints(id,SessionLibraryPolicy.MAX_SAMPLES+1)
+        val events=readEventsChronological(id,SessionLibraryPolicy.MAX_EVENTS+1)
+        return LibraryDetail(h,samples.take(SessionLibraryPolicy.MAX_SAMPLES),
+            events.take(SessionLibraryPolicy.MAX_EVENTS),samples.size>SessionLibraryPolicy.MAX_SAMPLES,
+            events.size>SessionLibraryPolicy.MAX_EVENTS)
     }
 
     /** Exact package history, not last-N-global. Safe for baseline comparisons. */
@@ -153,11 +154,14 @@ class GameSessionRepository(context: Context) : AutoCloseable {
         return out
     }
 
-    fun points(id: String, limit: Int = 10000): List<GameTelemetryPoint> {
+    fun points(id: String, limit: Int = 10000): List<GameTelemetryPoint> =
+        readPoints(id, limit.coerceIn(1,10000))
+
+    private fun readPoints(id: String, limit: Int): List<GameTelemetryPoint> {
         val out = mutableListOf<GameTelemetryPoint>()
         dbHelper.readableDatabase.rawQuery(
             "SELECT recorded_at_ms,battery_percent,battery_temp_deci_c,battery_current_ua,thermal_status,power_saving,refresh_hz,network_type,network_validated FROM game_samples WHERE session_id=? ORDER BY recorded_at_ms ASC,id ASC LIMIT ?",
-            arrayOf(id,limit.coerceIn(1,10000).toString())
+            arrayOf(id,limit.coerceIn(1,SessionLibraryPolicy.MAX_SAMPLES+1).toString())
         ).use { c ->
             while(c.moveToNext()) out += GameTelemetryPoint(
                 c.getLong(0),if(c.isNull(1))null else c.getInt(1),
@@ -181,12 +185,15 @@ class GameSessionRepository(context: Context) : AutoCloseable {
     }
 
     /** Chronological, bounded events for the offline signal timeline; no schema changes. */
-    fun eventsChronological(id: String, limit: Int = 2000): List<GameSessionEvent> {
+    fun eventsChronological(id: String, limit: Int = 2000): List<GameSessionEvent> =
+        readEventsChronological(id, limit.coerceIn(1,2000))
+
+    private fun readEventsChronological(id: String, limit: Int): List<GameSessionEvent> {
         val out = mutableListOf<GameSessionEvent>()
         dbHelper.readableDatabase.rawQuery(
             "SELECT recorded_at_ms,event_type,details FROM game_events WHERE session_id=? " +
                 "ORDER BY recorded_at_ms ASC,id ASC LIMIT ?",
-            arrayOf(id, limit.coerceIn(1,2000).toString())
+            arrayOf(id, limit.coerceIn(1,SessionLibraryPolicy.MAX_EVENTS+1).toString())
         ).use { c ->
             while(c.moveToNext()) out += GameSessionEvent(c.getLong(0),c.getString(1),c.getString(2))
         }
