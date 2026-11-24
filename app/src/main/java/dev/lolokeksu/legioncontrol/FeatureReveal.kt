@@ -40,7 +40,7 @@ object FeatureReveal {
         }
     }
 
-    private fun findTarget(root: View, feature: FeatureEntry): View? {
+    internal fun findTarget(root: View, feature: FeatureEntry): View? {
         val bound = matching(root) { it.tag == TAG_PREFIX + feature.id }
         // Missing or duplicate identity is unavailable; never infer a target from its label.
         return bound.singleOrNull()?.let { targetOf(it, root) }
