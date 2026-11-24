@@ -59,11 +59,13 @@ for needed in (
     "savePending(context, marker, staged.preferenceBytes, staged.manifest.getInt(\"version\"),staged.labBytes)",
     "target.execSQL(\"PRAGMA application_id = $marker\")",
     "check(recoverPendingRestore(context))",
-    "if (committed) applyPreferences(context, values)",
+    "if (committed) {", "labs?.let { LabBackup.restore(context,it) }",
+    "applyPreferences(context, values)",
     "atomic.finishWrite(output)", "MAX_DB",
     "GameSessionRecorderService.sessionActive", "CaptureMode.MAINTENANCE"
 ):
     assert needed in backup, needed
+assert backup.index("if (committed) {") < backup.index("labs?.let { LabBackup.restore(context,it) }") < backup.index("applyPreferences(context, values)") < backup.index("atomic.delete()")
 assert "DROP TABLE" not in backup and "DELETE FROM" not in backup
 assert backup.index("savePending(context, marker, staged.preferenceBytes, staged.manifest.getInt(\"version\"),staged.labBytes)") < backup.index("target.setTransactionSuccessful()")
 assert "private fun restoreCore" in backup and "restoreInterruptedForTest" in backup
