@@ -232,6 +232,9 @@ class HubPageFragment : Fragment() {
             open(GameSessionActivity::class.java)
         }
         group("Состояние Android")
+        tile("Live Monitor", "Температура, RAM, заряд и частота дисплея в реальном времени") {
+            open(LiveMonitorActivity::class.java)
+        }
         tile("Батарея · ${s.batteryPercent?.let { "$it%" } ?: "нет данных"}",
             "Частота дисплея: ${s.refreshHz?.let { String.format(Locale.US, "%.1f Гц", it) } ?: "нет данных"} · это не FPS игры") {
             open(MainActivity::class.java)
@@ -362,6 +365,7 @@ class HubPageFragment : Fragment() {
             FeatureModule.BASELINES -> NavHostFragment.findNavController(this).navigate(R.id.sessionBaselinesFragment, args)
             FeatureModule.DIAGNOSTICS -> openStandaloneFeature(MainActivity::class.java, args)
             FeatureModule.GAMEPAD -> openStandaloneFeature(GamepadLiveActivity::class.java, args)
+            FeatureModule.MONITOR -> openStandaloneFeature(LiveMonitorActivity::class.java, args)
         }
     }
 
@@ -379,6 +383,7 @@ class HubPageFragment : Fragment() {
                 CatalogAction("Gamepad Live", "Кнопки и стики контроллера") { open(GamepadLiveActivity::class.java) }
             ),
             "Система и производительность" to listOf(
+                CatalogAction("Live Monitor", "Живые замеры, график и сравнение") { open(LiveMonitorActivity::class.java) },
                 CatalogAction("Gaming Lab", "Батарея, сеть, сенсоры и производительность") { open(GamingDiagnosticsActivity::class.java) },
                 CatalogAction("Hardware Lab", "Аппаратные измерения и тесты") { open(HardwareLabActivity::class.java) },
                 CatalogAction("Compatibility Lab", "Совместимость функций Android") { open(CompatibilityLabActivity::class.java) },

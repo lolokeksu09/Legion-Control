@@ -15,7 +15,8 @@ enum class FeatureModule(val displayName: String) {
     INCIDENTS("Session Incidents"),
     BASELINES("Session Baselines"),
     DIAGNOSTICS("Диагностика Kotlin + Rust"),
-    GAMEPAD("Gamepad Live")
+    GAMEPAD("Gamepad Live"),
+    MONITOR("Live Monitor")
 }
 
 data class FeatureEntry(
@@ -95,7 +96,11 @@ object FeatureFinder {
         FeatureEntry("diag.thermal", FeatureModule.DIAGNOSTICS, "Тепловая история", "Тепловая история", "thermal температура история"),
         FeatureEntry("diag.sensors", FeatureModule.DIAGNOSTICS, "Показания датчиков", "Снять показания датчиков", "sensor сенсор акселерометр"),
         FeatureEntry("diag.zip", FeatureModule.DIAGNOSTICS, "Архив полной диагностики", "Экспорт полной диагностики ZIP", "rust diagnostic zip экспорт"),
-        FeatureEntry("gamepad.refresh", FeatureModule.GAMEPAD, "Обновить контроллеры", "Обновить список контроллеров", "gamepad bluetooth usb геймпад")
+        FeatureEntry("gamepad.refresh", FeatureModule.GAMEPAD, "Обновить контроллеры", "Обновить список контроллеров", "gamepad bluetooth usb геймпад"),
+        FeatureEntry("monitor.start", FeatureModule.MONITOR, "Живой монитор устройства", "НАЧАТЬ МОНИТОРИНГ", "live monitor ram температура заряд частота дисплея"),
+        FeatureEntry("monitor.chart", FeatureModule.MONITOR, "График показаний", "Выбрать показатель графика", "live monitor graph ram температура"),
+        FeatureEntry("monitor.baseline", FeatureModule.MONITOR, "Контрольная точка мониторинга", "ЗАФИКСИРОВАТЬ КОНТРОЛЬНУЮ ТОЧКУ", "live monitor baseline сравнение"),
+        FeatureEntry("monitor.csv", FeatureModule.MONITOR, "Экспорт мониторинга CSV", "СОХРАНИТЬ МОНИТОРИНГ CSV", "live monitor export csv")
     )
 
     fun resolve(id: String?, module: FeatureModule): FeatureEntry? =
