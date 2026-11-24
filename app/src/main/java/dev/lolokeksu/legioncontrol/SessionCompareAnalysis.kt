@@ -18,7 +18,8 @@ data class CompareValue(val value:Double?,val known:Int,val total:Int) {
 data class CompareWindow(
     val header:GameSessionHeader,val minutes:Int,val points:Int,val coverage:Double,
     val gaps:Int,val duplicateOrOutside:Int,val issues:List<String>,
-    val metrics:Map<CompareMeasure,CompareValue>
+    val metrics:Map<CompareMeasure,CompareValue>,
+    val series:List<GameTelemetryPoint>
 )
 data class ComparePair(val a:CompareWindow,val b:CompareWindow) {
     val comparable:Boolean get()=a.issues.isEmpty() && b.issues.isEmpty()
@@ -83,7 +84,7 @@ object SessionCompareAnalysis {
             CompareMeasure.NETWORK to ratio(points.mapNotNull { it.networkValidated?.let { v->!v } })
         )
         return CompareWindow(h,minutes,points.size,coverage,gaps,inWindow.size-points.size+
-            bounded.count { it.timeMs<h.startedAtMs },issues,metrics)
+            bounded.count { it.timeMs<h.startedAtMs },issues,metrics,points)
     }
     fun compare(a:CompareWindow,b:CompareWindow):ComparePair {
         require(a.header.packageName==b.header.packageName && a.header.id!=b.header.id)
