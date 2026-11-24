@@ -55,8 +55,9 @@ class LiveMonitorActivity : FragmentActivity() {
                 setPadding(0, 5.dp, 0, 10.dp)
                 root.addView(this, LinearLayout.LayoutParams(-1, -2))
             }
-        fun action(title: String, click: () -> Unit): Button = Button(this).apply {
+        fun action(title: String, featureId: String? = null, click: () -> Unit): Button = Button(this).apply {
             text = title
+            if(featureId != null) FeatureReveal.bind(this, featureId)
             LegionUiSupport.styleAction(this)
             setOnClickListener { click() }
             root.addView(this)
@@ -77,7 +78,7 @@ class LiveMonitorActivity : FragmentActivity() {
                     dialog.dismiss()
                 }.setNegativeButton("Отмена", null).show()
         }
-        startButton = action("НАЧАТЬ МОНИТОРИНГ") {
+        startButton = action("НАЧАТЬ МОНИТОРИНГ", "monitor.start") {
             if (model.state.value?.points?.isNotEmpty() == true) {
                 AlertDialog.Builder(this).setTitle("Начать новый мониторинг?")
                     .setMessage("Новые измерения заменят текущие замеры в памяти. Сначала экспортируйте CSV, если хотите сохранить их. Контрольная точка останется.")
@@ -90,7 +91,7 @@ class LiveMonitorActivity : FragmentActivity() {
         root.addView(LegionUiSupport.sectionLabel(this, "ТЕКУЩИЕ ПОКАЗАНИЯ"))
         summary = label("Показаний пока нет.")
         root.addView(LegionUiSupport.sectionLabel(this, "ГРАФИК"))
-        metricButton = action("Выбрать показатель графика") {
+        metricButton = action("Выбрать показатель графика", "monitor.chart") {
             val options = MonitorMetric.entries
             AlertDialog.Builder(this).setTitle("Показатель графика")
                 .setSingleChoiceItems(options.map { it.label }.toTypedArray(),
@@ -104,11 +105,11 @@ class LiveMonitorActivity : FragmentActivity() {
         chart = MonitorChartView(this)
         root.addView(chart, LinearLayout.LayoutParams(-1, 172.dp).apply { bottomMargin = 12.dp })
         root.addView(LegionUiSupport.sectionLabel(this, "СРАВНЕНИЕ С КОНТРОЛЬНОЙ ТОЧКОЙ"))
-        pinButton = action("ЗАФИКСИРОВАТЬ КОНТРОЛЬНУЮ ТОЧКУ") { model.pinBaseline() }
+        pinButton = action("ЗАФИКСИРОВАТЬ КОНТРОЛЬНУЮ ТОЧКУ", "monitor.baseline") { model.pinBaseline() }
         comparison = label("Контрольная точка не выбрана.")
         clearButton = action("Сбросить контрольную точку") { model.clearBaseline() }
         root.addView(LegionUiSupport.sectionLabel(this, "ЭКСПОРТ"))
-        exportButton = action("СОХРАНИТЬ МОНИТОРИНГ CSV") {
+        exportButton = action("СОХРАНИТЬ МОНИТОРИНГ CSV", "monitor.csv") {
             if (!model.beginExport()) return@action
             model.state.value?.let(::render)
             runCatching { document.launch("legion-monitor-${System.currentTimeMillis()}.csv") }
