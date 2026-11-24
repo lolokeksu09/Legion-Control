@@ -143,6 +143,39 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4
+        with:
+          packages: 'platform-tools'
+      - name: Preinstall Android 35 emulator image with bounded retries
+        shell: bash
+        run: |
+          set -eu
+          # GitHub's bash runner starts with pipefail. sdkmanager exits as soon
+          # as licenses are accepted, so yes may receive SIGPIPE by design.
+          set +o pipefail
+          yes | sdkmanager --licenses >/dev/null
+          set -o pipefail
+          image_dir="$ANDROID_HOME/system-images/android-35/google_apis/x86_64"
+          for attempt in 1 2 3; do
+            if [[ -s "$image_dir/source.properties" && -s "$image_dir/system.img" ]]; then
+              echo "PASS: Android 35 x86_64 Google APIs image already installed"
+              exit 0
+            fi
+            rm -rf -- "$image_dir"
+            if sdkmanager --install 'system-images;android-35;google_apis;x86_64' --channel=0; then
+              if [[ -s "$image_dir/source.properties" && -s "$image_dir/system.img" ]]; then
+                echo "PASS: Android 35 x86_64 Google APIs image installed (attempt $attempt)"
+                exit 0
+              fi
+              echo "::warning::Android system image attempt $attempt returned success without complete image files"
+            else
+              echo "::warning::Android system image attempt $attempt failed"
+            fi
+            rm -rf -- "$image_dir"
+            if [[ "$attempt" -lt 3 ]]; then sleep "$((attempt * 10))"; fi
+          done
+          echo "::error::Android 35 x86_64 Google APIs image could not be installed after 3 attempts"
+          exit 1
       - name: Install and launch on Android 35 emulator
         uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2
         with:

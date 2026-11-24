@@ -155,8 +155,14 @@ jobs:
           tag=v0.1.0-alpha.49
           apk=app/build/outputs/apk/release/app-release.apk
           if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "::error::Release $tag already exists; refusing to replace binaries"
-            exit 1
+            {
+              echo "### Publication skipped — existing release preserved"
+              echo
+              echo "Release `$tag` already exists. Its assets were not modified. The newly built APK remains available in this workflow's signed APK artifact."
+              echo "To publish a new binary, increment `versionCode`/`versionName` and add matching release notes before merging."
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::notice::Release $tag already exists; preserving it and keeping the verified APK as a workflow artifact."
+            exit 0
           fi
           test -s "$apk"
           asset=Legion-Control-v0.1.0-alpha.49-signed.apk
