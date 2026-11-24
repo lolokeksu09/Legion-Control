@@ -55,15 +55,15 @@ class SessionLibraryActivity:FragmentActivity() {
             text=value;textSize=size;setTextColor(color);setLineSpacing(3f,1f)
             setPadding(0,5.dp,0,10.dp);root.addView(this)
         }
-        fun button(title:String,action:()->Unit)=Button(this).apply {
-            text=title;LegionUiSupport.styleAction(this);setOnClickListener { action() };root.addView(this)
+        fun button(title:String,featureId:String?=null,action:()->Unit)=Button(this).apply {
+            text=title;if(featureId!=null)FeatureReveal.bind(this,featureId);LegionUiSupport.styleAction(this);setOnClickListener { action() };root.addView(this)
         }
         label("SESSION LIBRARY",22f).apply { setTypeface(Typeface.DEFAULT,Typeface.BOLD);isAccessibilityHeading=true }
         label("Локальная история: фильтры, страницы и отдельный архив записи. Данные не удаляются.",13f,LegionUiSupport.MUTED)
         status=label("Загрузка истории…",14f,LegionUiSupport.ACCENT)
         root.addView(LegionUiSupport.sectionLabel(this,"ФИЛЬТРЫ"))
         filters=label("")
-        game=button("Фильтр по игре") {
+        game=button("Фильтр по игре", "library.game") {
             val s=vm.state.value ?: return@button
             val packages=(s.packages+listOfNotNull(s.filter.packageName)).distinct()
             AlertDialog.Builder(this).setTitle("Игра")
@@ -71,14 +71,14 @@ class SessionLibraryActivity:FragmentActivity() {
                     vm.refresh(s.filter.copy(packageName=packages.getOrNull(i-1)))
                 }.setNegativeButton("Отмена",null).show()
         }
-        period=button("Фильтр по периоду") {
+        period=button("Фильтр по периоду", "library.period") {
             val s=vm.state.value ?: return@button
             val options=LibraryPeriod.entries
             AlertDialog.Builder(this).setTitle("Период").setItems(options.map { it.label }.toTypedArray()) { _,i->
                 vm.refresh(s.filter.copy(period=options[i]))
             }.setNegativeButton("Отмена",null).show()
         }
-        stateButton=button("Фильтр по завершению") {
+        stateButton=button("Фильтр по завершению", "library.state") {
             val s=vm.state.value ?: return@button
             val options=LibraryStatus.entries
             AlertDialog.Builder(this).setTitle("Состояние записи").setItems(options.map { it.label }.toTypedArray()) { _,i->
@@ -93,7 +93,7 @@ class SessionLibraryActivity:FragmentActivity() {
         next=button("Следующая страница") { vm.next() }
         root.addView(LegionUiSupport.sectionLabel(this,"ВЫБРАННАЯ ЗАПИСЬ"))
         detail=label("Выберите завершённую запись.").apply { setTextIsSelectable(true) }
-        export=button("ЭКСПОРТ ВЫБРАННОЙ СЕССИИ ZIP") {
+        export=button("ЭКСПОРТ ВЫБРАННОЙ СЕССИИ ZIP", "library.zip") {
             val selected=vm.state.value?.detail ?: return@button
             if(!vm.pendingDocument.begin(selected)) return@button
             export.isEnabled=false
