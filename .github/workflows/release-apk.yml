@@ -58,6 +58,18 @@ jobs:
         run: gradle --no-daemon testDebugUnitTest
       - name: Test and build real Rust native libraries
         run: bash scripts/build-native.sh
+      - name: Generate resolved Android and Rust runtime SBOMs
+        run: |
+          gradle --no-daemon -I scripts/dependency_inventory.init.gradle :app:writeRuntimeDependencyInventory
+          python3 scripts/generate_runtime_sbom.py --revision "$(git rev-parse HEAD)" --output runtime-sbom
+      - name: Attach resolved runtime dependency inventories
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: Legion-Control-runtime-sbom
+          path: |
+            runtime-sbom/*.cdx.json
+            app/build/reports/dependency-inventory/android-runtime.json
+          if-no-files-found: error
       - name: Restore private release keystore outside the repository
         env:
           LEGION_RELEASE_KEYSTORE_B64: ${{ secrets.LEGION_RELEASE_KEYSTORE_B64 }}
@@ -129,7 +141,7 @@ jobs:
           test -s "$apk"
           asset=Legion-Control-v0.1.0-alpha.48-signed.apk
           cp "$apk" "$asset"
-          gh release create "$tag" "$asset" --repo "$GITHUB_REPOSITORY" \
+          gh release create "$tag" "$asset" runtime-sbom/releaseRuntimeClasspath.cdx.json --repo "$GITHUB_REPOSITORY" \
             --title 'Legion Control v0.1.0-alpha.48' \
             --notes-file docs/ALPHA48-RELEASE-NOTES.md \
             --prerelease --target "$GITHUB_SHA"
