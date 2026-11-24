@@ -12,7 +12,6 @@ import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.media.AudioManager
 import android.os.Bundle
-import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -66,9 +65,7 @@ class AudioLabFragment:Fragment() {
         }
         fun select(label:String,options:List<String>,default:Int=0):Spinner {
             detail(label)
-            val control=Spinner(requireContext())
-            val adapter=ArrayAdapter(requireContext(),android.R.layout.simple_spinner_dropdown_item,options)
-            control.adapter=adapter
+            val control=LegionUiSupport.spinner(requireContext(),options)
             control.setSelection(default.coerceIn(0,options.lastIndex))
             root.addView(control)
             return control
