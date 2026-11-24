@@ -58,10 +58,14 @@ object GameLaunchProfiles {
         prefs(context).contains(ACTIVE) && prefs(context).getString(OWNER,null)==owner
     }
 
-    internal fun restoreAutomatic(context:Context,owner:String):GameLaunchResult = synchronized(lock) {
-        if(!ownsAutomatic(context,owner)) GameLaunchResult(true,"Нет записи возврата этой авто-сессии.")
-        else restore(context)
-    }
+    internal fun restoreAutomatic(context:Context,owner:String):GameLaunchResult =
+        ProfileMaintenanceGate.tryRun({maintenanceBusy()}) {
+            synchronized(lock) {
+                if(!ownsAutomatic(context,owner))
+                    GameLaunchResult(true,"Нет записи возврата этой авто-сессии.")
+                else restoreLocked(context)
+            }
+        }
 
     private fun applyInternal(context:Context,pkg:String,owner:String?,approved:GameLaunchProfile?):GameLaunchResult =
         ProfileMaintenanceGate.tryRun({maintenanceBusy()}) {
@@ -176,9 +180,10 @@ object GameLaunchProfiles {
      * that field is NOT overwritten. Failed writes remain queued for manual retry.
      */
     fun restore(context: Context): GameLaunchResult = ProfileMaintenanceGate.tryRun({maintenanceBusy()}) {
-        // Manual undo remains available when a journal is pending, but not
-        // concurrently with replay. Otherwise recovery could clear the ticket.
-        synchronized(lock) {
+        synchronized(lock) { restoreLocked(context) }
+    }
+
+    private fun restoreLocked(context: Context): GameLaunchResult {
         val raw = prefs(context).getString(ACTIVE, null)
             ?: return@synchronized GameLaunchResult(true, "Нет применённого профиля для возврата.")
         val ticket = GameLaunchUndo.decode(raw)
@@ -256,6 +261,5 @@ object GameLaunchProfiles {
         else GameLaunchResult(!remaining.pending,
             "$summary " + if (remaining.pending) "Есть незавершённые действия, повторите возврат."
             else "Возврат завершён.")
-    }
     }
 }
