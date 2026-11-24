@@ -31,6 +31,15 @@ assert "nm.isNotificationPolicyAccessGranted" in engine
 assert "GameLaunchProfilePolicy.restoreChoice(read(), change)" in engine
 assert "CHANGED_BY_USER" in engine
 assert "GameLaunchUndo.decode(raw)" in engine
+# Every launch-profile mutation and ZIP replay follows one lock order:
+# maintenance gate first, then the profile ticket monitor. In particular,
+# automatic rollback must not acquire the monitor before waiting for the gate.
+auto_restore = engine[engine.index("internal fun restoreAutomatic"):engine.index("private fun applyInternal")]
+manual_restore = engine[engine.index("fun restore(context"):engine.index("private fun restoreLocked")]
+assert auto_restore.index("ProfileMaintenanceGate.tryRun") < auto_restore.index("synchronized(lock)")
+assert manual_restore.index("ProfileMaintenanceGate.tryRun") < manual_restore.index("synchronized(lock)")
+assert "private fun restoreLocked(context: Context)" in engine
+
 assert "ACTION_MANAGE_WRITE_SETTINGS" not in engine
 assert all(forbidden not in engine for forbidden in (
     "queryUsageStats", "queryEvents(", "AccessibilityService", "startForegroundService",
