@@ -31,6 +31,22 @@ class ResourceOptimizationTest {
         g.clearIf{it.first==1L};assertFalse(g.accept(2L to false))
         g.clearIf{it.first==2L};assertTrue(g.accept(2L to false))
     }
+    @Test fun irrelevantMeasurementsDoNotRecreateGamesOrTools() {
+        val old=HubLoadState.Ready(HubSnapshot.EMPTY)
+        val new=HubLoadState.Ready(HubSnapshot.EMPTY.copy(batteryPercent=60,refreshHz=120f))
+        assertTrue(HubRenderPolicy.equivalent(HubTab.TOOLS,old,new))
+        assertTrue(HubRenderPolicy.equivalent(HubTab.GAMES,old,new))
+        assertFalse(HubRenderPolicy.equivalent(HubTab.HOME,old,new))
+        assertFalse(HubRenderPolicy.equivalent(HubTab.SETTINGS,old,new))
+        val app=HubApp("com.example.game","Game",true,false,true,false)
+        val games=HubLoadState.Ready(HubSnapshot.EMPTY.copy(apps=listOf(app)))
+        assertFalse(HubRenderPolicy.equivalent(HubTab.GAMES,old,games))
+        assertTrue(HubRenderPolicy.equivalent(HubTab.TOOLS,old,games))
+        val warning=HubLoadState.Ready(HubSnapshot.EMPTY.copy(warnings=listOf("warning")))
+        assertFalse(HubRenderPolicy.equivalent(HubTab.TOOLS,old,warning))
+        assertFalse(HubRenderPolicy.equivalent(HubTab.GAMES,old,HubLoadState.Failed("error")))
+        assertFalse(HubRenderPolicy.equivalent(HubTab.GAMES,null,new))
+    }
     @Test fun probeCadenceUsesElapsedClockAndPreservesFirstAttempt() {
         assertTrue(MonotonicProbePolicy.due(null,0,120000))
         assertFalse(MonotonicProbePolicy.due(10,120009,120000))

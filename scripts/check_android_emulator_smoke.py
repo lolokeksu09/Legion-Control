@@ -304,6 +304,9 @@ def main() -> None:
             adb("shell", "am", "start", "-W", "-n",
                 PACKAGE + "/.NavigationHostActivity", timeout=60)
     expect("Готов к запуску")
+    from benchmark_home import benchmark_home
+    benchmark_home(adb, expect, PACKAGE, apk, EVIDENCE)
+    expect("Готов к запуску")
     capture("01-hub-launch")
 
     # Alpha.44: capture both affected pages before any long recorder backend
