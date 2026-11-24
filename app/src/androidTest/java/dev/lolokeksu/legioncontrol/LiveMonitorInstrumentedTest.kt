@@ -147,6 +147,40 @@ class LiveMonitorInstrumentedTest {
         }
     }
 
+    @Test fun commonChartAndNoticeComponentsRemainBoundedAndReadable() {
+        ActivityScenario.launch(LiveMonitorActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                val density = activity.resources.displayMetrics.density
+                val width = (320 * density).toInt()
+                val height = (180 * density).toInt()
+                val view = android.view.View(activity)
+                view.layout(0, 0, width, height)
+                val bitmap = android.graphics.Bitmap.createBitmap(width,height,android.graphics.Bitmap.Config.ARGB_8888)
+                try {
+                    val canvas = android.graphics.Canvas(bitmap)
+                    val frame = LegionChartFrame(view)
+                    frame.empty(canvas)
+                    val plot = requireNotNull(frame.axes(canvas, 10.0, 50.0, 120000L, "°C"))
+                    assertTrue(plot.left > 0 && plot.right < width && plot.top > 0 && plot.bottom < height)
+                    assertEquals(plot.bottom, frame.y(plot,10.0,10.0,50.0),0.01f)
+                    assertEquals(plot.top, frame.y(plot,50.0,10.0,50.0),0.01f)
+                    assertEquals(plot.centerY(), frame.y(plot,35.0,35.0,35.0),0.01f)
+                    assertNull(frame.axes(canvas, Double.NaN,50.0,120000L,"°C"))
+                    val notice = LegionUiSupport.noticeView(activity,"No records",LegionUiSupport.Notice.EMPTY)
+                    assertEquals("No records",notice.text.toString())
+                    assertEquals(LegionUiSupport.MUTED,notice.currentTextColor)
+                    LegionUiSupport.notice(notice,LegionUiSupport.Notice.ERROR)
+                    assertEquals("No records",notice.text.toString())
+                    assertEquals(LegionUiSupport.DANGER,notice.currentTextColor)
+                    assertEquals(android.view.View.ACCESSIBILITY_LIVE_REGION_POLITE,notice.accessibilityLiveRegion)
+                    val spinner = LegionUiSupport.spinner(activity,listOf("First","Second"))
+                    spinner.setSelection(1)
+                    assertEquals("Second",spinner.selectedItem.toString())
+                } finally { bitmap.recycle() }
+            }
+        }
+    }
+
     @Test fun realReadingsStopWhenScreenStopsAndRequireExplicitRestart() {
         ActivityScenario.launch(LiveMonitorActivity::class.java).use { scenario ->
             lateinit var model: LiveMonitorViewModel
