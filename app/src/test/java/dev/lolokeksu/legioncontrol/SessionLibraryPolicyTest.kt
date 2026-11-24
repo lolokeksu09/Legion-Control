@@ -39,7 +39,9 @@ class SessionLibraryPolicyTest {
         }
         assertEquals(setOf("session.csv","samples.csv","events.csv","README.txt"),entries.keys)
         assertTrue(entries.getValue("samples.csv").contains("selected"))
-        assertTrue(entries.getValue("events.csv").contains("'=FORMULA()"))
+        assertEquals("session_id,recorded_at_ms,event_type,details\r\nselected,1010,USER_MARK,'=FORMULA()\r\n",
+            entries.getValue("events.csv"))
+        assertTrue(entries.getValue("samples.csv").endsWith("\r\n"))
         assertTrue(entries.getValue("README.txt").contains("event limit reached: true"))
         assertFalse(entries.getValue("samples.csv").contains("other-session"))
     }
