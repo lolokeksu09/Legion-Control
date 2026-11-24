@@ -79,6 +79,7 @@ class FullBackupInstrumentedTest {
             }
         }
         val settings = JSONObject(String(entries.getValue("preferences.json"), Charsets.UTF_8))
+        if(version<3)settings.remove(DiagnosticBackupBundle.KEY)
         change(settings)
         val bytes = settings.toString().toByteArray(Charsets.UTF_8)
         entries["preferences.json"] = bytes
@@ -113,6 +114,8 @@ class FullBackupInstrumentedTest {
         val backup = createZip(app, "original")
         val tampered = createZip(app, "altered")
         val legacy = createZip(app, "legacy-v1")
+        val legacy2=createZip(app,"legacy-v2")
+        val invalidAux=createZip(app,"invalid-aux")
         val invalidPreset = createZip(app, "invalid-preset")
         val presetA = PreflightPreset(120,30,41,3,true)
         val presetB = PreflightPreset(60,10,44,1,false)
@@ -136,8 +139,23 @@ class FullBackupInstrumentedTest {
             assertTrue(PreflightPresets.save(app, pkgA, presetA))
             assertTrue(PreflightPresets.save(app, pkgB, presetB))
             assertTrue(PreflightPresets.save(app, longPkg, presetA))
+            val net=LiveNetworkRecord(java.util.UUID.randomUUID().toString(),"dns.google",100L,LiveNetworkPlan.QUICK,
+                LiveNetworkEnd.CANCELLED,listOf(LiveNetworkPoint(0L,"WIFI",1234,"8.8.8.8",12.0,"OK",4.0,"OK","192.168.1.1")))
+            val bat=BatteryLabRun(java.util.UUID.randomUUID().toString(),100L,BatteryLabPlan.QUICK,BatteryLabEnd.USER_STOP,
+                listOf(BatteryLabPoint(0L,50,320,1000000,4000,2000000,null,null,BatteryLabStatus.CHARGING,BatteryLabPlug.AC,0)))
+            LiveNetworkArchive(app).use{it.save(net)}
+            BatteryLabArchive(app).use{it.save(bat)}
+            fun clearAuxiliary() {
+                assertTrue(app.deleteDatabase("legion_live_network.db"))
+                assertTrue(app.deleteDatabase("legion_battery_lab.db"))
+            }
+            fun assertAuxiliary() {
+                assertEquals(net.redacted(),LiveNetworkArchive(app).use{it.list().single()})
+                assertEquals(bat,BatteryLabArchive(app).use{it.list().single()})
+            }
             val exported = LegionDataBackup.export(app, backup)
-            assertEquals(2, exported.archiveVersion)
+            assertEquals(3, exported.archiveVersion)
+            assertEquals(1,exported.networkRuns);assertEquals(1,exported.batteryRuns)
             assertTrue(exported.rows >= 2)
             assertTrue(exported.settings >= 1)
             val preview = LegionDataBackup.preview(app, backup)
@@ -158,6 +176,15 @@ class FullBackupInstrumentedTest {
             }
             requireNotNull(app.contentResolver.openOutputStream(legacy, "wt")).use { it.write(legacyBytes) }
             assertEquals(1, LegionDataBackup.preview(app, legacy).archiveVersion)
+            val legacy2Bytes=rewritePreferences(originalBytes,2) { }
+            requireNotNull(app.contentResolver.openOutputStream(legacy2,"wt")).use{it.write(legacy2Bytes)}
+            assertEquals(2,LegionDataBackup.preview(app,legacy2).archiveVersion)
+            val invalidAuxBytes=rewritePreferences(originalBytes,3){root->
+                val arr=root.getJSONObject(DiagnosticBackupBundle.KEY).getJSONArray("network")
+                arr.getJSONObject(0).getJSONArray("points").getJSONArray(0).put(3,"8.8.8.8")
+            }
+            requireNotNull(app.contentResolver.openOutputStream(invalidAux,"wt")).use{it.write(invalidAuxBytes)}
+            assertTrue("Correctly hashed unredacted identifiers must be rejected",runCatching{LegionDataBackup.preview(app,invalidAux)}.isFailure)
             val invalidBytes = rewritePreferences(originalBytes, 2) {
                 it.getJSONObject("legion-preflight-v1").put("preset_" + pkgA,
                     JSONObject().put("type","string").put("value","v1|120|999|41|3|1"))
@@ -177,6 +204,10 @@ class FullBackupInstrumentedTest {
                 app.deleteDatabase("legion-control-history.db"))
             assertTrue(prefs.edit().remove("ci_restore_sentinel").commit())
             assertNull(GameSessionRepository(app).use { it.header(sessionId) })
+            // Even an empty main database cannot overwrite populated new archives.
+            assertTrue(runCatching{LegionDataBackup.restoreOnEmptyDatabase(app,backup)}.isFailure)
+            assertAuxiliary()
+            clearAuxiliary()
 
             // Diagnostic assertion: pin down which SQLite table is unexpectedly
             // populated after recreating the supposedly fresh database.
@@ -206,7 +237,7 @@ class FullBackupInstrumentedTest {
             assertTrue(preflight.edit().clear().commit())
             // Same SAF URI, different valid contents: the previously approved hash must reject it.
             val confirmed = requireNotNull(preview.identity)
-            val replacement = rewritePreferences(originalBytes, 2) {
+            val replacement = rewritePreferences(originalBytes, 3) {
                 it.getJSONObject("legion-capture-studio").put("ci_restore_sentinel",
                     JSONObject().put("type","string").put("value","replacement"))
             }
@@ -224,6 +255,7 @@ class FullBackupInstrumentedTest {
             assertEquals(presetB, PreflightPresets.read(app, pkgB))
             assertEquals(presetA, PreflightPresets.read(app, longPkg))
             assertEquals(exported.rows, restored.rows)
+            assertAuxiliary()
             GameSessionRepository(app).use { repo ->
                 assertEquals(id, requireNotNull(repo.header(sessionId)).packageName)
             }
@@ -231,6 +263,7 @@ class FullBackupInstrumentedTest {
             // Simulate interruption AFTER the SQLite transaction is committed
             // but BEFORE any SharedPreferences files are modified.
             assertTrue(app.deleteDatabase("legion-control-history.db"))
+            clearAuxiliary()
             assertTrue(prefs.edit().remove("ci_restore_sentinel").commit())
             assertTrue(preflight.edit().clear().commit())
             val interrupted = runCatching {
@@ -246,11 +279,15 @@ class FullBackupInstrumentedTest {
             assertNull("Preference replay has not yet occurred",
                 prefs.getString("ci_restore_sentinel", null))
             assertEquals(PreflightPreset(), PreflightPresets.read(app, pkgA))
+            // Pending journal blocks ordinary mutations. Simulate replay of one archive before a second crash.
+            assertTrue(runCatching{LiveNetworkArchive(app).use{it.save(net)}}.isFailure)
+            LiveNetworkArchive(app).use{it.restoreSnapshot(listOf(net.redacted()))}
             assertTrue("Recovery replays committed preferences",
                 LegionDataBackup.recoverPendingRestore(app))
             assertEquals("restored", prefs.getString("ci_restore_sentinel", null))
             assertEquals(presetA, PreflightPresets.read(app, pkgA))
             assertEquals(presetB, PreflightPresets.read(app, pkgB))
+            assertAuxiliary()
             assertFalse("Recovery clears durable intent when finished",
                 LegionDataBackup.recoverPendingRestore(app))
             // A second import must reject the now populated database.
@@ -270,8 +307,14 @@ class FullBackupInstrumentedTest {
             assertEquals(presetB, PreflightPresets.read(app, pkgA))
             assertEquals(presetB, PreflightPresets.read(app, pkgB))
             assertEquals(presetA, PreflightPresets.read(app, longPkg))
+            assertAuxiliary() // old archive must preserve both new stores
+            assertTrue(app.deleteDatabase("legion-control-history.db"))
+            val old2=LegionDataBackup.restoreOnEmptyDatabase(app,legacy2)
+            assertEquals(2,old2.archiveVersion);assertAuxiliary()
         } finally {
             app.contentResolver.delete(legacy, null, null)
+            app.contentResolver.delete(legacy2,null,null)
+            app.contentResolver.delete(invalidAux,null,null)
             app.contentResolver.delete(invalidPreset, null, null)
             preflight.edit().clear().commit()
             app.contentResolver.delete(backup, null, null)

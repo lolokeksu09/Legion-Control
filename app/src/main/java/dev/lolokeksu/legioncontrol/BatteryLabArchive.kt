@@ -7,15 +7,16 @@ import android.database.sqlite.SQLiteOpenHelper
 import org.json.JSONObject
 import org.json.JSONArray
 
-/** Separate explicit-save archive. Existing diagnostics database and backups untouched. */
-internal class BatteryLabArchive(context:Context,name:String="legion_battery_lab.db"):
+/** Separate explicit-save archive. Included in backup v3 without legacy schema changes. */
+internal class BatteryLabArchive(private val context:Context,name:String="legion_battery_lab.db"):
     SQLiteOpenHelper(context.applicationContext,name,null,1) {
     companion object { const val LIMIT=30 }
     override fun onCreate(db:SQLiteDatabase) {
         db.execSQL("CREATE TABLE battery_runs(id TEXT PRIMARY KEY NOT NULL, started INTEGER NOT NULL, payload TEXT NOT NULL)")
     }
     override fun onUpgrade(db:SQLiteDatabase,oldVersion:Int,newVersion:Int) { error("Unsupported battery archive migration") }
-    fun save(run:BatteryLabRun) {
+    fun save(run:BatteryLabRun) = synchronized(LegionDataBackup) {
+        LegionDataBackup.checkArchiveWritesAllowed(context)
         val db=writableDatabase
         db.beginTransaction()
         try {
@@ -33,15 +34,32 @@ internal class BatteryLabArchive(context:Context,name:String="legion_battery_lab
     fun list():List<BatteryLabRun> = readableDatabase.rawQuery(
         "SELECT payload FROM battery_runs ORDER BY started DESC,id DESC LIMIT "+LIMIT,null
     ).use{c->buildList{while(c.moveToNext()) add(decode(c.getString(0)))}}
-    fun delete(id:String)=writableDatabase.delete("battery_runs","id=?",arrayOf(id))==1
-    private fun encode(r:BatteryLabRun)=JSONObject().apply{
+    fun delete(id:String):Boolean = synchronized(LegionDataBackup) {
+        LegionDataBackup.checkArchiveWritesAllowed(context)
+        writableDatabase.delete("battery_runs","id=?",arrayOf(id))==1
+    }
+    internal fun restoreSnapshot(records:List<BatteryLabRun>) {
+        val db=writableDatabase
+        db.beginTransaction()
+        try {
+            val existing=list()
+            check(existing.isEmpty() || existing.sortedBy{it.id}==records.sortedBy{it.id}) {
+                "Архив батареи содержит другие данные; восстановление остановлено."
+            }
+            if(existing.isEmpty()) for(r in records) db.insertOrThrow("battery_runs",null,ContentValues().apply {
+                put("id",r.id);put("started",r.startedAt);put("payload",encode(r))
+            })
+            db.setTransactionSuccessful()
+        } finally { db.endTransaction() }
+    }
+    internal fun encode(r:BatteryLabRun)=JSONObject().apply{
         put("v",1);put("id",r.id);put("started",r.startedAt);put("plan",r.plan.name);put("end",r.end.name)
         put("points",JSONArray().apply{r.points.forEach{p->put(JSONArray().apply{
             listOf(p.elapsedMs,p.percent,p.tempDeciC,p.currentMicroA,p.voltageMv,p.chargeMicroAh,p.remainingEnergyNwh,
                 p.etaMs,p.status.name,p.plug.name,p.thermal).forEach{put(it ?: JSONObject.NULL)}
         })}})
     }.toString()
-    private fun decode(raw:String):BatteryLabRun {
+    internal fun decode(raw:String):BatteryLabRun {
         require(raw.length<=150_000)
         val o=JSONObject(raw);require(o.getInt("v")==1)
         val rows=o.getJSONArray("points");require(rows.length() in 1..121)
