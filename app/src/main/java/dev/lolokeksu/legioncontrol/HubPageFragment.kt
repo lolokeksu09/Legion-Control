@@ -199,7 +199,7 @@ class HubPageFragment : Fragment() {
                     showLegacyShortcuts()
                 }
                 tile("Повторить чтение", "Без удаления данных и изменения системных настроек") {
-                    viewModel.refresh()
+                    viewModel.refresh(force=true)
                 }
             }
             is HubLoadState.Ready -> {
@@ -506,7 +506,10 @@ class HubPageFragment : Fragment() {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
                 toolQuery = s?.toString().orEmpty()
-                redraw()
+                cancelSearch()
+                val task=Runnable { if(isAdded && view!=null && results.isAttachedToWindow) redraw() }
+                pendingSearch=task
+                searchHandler.postDelayed(task,HubRefreshGate.SEARCH_DELAY_MS)
             }
             override fun afterTextChanged(s: Editable?) {}
         })
