@@ -34,13 +34,19 @@ class SessionCompareActivity:FragmentActivity() {
     private lateinit var output:TextView
     private lateinit var chart:SessionCompareChart
     private var metric=CompareGraph.TEMP
-    private var pendingExport:ComparePair?=null
     private val Int.dp get()=(this*resources.displayMetrics.density+.5f).toInt()
     private val document=registerForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri->
-        val pair=pendingExport
-        pendingExport=null
-        if(uri!=null && pair!=null && ::vm.isInitialized)vm.export(uri,pair)
-        else if(uri!=null && ::status.isInitialized)status.text="Сравнение изменилось. Повторите экспорт."
+        if(!::vm.isInitialized) return@registerForActivityResult
+        val pair=vm.pendingDocument.take()
+        val current=vm.state.value
+        if(uri==null) {
+            current?.let(::render)
+        } else if(pair!=null && current?.pair===pair && current.busy==false) {
+            vm.export(uri,pair)
+        } else {
+            current?.let(::render)
+            if(::status.isInitialized)status.text="Исходный результат недоступен. Повторите экспорт."
+        }
     }
 
     override fun onCreate(savedInstanceState:Bundle?) {
@@ -100,9 +106,14 @@ class SessionCompareActivity:FragmentActivity() {
         output=label("Сравнение не выполнялось.").apply { setTextIsSelectable(true) }
         export=button("СОХРАНИТЬ СРАВНЕНИЕ CSV") {
             val pair=vm.state.value?.pair ?: return@button
-            pendingExport=pair
+            if(!vm.pendingDocument.begin(pair)) return@button
+            export.isEnabled=false
             runCatching { document.launch("legion-session-compare-${System.currentTimeMillis()}.csv") }
-                .onFailure { pendingExport=null;status.text="Не удалось открыть выбор документа." }
+                .onFailure {
+                    vm.pendingDocument.take()
+                    vm.state.value?.let(::render)
+                    status.text="Не удалось открыть выбор документа."
+                }
         }
         share=button("Поделиться сравнением сессий") {
             val pair=vm.state.value?.pair ?: return@button
@@ -141,7 +152,8 @@ class SessionCompareActivity:FragmentActivity() {
         swap.isEnabled=!s.busy && s.aId!=null && s.bId!=null
         window.isEnabled=!s.busy
         run.isEnabled=swap.isEnabled
-        export.isEnabled=!s.busy && s.pair!=null;share.isEnabled=export.isEnabled
+        export.isEnabled=!s.busy && s.pair!=null && !vm.pendingDocument.hasPending
+        share.isEnabled=!s.busy && s.pair!=null
         val pair=s.pair
         val valuesA=pair?.a?.series.orEmpty().mapNotNull(metric::value)
         val valuesB=pair?.b?.series.orEmpty().mapNotNull(metric::value)
