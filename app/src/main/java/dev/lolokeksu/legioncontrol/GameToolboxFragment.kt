@@ -15,6 +15,7 @@ import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -36,6 +37,7 @@ class GameToolboxFragment : Fragment() {
     private lateinit var column: LinearLayout
     private lateinit var summary: TextView
     private lateinit var status: TextView
+    private lateinit var automationStatus:TextView
     private val prefs by lazy {
         requireContext().getSharedPreferences(ToolboxPreferences.NAME, Context.MODE_PRIVATE)
     }
@@ -188,21 +190,30 @@ class GameToolboxFragment : Fragment() {
         }
 
         group("Game Automation")
-        tile("Доступ к статистике использования", "Android Usage Access; нужен только для авто-сессии") {
+        automationStatus=text("",13f,muted).apply { setPadding(0,0,0,8.dp) }
+        column.addView(automationStatus)
+        fun compact(label:String,description:String,action:()->Unit)=Button(requireContext()).apply {
+            text=label
+            contentDescription=description
+            setOnClickListener{action()}
+        }
+        val usage=compact("Usage Access","Открыть доступ к статистике использования") {
             runCatching { startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)) }
                 .onFailure { status.text="Не удалось открыть Usage Access." }
         }
-        tile("Авто-профиль · запустить игру", "Одноразовая сессия, возврат при наблюдаемом выходе") { startAutomation() }
-        tile("Завершить авто-сессию", "Остановить наблюдение и вернуть собственные изменения") {
-            runCatching { GameToolboxService.stopAutomation(requireContext()) }
-                .onFailure { status.text="Не удалось отправить запрос остановки." }
-            status.text="Запрошена остановка автоматизации. Проверяйте запись возврата."
-        }
-        tile("Последний отчёт автоматизации", "Локальное наблюдаемое время и результат возврата") {
+        val report=compact("Отчёт","Последний отчёт автоматизации") {
             LegionDialogs.builder(requireContext()).setTitle("Game Automation")
                 .setMessage(GameAutomationController.lastReport(requireContext()) ?: "Отчётов пока нет.")
                 .setPositiveButton("Закрыть",null).show()
         }
+        val autoStart=compact("Запустить игру","Запустить игру с отдельно подтверждённым авто-профилем") { startAutomation() }
+        val autoStop=compact("Завершить","Завершить авто-сессию и вернуть собственные изменения") {
+            runCatching { GameToolboxService.stopAutomation(requireContext()) }
+                .onSuccess { status.text="Запрошена остановка автоматизации. Проверяйте запись возврата." }
+                .onFailure { status.text="Не удалось отправить запрос остановки." }
+        }
+        column.addView(CompactActionRow(requireContext(),autoStart,autoStop))
+        column.addView(CompactActionRow(requireContext(),usage,report))
 
         group("Внешний вид")
         choices("Прозрачность плавающей кнопки",
@@ -248,6 +259,13 @@ class GameToolboxFragment : Fragment() {
 
     private fun renderStatus() {
         val enabled = Settings.canDrawOverlays(requireContext())
+        if(::automationStatus.isInitialized) {
+            val usage=GameUsageDiagnostics.hasUsageAccess(requireContext())
+            val notifications=requireContext().getSystemService(android.app.NotificationManager::class.java)?.areNotificationsEnabled()==true
+            automationStatus.text="Usage Access: "+(if(usage)"выдан" else "нет доступа")+
+                " · уведомления: "+(if(notifications)"включены" else "выключены")+
+                "\nОдноразовый авто-профиль · возврат при наблюдаемом выходе"
+        }
         val pkg = prefs.getString(ToolboxPreferences.GAME, null)
         val label = prefs.getString(ToolboxPreferences.LABEL, null)
         summary.text = buildString {

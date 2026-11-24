@@ -247,6 +247,12 @@ def main() -> None:
     if "OK (2 tests)" not in battery_lab_output or "FAILURES" in battery_lab_output:
         raise AssertionError("Battery Lab instrumentation failed: " + battery_lab_output[-1400:])
     print("PASS: isolated battery archive and public Android battery reading", flush=True)
+    compact_output = adb("shell", "am", "instrument", "-w", "-e", "class",
+        PACKAGE + ".CompactDiagnosticsUiInstrumentedTest",
+        PACKAGE + ".test/androidx.test.runner.AndroidJUnitRunner", timeout=120)
+    if "OK (2 tests)" not in compact_output or "FAILURES" in compact_output:
+        raise AssertionError("Compact diagnostics layout instrumentation failed: " + compact_output[-1400:])
+    print("PASS: responsive rows, touch size, click preservation and diagnostic chart visibility", flush=True)
     preflight_output = adb("shell", "am", "instrument", "-w", "-e", "class",
         PACKAGE + ".GamePreflightInstrumentedTest",
         PACKAGE + ".test/androidx.test.runner.AndroidJUnitRunner", timeout=120)
