@@ -41,15 +41,19 @@ agents = (root / "AGENTS.md").read_text(encoding="utf-8")
 testing = (root / "TESTING-LEVELS.md").read_text(encoding="utf-8")
 readme = (root / "README.md").read_text(encoding="utf-8")
 ci = (root / ".github/workflows/android.yml").read_text(encoding="utf-8")
+release = (root / ".github/workflows/release-apk.yml").read_text(encoding="utf-8")
+from run_source_checks import CHECKS
+assert len(CHECKS) >= 52 and len(CHECKS) == len(set(CHECKS))
+assert all((root / "scripts" / name).is_file() for name in CHECKS)
+assert "check_backend.py" in CHECKS and "check_workflow_integration.py" in CHECKS
+assert "python3 scripts/run_source_checks.py" in release
 assert "dev.lolokeksu.legioncontrol" in project
 assert "Kotlin" in agents and "Rust" in agents and "JNI" in agents
 assert "L1" in testing and "L5" in testing
 assert "Project Workflow Standard v1.0" in readme
 for command in (
-    "python3 scripts/check_backend.py", "bash scripts/build-native.sh",
+    "python3 scripts/run_source_checks.py", "bash scripts/build-native.sh",
     "assembleDebug lintDebug", "python3 scripts/verify_apk.py",
-    "python3 scripts/check_workflow_integration.py",
-    "python3 workflow-standard/tools/check_standard.py workflow-standard",
 ):
     assert command in ci, f"CI gate removed or missing: {command}"
 assert "actions/upload-artifact" in ci
