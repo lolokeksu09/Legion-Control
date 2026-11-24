@@ -92,6 +92,7 @@ class CaptureStudioActivity : ComponentActivity() {
             setPadding(0, 8.dp, 0, 18.dp)
             setLineSpacing(4f, 1f)
         }
+        LegionUiSupport.notice(status, LegionUiSupport.Notice.INFO)
         root.addView(status)
 
         heading("Запись")
@@ -281,7 +282,7 @@ class CaptureStudioActivity : ComponentActivity() {
         }, "ЗАХВАТ И REPLAY")
         viewModel.settings.observe(this) { refreshChoices() }
         viewModel.playbackAudio.observe(this) { refreshChoices() }
-        viewModel.message.observe(this) { status.text = it }
+        viewModel.message.observe(this) { status.text = it; LegionUiSupport.notice(status, LegionUiSupport.Notice.INFO) }
         viewModel.backupReady.observe(this) {
             val inspected = viewModel.takeBackupPreview() ?: return@observe
             LegionDialogs.builder(this)
@@ -307,17 +308,27 @@ class CaptureStudioActivity : ComponentActivity() {
                 CaptureLibraryState.Idle -> Unit
                 CaptureLibraryState.Loading -> {
                     status.text = "Читаю список собственных MP4 из MediaStore…"
+                    LegionUiSupport.notice(status, LegionUiSupport.Notice.LOADING)
                 }
                 is CaptureLibraryState.Ready -> showClipList(state.clips)
-                is CaptureLibraryState.Error -> status.text = state.message
+                is CaptureLibraryState.Error -> {
+                    status.text = state.message
+                    LegionUiSupport.notice(status, LegionUiSupport.Notice.ERROR)
+                }
             }
         }
         viewModel.screenshots.observe(this) { state ->
             when (state) {
                 CaptureScreenshotsState.Idle -> Unit
-                CaptureScreenshotsState.Loading -> status.text = "Читаю собственные PNG из MediaStore…"
+                CaptureScreenshotsState.Loading -> {
+                    status.text = "Читаю собственные PNG из MediaStore…"
+                    LegionUiSupport.notice(status, LegionUiSupport.Notice.LOADING)
+                }
                 is CaptureScreenshotsState.Ready -> showScreenshotList(state.shots)
-                is CaptureScreenshotsState.Error -> status.text = state.message
+                is CaptureScreenshotsState.Error -> {
+                    status.text = state.message
+                    LegionUiSupport.notice(status, LegionUiSupport.Notice.ERROR)
+                }
             }
         }
         refreshChoices()
@@ -660,6 +671,7 @@ class CaptureStudioActivity : ComponentActivity() {
         clipsContainer.removeAllViews()
         status.text = if (clips.isEmpty()) "На этой странице нет готовых MP4."
             else "MP4 · страница ${viewModel.clipsPageNumber()} · файлов: ${clips.size}"
+        LegionUiSupport.notice(status, if(clips.isEmpty()) LegionUiSupport.Notice.EMPTY else LegionUiSupport.Notice.INFO)
         if (viewModel.clipsPageNumber() > 1) {
             clipsContainer.addView(Button(this).apply {
                 text = "ПРЕДЫДУЩАЯ СТРАНИЦА MP4"
@@ -800,6 +812,7 @@ class CaptureStudioActivity : ComponentActivity() {
         shotsContainer.removeAllViews()
         status.text = if (shots.isEmpty()) "На этой странице нет PNG."
             else "PNG · страница ${viewModel.screenshotsPageNumber()} · файлов: ${shots.size}"
+        LegionUiSupport.notice(status, if(shots.isEmpty()) LegionUiSupport.Notice.EMPTY else LegionUiSupport.Notice.INFO)
         if (viewModel.screenshotsPageNumber() > 1) {
             shotsContainer.addView(Button(this).apply {
                 text = "ПРЕДЫДУЩАЯ СТРАНИЦА PNG"
