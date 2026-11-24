@@ -21,9 +21,13 @@ for name in names[1:]:
 assert 'System.getenv("LEGION_RELEASE_STORE_FILE")' in gradle
 assert 'hasReleaseSigning' in gradle and 'throw GradleException(' in gradle
 assert 'signingConfig = signingConfigs.getByName("legionRelease")' in gradle
-assert 'versionCode = 48' in gradle
-assert 'versionName = "0.1.0-alpha.48"' in gradle
+assert 'versionCode = 49' in gradle
+assert 'versionName = "0.1.0-alpha.49"' in gradle
 assert "workflow_dispatch:" in workflow
+assert "tag=v0.1.0-alpha.49" in workflow
+assert "Legion-Control-v0.1.0-alpha.49-signed.apk" in workflow
+assert "--event push --branch main" in workflow
+assert "--json headSha,headBranch,event,status,conclusion" in workflow
 assert "github.ref == 'refs/heads/main'" in workflow
 assert "base64 --decode" in workflow
 assert "Verify signing secrets are configured" in workflow
