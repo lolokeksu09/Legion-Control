@@ -30,3 +30,18 @@ assert "LegionDialogs.listAdapter(" in (src / "GamePreflightActivity.kt").read_t
 assert "Theme_Black_NoTitleBar_Fullscreen" in (src / "GamingDiagnosticsFragment.kt").read_text()
 assert "setContentView(surface)" in (src / "DisplayPatternActivity.kt").read_text()
 print(f"PASS unified dialogs: {sum(callers.values())} app-owned dialogs in {len(callers)} callers")
+
+frame = (src / "LegionChartFrame.kt").read_text()
+assert "fun axes(" in frame and "fun empty(" in frame and "fun y(" in frame
+for name in ("MonitorChartView.kt", "GameSessionTimelineView.kt", "SessionCompareChart.kt"):
+    body = (src / name).read_text()
+    assert "LegionChartFrame(this)" in body and "frame.axes(" in body and "frame.empty(" in body, name
+for name in ("AudioLabFragment.kt", "HapticLabFragment.kt", "ConnectivityLabFragment.kt",
+             "ApplicationCenterFragment.kt", "ExperimentLabFragment.kt", "SmartProfilesFragment.kt",
+             "SessionSignalsFragment.kt", "SessionIncidentsFragment.kt", "SessionBaselinesFragment.kt",
+             "HardwareLabFragment.kt", "CompatibilityLabFragment.kt", "GamingDiagnosticsFragment.kt"):
+    assert "LegionUiSupport.reportSurface(" in (src / name).read_text(), name
+for name in ("HubPageFragment.kt", "GameDetailFragment.kt", "CaptureStudioActivity.kt"):
+    body = (src / name).read_text()
+    assert "Notice.ERROR" in body and "Notice.LOADING" in body, name
+print("PASS shared graph frames and compact status/report components")
