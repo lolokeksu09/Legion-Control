@@ -283,10 +283,10 @@ class CaptureStudioViewModel(application: Application) : AndroidViewModel(applic
         }
     }
 
-    fun restoreFullBackup(uri: android.net.Uri) {
+    fun restoreFullBackup(uri: android.net.Uri, confirmed: BackupArchiveIdentity) {
         worker.execute {
             val result = runCatching {
-                LegionDataBackup.restoreOnEmptyDatabase(getApplication(), uri)
+                LegionDataBackup.restoreOnEmptyDatabase(getApplication(), uri, confirmed)
             }
             messageMutable.postValue(result.fold(
                 { "Восстановлено: таблиц ${it.tables}, записей ${it.rows}, параметров ${it.settings}." },
