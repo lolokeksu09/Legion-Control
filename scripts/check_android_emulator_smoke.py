@@ -253,6 +253,12 @@ def main() -> None:
     if "OK (1 test)" not in library_output or "FAILURES" in library_output:
         raise AssertionError("Session Library instrumentation failed: " + library_output[-1400:])
     print("PASS: local library pagination, package/state isolation and selected session ZIP", flush=True)
+    live_network_output = adb("shell", "am", "instrument", "-w", "-e", "class",
+        PACKAGE + ".LiveNetworkArchiveInstrumentedTest",
+        PACKAGE + ".test/androidx.test.runner.AndroidJUnitRunner", timeout=120)
+    if "OK (2 tests)" not in live_network_output or "FAILURES" in live_network_output:
+        raise AssertionError("Live network archive instrumentation failed: " + live_network_output[-1400:])
+    print("PASS: isolated live network archive round-trip, deduplication and explicit deletion", flush=True)
     adb("shell", "pm", "clear", PACKAGE, timeout=40)
     adb("shell", "am", "force-stop", PACKAGE)
     adb("shell", "am", "start", "-W", "-n", PACKAGE + "/.NavigationHostActivity", timeout=60)
