@@ -26,6 +26,7 @@ class SessionCompareViewModel(app:Application):AndroidViewModel(app) {
     private val main=Handler(Looper.getMainLooper())
     private val live=MutableLiveData(CompareState())
     val state:LiveData<CompareState> = live
+    internal val pendingDocument = PendingDocument<ComparePair>()
     private var initialized=false
     private var closed=false
     private fun current()=requireNotNull(live.value)
@@ -119,6 +120,7 @@ class SessionCompareViewModel(app:Application):AndroidViewModel(app) {
         }
     }
     override fun onCleared() {
+        pendingDocument.take()
         closed=true
         main.removeCallbacksAndMessages(null)
         worker.shutdownNow()
