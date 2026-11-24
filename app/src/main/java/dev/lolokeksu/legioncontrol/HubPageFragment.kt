@@ -333,9 +333,24 @@ class HubPageFragment : Fragment() {
         redraw()
     }
 
+    /** Search results reveal existing controls; opening a result never runs the action. */
+    private fun openFeature(entry: FeatureEntry) {
+        val args = Bundle().apply { putString(FeatureFinder.EXTRA_FEATURE_ID, entry.id) }
+        when (entry.module) {
+            FeatureModule.CAPTURE -> open(CaptureStudioActivity::class.java, args)
+            FeatureModule.AUDIO -> open(AudioLabActivity::class.java, args)
+            FeatureModule.HAPTIC -> open(HapticLabActivity::class.java, args)
+            FeatureModule.NETWORK -> open(ConnectivityLabActivity::class.java, args)
+            FeatureModule.PROFILE -> open(SmartProfilesActivity::class.java, args)
+            FeatureModule.APPS -> open(ApplicationCenterActivity::class.java, args)
+            FeatureModule.SESSION -> open(GameSessionActivity::class.java, args)
+            FeatureModule.TOOLBOX -> open(GameToolboxActivity::class.java, args)
+        }
+    }
+
     /** Searchable feature catalog; launches the existing real modules without migrating their data. */
     private fun showTools() {
-        section("Инструменты", "Найдите инструмент по названию или назначению.")
+        section("Инструменты", "Найдите модуль или конкретную функцию: Replay, ZIP, стерео, DNS.")
         val catalog = listOf(
             "Запись и медиа" to listOf(
                 CatalogAction("Capture Studio", "Запись экрана и библиотека MP4") { open(CaptureStudioActivity::class.java) },
@@ -360,7 +375,7 @@ class HubPageFragment : Fragment() {
             )
         )
         val input = EditText(requireContext()).apply {
-            hint = "Поиск инструмента"
+            hint = "Поиск функций и инструментов"
             setTextColor(fg)
             setHintTextColor(muted)
             textSize = 14f
@@ -378,6 +393,21 @@ class HubPageFragment : Fragment() {
             results.removeAllViews()
             val filter = toolQuery.trim().lowercase(Locale.ROOT)
             var shown = 0
+            if (filter.isNotEmpty()) {
+                val functions = FeatureFinder.search(filter)
+                if (functions.isNotEmpty()) {
+                    results.addView(LegionUiSupport.sectionLabel(requireContext(), "КОНКРЕТНЫЕ ФУНКЦИИ"))
+                    functions.forEach { entry ->
+                        results.addView(LegionUiSupport.actionTile(
+                            requireContext(), entry.title,
+                            "${entry.module.displayName} · открыть действие"
+                        ) { openFeature(entry) }, LinearLayout.LayoutParams(-1, -2).apply {
+                            bottomMargin = 10.dp
+                        })
+                    }
+                    shown += functions.size
+                }
+            }
             for ((category, entries) in catalog) {
                 val matching = entries.filter { entry ->
                     filter.isEmpty() || (category + " " + entry.title + " " + entry.description)
@@ -455,9 +485,52 @@ class HubPageFragment : Fragment() {
         }
     }
 
+    private fun systemSettings(action: String, scoped: Boolean = false) {
+        val request = Intent(action).apply {
+            if (scoped) data = android.net.Uri.parse("package:" + requireContext().packageName)
+        }
+        runCatching { startActivity(request) }
+            .recoverCatching {
+                if (!scoped) throw it
+                startActivity(Intent(action))
+            }
+            .onFailure {
+                AlertDialog.Builder(requireContext()).setTitle("Настройки недоступны")
+                    .setMessage("Android не открыл этот экран: " + it.javaClass.simpleName)
+                    .setPositiveButton("Понятно", null).show()
+            }
+    }
+
     private fun showSettings(s: HubSnapshot) {
-        section("Настройки", "Локальные параметры. Системные спецдоступы предоставляет только Android.")
-        group("Настройки модулей и локальные данные")
+        section("Настройки", "Разрешения, локальные данные и параметры модулей.")
+        group("Разрешения Android")
+        tile("Поверх других окон", if (Settings.canDrawOverlays(requireContext())) "Разрешено" else "Не разрешено") {
+            systemSettings(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, true)
+        }
+        val notifications = requireContext().getSystemService(NotificationManager::class.java)
+        tile("Режим «Не беспокоить»",
+            if (notifications.isNotificationPolicyAccessGranted) "Специальный доступ разрешён" else "Нужен спецдоступ Android") {
+            systemSettings(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
+        }
+        tile("Изменение системных настроек",
+            if (Settings.System.canWrite(requireContext())) "Разрешено" else "Нужен спецдоступ Android") {
+            systemSettings(Settings.ACTION_MANAGE_WRITE_SETTINGS, true)
+        }
+        tile("Уведомления", if (notifications.areNotificationsEnabled()) "Разрешено" else "Отключены в Android") {
+            runCatching {
+                startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                    .putExtra(Settings.EXTRA_APP_PACKAGE, requireContext().packageName))
+            }.onFailure { systemSettings(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, true) }
+        }
+        tile("Использование приложений", "Официальные настройки Android") {
+            systemSettings(Settings.ACTION_USAGE_ACCESS_SETTINGS)
+        }
+        group("Резервное копирование и файлы")
+        for (id in listOf("capture.backup", "capture.restore", "capture.resume", "capture.clips")) {
+            val entry = FeatureFinder.resolve(id, FeatureModule.CAPTURE) ?: continue
+            tile(entry.title, "Capture Studio · локальные данные") { openFeature(entry) }
+        }
+        group("Параметры модулей")
         tile("Application Center", "${s.trackedCount} записей в библиотеке · избранное и заметки") {
             open(ApplicationCenterActivity::class.java)
         }
@@ -467,22 +540,8 @@ class HubPageFragment : Fragment() {
         tile("Game Toolbox", "Размер, прозрачность, выбранная игра") {
             open(GameToolboxActivity::class.java)
         }
-        group("Разрешения Android")
-        tile("Поверх других окон", if (Settings.canDrawOverlays(requireContext())) "Разрешено" else "Не разрешено") {
-            open(GameToolboxActivity::class.java)
-        }
-        val notifications = requireContext().getSystemService(NotificationManager::class.java)
-        tile("Режим «Не беспокоить»",
-            if (notifications.isNotificationPolicyAccessGranted) "Специальный доступ разрешён" else "Нужен спецдоступ Android") {
-            open(GameToolboxActivity::class.java)
-        }
-        tile("Изменение системных настроек",
-            if (Settings.System.canWrite(requireContext())) "Разрешено" else "Нужен спецдоступ Android") {
-            open(SmartProfilesActivity::class.java)
-        }
-        tile("Использование приложений", "Официальные настройки Android") {
-            runCatching { startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)) }
-                .onFailure { info("Настройки Android недоступны: " + it.javaClass.simpleName) }
+        tile("Capture Studio", "Качество, звук, длительность и профили записи") {
+            open(CaptureStudioActivity::class.java)
         }
         group("О проекте")
         info("Legion Control ${LegionUiSupport.versionLabel(requireContext())} · Android 13+ · Kotlin + Rust. " +
