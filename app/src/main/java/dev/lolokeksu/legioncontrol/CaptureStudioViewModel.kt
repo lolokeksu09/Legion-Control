@@ -264,7 +264,7 @@ class CaptureStudioViewModel(application: Application) : AndroidViewModel(applic
         worker.execute {
             val result = runCatching { LegionDataBackup.export(getApplication(), uri) }
             messageMutable.postValue(result.fold(
-                { "Архив создан: таблиц ${it.tables}, записей ${it.rows}, параметров ${it.settings}." },
+                { "Архив создан: таблиц ${it.tables}, записей ${it.rows}, параметров ${it.settings}; сетевых тестов ${it.networkRuns}, батарейных ${it.batteryRuns}." },
                 { "Не удалось создать архив: " + (it.message ?: it.javaClass.simpleName) }
             ))
         }

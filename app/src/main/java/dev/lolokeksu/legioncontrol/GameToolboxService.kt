@@ -43,6 +43,7 @@ class GameToolboxService : Service() {
         private const val CHANNEL = "game-toolbox"
         private const val NOTIFICATION_ID = 2401
         @Volatile private var active = false
+        internal fun isPanelActive():Boolean=active
 
         fun start(context: Context) {
             context.startForegroundService(
