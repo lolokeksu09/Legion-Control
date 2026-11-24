@@ -3,7 +3,7 @@
 Stacked on Game Preflight PR #57, revision e7a15934. Published Alpha 47 remains unchanged.
 
 ## Workflow
-Open Session Compare from History, Tools, a game detail or Game Session. Pick one recorded package, then two distinct completed records A and B from its latest 25 sessions. Select the first 5, 10, 15 or 30 minutes of each session. Swap A/B to change the sign of B minus A. No new samples or recorder are started.
+Open Session Compare from History, Tools, a game detail or Game Session. Pick one recorded package, then two distinct completed records A and B from its latest 25 sessions. Select the first 5, 10, 15 or 30 minutes of each session. Swap A/B to change the sign of B minus A. No new samples or recorder are started. When opened for a package without history, do not silently select another package; show a missing-history state.
 
 Compare seven observations: peak battery temperature, endpoint temperature change, battery drop in percentage points, median display refresh, and fractions of known samples reporting severe thermal status, power saving or unvalidated network. Three dual-series graphs use the same elapsed time window and shared y-axis, with min/max accessible text and breaks at unknown data or gaps over 45 seconds.
 

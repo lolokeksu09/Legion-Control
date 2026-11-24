@@ -44,6 +44,12 @@ class SessionCompareAnalysisTest {
         assertNull(pair.delta(CompareMeasure.BATTERY_DROP))
         assertTrue(SessionCompareAnalysis.csv(pair).contains("NETWORK"))
     }
+    @Test fun missingRequestedGameDoesNotSilentlySwitchToAnotherPackage() {
+        val packages=listOf("com.example.first","com.example.second")
+        assertNull(SessionCompareAnalysis.selectPackage(packages,"com.example.missing"))
+        assertEquals(packages[0],SessionCompareAnalysis.selectPackage(packages,null))
+        assertEquals(packages[1],SessionCompareAnalysis.selectPackage(packages,packages[1]))
+    }
     @Test fun sameIdDifferentGameAndDifferentWindowAreRejected() {
         val a=SessionCompareAnalysis.analyze(header(),points(),5)
         for(b in listOf(a,SessionCompareAnalysis.analyze(header("b","com.other.game"),points(),5),

@@ -37,6 +37,10 @@ object SessionCompareAnalysis {
     const val MAX_POINTS=2000
     private const val GAP=45000L
 
+    /** A game-specific entry point must never silently show a different game. */
+    fun selectPackage(packages:List<String>,preferred:String?):String? =
+        if(preferred==null) packages.firstOrNull() else preferred.takeIf { it in packages }
+
     fun analyze(h:GameSessionHeader,raw:List<GameTelemetryPoint>,minutes:Int,
         limited:Boolean=false):CompareWindow {
         require(minutes in windows)

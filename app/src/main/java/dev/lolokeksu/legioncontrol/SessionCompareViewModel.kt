@@ -52,12 +52,13 @@ class SessionCompareViewModel(app:Application):AndroidViewModel(app) {
         submit {
             GameSessionRepository(getApplication()).use { repo ->
                 val packages=repo.knownSessionPackages()
-                val selected=preferred?.takeIf { it in packages } ?: packages.firstOrNull()
+                val selected=SessionCompareAnalysis.selectPackage(packages,preferred)
                 val rows=selected?.let { repo.recentForPackage(it,25) }.orEmpty()
                     .filter { it.endedAtMs!=null }
                 CompareState(packages,selected,rows,
                     rows.getOrNull(1)?.id,rows.firstOrNull()?.id,before.minutes,
-                    message=if(selected==null) "История пока пуста. Запишите игровую сессию."
+                    message=if(selected==null && preferred!=null) "Нет сохранённой истории выбранной игры. Выберите другую игру явно."
+                    else if(selected==null) "История пока пуста. Запишите игровую сессию."
                     else if(rows.size<2) "Нужны две завершённые записи этой игры."
                     else "Выберите A и B, затем запустите сравнение.")
             }
