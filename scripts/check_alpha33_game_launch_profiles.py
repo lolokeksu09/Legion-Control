@@ -42,6 +42,11 @@ assert "private fun restoreLocked(context: Context)" in engine
 restore_locked = engine[engine.index("private fun restoreLocked"):engine.rindex("\n}")]
 assert "return@synchronized" not in restore_locked
 assert "return if (!saved)" in restore_locked
+backup = (root / "app/src/main/java/dev/lolokeksu/legioncontrol/LegionDataBackup.kt").read_text(encoding="utf-8")
+export = backup[backup.index("@Synchronized fun export"):backup.index("fun preview")]
+assert "ProfileMaintenanceGate.tryRun" in export
+assert export.index("ProfileMaintenanceGate.tryRun") < export.index("checkArchiveWritesAllowed")
+
 
 
 assert "ACTION_MANAGE_WRITE_SETTINGS" not in engine

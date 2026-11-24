@@ -185,7 +185,8 @@ object LegionDataBackup {
         }
     }
 
-    @Synchronized fun export(context: Context, uri: Uri): LegionBackupPreview {
+    @Synchronized fun export(context: Context, uri: Uri): LegionBackupPreview =
+        ProfileMaintenanceGate.tryRun({error("Завершите изменение игрового профиля и повторите экспорт ZIP.")}) {
         checkArchiveWritesAllowed(context)
         check(!GameSessionRecorderService.sessionActive) {
             "Остановите запись игровой сессии перед созданием архива."
@@ -223,7 +224,7 @@ object LegionDataBackup {
                 FileInputStream(tmp).use { it.copyTo(zip) }
                 zip.closeEntry()
             }
-            return preview.copy(settings = countSettings(parsePreferences(prefs, FORMAT_VERSION)),
+            preview.copy(settings = countSettings(parsePreferences(prefs, FORMAT_VERSION)),
                 identity = identity(manifest), archiveVersion=FORMAT_VERSION,
                 networkRuns=archives.network.size,batteryRuns=archives.battery.size)
         } finally {
