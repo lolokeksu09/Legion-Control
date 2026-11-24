@@ -60,6 +60,7 @@ CHECKS = (
     "check_session_library.py",
     "check_runtime_sbom.py",
     "check_runtime_osv.py",
+    "check_unified_dialogs.py",
 )
 
 def main():
