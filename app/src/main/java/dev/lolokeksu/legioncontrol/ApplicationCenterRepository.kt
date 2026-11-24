@@ -39,7 +39,17 @@ class ApplicationCenterRepository(context:Context):AutoCloseable {
 
     fun get(pkg:String):TrackedApplication? {
         require(ApplicationInventory.isPackageName(pkg))
-        return list().firstOrNull { it.packageName==pkg }
+        return helper.readableDatabase.rawQuery("""
+            SELECT package_name,alias,category,note,favorite,created_at_ms,
+                   updated_at_ms,last_seen_at_ms,last_seen_version_code,
+                   last_seen_update_ms,last_seen_status
+            FROM app_library WHERE package_name=?
+        """.trimIndent(),arrayOf(pkg)).use { c ->
+            if(!c.moveToFirst()) null else TrackedApplication(c.getString(0),c.getString(1),
+                c.getString(2),c.getString(3),c.getInt(4)==1,c.getLong(5),c.getLong(6),
+                if(c.isNull(7))null else c.getLong(7),if(c.isNull(8))null else c.getLong(8),
+                if(c.isNull(9))null else c.getLong(9),c.getString(10))
+        }
     }
 
     fun save(pkg:String,alias:String,category:String,note:String,favorite:Boolean,

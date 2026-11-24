@@ -55,7 +55,7 @@ data class AppPackageObservation(
     }
 }
 
-data class LaunchableApp(val packageName:String,val label:String)
+data class LaunchableApp(val packageName:String,val label:String,val isGame:Boolean=false)
 
 /** PackageManager public API and Android Settings intents only. */
 object ApplicationInventory {
@@ -67,12 +67,13 @@ object ApplicationInventory {
         return runCatching {
             pm.queryIntentActivities(query,PackageManager.ResolveInfoFlags.of(0L))
                 .asSequence()
-                .filter { it.activityInfo?.packageName != context.packageName }
+                .filter { it.activityInfo?.packageName?.let { pkg -> pkg!=context.packageName }==true }
+                .distinctBy { it.activityInfo.packageName }
                 .map { info -> LaunchableApp(
                     info.activityInfo.packageName,
-                    info.loadLabel(pm).toString().take(100)
+                    info.loadLabel(pm).toString().take(100),
+                    info.activityInfo.applicationInfo?.category==ApplicationInfo.CATEGORY_GAME
                 ) }
-                .distinctBy { it.packageName }
                 .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.label })
                 .take(600).toList()
         }.getOrDefault(emptyList())

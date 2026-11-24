@@ -24,6 +24,9 @@ import java.util.concurrent.Future
 class HardwareLabFragment : Fragment() {
     private lateinit var viewModel: HardwareLabViewModel
     private lateinit var result: TextView
+    private var batteryLab: BatteryLabPanel? = null
+    private var pendingBatteryCsv:String?=null
+    private val batteryCsvRequest=2151
 
 
     override fun onCreateView(inflater:LayoutInflater,container:ViewGroup?,savedInstanceState:Bundle?):View {
@@ -55,6 +58,7 @@ class HardwareLabFragment : Fragment() {
         }
         LegionUiSupport.reportSurface(result)
         root.addView(result)
+        batteryLab=BatteryLabPanel(requireContext(),::exportBatteryCsv).also { root.addView(it) }
         root.addView(LegionUiSupport.sectionLabel(requireContext(), "СЕТЬ"))
         addButton(root, "1 · Local Route Inspector", "hardware.route") {
             viewModel.run(HardwareProbe.ROUTE)
@@ -101,6 +105,7 @@ class HardwareLabFragment : Fragment() {
 
     override fun onViewCreated(view:View,savedInstanceState:Bundle?) {
         super.onViewCreated(view,savedInstanceState)
+        pendingBatteryCsv=savedInstanceState?.getString("batteryCsv") ?: pendingBatteryCsv
         LegionUiSupport.styleModuleTree(view)
         FeatureReveal.fromFragment(this, view, FeatureModule.HARDWARE)
         viewModel=ViewModelProvider(this)[HardwareLabViewModel::class.java]
@@ -136,12 +141,40 @@ class HardwareLabFragment : Fragment() {
             .onFailure { report("Нет приложения для отправки текста.") }
     }
 
+    private fun exportBatteryCsv(csv:String) {
+        pendingBatteryCsv=csv
+        runCatching {
+            startActivityForResult(Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+                addCategory(Intent.CATEGORY_OPENABLE);type="text/csv"
+                putExtra(Intent.EXTRA_TITLE,"legion-battery-lab.csv")
+            },batteryCsvRequest)
+        }.onFailure { pendingBatteryCsv=null;report("Не удалось открыть документ.") }
+    }
+    override fun onActivityResult(requestCode:Int,resultCode:Int,data:Intent?) {
+        super.onActivityResult(requestCode,resultCode,data)
+        if(requestCode!=batteryCsvRequest)return
+        val csv=pendingBatteryCsv;pendingBatteryCsv=null
+        val uri=data?.data
+        if(resultCode==android.app.Activity.RESULT_OK && csv!=null && uri!=null) batteryLab?.writeCsv(uri,csv)
+    }
+    override fun onSaveInstanceState(outState:Bundle) {
+        pendingBatteryCsv?.let{outState.putString("batteryCsv",it)}
+        super.onSaveInstanceState(outState)
+    }
     override fun onStart() {
         super.onStart()
         viewModel.setVisible(true)
+        batteryLab?.setVisible(true)
+    }
+
+    override fun onDestroyView() {
+        batteryLab?.close()
+        batteryLab=null
+        super.onDestroyView()
     }
 
     override fun onStop() {
+        batteryLab?.setVisible(false)
         viewModel.setVisible(false)
         viewModel.cancelAll()
         super.onStop()

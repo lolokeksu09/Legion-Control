@@ -5,7 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import java.util.concurrent.Executors
-import java.util.concurrent.atomic.AtomicBoolean
+import android.os.SystemClock
 
 sealed interface HubLoadState {
     data object Loading : HubLoadState
@@ -20,33 +20,50 @@ sealed interface HubLoadState {
 class HubViewModel(application: Application) : AndroidViewModel(application) {
     private val backend = HubRepository(application)
     private val worker = Executors.newSingleThreadExecutor()
-    private val busy = AtomicBoolean(false)
+    private val refreshGate = HubRefreshGate()
+    @Volatile private var closed=false
     private val mutableState = MutableLiveData<HubLoadState>(HubLoadState.Loading)
     val state: LiveData<HubLoadState> = mutableState
 
     private val mutableActionResult = MutableLiveData<String>()
     val actionResult: LiveData<String> = mutableActionResult
 
-    private var latest = HubSnapshot.EMPTY
+    @Volatile private var latest = HubSnapshot.EMPTY
+    private var published:HubSnapshot?=null
     fun snapshot(): HubSnapshot = latest
 
-    fun refresh() {
-        if (!busy.compareAndSet(false, true)) return
+    fun refresh(force:Boolean=false) {
+        if(closed || !refreshGate.request(SystemClock.elapsedRealtime(),force)) return
         worker.execute {
-            try {
-                val snapshot = backend.read()
-                latest = snapshot
-                mutableState.postValue(HubLoadState.Ready(snapshot))
-            } catch (e: Exception) {
-                mutableState.postValue(HubLoadState.Failed(
-                    "Не удалось загрузить Game Hub: " + e.javaClass.simpleName))
-            } finally {
-                busy.set(false)
+            do {
+                val success=readAndPublish()
+                val again=refreshGate.complete(SystemClock.elapsedRealtime(),success)
+            } while(again && !closed)
+        }
+    }
+
+    private fun readAndPublish():Boolean {
+        if(closed)return false
+        return try {
+            val snapshot=backend.read()
+            if(!closed) {
+                latest=snapshot
+                if(published!=snapshot) {
+                    published=snapshot
+                    mutableState.postValue(HubLoadState.Ready(snapshot))
+                }
             }
+            true
+        } catch(e:Exception) {
+            published=null
+            if(!closed) mutableState.postValue(HubLoadState.Failed(
+                "Не удалось загрузить Game Hub: "+e.javaClass.simpleName))
+            false
         }
     }
 
     fun toggleFavorite(pkg: String, label: String) {
+        if(closed)return
         worker.execute {
             val action = runCatching { backend.toggleFavorite(pkg, label) }
             action.onSuccess {
@@ -55,17 +72,12 @@ class HubViewModel(application: Application) : AndroidViewModel(application) {
                 mutableActionResult.postValue("Не удалось сохранить избранное: " +
                     it.javaClass.simpleName)
             }
-            runCatching { backend.read() }.onSuccess {
-                latest = it
-                mutableState.postValue(HubLoadState.Ready(it))
-            }.onFailure {
-                mutableState.postValue(HubLoadState.Failed(
-                    "Не удалось перечитать библиотеку: " + it.javaClass.simpleName))
-            }
+            readAndPublish()
         }
     }
 
     fun chooseForToolbox(pkg: String, label: String) {
+        if(closed)return
         worker.execute {
             val result = runCatching { backend.chooseToolboxGame(pkg, label) }
             mutableActionResult.postValue(result.fold(
@@ -76,6 +88,8 @@ class HubViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     override fun onCleared() {
+        closed=true
+        refreshGate.close()
         worker.shutdown()
         super.onCleared()
     }

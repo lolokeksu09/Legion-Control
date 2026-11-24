@@ -6,6 +6,8 @@ import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import android.text.Editable
 import android.text.TextWatcher
@@ -37,6 +39,8 @@ class HubPageFragment : Fragment() {
     private var query = ""
     private var showAllApps = false
     private var toolQuery = ""
+    private val searchHandler=Handler(Looper.getMainLooper())
+    private var pendingSearch:Runnable?=null
     private data class CatalogAction(
         val title: String,
         val description: String,
@@ -73,7 +77,10 @@ class HubPageFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
-        if (::viewModel.isInitialized) viewModel.refresh()
+        if (::viewModel.isInitialized) {
+            if(page()==HubTab.SETTINGS) render(viewModel.state.value ?: HubLoadState.Loading)
+            viewModel.refresh()
+        }
     }
 
     private fun outline(color: Int = panel): GradientDrawable = GradientDrawable().apply {
@@ -156,6 +163,7 @@ class HubPageFragment : Fragment() {
 
     private fun render(state: HubLoadState) {
         if (!isAdded || !::column.isInitialized) return
+        cancelSearch()
         column.removeAllViews()
         if (page() == HubTab.SETTINGS) {
             showSettings((state as? HubLoadState.Ready)?.snapshot)
@@ -163,7 +171,7 @@ class HubPageFragment : Fragment() {
             if(state is HubLoadState.Failed) {
                 notice(state.message, LegionUiSupport.Notice.ERROR)
                 tile("Повторить чтение сводки", "Настройки и восстановление доступны независимо") {
-                    viewModel.refresh()
+                    viewModel.refresh(force=true)
                 }
             }
             if(state is HubLoadState.Ready) state.snapshot.warnings.forEach { notice(it, LegionUiSupport.Notice.WARNING) }
@@ -191,7 +199,7 @@ class HubPageFragment : Fragment() {
                     showLegacyShortcuts()
                 }
                 tile("Повторить чтение", "Без удаления данных и изменения системных настроек") {
-                    viewModel.refresh()
+                    viewModel.refresh(force=true)
                 }
             }
             is HubLoadState.Ready -> {
@@ -348,11 +356,23 @@ class HubPageFragment : Fragment() {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
                 query = s?.toString().orEmpty()
-                redraw()
+                cancelSearch()
+                val task=Runnable { if(isAdded && view!=null && list.isAttachedToWindow) redraw() }
+                pendingSearch=task
+                searchHandler.postDelayed(task,HubRefreshGate.SEARCH_DELAY_MS)
             }
             override fun afterTextChanged(s: Editable?) {}
         })
         redraw()
+    }
+
+    private fun cancelSearch() {
+        pendingSearch?.let(searchHandler::removeCallbacks)
+        pendingSearch=null
+    }
+    override fun onDestroyView() {
+        cancelSearch()
+        super.onDestroyView()
     }
 
     /** Search results reveal existing controls; opening a result never runs the action. */
@@ -486,7 +506,10 @@ class HubPageFragment : Fragment() {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
                 toolQuery = s?.toString().orEmpty()
-                redraw()
+                cancelSearch()
+                val task=Runnable { if(isAdded && view!=null && results.isAttachedToWindow) redraw() }
+                pendingSearch=task
+                searchHandler.postDelayed(task,HubRefreshGate.SEARCH_DELAY_MS)
             }
             override fun afterTextChanged(s: Editable?) {}
         })
