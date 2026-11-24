@@ -1,7 +1,6 @@
 package dev.lolokeksu.legioncontrol
 
 import android.app.Activity
-import android.app.AlertDialog
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
@@ -84,6 +83,7 @@ class SessionSignalsFragment:Fragment() {
             setPadding(0,18.dp,0,28.dp)
             text="Чтение не начинается до открытия этого экрана."
         }
+        LegionUiSupport.reportSurface(report)
         root.addView(report)
         return ScrollView(requireContext()).apply{addView(root)}
     }
@@ -113,7 +113,7 @@ class SessionSignalsFragment:Fragment() {
             it.appLabel+" · "+fmt.format(Date(it.startedAtMs))+"\n"+
                 (it.endReason?:"Идёт запись / нет отметки завершения")
         }.toTypedArray()
-        AlertDialog.Builder(requireContext()).setTitle("Сессии · "+sessions.size)
+        LegionDialogs.builder(requireContext()).setTitle("Сессии · "+sessions.size)
             .setItems(labels){_,idx -> vm.select(sessions[idx].id)}
             .setNegativeButton("Отмена",null).show()
     }

@@ -52,6 +52,7 @@ class CompatibilityLabFragment : Fragment() {
             setPadding(0, 14.dp, 0, 18.dp)
             setTextIsSelectable(true)
         }
+        LegionUiSupport.reportSurface(output)
         root.addView(output)
         root.addView(LegionUiSupport.sectionLabel(requireContext(), "ЭКРАН И ЗВУК"))
         addButton(root, "1 · Display Modes & HDR", "compat.hdr") {

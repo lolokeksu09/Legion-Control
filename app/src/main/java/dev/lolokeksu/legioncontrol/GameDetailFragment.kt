@@ -1,6 +1,5 @@
 package dev.lolokeksu.legioncontrol
 
-import android.app.AlertDialog
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
@@ -67,16 +66,17 @@ class GameDetailFragment : Fragment() {
     private fun addAction(title: String, desc: String, callback: () -> Unit) {
         val row = LinearLayout(requireContext()).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(18.dp, 16.dp, 16.dp, 16.dp)
             background = LegionUiSupport.cardSurface(this)
+            setPadding(14.dp, 10.dp, 14.dp, 10.dp)
+            minimumHeight = 48.dp
             isClickable = true
             isFocusable = true
             contentDescription = if (desc.isBlank()) title else "$title. $desc"
             setOnClickListener { callback() }
         }
-        row.addView(text(title, 16f, Color.WHITE, true))
-        row.addView(text(desc, 12f, muted).apply { setPadding(0, 5.dp, 0, 0) })
-        column.addView(row, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 11.dp })
+        row.addView(text(title, 15f, Color.WHITE, true).apply { importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO })
+        row.addView(text(desc, 12f, muted).apply { setPadding(0, 5.dp, 0, 0); importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO })
+        column.addView(row, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 6.dp })
     }
 
     private fun <T> open(cls: Class<T>, configure: (Intent) -> Unit = {}) {
@@ -93,7 +93,7 @@ class GameDetailFragment : Fragment() {
         column.removeAllViews()
         val pkg = arguments?.getString("gamePackage")
         if (pkg == null || !ApplicationInventory.isPackageName(pkg)) {
-            column.addView(text("Некорректный пакет приложения", 16f, muted))
+            column.addView(LegionUiSupport.noticeView(requireContext(), "Некорректный пакет приложения", LegionUiSupport.Notice.ERROR))
             addAction("Назад к играм", "Вернуться к безопасному списку Launcher") {
                 NavHostFragment.findNavController(this).navigateUp()
             }
@@ -104,16 +104,16 @@ class GameDetailFragment : Fragment() {
         }
         when {
             state is HubLoadState.Loading -> {
-                column.addView(text("Загрузка игры…", 16f, muted))
+                column.addView(LegionUiSupport.noticeView(requireContext(), "Загрузка игры…", LegionUiSupport.Notice.LOADING))
                 return
             }
             state is HubLoadState.Failed -> {
-                column.addView(text(state.message, 14f, muted))
+                column.addView(LegionUiSupport.noticeView(requireContext(), state.message, LegionUiSupport.Notice.ERROR))
                 addAction("Повторить", "Прочитать данные приложения снова") { vm.refresh() }
                 return
             }
             app == null -> {
-                column.addView(text("Игра не видна через Launcher и не выбрана в библиотеке.", 15f, muted))
+                column.addView(LegionUiSupport.noticeView(requireContext(), "Игра не видна через Launcher и не выбрана в библиотеке.", LegionUiSupport.Notice.EMPTY))
                 addAction("Назад к списку", "Android ограничивает видимость приложений") {
                     NavHostFragment.findNavController(this).navigateUp()
                 }

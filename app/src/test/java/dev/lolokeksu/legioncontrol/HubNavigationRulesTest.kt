@@ -12,7 +12,9 @@ class HubNavigationRulesTest {
             HubTab.entries.map { it.key })
         assertEquals(5, HubTab.entries.map { it.key }.toSet().size)
         assertEquals("Главная", HubTab.HOME.shortTitle)
-        assertEquals("Инструменты", HubTab.TOOLS.shortTitle)
+        assertEquals("Инструменты", HubTab.TOOLS.title)
+        assertEquals("Инстр.", HubTab.TOOLS.shortTitle)
+        assertEquals(HubTab.TOOLS, HubTab.parse("tools"))
     }
 
     @Test fun deepLinkSelectionIsBoundedToExplicitTabs() {

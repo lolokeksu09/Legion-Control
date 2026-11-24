@@ -1,6 +1,5 @@
 package dev.lolokeksu.legioncontrol
 
-import android.app.AlertDialog
 import android.content.Intent
 import android.content.Context
 import android.content.pm.PackageManager
@@ -274,7 +273,7 @@ class GameToolboxFragment : Fragment() {
             status.text = "Android не показывает запускаемые приложения через MAIN/LAUNCHER."
             return
         }
-        AlertDialog.Builder(requireContext())
+        LegionDialogs.builder(requireContext())
             .setTitle("Запуск выбранного приложения")
             .setItems(applications.map {
                 it.loadLabel(requireContext().packageManager).toString() + "\n" + it.activityInfo.packageName
@@ -299,13 +298,13 @@ class GameToolboxFragment : Fragment() {
         val volumes: List<Int?> = listOf(null, 0, 20, 40, 60, 80, 100)
         val brightness: List<Int?> = listOf(null, 20, 40, 60, 80, 100)
         val focus: List<Boolean?> = listOf(null, true, false)
-        AlertDialog.Builder(requireContext())
+        LegionDialogs.builder(requireContext())
             .setTitle("Громкость мультимедиа")
             .setItems(volumes.map { it?.let { v -> "$v%" } ?: "Не менять" }.toTypedArray()) { _, vi ->
-                AlertDialog.Builder(requireContext())
+                LegionDialogs.builder(requireContext())
                     .setTitle("Яркость")
                     .setItems(brightness.map { it?.let { v -> "$v%" } ?: "Не менять" }.toTypedArray()) { _, bi ->
-                        AlertDialog.Builder(requireContext())
+                        LegionDialogs.builder(requireContext())
                             .setTitle("Режим «Не беспокоить»")
                             .setItems(arrayOf("Не менять", "Включить", "Выключить")) { _, fi ->
                                 val profile = GameLaunchProfile(volumes[vi], brightness[bi], focus[fi])

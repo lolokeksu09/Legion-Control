@@ -6,14 +6,12 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
-import android.app.AlertDialog
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.media.AudioManager
 import android.os.Bundle
-import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -67,9 +65,7 @@ class AudioLabFragment:Fragment() {
         }
         fun select(label:String,options:List<String>,default:Int=0):Spinner {
             detail(label)
-            val control=Spinner(requireContext())
-            val adapter=ArrayAdapter(requireContext(),android.R.layout.simple_spinner_dropdown_item,options)
-            control.adapter=adapter
+            val control=LegionUiSupport.spinner(requireContext(),options)
             control.setSelection(default.coerceIn(0,options.lastIndex))
             root.addView(control)
             return control
@@ -133,6 +129,7 @@ class AudioLabFragment:Fragment() {
             text="Выберите тест и проверьте громкость. "+
                 "Никакой звук не воспроизводится без вашего нажатия."
         }
+        LegionUiSupport.reportSurface(result)
         root.addView(result)
         return ScrollView(requireContext()).apply { addView(root) }
     }
@@ -195,7 +192,7 @@ class AudioLabFragment:Fragment() {
     private fun confirmAndStart(type:String,which:String,hz:Int,length:Int) {
         if(!visible || playing) return
         if(!firstPlayConfirmed) {
-            AlertDialog.Builder(requireContext())
+            LegionDialogs.builder(requireContext())
                 .setTitle("Проверка громкости перед тестом")
                 .setMessage("Будет воспроизведён короткий оригинальный тон. "+
                     "Убавьте системную громкость, особенно в наушниках. "+
@@ -218,7 +215,7 @@ class AudioLabFragment:Fragment() {
 
     private fun showHistoryPicker(items:List<AudioTestRun>) {
         if(items.isEmpty()) { show("Аудиотестов в локальной истории ещё нет."); return }
-        AlertDialog.Builder(requireContext()).setTitle("Аудиотесты · ${items.size}")
+        LegionDialogs.builder(requireContext()).setTitle("Аудиотесты · ${items.size}")
             .setItems(items.map { item ->
                 DateFormat.getDateTimeInstance().format(Date(item.startedAtMs))+
                     " · "+item.kind+" · "+item.channel+" · "+item.state
@@ -251,10 +248,10 @@ class AudioLabFragment:Fragment() {
     private fun confirmDelete() {
         val id=viewModel.selectedId ?: return show("Сначала выберите аудиотест.")
         if(playing) return show("Остановите воспроизведение.")
-        AlertDialog.Builder(requireContext()).setTitle("Удалить аудиотест?")
+        LegionDialogs.builder(requireContext()).setTitle("Удалить аудиотест?")
             .setMessage("Удалится только выбранная аудиозапись метаданных и её события маршрута. "+
                 "Игровые сессии, профили и другие данные останутся.")
-            .setPositiveButton("Удалить") { _,_ ->
+            .setDestructive().setPositiveButton("Удалить") { _,_ ->
                 viewModel.delete(id)
             }.setNegativeButton("Отмена",null).show()
     }

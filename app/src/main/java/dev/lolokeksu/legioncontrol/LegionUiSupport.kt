@@ -13,7 +13,9 @@ import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowInsets
+import android.widget.ArrayAdapter
 import android.widget.Button
+import android.widget.Spinner
 import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.ImageView
@@ -33,6 +35,9 @@ object LegionUiSupport {
     val BORDER = 0xFF252B33.toInt()
     val ACCENT = 0xFF86B7FF.toInt()
     val MUTED = 0xFF9CA5B0.toInt()
+    val WARNING = 0xFFFFCF87.toInt()
+    val DANGER = 0xFFFF8B8B.toInt()
+    val SUCCESS = 0xFFA7DBB4.toInt()
     private val DISABLED = 0xFF68717D.toInt()
 
     private fun dp(view: View, value: Int): Int =
@@ -44,6 +49,32 @@ object LegionUiSupport {
             cornerRadius = dp(view, radius).toFloat()
             setStroke(dp(view, 1).coerceAtLeast(1), stroke)
         }
+
+    /** One compact selector for every module; native selection and keyboard support retained. */
+    fun spinner(context: Context, items: List<String>): Spinner = Spinner(context, Spinner.MODE_DROPDOWN).apply {
+        minimumHeight = dp(this, 48)
+        backgroundTintList = ColorStateList.valueOf(MUTED)
+        setPopupBackgroundDrawable(shape(this, PANEL, BORDER, 14))
+        adapter = object : ArrayAdapter<String>(context, android.R.layout.simple_spinner_item, items) {
+            init { setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
+            private fun style(view: View): View = view.apply {
+                if (this is TextView) {
+                    textSize = 14f
+                    setTextColor(Color.WHITE)
+                    minimumHeight = dp(this, 48)
+                    gravity = Gravity.CENTER_VERTICAL or Gravity.START
+                    setPadding(dp(this, 14), dp(this, 9), dp(this, 14), dp(this, 9))
+                    if (this is android.widget.CheckedTextView) {
+                        checkMarkTintList = ColorStateList.valueOf(ACCENT)
+                    }
+                }
+            }
+            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View =
+                style(super.getView(position, convertView, parent))
+            override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup): View =
+                style(super.getDropDownView(position, convertView, parent))
+        }
+    }
 
     private fun textStates(): ColorStateList = ColorStateList(
         arrayOf(intArrayOf(-android.R.attr.state_enabled),
@@ -234,6 +265,38 @@ object LegionUiSupport {
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
         })
         return row
+    }
+
+    enum class Notice { INFO, LOADING, EMPTY, ERROR, WARNING }
+
+    /** Apply to real status or result views without replacing text or listeners. */
+    fun notice(view: TextView, kind: Notice) {
+        val tint = when(kind) {
+            Notice.LOADING -> ACCENT
+            Notice.ERROR -> DANGER
+            Notice.WARNING -> WARNING
+            Notice.EMPTY, Notice.INFO -> MUTED
+        }
+        view.background = shape(view, PANEL, BORDER, 14)
+        view.setTextColor(tint)
+        view.textSize = 14f
+        view.setPadding(dp(view, 12), dp(view, 9), dp(view, 12), dp(view, 9))
+        view.accessibilityLiveRegion = if(kind == Notice.EMPTY) View.ACCESSIBILITY_LIVE_REGION_NONE
+            else View.ACCESSIBILITY_LIVE_REGION_POLITE
+        val params = view.layoutParams as? LinearLayout.LayoutParams
+        if(params != null) {
+            params.bottomMargin = maxOf(params.bottomMargin, dp(view, 6))
+            view.layoutParams = params
+        }
+    }
+
+    fun noticeView(context: Context, message: String, kind: Notice): TextView =
+        TextView(context).apply { text = message; notice(this, kind) }
+
+    /** Common compact surface for selectable reports and data cards. */
+    fun reportSurface(view: View) {
+        view.background = cardSurface(view)
+        view.setPadding(dp(view, 14), dp(view, 10), dp(view, 14), dp(view, 10))
     }
 
     /** Reuse the same 17dp panel surface in non-Hub modules. */

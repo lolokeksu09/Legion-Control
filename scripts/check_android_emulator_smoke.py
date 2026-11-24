@@ -232,7 +232,7 @@ def main() -> None:
     monitor_output = adb("shell", "am", "instrument", "-w", "-e", "class",
         PACKAGE + ".LiveMonitorInstrumentedTest",
         PACKAGE + ".test/androidx.test.runner.AndroidJUnitRunner", timeout=120)
-    if "OK (3 tests)" not in monitor_output or "FAILURES" in monitor_output:
+    if "OK (5 tests)" not in monitor_output or "FAILURES" in monitor_output:
         raise AssertionError("Live Monitor instrumentation failed: " + monitor_output[-1400:])
     print("PASS: actual monitor readings, baseline, foreground lifecycle and explicit restart", flush=True)
     preflight_output = adb("shell", "am", "instrument", "-w", "-e", "class",
@@ -536,8 +536,18 @@ def main() -> None:
     capture("21-live-monitor-stopped")
     expect_scrolling("Доступная RAM:", seconds=20)
     click("ЗАФИКСИРОВАТЬ КОНТРОЛЬНУЮ ТОЧКУ", scrolls=10, exact_only=True)
-    expect("Изменение относительно сохранённого замера")
+    # The comparison is below the fold after the shared report surface changes.
+    # Require the same actual report, but scroll towards it instead of waiting
+    # on the preceding viewport. Pinning updates the status message as well.
+    expect_scrolling("Изменение относительно сохранённого замера", seconds=35, progressive=True)
     capture("22-live-monitor-baseline")
+    click("НАЧАТЬ МОНИТОРИНГ", scrolls=12, direction="up", exact_only=True)
+    expect("Начать новый мониторинг?")
+    capture("22a-shared-confirmation-dialog")
+    click("Отмена", scrolls=0, exact_only=True)
+    expect_scrolling("Контрольная точка сохранена.", seconds=25)
+    expect_scrolling("Изменение относительно сохранённого замера", seconds=35, progressive=True)
+    capture("22b-cancel-preserves-baseline")
     # The origin Home is scrolled down to the Live Monitor tile. Its title may
     # be offscreen or loading. Press Back once and wait for the fixed host header;
     # repeated Back presses on Home would exit to Android Launcher.

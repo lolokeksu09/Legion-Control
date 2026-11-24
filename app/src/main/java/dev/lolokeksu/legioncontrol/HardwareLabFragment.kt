@@ -6,7 +6,6 @@ import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.NavHostFragment
 import androidx.lifecycle.ViewModelProvider
-import android.app.AlertDialog
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
@@ -54,6 +53,7 @@ class HardwareLabFragment : Fragment() {
             setPadding(0, 12.dp, 0, 20.dp)
             setTextIsSelectable(true)
         }
+        LegionUiSupport.reportSurface(result)
         root.addView(result)
         root.addView(LegionUiSupport.sectionLabel(requireContext(), "СЕТЬ"))
         addButton(root, "1 · Local Route Inspector", "hardware.route") {
@@ -67,7 +67,7 @@ class HardwareLabFragment : Fragment() {
         addButton(root, "4 · Motion Stability — 5 секунд", "hardware.motion") { toggleMotion() }
         root.addView(LegionUiSupport.sectionLabel(requireContext(), "ЭКРАН И КОДЕКИ"))
         addButton(root, "5 · Display Patterns — пиксели и цвета", "hardware.display") {
-            AlertDialog.Builder(requireContext())
+            LegionDialogs.builder(requireContext())
                 .setTitle("Проверка экрана")
                 .setMessage(
                     "Показываются сплошные чёрный, белый, красный, зелёный, " +

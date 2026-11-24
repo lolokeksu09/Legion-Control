@@ -6,14 +6,12 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
-import android.app.AlertDialog
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.provider.Settings
-import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
@@ -58,24 +56,7 @@ class HapticLabFragment:Fragment() {
         }
         fun spinner(label:String,items:List<String>):Spinner {
             detail(label)
-            val control=Spinner(requireContext())
-            val adapter=object:ArrayAdapter<String>(requireContext(),android.R.layout.simple_spinner_item,items) {
-                override fun getView(position:Int,convertView:View?,parent:ViewGroup):View {
-                    return TextView(context).apply {
-                        text=getItem(position);textSize=16f;setTextColor(Color.WHITE)
-                        setBackgroundColor(0xFF17171B.toInt())
-                        setPadding(13.dp,14.dp,13.dp,14.dp)
-                    }
-                }
-                override fun getDropDownView(position:Int,convertView:View?,parent:ViewGroup):View {
-                    return TextView(context).apply {
-                        text=getItem(position);textSize=15f;setTextColor(Color.WHITE)
-                        setBackgroundColor(0xFF24242C.toInt())
-                        setPadding(15.dp,13.dp,15.dp,13.dp)
-                    }
-                }
-            }
-            control.adapter=adapter
+            val control=LegionUiSupport.spinner(requireContext(),items)
             root.addView(control,LinearLayout.LayoutParams(-1,-2).apply { bottomMargin=12.dp })
             return control
         }
@@ -141,6 +122,7 @@ class HapticLabFragment:Fragment() {
             setTextIsSelectable(true);setPadding(0,15.dp,0,32.dp)
             text="Сначала выберите шаблон или просмотрите возможности устройства."
         }
+        LegionUiSupport.reportSurface(output)
         root.addView(output)
         return ScrollView(requireContext()).apply { addView(root) }
     }
@@ -194,7 +176,7 @@ class HapticLabFragment:Fragment() {
 
     private fun chooseRunDialog(runs: List<HapticTestRun>) {
         if (runs.isEmpty()) { show("История тактильных тестов пуста."); return }
-        AlertDialog.Builder(requireContext()).setTitle("История Haptic Lab · ${runs.size}")
+        LegionDialogs.builder(requireContext()).setTitle("История Haptic Lab · ${runs.size}")
             .setItems(runs.map { r ->
                 DateFormat.getDateTimeInstance().format(Date(r.startedAtMs)) +
                     " · " + r.pattern + " · " + r.level + " · " + r.result
@@ -214,7 +196,7 @@ class HapticLabFragment:Fragment() {
             "NOT_FELT · не ощущалась",
             "UNCERTAIN · не уверен"
         )
-        AlertDialog.Builder(requireContext()).setTitle("Как вы ощутили вибрацию?")
+        LegionDialogs.builder(requireContext()).setTitle("Как вы ощутили вибрацию?")
             .setView(note)
             .setItems(ratings.toTypedArray()) { _,index ->
                 val value=ratings[index].substringBefore(" ")
@@ -249,10 +231,10 @@ class HapticLabFragment:Fragment() {
     private fun confirmDelete() {
         val id=viewModel.selectedRunId ?: return show("Сначала выберите тест из истории.")
         if(playing)return show("Остановите тест перед удалением.")
-        AlertDialog.Builder(requireContext()).setTitle("Удалить выбранный тактильный тест?")
+        LegionDialogs.builder(requireContext()).setTitle("Удалить выбранный тактильный тест?")
             .setMessage("Удалится только локальная запись этого тактильного запроса "+
                 "и ваша субъективная оценка. Другие модули сохранят данные.")
-            .setPositiveButton("Удалить") { _,_ ->
+            .setDestructive().setPositiveButton("Удалить") { _,_ ->
                 viewModel.delete(id)
             }.setNegativeButton("Отмена",null).show()
     }

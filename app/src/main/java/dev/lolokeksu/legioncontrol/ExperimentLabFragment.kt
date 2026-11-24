@@ -6,7 +6,6 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
-import android.app.AlertDialog
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
@@ -125,6 +124,7 @@ class ExperimentLabFragment : Fragment() {
             setPadding(0,18.dp,0,32.dp)
             text="Выберите приложение и сохранённую сессию. Измерения не будут изменены."
         }
+        LegionUiSupport.reportSurface(status)
         layout.addView(status)
         return ScrollView(requireContext()).apply { addView(layout) }
     }
@@ -178,7 +178,7 @@ class ExperimentLabFragment : Fragment() {
 
     private fun showPackagePicker(names:List<Pair<String,String>>) {
         if(names.isEmpty()) { display("Пока нет записанных сессий.");return }
-        AlertDialog.Builder(requireContext()).setTitle("Приложения из истории")
+        LegionDialogs.builder(requireContext()).setTitle("Приложения из истории")
             .setItems(names.map { it.second+"\n"+it.first }.toTypedArray()) { _,i ->
                 appInput.setText(names[i].first)
                 display("Фильтр: "+names[i].second)
@@ -195,7 +195,7 @@ class ExperimentLabFragment : Fragment() {
 
     private fun showSessionPicker(sessions:List<GameSessionHeader>) {
         if(sessions.isEmpty()) { display("Не найдено записанных сессий.");return }
-        AlertDialog.Builder(requireContext()).setTitle("Выберите сессию")
+        LegionDialogs.builder(requireContext()).setTitle("Выберите сессию")
             .setItems(sessions.map { row ->
                 row.appLabel+" · "+DateFormat.getDateTimeInstance().format(Date(row.startedAtMs))+
                     "\n"+row.packageName+" · "+(row.endReason ?: "не завершена")
@@ -247,7 +247,7 @@ class ExperimentLabFragment : Fragment() {
 
     private fun showExperimentPicker(found:List<SessionExperiment>) {
         if(found.isEmpty()) { display("Пока нет экспериментов.");return }
-        AlertDialog.Builder(requireContext()).setTitle("Эксперименты")
+        LegionDialogs.builder(requireContext()).setTitle("Эксперименты")
             .setItems(found.map { it.name+"\n"+it.packageName }.toTypedArray()) { _,i ->
                 val e=found[i]
                 vm.selectExperiment(e.id)
@@ -307,10 +307,10 @@ class ExperimentLabFragment : Fragment() {
 
     private fun confirmDelete() {
         val id=vm.selectedExperiment ?: return display("Выберите эксперимент.")
-        AlertDialog.Builder(requireContext()).setTitle("Удалить эксперимент?")
+        LegionDialogs.builder(requireContext()).setTitle("Удалить эксперимент?")
             .setMessage("Будут удалены его A/B назначения, но НЕ оригинальные игровые сессии, "+
                 "измерения, заметки и профили.")
-            .setPositiveButton("Удалить") { _,_ ->
+            .setDestructive().setPositiveButton("Удалить") { _,_ ->
                 vm.delete(id)
             }.setNegativeButton("Отмена",null).show()
     }

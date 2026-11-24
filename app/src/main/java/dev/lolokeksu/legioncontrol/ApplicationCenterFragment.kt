@@ -6,7 +6,6 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
-import android.app.AlertDialog
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
@@ -141,6 +140,7 @@ class ApplicationCenterFragment:Fragment() {
             setPadding(0,16.dp,0,30.dp)
             text="Выберите приложение. Все проверки запускаются только по нажатию."
         }
+        LegionUiSupport.reportSurface(output)
         root.addView(output)
         return ScrollView(requireContext()).apply { addView(root) }
     }
@@ -190,7 +190,7 @@ class ApplicationCenterFragment:Fragment() {
             hint="Поиск в доступном списке приложений"
             setSingleLine(true)
         }
-        AlertDialog.Builder(requireContext()).setTitle("Поиск").setView(input)
+        LegionDialogs.builder(requireContext()).setTitle("Поиск").setView(input)
             .setPositiveButton("Найти") { _,_ -> pickApp(input.text.toString().trim()) }
             .setNegativeButton("Отмена",null).show()
     }
@@ -199,7 +199,7 @@ class ApplicationCenterFragment:Fragment() {
 
     private fun showVisibleApps(found: List<LaunchableApp>) {
         if (found.isEmpty()) { show("Android не вернул видимых приложений по запросу."); return }
-        AlertDialog.Builder(requireContext()).setTitle("Приложения · ${found.size}")
+        LegionDialogs.builder(requireContext()).setTitle("Приложения · ${found.size}")
             .setItems(found.map { it.label + "\n" + it.packageName }.toTypedArray()) { _,index ->
                 packageText.setText(found[index].packageName)
                 aliasText.setText(found[index].label)
@@ -215,7 +215,7 @@ class ApplicationCenterFragment:Fragment() {
 
     private fun showTrackedApps(entries: List<TrackedApplication>) {
         if (entries.isEmpty()) { show("Библиотека пуста — сохраните приложение."); return }
-        AlertDialog.Builder(requireContext()).setTitle("Моя библиотека · ${entries.size}")
+        LegionDialogs.builder(requireContext()).setTitle("Моя библиотека · ${entries.size}")
             .setItems(entries.map {
                 (if (it.favorite) "★ " else "") +
                     it.alias.ifBlank { it.packageName } +
@@ -261,11 +261,11 @@ class ApplicationCenterFragment:Fragment() {
 
     private fun confirmRemove() {
         val pkg=selectedPackage() ?: return
-        AlertDialog.Builder(requireContext()).setTitle("Удалить из библиотеки?")
+        LegionDialogs.builder(requireContext()).setTitle("Удалить из библиотеки?")
             .setMessage("Удалятся только сохранённая заметка, категория, избранное "+
                 "и события наблюдения для $pkg. Само приложение и игровые сессии "+
                 "останутся нетронутыми.")
-            .setPositiveButton("Удалить") { _,_ ->
+            .setDestructive().setPositiveButton("Удалить") { _,_ ->
                 viewModel.remove(pkg)
             }.setNegativeButton("Отмена",null).show()
     }

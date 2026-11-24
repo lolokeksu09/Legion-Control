@@ -4,7 +4,6 @@ import androidx.activity.ComponentActivity
 import androidx.lifecycle.ViewModelProvider
 import android.Manifest
 import android.content.pm.PackageManager
-import android.app.AlertDialog
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
@@ -93,6 +92,7 @@ class CaptureStudioActivity : ComponentActivity() {
             setPadding(0, 8.dp, 0, 18.dp)
             setLineSpacing(4f, 1f)
         }
+        LegionUiSupport.notice(status, LegionUiSupport.Notice.INFO)
         root.addView(status)
 
         heading("Запись")
@@ -131,7 +131,7 @@ class CaptureStudioActivity : ComponentActivity() {
             "если игра допускает AudioPlaybackCapture; иначе сохраняется видео без звука. " +
             "Сохраняется только реально накопленный фрагмент.")
         action("ЗАПУСТИТЬ REPLAY-БУФЕР", "capture.replay") {
-            AlertDialog.Builder(this)
+            LegionDialogs.builder(this)
                 .setTitle("Длительность Replay")
                 .setItems(arrayOf("30 секунд", "60 секунд", "120 секунд")) { _, chosen ->
                     askReplayConsent(intArrayOf(30, 60, 120)[chosen])
@@ -196,11 +196,11 @@ class CaptureStudioActivity : ComponentActivity() {
             "После сохранения разрешение, FPS, битрейт, лимит и звук изменяются отдельно для этой игры.")
         action("СОХРАНИТЬ ПРОФИЛЬ ВЫБРАННОЙ ИГРЫ") { viewModel.saveSelectedGameProfile() }
         action("СБРОСИТЬ ПРОФИЛЬ ВЫБРАННОЙ ИГРЫ") {
-            AlertDialog.Builder(this)
+            LegionDialogs.builder(this)
                 .setTitle("Сбросить профиль записи игры?")
                 .setMessage("Будут удалены только настройки записи выбранной игры. " +
                     "Общие настройки, клипы и другие игровые профили останутся.")
-                .setPositiveButton("Сбросить") { _, _ -> viewModel.removeSelectedGameProfile() }
+                .setDestructive().setPositiveButton("Сбросить") { _, _ -> viewModel.removeSelectedGameProfile() }
                 .setNegativeButton("Отмена", null).show()
         }
         action("ЭКСПОРТИРОВАТЬ ИГРОВЫЕ ПРОФИЛИ В JSON") { exportGameProfiles() }
@@ -265,10 +265,10 @@ class CaptureStudioActivity : ComponentActivity() {
         note("Только ваши временные MP4/PNG с IS_PENDING=1 старше 24 часов. " +
             "Готовые клипы и снимки не удаляются. Перед операцией остановите все захваты.")
         action("НАЙТИ И УДАЛИТЬ ЗАВИСШИЕ ЧЕРНОВИКИ") {
-            AlertDialog.Builder(this).setTitle("Удалить незавершённые файлы?")
+            LegionDialogs.builder(this).setTitle("Удалить незавершённые файлы?")
                 .setMessage("Будут удалены только временные файлы Legion Control " +
                     "старше суток, не опубликованные в MediaStore. Операция необратима.")
-                .setPositiveButton("Очистить") { _, _ -> viewModel.cleanStalePending() }
+                .setDestructive().setPositiveButton("Очистить") { _, _ -> viewModel.cleanStalePending() }
                 .setNegativeButton("Отмена", null).show()
         }
         note("Пауза и продолжение сохраняют один MP4. Время паузы не расходует лимит " +
@@ -282,10 +282,10 @@ class CaptureStudioActivity : ComponentActivity() {
         }, "ЗАХВАТ И REPLAY")
         viewModel.settings.observe(this) { refreshChoices() }
         viewModel.playbackAudio.observe(this) { refreshChoices() }
-        viewModel.message.observe(this) { status.text = it }
+        viewModel.message.observe(this) { status.text = it; LegionUiSupport.notice(status, LegionUiSupport.Notice.INFO) }
         viewModel.backupReady.observe(this) {
             val inspected = viewModel.takeBackupPreview() ?: return@observe
-            AlertDialog.Builder(this)
+            LegionDialogs.builder(this)
                 .setTitle("Восстановить локальные данные?")
                 .setMessage("Архив проверен: SQLite v${inspected.preview.schema}, " +
                     "таблиц ${inspected.preview.tables}, записей ${inspected.preview.rows}, " +
@@ -308,17 +308,27 @@ class CaptureStudioActivity : ComponentActivity() {
                 CaptureLibraryState.Idle -> Unit
                 CaptureLibraryState.Loading -> {
                     status.text = "Читаю список собственных MP4 из MediaStore…"
+                    LegionUiSupport.notice(status, LegionUiSupport.Notice.LOADING)
                 }
                 is CaptureLibraryState.Ready -> showClipList(state.clips)
-                is CaptureLibraryState.Error -> status.text = state.message
+                is CaptureLibraryState.Error -> {
+                    status.text = state.message
+                    LegionUiSupport.notice(status, LegionUiSupport.Notice.ERROR)
+                }
             }
         }
         viewModel.screenshots.observe(this) { state ->
             when (state) {
                 CaptureScreenshotsState.Idle -> Unit
-                CaptureScreenshotsState.Loading -> status.text = "Читаю собственные PNG из MediaStore…"
+                CaptureScreenshotsState.Loading -> {
+                    status.text = "Читаю собственные PNG из MediaStore…"
+                    LegionUiSupport.notice(status, LegionUiSupport.Notice.LOADING)
+                }
                 is CaptureScreenshotsState.Ready -> showScreenshotList(state.shots)
-                is CaptureScreenshotsState.Error -> status.text = state.message
+                is CaptureScreenshotsState.Error -> {
+                    status.text = state.message
+                    LegionUiSupport.notice(status, LegionUiSupport.Notice.ERROR)
+                }
             }
         }
         refreshChoices()
@@ -371,7 +381,7 @@ class CaptureStudioActivity : ComponentActivity() {
     }
 
     private fun selectOption(title: String, name: String, values: IntArray, labels: Array<String>) {
-        AlertDialog.Builder(this).setTitle(title).setItems(labels) { _, index ->
+        LegionDialogs.builder(this).setTitle(title).setItems(labels) { _, index ->
             viewModel.setOption(name, values[index])
         }.setNegativeButton("Отмена", null).show()
     }
@@ -524,7 +534,7 @@ class CaptureStudioActivity : ComponentActivity() {
         if (requestCode == REQUEST_IMPORT_GAME_PROFILES) {
             if (resultCode == RESULT_OK && data?.data != null) {
                 val uri = data.data!!
-                AlertDialog.Builder(this).setTitle("Восстановить профили?")
+                LegionDialogs.builder(this).setTitle("Восстановить профили?")
                     .setMessage("Сохранённые профили ВСЕХ игр будут заменены содержимым JSON. " +
                         "Общие настройки и ваши записи не изменятся. Некорректный файл отклоняется полностью.")
                     .setPositiveButton("Импортировать") { _, _ -> viewModel.importGameProfiles(uri) }
@@ -661,6 +671,7 @@ class CaptureStudioActivity : ComponentActivity() {
         clipsContainer.removeAllViews()
         status.text = if (clips.isEmpty()) "На этой странице нет готовых MP4."
             else "MP4 · страница ${viewModel.clipsPageNumber()} · файлов: ${clips.size}"
+        LegionUiSupport.notice(status, if(clips.isEmpty()) LegionUiSupport.Notice.EMPTY else LegionUiSupport.Notice.INFO)
         if (viewModel.clipsPageNumber() > 1) {
             clipsContainer.addView(Button(this).apply {
                 text = "ПРЕДЫДУЩАЯ СТРАНИЦА MP4"
@@ -690,7 +701,7 @@ class CaptureStudioActivity : ComponentActivity() {
     }
 
     private fun clipActions(clip: CaptureClip) {
-        AlertDialog.Builder(this).setTitle(clip.name)
+        LegionDialogs.builder(this).setTitle(clip.name)
             .setItems(arrayOf(
                 "Просмотреть", "Поделиться",
                 "Создать фрагмент · первые 15 секунд",
@@ -730,7 +741,7 @@ class CaptureStudioActivity : ComponentActivity() {
             addView(begin)
             addView(end)
         }
-        AlertDialog.Builder(this)
+        LegionDialogs.builder(this)
             .setTitle("Сохранить MP4-фрагмент")
             .setMessage("Границы в секундах. Минимум 1 секунда. " +
                 "Видео будет начинаться с предыдущего ключевого кадра. " +
@@ -754,14 +765,14 @@ class CaptureStudioActivity : ComponentActivity() {
     }
 
     private fun chooseVideoFrame(clip: CaptureClip) {
-        AlertDialog.Builder(this).setTitle("Экспорт PNG-кадра")
+        LegionDialogs.builder(this).setTitle("Экспорт PNG-кадра")
             .setItems(arrayOf("Первый кадр", "Кадр из середины", "Указать секунду")) { _, choice ->
                 when (choice) {
                     0 -> viewModel.saveClipFrame(clip, 0L)
                     1 -> viewModel.saveClipFrame(clip, null)
                     2 -> {
                         val at = numericField("Секунда в видео")
-                        AlertDialog.Builder(this)
+                        LegionDialogs.builder(this)
                             .setTitle("Кадр по времени")
                             .setView(at)
                             .setPositiveButton("Сохранить PNG") { _, _ ->
@@ -801,6 +812,7 @@ class CaptureStudioActivity : ComponentActivity() {
         shotsContainer.removeAllViews()
         status.text = if (shots.isEmpty()) "На этой странице нет PNG."
             else "PNG · страница ${viewModel.screenshotsPageNumber()} · файлов: ${shots.size}"
+        LegionUiSupport.notice(status, if(shots.isEmpty()) LegionUiSupport.Notice.EMPTY else LegionUiSupport.Notice.INFO)
         if (viewModel.screenshotsPageNumber() > 1) {
             shotsContainer.addView(Button(this).apply {
                 text = "ПРЕДЫДУЩАЯ СТРАНИЦА PNG"
@@ -829,7 +841,7 @@ class CaptureStudioActivity : ComponentActivity() {
     }
 
     private fun screenshotActions(shot: CaptureScreenshot) {
-        AlertDialog.Builder(this).setTitle(shot.name)
+        LegionDialogs.builder(this).setTitle(shot.name)
             .setItems(arrayOf("Просмотреть", "Поделиться", "Удалить PNG")) { _, which ->
                 when (which) {
                     0 -> runCatching {
@@ -849,10 +861,10 @@ class CaptureStudioActivity : ComponentActivity() {
                     }.onFailure {
                         status.text = "Отправка PNG недоступна: " + it.javaClass.simpleName
                     }
-                    2 -> AlertDialog.Builder(this)
+                    2 -> LegionDialogs.builder(this)
                         .setTitle("Удалить выбранный снимок?")
                         .setMessage("Безвозвратно удалится только ${shot.name}.")
-                        .setPositiveButton("Удалить") { _, _ ->
+                        .setDestructive().setPositiveButton("Удалить") { _, _ ->
                             viewModel.deleteConfirmedScreenshot(shot)
                         }
                         .setNegativeButton("Отмена", null).show()
@@ -861,11 +873,11 @@ class CaptureStudioActivity : ComponentActivity() {
     }
 
     private fun confirmDelete(clip: CaptureClip) {
-        AlertDialog.Builder(this)
+        LegionDialogs.builder(this)
             .setTitle("Безвозвратно удалить MP4?")
             .setMessage("Будет удалён только выбранный файл ${clip.name}. " +
                 "История сессий, диагностика и другие клипы сохранятся.")
-            .setPositiveButton("Удалить") { _, _ ->
+            .setDestructive().setPositiveButton("Удалить") { _, _ ->
                 viewModel.deleteConfirmed(clip)
             }.setNegativeButton("Отмена", null).show()
     }

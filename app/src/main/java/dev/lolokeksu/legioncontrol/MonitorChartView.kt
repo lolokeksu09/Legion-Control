@@ -9,6 +9,7 @@ import kotlin.math.max
 /** Actual sample timestamps; no smoothing or interpolated values over missing samples. */
 class MonitorChartView(context: Context) : View(context) {
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val frame = LegionChartFrame(this)
     private var points = emptyList<MonitorPoint>()
     private var metric = MonitorMetric.TEMPERATURE
 
@@ -26,29 +27,17 @@ class MonitorChartView(context: Context) : View(context) {
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-        val pad = 16f * resources.displayMetrics.density
-        val left = pad
-        val right = width - pad
-        val top = pad
-        val bottom = height - pad
-        if (right <= left || bottom <= top) return
-        paint.color = LegionUiSupport.BORDER
-        paint.strokeWidth = resources.displayMetrics.density
-        for (i in 0..4) {
-            val y = top + (bottom - top) * i / 4
-            canvas.drawLine(left, y, right, y, paint)
-        }
         val values = points.mapNotNull(metric::value)
-        if (values.isEmpty()) return
+        if (values.isEmpty()) { frame.empty(canvas); return }
         val lo = values.minOrNull() ?: return
         val hi = values.maxOrNull() ?: return
-        val range = hi - lo
         val first = points.first().elapsedMs
         val duration = max(1L, points.last().elapsedMs - first)
+        val plot = frame.axes(canvas, lo, hi, duration, metric.unit) ?: return
         var previousX: Float? = null
         var previousY: Float? = null
         paint.color = LegionUiSupport.ACCENT
-        paint.strokeWidth = 2f * resources.displayMetrics.density
+        paint.strokeWidth = frame.lineWidth
         for (point in points) {
             val value = metric.value(point)
             if (value == null || !value.isFinite()) {
@@ -56,13 +45,12 @@ class MonitorChartView(context: Context) : View(context) {
                 previousY = null
                 continue
             }
-            val x = left + (right - left) * ((point.elapsedMs - first).toDouble() / duration).toFloat()
-            val y = if (range == 0.0) (top + bottom) / 2 else
-                bottom - (bottom - top) * ((value - lo) / range).toFloat()
+            val x = plot.left + plot.width() * ((point.elapsedMs - first).toDouble() / duration).toFloat()
+            val y = frame.y(plot, value, lo, hi)
             val px = previousX
             val py = previousY
             if (px != null && py != null) canvas.drawLine(px, py, x, y, paint)
-            canvas.drawCircle(x, y, 2.5f * resources.displayMetrics.density, paint)
+            canvas.drawCircle(x, y, frame.pointRadius, paint)
             previousX = x
             previousY = y
         }

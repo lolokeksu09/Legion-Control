@@ -1,7 +1,6 @@
 package dev.lolokeksu.legioncontrol
 
 import android.app.Activity
-import android.app.AlertDialog
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
@@ -77,6 +76,7 @@ class SessionBaselinesFragment:Fragment() {
             setLineSpacing(4f,1f)
             setPadding(0,18.dp,0,32.dp)
         }
+        LegionUiSupport.reportSurface(output)
         root.addView(output)
         return ScrollView(requireContext()).apply { addView(root) }
     }
@@ -102,7 +102,7 @@ class SessionBaselinesFragment:Fragment() {
 
     private fun pickPackageDialog(packages:List<String>) {
         if(packages.isEmpty())return
-        AlertDialog.Builder(requireContext()).setTitle("История игр")
+        LegionDialogs.builder(requireContext()).setTitle("История игр")
             .setItems(packages.toTypedArray()) { _,which ->
                 vm.selectPackage(packages[which])
             }.setNegativeButton("Отмена",null).show()

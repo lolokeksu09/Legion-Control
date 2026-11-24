@@ -1,6 +1,5 @@
 package dev.lolokeksu.legioncontrol
 
-import android.app.AlertDialog
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
@@ -10,7 +9,6 @@ import android.provider.Settings
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.View
-import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
@@ -122,6 +120,7 @@ class GamePreflightActivity : FragmentActivity() {
 
     private fun render(s:PreflightState) {
         status.text=s.message
+        LegionUiSupport.notice(status, if(s.busy) LegionUiSupport.Notice.LOADING else LegionUiSupport.Notice.INFO)
         selection.text=s.selected?.let { "${it.label}\n${it.packageName}" } ?: "Игра не выбрана."
         requirements.text=if(s.selected==null) "Требования появятся после выбора игры." else with(s.preset) {
             "Дисплей: ${if(targetHz==0) "не задано" else "$targetHz Гц"} · заряд: ≥$minBattery%\n" +
@@ -140,6 +139,7 @@ class GamePreflightActivity : FragmentActivity() {
         val report=s.report
         if(report==null) {
             reportSummary.text="Проверка ещё не выполнялась."
+            LegionUiSupport.notice(reportSummary, LegionUiSupport.Notice.EMPTY)
             return
         }
         val fresh=s.launchFresh && PreflightRules.fresh(report.checkedAtElapsed,SystemClock.elapsedRealtime())
@@ -147,20 +147,21 @@ class GamePreflightActivity : FragmentActivity() {
         reportSummary.text="Ограничения: ${report.critical} · предупреждения: ${report.warnings} · неизвестно: ${report.unknown}\n" +
             if(fresh) "Снимок выполнен по запросу. Не является FPS или ping игры." else
                 "Снимок устарел для запуска. Выполните проверку снова."
+        LegionUiSupport.notice(reportSummary, if(report.critical>0) LegionUiSupport.Notice.ERROR
+            else if(!fresh || report.warnings>0) LegionUiSupport.Notice.WARNING else LegionUiSupport.Notice.INFO)
         for(f in report.findings) {
             val row=LinearLayout(this).apply {
                 orientation=LinearLayout.VERTICAL
-                background=LegionUiSupport.cardSurface(this)
-                setPadding(15.dp,12.dp,15.dp,12.dp)
+                LegionUiSupport.reportSurface(this)
             }
             row.addView(TextView(this).apply {
                 text="${f.level.label} · ${f.title}"
                 textSize=15f
                 setTypeface(Typeface.DEFAULT,Typeface.BOLD)
                 setTextColor(when(f.level) {
-                    PreflightLevel.CRITICAL -> 0xFFFF8B8B.toInt()
-                    PreflightLevel.WARNING -> 0xFFFFCF87.toInt()
-                    PreflightLevel.PASS -> 0xFFA7DBB4.toInt()
+                    PreflightLevel.CRITICAL -> LegionUiSupport.DANGER
+                    PreflightLevel.WARNING -> LegionUiSupport.WARNING
+                    PreflightLevel.PASS -> LegionUiSupport.SUCCESS
                     else -> LegionUiSupport.MUTED
                 })
             })
@@ -187,11 +188,11 @@ class GamePreflightActivity : FragmentActivity() {
             hint="Название игры или пакет"
             isSingleLine=true
         }
-        val adapter=ArrayAdapter(this,android.R.layout.simple_list_item_1,labels.keys.toList())
+        val adapter=LegionDialogs.listAdapter(this,labels.keys.toList())
         val list=ListView(this).apply { this.adapter=adapter }
         content.addView(search,LinearLayout.LayoutParams(-1,-2))
         content.addView(list,LinearLayout.LayoutParams(-1,320.dp))
-        val dialog=AlertDialog.Builder(this).setTitle("Выбрать игру").setView(content)
+        val dialog=LegionDialogs.builder(this).setTitle("Выбрать игру").setView(content)
             .setNegativeButton("Отмена",null).create()
         search.addTextChangedListener(object:TextWatcher {
             override fun beforeTextChanged(s:CharSequence?,start:Int,count:Int,after:Int) {}
@@ -219,12 +220,10 @@ class GamePreflightActivity : FragmentActivity() {
         fun selector(title:String,values:List<Int>,selected:Int,format:(Int)->String):Spinner {
             val caption=TextView(this).apply { text=title; textSize=14f; setPadding(0,12.dp,0,3.dp) }
             panel.addView(caption)
-            return Spinner(this).apply {
+            return LegionUiSupport.spinner(this, values.map(format)).apply {
                 id=View.generateViewId()
                 caption.labelFor=id
                 minimumHeight=48.dp
-                adapter=ArrayAdapter(this@GamePreflightActivity,android.R.layout.simple_spinner_item,
-                    values.map(format)).apply { setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
                 setSelection(values.indexOf(selected).coerceAtLeast(0))
                 panel.addView(this,LinearLayout.LayoutParams(-1,-2))
             }
@@ -244,7 +243,7 @@ class GamePreflightActivity : FragmentActivity() {
             isChecked=preset.requireValidatedNetwork
         }
         panel.addView(network)
-        AlertDialog.Builder(this).setTitle("Требования ${current.selected.label}")
+        LegionDialogs.builder(this).setTitle("Требования ${current.selected.label}")
             .setView(ScrollView(this).apply { addView(panel) })
             .setPositiveButton("Сохранить") { _,_ ->
                 model.savePreset(PreflightPreset(hz[hzField.selectedItemPosition],
@@ -261,14 +260,14 @@ class GamePreflightActivity : FragmentActivity() {
             return
         }
         if(report.critical>0) {
-            AlertDialog.Builder(this).setTitle("Есть тепловые ограничения")
+            LegionDialogs.builder(this).setTitle("Есть тепловые ограничения")
                 .setMessage("Отложите нагрузку. Дайте устройству остыть и повторите проверку.")
                 .setPositiveButton("Понятно",null).show()
             return
         }
         val run={ launchChecked(report) }
         if(report.warnings>0 || report.unknown>0) {
-            AlertDialog.Builder(this).setTitle("Запустить игру?")
+            LegionDialogs.builder(this).setTitle("Запустить игру?")
                 .setMessage("Предупреждений: ${report.warnings}, неизвестных показателей: ${report.unknown}. " +
                     "Запуск не применяет системные настройки автоматически.")
                 .setPositiveButton("Запустить") { _,_-> run() }

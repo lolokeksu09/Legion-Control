@@ -102,7 +102,7 @@ jobs:
           python3 scripts/verify_release_apk.py app/build/outputs/apk/release/app-release.apk "$ANDROID_HOME/build-tools/36.0.0/apksigner"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: Legion-Control-v0.1.0-alpha.48-permanent-release-apk
+          name: Legion-Control-v0.1.0-alpha.49-permanent-release-apk
           path: app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
       - name: Wait for exact main commit Android CI before publication
@@ -115,15 +115,15 @@ jobs:
           verified=0
           for attempt in $(seq 1 120); do
             result=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow android.yml \
-              --commit "$GITHUB_SHA" --limit 10 --json headSha,status,conclusion)
+              --event push --branch main --commit "$GITHUB_SHA" --limit 10 --json headSha,headBranch,event,status,conclusion)
             if jq -e --arg sha "$GITHUB_SHA" \
-                 '[.[] | select(.headSha == $sha and .status == "completed" and .conclusion == "success")] | length > 0' \
+                 '[.[] | select(.headSha == $sha and .headBranch == "main" and .event == "push" and .status == "completed" and .conclusion == "success")] | length > 0' \
                  <<< "$result" >/dev/null; then
               verified=1
               break
             fi
             if jq -e --arg sha "$GITHUB_SHA" \
-                 '[.[] | select(.headSha == $sha and .status == "completed" and .conclusion == "failure")] | length > 0' \
+                 '[.[] | select(.headSha == $sha and .headBranch == "main" and .event == "push" and .status == "completed" and .conclusion == "failure")] | length > 0' \
                  <<< "$result" >/dev/null; then
               echo '::error::Android CI failed for signed commit; refusing to publish'
               exit 1
@@ -141,18 +141,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          tag=v0.1.0-alpha.48
+          tag=v0.1.0-alpha.49
           apk=app/build/outputs/apk/release/app-release.apk
           if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "::notice::Release $tag already exists; refusing to replace binaries"
-            exit 0
+            echo "::error::Release $tag already exists; refusing to replace binaries"
+            exit 1
           fi
           test -s "$apk"
-          asset=Legion-Control-v0.1.0-alpha.48-signed.apk
+          asset=Legion-Control-v0.1.0-alpha.49-signed.apk
           cp "$apk" "$asset"
           gh release create "$tag" "$asset" runtime-sbom/releaseRuntimeClasspath.cdx.json --repo "$GITHUB_REPOSITORY" \
-            --title 'Legion Control v0.1.0-alpha.48' \
-            --notes-file docs/ALPHA48-RELEASE-NOTES.md \
+            --title 'Legion Control v0.1.0-alpha.49' \
+            --notes-file docs/ALPHA49-RELEASE-NOTES.md \
             --prerelease --target "$GITHUB_SHA"
 
       - name: Remove temporary permanent signing keystore

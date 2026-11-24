@@ -6,6 +6,19 @@ This repository's **public** release certificate SHA-256 fingerprint:
 
 Alias: `legion-control-release`. Keystore: PKCS12, RSA 4096-bit, generated 2026-11-21 and valid through 2059-09-29. The certificate fingerprint is public; **private key and passwords are never committed or printed in CI logs**.
 
+## alpha.49 release identity (2026-11-24)
+
+The approved signed-update candidate uses `applicationId=dev.lolokeksu.legioncontrol`,
+`versionCode=49` and `versionName=0.1.0-alpha.49`. It uses **the same
+unchanged permanent PKCS12 certificate** verified by the public fingerprint above.
+Alpha.49 may only be published after exact-commit `main` Android CI and the
+permanently signed release build pass. The public release tag is
+`v0.1.0-alpha.49`, and the signed asset is
+`Legion-Control-v0.1.0-alpha.49-signed.apk`. Install it directly over a
+compatible previously release-signed Alpha.48 APK; **do not uninstall**, which
+could erase private SQLite data/preferences. A physical Legion Y70 test is
+still required for hardware-level acceptance.
+
 ## alpha.41 release identity
 
 Текущая версия: `versionCode=41`, `versionName=0.1.0-alpha.41`. Тот же
