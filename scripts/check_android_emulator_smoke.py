@@ -538,6 +538,11 @@ def main() -> None:
     click("ЗАФИКСИРОВАТЬ КОНТРОЛЬНУЮ ТОЧКУ", scrolls=10, exact_only=True)
     expect("Изменение относительно сохранённого замера")
     capture("22-live-monitor-baseline")
+    click("НАЧАТЬ МОНИТОРИНГ", scrolls=12, direction="up", exact_only=True)
+    expect("Начать новый мониторинг?")
+    capture("22a-shared-confirmation-dialog")
+    click("Отмена", scrolls=0, exact_only=True)
+    expect("Мониторинг остановлен пользователем")
     # The origin Home is scrolled down to the Live Monitor tile. Its title may
     # be offscreen or loading. Press Back once and wait for the fixed host header;
     # repeated Back presses on Home would exit to Android Launcher.
