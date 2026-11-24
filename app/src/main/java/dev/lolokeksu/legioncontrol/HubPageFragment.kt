@@ -100,6 +100,11 @@ class HubPageFragment : Fragment() {
         })
     }
 
+    private fun notice(message: String, kind: LegionUiSupport.Notice) {
+        column.addView(LegionUiSupport.noticeView(requireContext(), message, kind),
+            LinearLayout.LayoutParams(-1,-2).apply { bottomMargin = 6.dp })
+    }
+
     private fun info(message: String) {
         column.addView(text(message, 13f, muted).apply {
             setPadding(0, 6.dp, 0, 16.dp)
@@ -109,7 +114,7 @@ class HubPageFragment : Fragment() {
     private fun tile(title: String, description: String, onClick: () -> Unit) {
         column.addView(
             LegionUiSupport.actionTile(requireContext(), title, description, onClick),
-            LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 10.dp }
+            LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 6.dp }
         )
     }
 
@@ -156,12 +161,12 @@ class HubPageFragment : Fragment() {
             showSettings((state as? HubLoadState.Ready)?.snapshot)
             LegionDataBackup.recoveryWarning()?.let(::info)
             if(state is HubLoadState.Failed) {
-                info(state.message)
+                notice(state.message, LegionUiSupport.Notice.ERROR)
                 tile("Повторить чтение сводки", "Настройки и восстановление доступны независимо") {
                     viewModel.refresh()
                 }
             }
-            if(state is HubLoadState.Ready) state.snapshot.warnings.forEach(::info)
+            if(state is HubLoadState.Ready) state.snapshot.warnings.forEach { notice(it, LegionUiSupport.Notice.WARNING) }
             return
         }
         when (state) {
@@ -169,20 +174,20 @@ class HubPageFragment : Fragment() {
                 if (page() == HubTab.TOOLS) {
                     showTools()
                     group("Сводка устройства")
-                    info("Чтение локальных данных продолжается. Инструменты доступны.")
+                    notice("Чтение локальных данных продолжается. Инструменты доступны.", LegionUiSupport.Notice.LOADING)
                 } else {
                     section("LEGION · GAME HUB", "Чтение локальной библиотеки и системных данных")
-                    info("Загружаю данные устройства…")
+                    notice("Загружаю данные устройства…", LegionUiSupport.Notice.LOADING)
                 }
             }
             is HubLoadState.Failed -> {
                 if (page() == HubTab.TOOLS) {
                     showTools()
                     group("Не удалось прочитать сводку")
-                    info(state.message)
+                    notice(state.message, LegionUiSupport.Notice.ERROR)
                 } else {
                     section("Не удалось загрузить")
-                    info(state.message)
+                    notice(state.message, LegionUiSupport.Notice.ERROR)
                     showLegacyShortcuts()
                 }
                 tile("Повторить чтение", "Без удаления данных и изменения системных настроек") {
@@ -199,7 +204,7 @@ class HubPageFragment : Fragment() {
                 }
                 if (state.snapshot.warnings.isNotEmpty()) {
                     group("Ограничения доступа")
-                    state.snapshot.warnings.forEach(::info)
+                    state.snapshot.warnings.forEach { notice(it, LegionUiSupport.Notice.WARNING) }
                 }
             }
         }
