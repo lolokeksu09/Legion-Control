@@ -3,6 +3,7 @@ package dev.lolokeksu.legioncontrol
 import android.app.Application
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -35,8 +36,32 @@ class GamePreflightViewModel(app: Application): AndroidViewModel(app) {
         if(!value) update(current().copy(launchFresh=false))
     }
 
+    private val expiry=Runnable {
+        val s=current()
+        if(visible && s.launchFresh && s.report!=null) {
+            if(PreflightRules.fresh(s.report.checkedAtElapsed,SystemClock.elapsedRealtime())) {
+                scheduleExpiry()
+            } else update(s.copy(launchFresh=false,
+                message="Срок проверки истёк. Выполните проверку снова."))
+        }
+    }
+
+    private fun scheduleExpiry() {
+        main.removeCallbacks(expiry)
+        val s=current()
+        val report=s.report ?: return
+        if(!visible || !s.launchFresh) return
+        val age=(SystemClock.elapsedRealtime()-report.checkedAtElapsed).coerceAtLeast(0L)
+        main.postDelayed(expiry,(60_001L-age).coerceAtLeast(1L))
+    }
+
     private fun current() = requireNotNull(mutable.value)
-    private fun update(s: PreflightState) { if (!closed) mutable.value = s }
+    private fun update(s: PreflightState) {
+        if(closed) return
+        main.removeCallbacks(expiry)
+        mutable.value=s
+        if(s.launchFresh) scheduleExpiry()
+    }
 
     fun initialize(requestedPackage: String?) {
         if (initialized) return
