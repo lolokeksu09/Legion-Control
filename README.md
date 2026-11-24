@@ -13,7 +13,11 @@
 
 См. `rust-core/`, `android-core/`, `docs/BACKEND.md`. Следующие шаги: Rust unit tests в CI, Android JNI сборка, затем легковесный Kotlin-интерфейс. Никаких заявлений об улучшении FPS, сенсорного отклика или Bypass.
 
-Текущая готовящаяся версия приложения: `0.1.0-alpha.47` (публикация только после прохождения CI и подписания прежним сертификатом). Последняя уже опубликованная — [Alpha 46](https://github.com/lolokeksu09/Legion-Control/releases/tag/v0.1.0-alpha.46).
+Текущая готовящаяся версия приложения: `0.1.0-alpha.48`. До успешной проверки точной ревизии и публикации подписанного APK используйте [Alpha 47](https://github.com/lolokeksu09/Legion-Control/releases/tag/v0.1.0-alpha.47).
+
+## v0.1.0-alpha.48 — мониторинг и игровая аналитика
+
+Поиск 79 действий в 21 модуле, Live Monitor, Game Preflight, Session Compare, Session Library с выборочным ZIP, прямые переходы к настройкам Android и адаптивная навигация. [Заметки к выпуску](docs/ALPHA48-RELEASE-NOTES.md). SQLite v12 и постоянная подпись сохранены.
 
 ## v0.1.0-alpha.47 — безопасность данных и исправления после аудита
 

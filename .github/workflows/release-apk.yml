@@ -83,6 +83,11 @@ jobs:
           python3 scripts/check_alpha39_replay.py
           python3 scripts/check_alpha40_audit_remediation.py
           python3 scripts/check_alpha41_replay_timestamps.py
+          python3 scripts/check_feature_finder.py
+          python3 scripts/check_live_monitor.py
+          python3 scripts/check_game_preflight.py
+          python3 scripts/check_session_compare.py
+          python3 scripts/check_session_library.py
       - name: Verify alpha.44 legacy route and module design parity
         run: python3 scripts/check_alpha44_module_ui.py
       - name: Validate alpha.42 Game Toolbox unified UI routing and permissions
@@ -114,7 +119,7 @@ jobs:
           python3 scripts/verify_release_apk.py app/build/outputs/apk/release/app-release.apk "$ANDROID_HOME/build-tools/36.0.0/apksigner"
       - uses: actions/upload-artifact@v4
         with:
-          name: Legion-Control-v0.1.0-alpha.47-permanent-release-apk
+          name: Legion-Control-v0.1.0-alpha.48-permanent-release-apk
           path: app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
       - name: Wait for exact main commit Android CI before publication
@@ -153,16 +158,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          tag=v0.1.0-alpha.47
+          tag=v0.1.0-alpha.48
           apk=app/build/outputs/apk/release/app-release.apk
           if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "::notice::Release $tag already exists; refusing to replace binaries"
             exit 0
           fi
           test -s "$apk"
-          asset=Legion-Control-v0.1.0-alpha.47-signed.apk
+          asset=Legion-Control-v0.1.0-alpha.48-signed.apk
           cp "$apk" "$asset"
           gh release create "$tag" "$asset" --repo "$GITHUB_REPOSITORY" \
-            --title 'Legion Control v0.1.0-alpha.47' \
-            --notes-file docs/ALPHA47-RELEASE-NOTES.md \
+            --title 'Legion Control v0.1.0-alpha.48' \
+            --notes-file docs/ALPHA48-RELEASE-NOTES.md \
             --prerelease --target "$GITHUB_SHA"

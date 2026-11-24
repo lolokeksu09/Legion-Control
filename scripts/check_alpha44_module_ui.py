@@ -58,8 +58,8 @@ assert 'sectionLabel(requireContext(), "УПРАВЛЕНИЕ ЗАПИСЬЮ")' i
 assert "LegionUiSupport.ACCENT" in read("GameSessionTimelineView.kt")
 
 gradle = (root / "app/build.gradle.kts").read_text()
-assert "versionCode = 47" in gradle
-assert 'versionName = "0.1.0-alpha.47"' in gradle
+assert "versionCode = 48" in gradle
+assert 'versionName = "0.1.0-alpha.48"' in gradle
 manifest = (root / "app/src/main/AndroidManifest.xml").read_text()
 assert "android.permission.QUERY_ALL_PACKAGES" not in manifest
 assert "android.permission.WRITE_SECURE_SETTINGS" not in manifest
