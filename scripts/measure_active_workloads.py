@@ -13,6 +13,8 @@ from check_android_emulator_smoke import (
     expect_service, service_running, GAMES_MARKER, TOOLS_MARKER, EVIDENCE, PACKAGE,
 )
 from performance_profile import PerformanceProfile
+from active_workload_state import visible_overlay
+import xml.etree.ElementTree as ET
 
 SOURCE_SHA = "a02654b523e4428a03c823518e7f3beb1c41fb63"
 SOURCE_RUN = 45405804990
@@ -140,9 +142,14 @@ def overlay(perf):
         idle=observe(perf,"toolbox-overlay","idle",lambda:not service("GameToolboxService"))
         click("Включить плавающую панель",scrolls=16)
         until(lambda:service("GameToolboxService"),"Overlay service did not start")
-        expect("Открыть или свернуть Game Toolbox")
-        active=observe(perf,"toolbox-overlay","active",lambda:service("GameToolboxService")
-                       and visible("Открыть или свернуть Game Toolbox"))
+        def shown():
+            windows=adb("shell","dumpsys","window","windows")
+            (EVIDENCE/"toolbox-window-state.txt").write_text(windows,encoding="utf-8")
+            return service("GameToolboxService") and visible_overlay(windows,PACKAGE)
+        until(shown,"No visible owned APPLICATION_OVERLAY window")
+        capture("toolbox-active-before")
+        active=observe(perf,"toolbox-overlay","active",shown)
+        capture("toolbox-active-after")
         click("Остановить плавающую панель",scrolls=12)
         until(lambda:not service("GameToolboxService"),"Overlay service did not stop")
         return compare(idle,active)
@@ -154,20 +161,31 @@ def recording(perf):
     open_tool("Capture Studio")
     expect("CAPTURE STUDIO")
     idle=observe(perf,"screen-capture","idle",lambda:not service("CaptureRecordingService"))
-    click("НАЧАТЬ ЗАПИСЬ ЭКРАНА",exact_only=True)
-    # Android 35 system MediaProjection dialog; select only explicitly named
-    # full-screen and positive consent controls. Never forge a consent token.
-    if find("Entire screen",exact_only=True):
-        click("Entire screen",scrolls=0,exact_only=True)
-    elif find("Share one app",exact_only=True):
-        click("Share one app",scrolls=0,exact_only=True)
-        click("Entire screen",scrolls=0,exact_only=True)
-    if find("Start now",exact_only=True):
-        click("Start now",scrolls=0,exact_only=True)
-    elif find("Share screen",exact_only=True):
-        click("Share screen",scrolls=0,exact_only=True)
-    else:
-        raise AssertionError("System consent UI not recognized; no permission bypass")
+    click("НАЧАТЬ ЗАПИСЬ ЭКРАНА",direction="up",scrolls=16,exact_only=True)
+    # Explicit consent on disposable emulator only. Match the observed Android
+    # 35 dialog title and SystemUI nodes; never click a generic Start in the app.
+    expect("Start recording or casting with Legion Control?",seconds=20)
+    capture("capture-consent")
+    def system_label(labels):
+        for node in hierarchy().iter("node"):
+            if node.get("package")=="com.android.systemui" and node.get("enabled","true")=="true":
+                for label in labels:
+                    if label in (node.get("text"),node.get("content-desc")):
+                        return label
+        return None
+    def system_click(labels):
+        label=system_label(labels)
+        if label is None:
+            raise AssertionError("Unrecognized SystemUI control: "+str(labels))
+        click(label,scrolls=0,exact_only=True)
+    if system_label(("A single app","Share one app")):
+        system_click(("A single app","Share one app"))
+        expect("Entire screen",seconds=12)
+        system_click(("Entire screen","Share entire screen","Full screen"))
+    if not system_label(("Entire screen","Share entire screen","Full screen")):
+        raise AssertionError("Full-screen consent selection not verified")
+    capture("capture-consent-full-screen")
+    system_click(("Start","Start now","Share screen"))
     def capturing():
         return service("CaptureRecordingService") and PACKAGE in adb("shell","dumpsys","media_projection")
     until(capturing,"No active MediaProjection",seconds=30)
@@ -193,8 +211,14 @@ def main():
     perf.report["method"]["workload"]="three paired idle/active windows, 5s CPU each; guard before and after; debug emulator, no game workload"
     report={"source_revision":SOURCE_SHA,"source_ci_run":SOURCE_RUN,
             "apk_sha256":perf.report["apk_sha256"],"scenarios":{}}
-    for name,run in (("session-recorder",session),("live-network",network),
-                     ("toolbox-overlay",overlay),("screen-capture",recording)):
+    scenarios={"session-recorder":session,"live-network":network,
+               "toolbox-overlay":overlay,"screen-capture":recording}
+    requested=sys.argv[2:] or list(scenarios)
+    if len(set(requested))!=len(requested) or any(name not in scenarios for name in requested):
+        raise SystemExit("Invalid workload selection")
+    report["requested_scenarios"]=requested
+    for name in requested:
+        run=scenarios[name]
         try:
             launch_home()
             data=run(perf)
@@ -203,7 +227,9 @@ def main():
         except Exception as e:
             report["scenarios"][name]={"status":"not_completed","reason":str(e)[:250]}
             print("ACTIVE PERF incomplete:",name,str(e),flush=True)
-            try: capture("workload-"+name+"-failure")
+            try:
+                capture("workload-"+name+"-failure")
+                (EVIDENCE/("workload-"+name+"-failure.xml")).write_text(ET.tostring(hierarchy(),encoding="unicode"),encoding="utf-8")
             except Exception: pass
         finally:
             # Independent scenarios; force-stop ONLY our app in CI, not a user's
