@@ -24,7 +24,9 @@ assert "delayedReadAndTimestampJitterDoNotCauseCumulativeDrift" in CLOCK_TEST
 assert "noPcmMeansNoCodecInputAndNoClockAdvance" in CLOCK_TEST
 assert "encoderDelayIsNotConfusedWithTimebaseOffset" in VIDEO_TEST
 assert "totalFrames * 1_000_000L / sampleRate" in CLOCK
-assert "python3 scripts/check_alpha41_replay_timestamps.py" in RELEASE
+from run_source_checks import CHECKS
+assert "check_alpha41_replay_timestamps.py" in CHECKS
+assert "python3 scripts/run_source_checks.py" in RELEASE
 assert "android.permission.RECORD_AUDIO" in MANIFEST
 assert "android.permission.QUERY_ALL_PACKAGES" not in MANIFEST
 # Real emulator screenshot review: no literal backslash-n shown to users,
