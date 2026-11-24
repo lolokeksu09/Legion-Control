@@ -1,6 +1,6 @@
 # Alpha 49 development — unified AMOLED presentation
 
-Base published Alpha 48: 40ec6e46ba658e0e3ac8956e703286242a9c286b. Development branch feat/alpha49-unified-dialogs. Version metadata remains Alpha 48 for this review-only candidate because the published release and existing version gates must not be overwritten. Increment version and release metadata in a separate authorized release preparation change.
+Base published Alpha 48: 40ec6e46ba658e0e3ac8956e703286242a9c286b. Development branch feat/alpha49-unified-dialogs. Owner authorized the release. Version and workflows have now been advanced to versionCode 49 / versionName 0.1.0-alpha.49; the PR must pass exact-source CI before merging and the exact-main signed workflow must pass before publication.
 
 ## Implemented
 
@@ -18,3 +18,10 @@ Base published Alpha 48: 40ec6e46ba658e0e3ac8956e703286242a9c286b. Development b
 ## Acceptance update (run 45363415073)
 
 Candidate head 8f8919e344532088d993b9745d37d7b89786adc5: build and Android 35 emulator smoke completed/success. 55/55 source contracts (66 dialogs in 19 callers), 10 Rust tests, OSV 60 external components / zero affected versions, actual monitor readings and baseline lifecycle checks passed. The actual new confirmation opened; Cancel preserved the baseline and its report. Screenshot artifact 14906663830 contains 50 PNGs; reviewed contact sheets and full-resolution confirmation. The dialog uses the intended dark surface and hierarchy. Observed bottom tab label "Инструменты" splitting awkwardly across two lines; shortened only the shared visible shortTitle to "Инстр." (full accessibility title and routing retained). This change needs exact candidate CI and fresh visual evidence. No blanket all-dialog/font/physical-device visual PASS is claimed. Published version is still Alpha 48.
+
+## Alpha.49 release preparation
+
+- Owner explicitly authorized release on 2026-11-24. Application metadata and version-bound regression checks advanced to 49.
+- Release pipeline now publishes only `v0.1.0-alpha.49` with a verified permanent certificate and an exact successful `main` `push` Android CI gate. Existing Alpha.48 release and APK remain untouched.
+- Notes: `docs/ALPHA49-RELEASE-NOTES.md`. Physical phone L5 remains pending; do not confuse successful Android 35 emulator smoke with the user's Lenovo Y70.
+- Historical acceptance notes above pertain to prior candidate revisions; new release candidate CI must pass after these metadata changes.
