@@ -30,11 +30,14 @@ import java.util.concurrent.atomic.AtomicBoolean
 class ConnectivityLabFragment : Fragment() {
     companion object {
         private const val EXPORT_CSV = 2001
+        private const val EXPORT_LIVE_CSV = 2002
         private const val INTERVAL_MS = 12_000L
     }
 
     private lateinit var viewModel:ConnectivityLabViewModel
     private var testing=false
+    private var livePanel: NetworkLivePanel? = null
+    private var pendingLiveCsv:String?=null
     private lateinit var hostButton:Button
     private lateinit var singleButton:Button
     private lateinit var stabilityButton:Button
@@ -101,6 +104,7 @@ class ConnectivityLabFragment : Fragment() {
         }
         LegionUiSupport.reportSurface(resultView)
         root.addView(resultView)
+        livePanel=NetworkLivePanel(requireContext(),::exportLiveCsv) { updateButtons() }.also { root.addView(it) }
         root.addView(LegionUiSupport.sectionLabel(requireContext(), "ПРОВЕРКА СОЕДИНЕНИЯ"))
         hostButton=button("Сервер: Cloudflare · one.one.one.one") { chooseHost() }
         singleButton=button("ОДИН ЗАМЕР · DNS / IPv4 / IPv6 / TCP / TLS", "network.single") { startTest(1) }
@@ -128,6 +132,7 @@ class ConnectivityLabFragment : Fragment() {
 
     override fun onViewCreated(view:View,savedInstanceState:Bundle?) {
         super.onViewCreated(view,savedInstanceState)
+        pendingLiveCsv=savedInstanceState?.getString("liveCsv") ?: pendingLiveCsv
         LegionUiSupport.styleModuleTree(view)
         FeatureReveal.fromFragment(this, view, FeatureModule.NETWORK)
         viewModel=ViewModelProvider(this)[ConnectivityLabViewModel::class.java]
@@ -160,9 +165,11 @@ class ConnectivityLabFragment : Fragment() {
 
     private fun updateButtons() {
         if(::singleButton.isInitialized) {
-            singleButton.isEnabled=!testing
-            stabilityButton.isEnabled=!testing
-            hostButton.isEnabled=!testing
+            val liveBusy=livePanel?.running==true
+            singleButton.isEnabled=!testing && !liveBusy
+            stabilityButton.isEnabled=!testing && !liveBusy
+            hostButton.isEnabled=!testing && !liveBusy
+            livePanel?.setLegacyBusy(testing)
             stopButton.isEnabled=testing
         }
     }
@@ -186,7 +193,9 @@ class ConnectivityLabFragment : Fragment() {
             }.setNegativeButton("Отмена",null).show()
     }
 
-    private fun startTest(cycles:Int) = viewModel.startTest(cycles)
+    private fun startTest(cycles:Int) {
+        if(livePanel?.running!=true) viewModel.startTest(cycles)
+    }
 
     private fun cancelTest(display:Boolean) {
         viewModel.cancelTest()
@@ -245,20 +254,54 @@ class ConnectivityLabFragment : Fragment() {
             }.setNegativeButton("Отмена",null).show()
     }
 
+    private fun exportLiveCsv(csv:String) {
+        pendingLiveCsv=csv
+        runCatching {
+            startActivityForResult(Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+                addCategory(Intent.CATEGORY_OPENABLE)
+                type="text/csv"
+                putExtra(Intent.EXTRA_TITLE,"legion-live-network.csv")
+            },EXPORT_LIVE_CSV)
+        }.onFailure { pendingLiveCsv=null; show("Не удалось открыть документ.") }
+    }
+
     override fun onActivityResult(requestCode:Int,resultCode:Int,data:Intent?) {
         super.onActivityResult(requestCode,resultCode,data)
+        if(requestCode==EXPORT_LIVE_CSV) {
+            val csv=pendingLiveCsv; pendingLiveCsv=null
+            val uri=data?.data
+            if(resultCode==Activity.RESULT_OK && uri!=null) {
+                val panel=livePanel
+                if(csv!=null && panel!=null) panel.writeCsv(uri,csv)
+                else show("Исходные замеры недоступны. Повторите экспорт CSV.")
+            }
+            return
+        }
         if(requestCode!=EXPORT_CSV || resultCode!=Activity.RESULT_OK) return
         val uri=data?.data ?: return
         viewModel.exportCsv(uri)
     }
 
+    override fun onStart() {
+        super.onStart()
+        livePanel?.screenStarted()
+    }
+
     override fun onStop() {
+        livePanel?.screenStopped()
         cancelTest(false)
         super.onStop()
     }
 
+    override fun onDestroyView() {
+        livePanel?.close()
+        livePanel=null
+        super.onDestroyView()
+    }
+
     override fun onSaveInstanceState(outState:Bundle) {
         outState.putString("host",viewModel.host)
+        pendingLiveCsv?.let { outState.putString("liveCsv",it) }
         super.onSaveInstanceState(outState)
     }
 }

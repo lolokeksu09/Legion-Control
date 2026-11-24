@@ -77,7 +77,9 @@ class GameSessionRecorderService : Service() {
     private var thermalListener: PowerManager.OnThermalStatusChangedListener? = null
     private var lastNetwork = ""
     private var tcpAllowed = false
-    private var lastTcpAt = 0L
+    private var lastTcpAt:Long? = null
+    private val observedNetwork=DistinctObservation<Pair<Long,Boolean>>()
+    private val observedThermal=DistinctObservation<Int>()
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -175,10 +177,15 @@ class GameSessionRecorderService : Service() {
     private fun observeNetwork() {
         val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return
         val callback = object : ConnectivityManager.NetworkCallback() {
-            override fun onLost(network: Network) { enqueueEvent("NETWORK","Android: сеть потеряна") }
+            override fun onLost(network: Network) {
+                observedNetwork.clearIf { it.first==network.networkHandle }
+                enqueueEvent("NETWORK","Android: сеть потеряна")
+            }
             override fun onAvailable(network: Network) { enqueueEvent("NETWORK","Android: сеть доступна") }
             override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) {
-                val status = "Android: сеть " + if(caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED))
+                val validated=caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+                if(!observedNetwork.accept(network.networkHandle to validated))return
+                val status = "Android: сеть " + if(validated)
                     "проверена" else "не подтверждена"
                 enqueueEvent("NETWORK",status)
             }
@@ -193,7 +200,7 @@ class GameSessionRecorderService : Service() {
     private fun observeThermal() {
         val pm = getSystemService(Context.POWER_SERVICE) as? PowerManager ?: return
         val callback = PowerManager.OnThermalStatusChangedListener { status ->
-            enqueueEvent("THERMAL","Android Thermal Status: $status")
+            if(observedThermal.accept(status)) enqueueEvent("THERMAL","Android Thermal Status: $status")
         }
         try {
             pm.addThermalStatusListener(worker,callback)
@@ -243,10 +250,11 @@ class GameSessionRecorderService : Service() {
                 storage?.event(id,"THERMAL_WARNING","Android Thermal Status ≥ SEVERE",point.timeMs)
                 wasSevere = true
             } else if((point.thermalStatus ?: -1) < 3) wasSevere = false
-            if (tcpAllowed && System.currentTimeMillis()-lastTcpAt >= TCP_PERIOD_MS &&
+            val nowElapsed=android.os.SystemClock.elapsedRealtime()
+            if (tcpAllowed && MonotonicProbePolicy.due(lastTcpAt,nowElapsed,TCP_PERIOD_MS) &&
                 (point.thermalStatus ?: -1) < 3 && (point.batteryTempDeciC ?: -1000) < 450
             ) {
-                lastTcpAt = System.currentTimeMillis()
+                lastTcpAt = nowElapsed
                 val probe = NetworkDiagnostics.probe()
                 val stats = TcpProbeStatistics.analyze(probe.roundTripsMs)
                 storage?.event(id,"TCP_PROBE",

@@ -235,6 +235,18 @@ def main() -> None:
     if "OK (5 tests)" not in monitor_output or "FAILURES" in monitor_output:
         raise AssertionError("Live Monitor instrumentation failed: " + monitor_output[-1400:])
     print("PASS: actual monitor readings, baseline, foreground lifecycle and explicit restart", flush=True)
+    automation_output = adb("shell", "am", "instrument", "-w", "-e", "class",
+        PACKAGE + ".GameAutomationOwnershipInstrumentedTest",
+        PACKAGE + ".test/androidx.test.runner.AndroidJUnitRunner", timeout=120)
+    if "OK (1 test)" not in automation_output or "FAILURES" in automation_output:
+        raise AssertionError("Game Automation ownership instrumentation failed: " + automation_output[-1400:])
+    print("PASS: automatic undo ownership and changed-profile rejection", flush=True)
+    battery_lab_output = adb("shell", "am", "instrument", "-w", "-e", "class",
+        PACKAGE + ".BatteryLabArchiveInstrumentedTest",
+        PACKAGE + ".test/androidx.test.runner.AndroidJUnitRunner", timeout=120)
+    if "OK (2 tests)" not in battery_lab_output or "FAILURES" in battery_lab_output:
+        raise AssertionError("Battery Lab instrumentation failed: " + battery_lab_output[-1400:])
+    print("PASS: isolated battery archive and public Android battery reading", flush=True)
     preflight_output = adb("shell", "am", "instrument", "-w", "-e", "class",
         PACKAGE + ".GamePreflightInstrumentedTest",
         PACKAGE + ".test/androidx.test.runner.AndroidJUnitRunner", timeout=120)
@@ -253,6 +265,18 @@ def main() -> None:
     if "OK (1 test)" not in library_output or "FAILURES" in library_output:
         raise AssertionError("Session Library instrumentation failed: " + library_output[-1400:])
     print("PASS: local library pagination, package/state isolation and selected session ZIP", flush=True)
+    resource_output = adb("shell", "am", "instrument", "-w", "-e", "class",
+        PACKAGE + ".ResourceOptimizationInstrumentedTest",
+        PACKAGE + ".test/androidx.test.runner.AndroidJUnitRunner", timeout=120)
+    if "OK (2 tests)" not in resource_output or "FAILURES" in resource_output:
+        raise AssertionError("Resource optimization instrumentation failed: " + resource_output[-1400:])
+    print("PASS: real indexed lookup, profile count and bounded public launcher/Hub signals", flush=True)
+    live_network_output = adb("shell", "am", "instrument", "-w", "-e", "class",
+        PACKAGE + ".LiveNetworkArchiveInstrumentedTest",
+        PACKAGE + ".test/androidx.test.runner.AndroidJUnitRunner", timeout=120)
+    if "OK (2 tests)" not in live_network_output or "FAILURES" in live_network_output:
+        raise AssertionError("Live network archive instrumentation failed: " + live_network_output[-1400:])
+    print("PASS: isolated live network archive round-trip, deduplication and explicit deletion", flush=True)
     adb("shell", "pm", "clear", PACKAGE, timeout=40)
     adb("shell", "am", "force-stop", PACKAGE)
     adb("shell", "am", "start", "-W", "-n", PACKAGE + "/.NavigationHostActivity", timeout=60)

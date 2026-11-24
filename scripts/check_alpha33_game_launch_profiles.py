@@ -23,8 +23,9 @@ assert "GameLaunchProfiles.apply(requireContext(), pkg)" in ui and "GameLaunchPr
 assert "GameLaunchProfiles.apply(this, pkg)" in overlay and "GameLaunchProfiles.restore(this)" in overlay
 assert "GameLaunchProfiles.save(requireContext(), pkg, profile)" in ui
 assert "getLaunchIntentForPackage(pkg)" in ui
-assert 'edit().putString(ACTIVE, snapshot.encode()).commit()' in engine
-assert engine.index('edit().putString(ACTIVE, snapshot.encode()).commit()') < engine.index('audio.setStreamVolume(')
+assert 'edit().putString(ACTIVE, snapshot.encode())' in engine
+assert engine.index('journal.commit()') < engine.index('audio.setStreamVolume(')
+assert 'journal.putString(OWNER,owner)' in engine and 'restoreAutomatic' in engine
 assert "Settings.System.canWrite(context)" in engine
 assert "nm.isNotificationPolicyAccessGranted" in engine
 assert "GameLaunchProfilePolicy.restoreChoice(read(), change)" in engine
