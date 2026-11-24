@@ -235,6 +235,12 @@ def main() -> None:
     if "OK (1 test)" not in monitor_output or "FAILURES" in monitor_output:
         raise AssertionError("Live Monitor instrumentation failed: " + monitor_output[-1400:])
     print("PASS: actual monitor readings, baseline, foreground lifecycle and explicit restart", flush=True)
+    preflight_output = adb("shell", "am", "instrument", "-w", "-e", "class",
+        PACKAGE + ".GamePreflightInstrumentedTest",
+        PACKAGE + ".test/androidx.test.runner.AndroidJUnitRunner", timeout=120)
+    if "OK (1 test)" not in preflight_output or "FAILURES" in preflight_output:
+        raise AssertionError("Game Preflight instrumentation failed: " + preflight_output[-1400:])
+    print("PASS: actual per-game preflight report and isolated persistent presets", flush=True)
     adb("shell", "pm", "clear", PACKAGE, timeout=40)
     adb("shell", "am", "force-stop", PACKAGE)
     adb("shell", "am", "start", "-W", "-n", PACKAGE + "/.NavigationHostActivity", timeout=60)
@@ -521,6 +527,14 @@ def main() -> None:
     expect("Изменение относительно сохранённого замера")
     capture("22-live-monitor-baseline")
     back_until("Готов к запуску")
+    click("Игры")
+    click("Game Preflight", scrolls=8, exact_only=True)
+    stage("23-game-preflight-idle", "ПРОВЕРКА ПЕРЕД ИГРОЙ")
+    expect("ВЫБРАТЬ ИГРУ ДЛЯ ПРОВЕРКИ")
+    expect("Игра не выбрана")
+    back_until(GAMES_MARKER)
+    click("Главная")
+    expect("Готов к запуску")
     print("PASS: Android emulator UI navigation, explicit marker persisted in SQLite,",
           "signal correlation, selected package, foreground START/STOP, back stack",flush=True)
 

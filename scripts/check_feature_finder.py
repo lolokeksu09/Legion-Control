@@ -22,10 +22,11 @@ files = {
     "DIAGNOSTICS": "MainActivity.kt",
     "GAMEPAD": "GamepadLiveActivity.kt",
     "MONITOR": "LiveMonitorActivity.kt",
+    "PREFLIGHT": "GamePreflightActivity.kt",
 }
 entries = re.findall(r'FeatureEntry\("([^"]+)", FeatureModule\.(\w+), "([^"]+)", "([^"]+)", "([^"]+)"\)', registry)
-assert len(entries) == 66, len(entries)
-assert len({e[1] for e in entries}) == 18
+assert len(entries) == 70, len(entries)
+assert len({e[1] for e in entries}) == 19
 assert len({e[0] for e in entries}) == len(entries)
 for key, module, title, anchor, _ in entries:
     source = (src / files[module]).read_text()
@@ -36,4 +37,4 @@ assert "requestRectangleOnScreen" in helper
 assert "FeatureFinder.resolve(id, module)" in helper
 assert "performClick(" not in helper and "callOnClick(" not in helper
 assert "startService(" not in helper and "startActivity(" not in helper
-print("PASS: 66 stable feature IDs bind to real controls across 18 modules; reveal never executes actions")
+print("PASS: 70 stable feature IDs bind to real controls across 19 modules; reveal never executes actions")

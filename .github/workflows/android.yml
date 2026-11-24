@@ -129,6 +129,8 @@ jobs:
         run: python3 scripts/check_feature_finder.py
       - name: Verify live monitor foreground and permission contract
         run: python3 scripts/check_live_monitor.py
+      - name: Verify per-game preflight policy and isolated launch
+        run: python3 scripts/check_game_preflight.py
       - name: Run pure Kotlin CSV and Russian plural regression tests
         run: gradle --no-daemon testDebugUnitTest
       - name: Test and compile real Rust backend for Android
