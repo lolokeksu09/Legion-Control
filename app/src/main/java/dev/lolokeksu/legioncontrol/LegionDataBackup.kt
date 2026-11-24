@@ -20,50 +20,60 @@ import java.util.zip.ZipOutputStream
 
 data class LegionBackupPreview(val tables: Int, val rows: Long, val schema: Int,
                                val settings: Int, val archiveVersion: Int = 2,
-                               val identity: BackupArchiveIdentity? = null)
+                               val identity: BackupArchiveIdentity? = null,
+                               val networkRuns:Int=0,val batteryRuns:Int=0)
 
 data class BackupArchiveIdentity(val version: Int, val databaseSha256: String,
-                                 val preferencesSha256: String)
+                                 val preferencesSha256: String,val labsSha256:String?=null)
 
 /**
- * Local, portable recovery for all v12 SQLite tables plus non-secret user preferences.
+ * Local, portable recovery for all v12 SQLite tables, lab archives and non-secret preferences.
  * The backup has no videos, screenshots, keystore or cloud storage.
  *
- * Restore NEVER overwrites a populated database. The user must choose a clean
+ * Restore NEVER overwrites a populated database or v3 lab archive. The user must choose a clean
  * installation and explicitly confirm after archive validation.
  */
 object LegionDataBackup {
     private const val MAX_DB = 256L * 1024L * 1024L
     private const val MAX_PREFS = 512 * 1024
     private const val MAX_META = 16 * 1024
+    private const val MAX_JOURNAL = MAX_PREFS * 2 + MAX_META + LabBackup.MAX_BYTES * 2
     private const val MAX_ROWS = 2_000_000L
     private const val PENDING_JOURNAL = "legion-restore-pending-v1.json"
     @Volatile private var lastRecoveryFailure: String? = null
 
     /** A failed recovery is visible in the hub rather than being silently ignored. */
     fun recoveryWarning(): String? = lastRecoveryFailure?.let {
-        "Восстановление настроек из ZIP не завершено ($it). Откройте Capture Studio → «Завершить прерванное восстановление». Не удаляйте данные приложения."
+        "Восстановление данных из ZIP не завершено ($it). Откройте Capture Studio → «Завершить прерванное восстановление». Не удаляйте данные приложения."
     }
     private val legacyNames = listOf(
         "legion-game-capture-profiles", "legion-capture-studio",
         "legion-launch-profiles-v1", ToolboxPreferences.NAME
     )
     private val names = legacyNames + PreflightPresets.STORE
-    private const val FORMAT_VERSION = 2
+    private const val FORMAT_VERSION = 3
     private fun namesFor(version: Int) = when(version) {
         1 -> legacyNames
-        FORMAT_VERSION -> names
+        2, FORMAT_VERSION -> names
         else -> error("Unsupported backup version")
     }
     private val nameRule = Regex("[A-Za-z][A-Za-z0-9_]{0,79}")
-    private val allowedEntries = setOf("manifest.json", "preferences.json", "history.sqlite")
+    private val legacyEntries = setOf("manifest.json", "preferences.json", "history.sqlite")
+    private val allowedEntries = legacyEntries + "labs.json"
 
     private data class Staged(val sqlite: File, val manifest: JSONObject,
                               val preferences: Map<String, Map<String, Any>>,
-                              val preferenceBytes: ByteArray)
+                              val preferenceBytes: ByteArray,val labBytes:ByteArray?,val labs:LabBackup.Data?)
 
     private fun pendingFile(context: Context): AtomicFile =
         AtomicFile(File(context.filesDir, PENDING_JOURNAL))
+
+    internal fun checkLabWritesAllowed(context:Context) {
+        val journal=pendingFile(context).baseFile
+        check(!journal.exists() && !File(journal.path+".bak").exists()) {
+            "Сначала завершите прерванное восстановление ZIP."
+        }
+    }
 
     /** Bound memory before reading a damaged journal, not after allocating its contents. */
     internal fun readBounded(input: InputStream, maxBytes: Int): ByteArray {
@@ -90,7 +100,8 @@ object LegionDataBackup {
 
     private fun identity(manifest: JSONObject) = BackupArchiveIdentity(
         manifest.getInt("version"), manifest.getString("database_sha256"),
-        manifest.getString("preferences_sha256"))
+        manifest.getString("preferences_sha256"),
+        if(manifest.getInt("version")==3) manifest.getString("labs_sha256") else null)
 
     private fun sqliteMarker(db: SQLiteDatabase): Int =
         db.rawQuery("PRAGMA application_id", null).use { cursor ->
@@ -102,14 +113,19 @@ object LegionDataBackup {
      * Durable preference intent precedes the SQLite transaction. No preferences
      * change until the same SQLite transaction commits its matching marker.
      */
-    private fun savePending(context: Context, marker: Int, preferenceBytes: ByteArray, version: Int) {
+    private fun savePending(context: Context, marker: Int, preferenceBytes: ByteArray, version: Int,labBytes:ByteArray?) {
         val journal = JSONObject()
             .put("version", version)
             .put("sqlite_marker", marker)
             .put("preferences_sha256", sha256(preferenceBytes))
             .put("preferences_json", String(preferenceBytes, Charsets.UTF_8))
-            .toString().toByteArray(Charsets.UTF_8)
-        require(journal.size <= MAX_PREFS * 2 + MAX_META) { "Recovery journal too large" }
+            .apply {
+                if(labBytes!=null) {
+                    put("labs_sha256",sha256(labBytes))
+                    put("labs_base64",android.util.Base64.encodeToString(labBytes,android.util.Base64.NO_WRAP))
+                }
+            }.toString().toByteArray(Charsets.UTF_8)
+        require(journal.size <= MAX_JOURNAL) { "Recovery journal too large" }
         val atomic = pendingFile(context)
         val output = atomic.startWrite()
         try {
@@ -134,8 +150,8 @@ object LegionDataBackup {
             return false
         }
         try {
-            val bytes = atomic.openRead().use { readBounded(it, MAX_PREFS * 2 + MAX_META) }
-            require(bytes.size in 1..(MAX_PREFS * 2 + MAX_META))
+            val bytes = atomic.openRead().use { readBounded(it, MAX_JOURNAL) }
+            require(bytes.size in 1..MAX_JOURNAL)
             val entry = JSONObject(String(bytes, Charsets.UTF_8))
             val version = entry.getInt("version")
             namesFor(version)
@@ -147,7 +163,15 @@ object LegionDataBackup {
             val committed = LocalHistoryStore(context).use { helper ->
                 sqliteMarker(helper.readableDatabase) == marker
             }
-            if (committed) applyPreferences(context, values)
+            val labs=if(version==3) {
+                val raw=android.util.Base64.decode(entry.getString("labs_base64"),android.util.Base64.NO_WRAP)
+                require(sha256(raw)==entry.getString("labs_sha256"))
+                LabBackup.parse(context,raw)
+            } else null
+            if (committed) {
+                labs?.let { LabBackup.restore(context,it) }
+                applyPreferences(context, values)
+            }
             atomic.delete()
             lastRecoveryFailure = null
             return committed
@@ -157,7 +181,8 @@ object LegionDataBackup {
         }
     }
 
-    fun export(context: Context, uri: Uri): LegionBackupPreview {
+    @Synchronized fun export(context: Context, uri: Uri): LegionBackupPreview {
+        checkLabWritesAllowed(context)
         check(!GameSessionRecorderService.sessionActive) {
             "Остановите запись игровой сессии перед созданием архива."
         }
@@ -168,6 +193,8 @@ object LegionDataBackup {
         try {
             val tmp = newStagingFile(context).also { temporary = it }
             val prefs = preferencesJson(context)
+            val labBytes=LabBackup.snapshot(context)
+            val labs=LabBackup.parse(context,labBytes)
             LocalHistoryStore(context).use { helper ->
                 helper.readableDatabase.execSQL("VACUUM INTO ?", arrayOf(tmp.absolutePath))
             }
@@ -182,6 +209,7 @@ object LegionDataBackup {
                 .put("schema", HapticLabSchema.VERSION)
                 .put("database_sha256", sqliteHash)
                 .put("preferences_sha256", prefHash)
+                .put("labs_sha256",sha256(labBytes))
                 .put("created_at_ms", System.currentTimeMillis())
             val output = requireNotNull(context.contentResolver.openOutputStream(uri, "wt")) {
                 "SAF отказал в записи резервной копии"
@@ -189,12 +217,13 @@ object LegionDataBackup {
             ZipOutputStream(output).use { zip ->
                 putEntry(zip, "manifest.json", manifest.toString().toByteArray(Charsets.UTF_8))
                 putEntry(zip, "preferences.json", prefs)
+                putEntry(zip,"labs.json",labBytes)
                 zip.putNextEntry(ZipEntry("history.sqlite"))
                 FileInputStream(tmp).use { it.copyTo(zip) }
                 zip.closeEntry()
             }
             return preview.copy(settings = countSettings(parsePreferences(prefs, FORMAT_VERSION)),
-                identity = identity(manifest))
+                archiveVersion=FORMAT_VERSION,identity = identity(manifest),networkRuns=labs.network.size,batteryRuns=labs.battery.size)
         } finally {
             temporary?.delete()
             CaptureCoordinator.release(CaptureMode.MAINTENANCE)
@@ -205,7 +234,7 @@ object LegionDataBackup {
         withStaged(context, uri) { stage ->
             inspectSQLite(context, stage.sqlite)
                 .copy(settings = countSettings(stage.preferences), archiveVersion = stage.manifest.getInt("version"),
-                    identity = identity(stage.manifest))
+                    identity = identity(stage.manifest),networkRuns=stage.labs?.network?.size ?: 0,batteryRuns=stage.labs?.battery?.size ?: 0)
         }
 
     fun restoreOnEmptyDatabase(context: Context, uri: Uri,
@@ -243,7 +272,7 @@ object LegionDataBackup {
                 }
                 val preview = inspectSQLite(context, staged.sqlite)
                     .copy(settings = countSettings(staged.preferences), archiveVersion = staged.manifest.getInt("version"),
-                        identity = identity(staged.manifest))
+                        identity = identity(staged.manifest),networkRuns=staged.labs?.network?.size ?: 0,batteryRuns=staged.labs?.battery?.size ?: 0)
                 val source = SQLiteDatabase.openDatabase(staged.sqlite.absolutePath, null,
                     SQLiteDatabase.OPEN_READONLY)
                 try {
@@ -268,7 +297,8 @@ object LegionDataBackup {
                             check(BackupRestorePolicy.acceptsEmptyTarget(existingCounts)) {
                                 "База содержит пользовательские данные. Импорт разрешён только в пустую базу."
                             }
-                            savePending(context, marker, staged.preferenceBytes, staged.manifest.getInt("version"))
+                            if(staged.labs!=null) LabBackup.requireEmpty(context)
+                            savePending(context, marker, staged.preferenceBytes, staged.manifest.getInt("version"),staged.labBytes)
                             for (table in tables) {
                                 source.rawQuery("SELECT * FROM " + sqlName(table), null)
                                     .use { cursor ->
@@ -337,6 +367,7 @@ object LegionDataBackup {
                     val limit = when (entry.name) {
                         "history.sqlite" -> MAX_DB
                         "preferences.json" -> MAX_PREFS.toLong()
+                        "labs.json" -> LabBackup.MAX_BYTES.toLong()
                         else -> MAX_META.toLong()
                     }
                     var total = 0L
@@ -356,7 +387,7 @@ object LegionDataBackup {
                     zip.closeEntry()
                 }
             }
-            require(seen == allowedEntries && file.length() in 1..MAX_DB)
+            require(seen.containsAll(legacyEntries) && file.length() in 1..MAX_DB)
             val manifestBytes = requireNotNull(raw["manifest.json"])
             val preferences = requireNotNull(raw["preferences.json"])
             val manifest = JSONObject(String(manifestBytes, Charsets.UTF_8))
@@ -369,7 +400,15 @@ object LegionDataBackup {
                 manifest.getString("preferences_sha256") == sha256(preferences)) {
                 "Контрольная сумма архива не совпадает"
             }
-            return body(Staged(file, manifest, parsePreferences(preferences, manifest.getInt("version")), preferences))
+            val version=manifest.getInt("version")
+            require(seen==(if(version==3) allowedEntries else legacyEntries))
+            val labBytes=raw["labs.json"]
+            val labs=if(version==3) {
+                requireNotNull(labBytes)
+                require(manifest.getString("labs_sha256")==sha256(labBytes))
+                LabBackup.parse(context,labBytes)
+            } else null
+            return body(Staged(file, manifest, parsePreferences(preferences,version), preferences,labBytes,labs))
         } finally {
             file.delete()
         }
@@ -466,7 +505,7 @@ object LegionDataBackup {
             for ((key, value) in stored) {
                 if(name == PreflightPresets.STORE)
                     require(PreflightPresets.validBackupEntry(key, value))
-                if (key == "pending_global_undo" || key == "last_result" ||
+                if (key == "pending_global_undo" || key == "pending_auto_owner" || key == "last_result" ||
                     key == "replay_status") continue
                 require(key.length in 1..(if(name == PreflightPresets.STORE) 207 else 150))
                 val wrapped = when (value) {
@@ -496,7 +535,7 @@ object LegionDataBackup {
             require(obj.length() <= (if(name == PreflightPresets.STORE) PreflightPresets.LIMIT else 500))
             obj.keys().asSequence().associateWith { key ->
                 require(key.length in 1..(if(name == PreflightPresets.STORE) 207 else 150) && key != "pending_global_undo" &&
-                    key != "last_result" && key != "replay_status")
+                    key != "pending_auto_owner" && key != "last_result" && key != "replay_status")
                 val wrapped = obj.getJSONObject(key)
                 require(wrapped.keys().asSequence().toSet() == setOf("type", "value"))
                 if(name == PreflightPresets.STORE) {
