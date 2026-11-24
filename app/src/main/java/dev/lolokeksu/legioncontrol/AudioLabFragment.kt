@@ -74,8 +74,9 @@ class AudioLabFragment:Fragment() {
             root.addView(control)
             return control
         }
-        fun action(text:String,click:()->Unit):Button {
+        fun action(text:String,featureId:String?=null,click:()->Unit):Button {
             val b=Button(requireContext()).apply {
+                if(featureId!=null) FeatureReveal.bind(this,featureId)
                 this.text=text;isAllCaps=false;minHeight=48.dp;textSize=14f
                 setTextColor(Color.WHITE)
                 background=GradientDrawable().apply {
@@ -103,9 +104,9 @@ class AudioLabFragment:Fragment() {
         playButton=action("ВОСПРОИЗВЕСТИ выбранный тест") { selectedPlay() }
         action("Левый канал · 440 Гц") { startWith("TONE","LEFT",440,1500) }
         action("Правый канал · 440 Гц") { startWith("TONE","RIGHT",440,1500) }
-        action("Стерео · 440 Гц") { startWith("TONE","BOTH",440,1500) }
+        action("Стерео · 440 Гц", "audio.stereo") { startWith("TONE","BOTH",440,1500) }
         action("Идентификация: левый → правый") { startWith("CHANNEL_ID","ALTERNATING",440,3000) }
-        action("Частотный sweep: 220 → 1760 Гц") { startWith("SWEEP","BOTH",440,3000) }
+        action("Частотный sweep: 220 → 1760 Гц", "audio.sweep") { startWith("SWEEP","BOTH",440,3000) }
         stopButton=action("ОСТАНОВИТЬ звук") { viewModel.stopPlayback();show("Остановка запрошена. "+
             "Плеер освобождает AudioTrack и сохраняет частичный результат.") }
         stopButton.isEnabled=false
@@ -116,7 +117,7 @@ class AudioLabFragment:Fragment() {
             text="Список выходов загружается при открытии экрана."
         }
         root.addView(routing)
-        action("Обновить подключённые аудиовыходы") { refreshRoutes() }
+        action("Обновить подключённые аудиовыходы", "audio.routes") { refreshRoutes() }
         detail("Список подключённых выходов не равен фактическому маршруту воспроизведения. "+
             "Во время теста AudioTrack сообщает route type, если прошивка предоставляет его.")
         title("Локальная история")
