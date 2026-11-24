@@ -41,6 +41,7 @@ class HubPageFragment : Fragment() {
     private var toolQuery = ""
     private val searchHandler=Handler(Looper.getMainLooper())
     private var pendingSearch:Runnable?=null
+    private var observedSnapshot:HubLoadState?=null
     private data class CatalogAction(
         val title: String,
         val description: String,
@@ -66,7 +67,12 @@ class HubPageFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         viewModel = ViewModelProvider(requireActivity())[HubViewModel::class.java]
-        viewModel.state.observe(viewLifecycleOwner) { render(it) }
+        observedSnapshot=null
+        viewModel.state.observe(viewLifecycleOwner) { state ->
+            val previous=observedSnapshot
+            observedSnapshot=state
+            if(!HubRenderPolicy.equivalent(page(),previous,state)) render(state)
+        }
         viewModel.actionResult.observe(viewLifecycleOwner) { message ->
             if (message.isNotBlank() && isAdded && viewModel.state.value is HubLoadState.Failed) {
                 info(message)
@@ -372,6 +378,7 @@ class HubPageFragment : Fragment() {
     }
     override fun onDestroyView() {
         cancelSearch()
+        observedSnapshot=null
         super.onDestroyView()
     }
 

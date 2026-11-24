@@ -274,9 +274,15 @@ def main() -> None:
     resource_output = adb("shell", "am", "instrument", "-w", "-e", "class",
         PACKAGE + ".ResourceOptimizationInstrumentedTest",
         PACKAGE + ".test/androidx.test.runner.AndroidJUnitRunner", timeout=120)
-    if "OK (2 tests)" not in resource_output or "FAILURES" in resource_output:
+    if "OK (3 tests)" not in resource_output or "FAILURES" in resource_output:
         raise AssertionError("Resource optimization instrumentation failed: " + resource_output[-1400:])
     print("PASS: real indexed lookup, profile count and bounded public launcher/Hub signals", flush=True)
+    # Read and validate before the following pm clear. The file is generated
+    # only by the instrumentation APK, never by a release build.
+    from benchmark_home import benchmark_home, clock_ticks
+    (EVIDENCE / "resource-instrumentation.txt").write_text(resource_output, encoding="utf-8")
+    hz = clock_ticks(adb("shell", "run-as", PACKAGE, "cat", "cache/legion-ci-clock-ticks.txt"))
+    print("PASS: Android clock ticks per second:", hz, flush=True)
     live_network_output = adb("shell", "am", "instrument", "-w", "-e", "class",
         PACKAGE + ".LiveNetworkArchiveInstrumentedTest",
         PACKAGE + ".test/androidx.test.runner.AndroidJUnitRunner", timeout=120)
@@ -303,6 +309,8 @@ def main() -> None:
             adb("shell", "am", "force-stop", PACKAGE)
             adb("shell", "am", "start", "-W", "-n",
                 PACKAGE + "/.NavigationHostActivity", timeout=60)
+    expect("Готов к запуску")
+    benchmark_home(adb, expect, PACKAGE, apk, EVIDENCE, hz)
     expect("Готов к запуску")
     capture("01-hub-launch")
 

@@ -28,7 +28,18 @@ jobs:
         with:
           packages: 'platform-tools'
       - name: Install Android SDK platform and NDK
-        run: sdkmanager --install 'platforms;android-36' 'build-tools;36.0.0' 'ndk;28.2.13676358'
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            if sdkmanager --install 'platforms;android-36' 'build-tools;36.0.0' 'ndk;28.2.13676358'; then
+              test -f "$ANDROID_HOME/ndk/28.2.13676358/source.properties"
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then exit 1; fi
+            echo "::warning::Android SDK install attempt $attempt failed; retrying"
+            sleep $((attempt * 10))
+          done
       - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
         with:
           gradle-version: '9.6.0'

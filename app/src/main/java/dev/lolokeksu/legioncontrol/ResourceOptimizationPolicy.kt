@@ -45,3 +45,18 @@ internal object MonotonicProbePolicy {
     fun due(last:Long?,now:Long,period:Long):Boolean =
         now>=0 && period>0 && (last==null || (now>=last && now-last>=period))
 }
+
+/** Tools and Games don't consume battery/refresh/session counts; avoid rebuilding
+ * their search fields and rows when only unrelated measurements change. */
+internal object HubRenderPolicy {
+    fun equivalent(tab:HubTab,previous:HubLoadState?,next:HubLoadState):Boolean {
+        if(previous !is HubLoadState.Ready || next !is HubLoadState.Ready)return false
+        val a=previous.snapshot;val b=next.snapshot
+        if(a.warnings!=b.warnings)return false
+        return when(tab) {
+            HubTab.TOOLS -> true
+            HubTab.GAMES -> a.apps==b.apps
+            else -> false
+        }
+    }
+}

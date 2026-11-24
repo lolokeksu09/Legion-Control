@@ -9,6 +9,16 @@ import java.util.UUID
 
 @RunWith(AndroidJUnit4::class)
 class ResourceOptimizationInstrumentedTest {
+    @Test fun deviceClockTicksForCpuBenchmark() {
+        val hz=android.system.Os.sysconf(android.system.OsConstants._SC_CLK_TCK)
+        assertTrue(hz in 1L..100000L)
+        // The AndroidJUnitRunner text formatter does not guarantee arbitrary
+        // sendStatus keys in the shell output. Read an explicit debug-only file.
+        val context=InstrumentationRegistry.getInstrumentation().targetContext
+        val file=java.io.File(context.cacheDir,"legion-ci-clock-ticks.txt")
+        file.writeText(hz.toString())
+        assertEquals(hz.toString(),file.readText())
+    }
     @Test fun indexedLookupMatchesExistingLibraryAndCountMatchesProfiles() {
         val app=InstrumentationRegistry.getInstrumentation().targetContext
         val pkg="dev.legion.optimization.p"+UUID.randomUUID().toString().replace("-","")

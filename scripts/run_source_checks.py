@@ -61,6 +61,7 @@ CHECKS = (
     "check_runtime_sbom.py",
     "check_runtime_osv.py",
     "check_unified_dialogs.py",
+    "benchmark_home.py",
 )
 
 def main():
