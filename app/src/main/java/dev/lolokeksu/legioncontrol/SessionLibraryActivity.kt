@@ -61,7 +61,7 @@ class SessionLibraryActivity:FragmentActivity() {
         label("Локальная история: фильтры, страницы и отдельный архив записи. Данные не удаляются.",13f,LegionUiSupport.MUTED)
         status=label("Загрузка истории…",14f,LegionUiSupport.ACCENT)
         root.addView(LegionUiSupport.sectionLabel(this,"ФИЛЬТРЫ"))
-        filters=label("")
+        filters=label("").apply { LegionUiSupport.reportSurface(this) }
         game=button("Фильтр по игре", "library.game") {
             val s=vm.state.value ?: return@button
             val packages=(s.packages+listOfNotNull(s.filter.packageName)).distinct()
@@ -91,7 +91,7 @@ class SessionLibraryActivity:FragmentActivity() {
         previous=button("Предыдущая страница") { vm.previous() }
         next=button("Следующая страница") { vm.next() }
         root.addView(LegionUiSupport.sectionLabel(this,"ВЫБРАННАЯ ЗАПИСЬ"))
-        detail=label("Выберите завершённую запись.").apply { setTextIsSelectable(true) }
+        detail=label("Выберите завершённую запись.").apply { setTextIsSelectable(true); LegionUiSupport.reportSurface(this) }
         export=button("ЭКСПОРТ ВЫБРАННОЙ СЕССИИ ZIP", "library.zip") {
             val selected=vm.state.value?.detail ?: return@button
             if(!vm.pendingDocument.begin(selected)) return@button
@@ -110,6 +110,7 @@ class SessionLibraryActivity:FragmentActivity() {
     }
     private fun render(s:LibraryState) {
         status.text=s.message
+        LegionUiSupport.notice(status, if(s.busy) LegionUiSupport.Notice.LOADING else LegionUiSupport.Notice.INFO)
         filters.text="${s.filter.packageName ?: "Все игры"} · ${s.filter.period.label} · ${s.filter.status.label}\nСтраница ${s.previous.size+1}"
         game.isEnabled=!s.busy;period.isEnabled=!s.busy;stateButton.isEnabled=!s.busy;refresh.isEnabled=!s.busy
         previous.isEnabled=!s.busy && s.previous.isNotEmpty()
@@ -117,9 +118,9 @@ class SessionLibraryActivity:FragmentActivity() {
         if(s.next!=null && s.previous.size>=499) filters.append("\nЛимит 500 страниц. Уточните фильтр.")
         export.isEnabled=!s.busy && s.detail!=null && !vm.pendingDocument.hasPending
         list.removeAllViews()
-        if(s.rows.isEmpty())list.addView(TextView(this).apply {
-            text="Записей нет.";setTextColor(LegionUiSupport.MUTED);setPadding(0,8.dp,0,8.dp)
-        })
+        if(s.rows.isEmpty())list.addView(LegionUiSupport.noticeView(this,
+            if(s.busy) "Читаю локальные записи…" else "Записей нет.",
+            if(s.busy) LegionUiSupport.Notice.LOADING else LegionUiSupport.Notice.EMPTY))
         val date=DateFormat.getDateTimeInstance(DateFormat.SHORT,DateFormat.SHORT)
         for(row in s.rows) {
             val end=row.endedAtMs?.let { "${(it-row.startedAtMs).coerceAtLeast(0)/60000} мин · ${row.endReason ?: "н/д"}" } ?: "Нет завершения"
