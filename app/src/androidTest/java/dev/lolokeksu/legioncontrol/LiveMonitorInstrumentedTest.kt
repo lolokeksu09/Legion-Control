@@ -48,6 +48,21 @@ class LiveMonitorInstrumentedTest {
             scenario.onActivity {
                 assertEquals("No implicit restart or late publication", count, model.state.value!!.points.size)
                 assertFalse(model.state.value!!.running)
+                assertTrue(model.beginExport())
+                assertFalse(model.beginExport())
+                model.start()
+                assertFalse("Pending picker must preserve captured run", model.state.value!!.running)
+            }
+            scenario.recreate()
+            scenario.onActivity { activity ->
+                val retained = ViewModelProvider(activity)[LiveMonitorViewModel::class.java]
+                assertSame(model, retained)
+                assertTrue(retained.hasPendingDocument)
+                assertEquals(count, retained.state.value!!.points.size)
+                retained.finishExport(null)
+                assertFalse(retained.hasPendingDocument)
+                assertTrue("Cancel permits retry", retained.beginExport())
+                retained.finishExport(null)
                 model.start()
                 assertTrue(model.state.value!!.running)
                 assertNotNull("Pinned baseline survives a new run", model.state.value!!.baseline)
