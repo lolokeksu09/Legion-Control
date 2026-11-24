@@ -9,7 +9,6 @@ import android.provider.Settings
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.View
-import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
@@ -186,7 +185,7 @@ class GamePreflightActivity : FragmentActivity() {
             hint="Название игры или пакет"
             isSingleLine=true
         }
-        val adapter=ArrayAdapter(this,android.R.layout.simple_list_item_1,labels.keys.toList())
+        val adapter=LegionDialogs.listAdapter(this,labels.keys.toList())
         val list=ListView(this).apply { this.adapter=adapter }
         content.addView(search,LinearLayout.LayoutParams(-1,-2))
         content.addView(list,LinearLayout.LayoutParams(-1,320.dp))
@@ -218,12 +217,10 @@ class GamePreflightActivity : FragmentActivity() {
         fun selector(title:String,values:List<Int>,selected:Int,format:(Int)->String):Spinner {
             val caption=TextView(this).apply { text=title; textSize=14f; setPadding(0,12.dp,0,3.dp) }
             panel.addView(caption)
-            return Spinner(this).apply {
+            return LegionUiSupport.spinner(this, values.map(format)).apply {
                 id=View.generateViewId()
                 caption.labelFor=id
                 minimumHeight=48.dp
-                adapter=ArrayAdapter(this@GamePreflightActivity,android.R.layout.simple_spinner_item,
-                    values.map(format)).apply { setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
                 setSelection(values.indexOf(selected).coerceAtLeast(0))
                 panel.addView(this,LinearLayout.LayoutParams(-1,-2))
             }
