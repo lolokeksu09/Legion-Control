@@ -114,6 +114,8 @@ class FullBackupInstrumentedTest {
         val backup = createZip(app, "original")
         val tampered = createZip(app, "altered")
         val legacy = createZip(app, "legacy-v1")
+        val legacy2=createZip(app,"legacy-v2")
+        val invalidAux=createZip(app,"invalid-aux")
         val invalidPreset = createZip(app, "invalid-preset")
         val presetA = PreflightPreset(120,30,41,3,true)
         val presetB = PreflightPreset(60,10,44,1,false)
@@ -174,6 +176,15 @@ class FullBackupInstrumentedTest {
             }
             requireNotNull(app.contentResolver.openOutputStream(legacy, "wt")).use { it.write(legacyBytes) }
             assertEquals(1, LegionDataBackup.preview(app, legacy).archiveVersion)
+            val legacy2Bytes=rewritePreferences(originalBytes,2) { }
+            requireNotNull(app.contentResolver.openOutputStream(legacy2,"wt")).use{it.write(legacy2Bytes)}
+            assertEquals(2,LegionDataBackup.preview(app,legacy2).archiveVersion)
+            val invalidAuxBytes=rewritePreferences(originalBytes,3){root->
+                val arr=root.getJSONObject(DiagnosticBackupBundle.KEY).getJSONArray("network")
+                arr.getJSONObject(0).getJSONArray("points").getJSONArray(0).put(3,"8.8.8.8")
+            }
+            requireNotNull(app.contentResolver.openOutputStream(invalidAux,"wt")).use{it.write(invalidAuxBytes)}
+            assertTrue("Correctly hashed unredacted identifiers must be rejected",runCatching{LegionDataBackup.preview(app,invalidAux)}.isFailure)
             val invalidBytes = rewritePreferences(originalBytes, 2) {
                 it.getJSONObject("legion-preflight-v1").put("preset_" + pkgA,
                     JSONObject().put("type","string").put("value","v1|120|999|41|3|1"))
@@ -297,8 +308,13 @@ class FullBackupInstrumentedTest {
             assertEquals(presetB, PreflightPresets.read(app, pkgB))
             assertEquals(presetA, PreflightPresets.read(app, longPkg))
             assertAuxiliary() // old archive must preserve both new stores
+            assertTrue(app.deleteDatabase("legion-control-history.db"))
+            val old2=LegionDataBackup.restoreOnEmptyDatabase(app,legacy2)
+            assertEquals(2,old2.archiveVersion);assertAuxiliary()
         } finally {
             app.contentResolver.delete(legacy, null, null)
+            app.contentResolver.delete(legacy2,null,null)
+            app.contentResolver.delete(invalidAux,null,null)
             app.contentResolver.delete(invalidPreset, null, null)
             preflight.edit().clear().commit()
             app.contentResolver.delete(backup, null, null)

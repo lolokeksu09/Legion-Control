@@ -130,6 +130,10 @@ object LegionDataBackup {
             atomic.failWrite(output)
             throw error
         }
+        // AtomicFile can report a rename/sync failure through logging; require actual durable readback.
+        check(atomic.openRead().use { readBounded(it, MAX_PREFS * 2 + MAX_META) }.contentEquals(journal)) {
+            "Recovery journal readback failed"
+        }
     }
 
     /**
@@ -141,6 +145,8 @@ object LegionDataBackup {
         val atomic = pendingFile(context)
         val rawFile = atomic.baseFile
         if (!rawFile.exists() && !File(rawFile.path + ".bak").exists()) {
+            // An unpublished .new journal cannot authorize a main database commit.
+            if(File(rawFile.path+".new").exists()) atomic.delete()
             lastRecoveryFailure = null
             return false
         }
@@ -243,6 +249,7 @@ object LegionDataBackup {
     @Synchronized private fun restoreCore(context: Context, uri: Uri,
                                           confirmed: BackupArchiveIdentity,
                                           afterDbCommit: (() -> Unit)?): LegionBackupPreview {
+        check(!GameToolboxService.isPanelActive()) { "Остановите Game Toolbox перед восстановлением." }
         recoverPendingRestore(context) // complete or discard a prior interrupted attempt
         check(!GameSessionRecorderService.sessionActive) {
             "Сначала остановите запись игровой сессии."
