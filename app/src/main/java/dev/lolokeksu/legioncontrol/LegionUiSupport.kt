@@ -109,6 +109,11 @@ object LegionUiSupport {
         button.minHeight = dp(button, 48)
         button.minimumHeight = dp(button, 48)
         button.setPadding(dp(button, 14), dp(button, 9), dp(button, 14), dp(button, 9))
+        if(button.parent is CompactActionRow) {
+            button.textSize=13f
+            button.gravity=Gravity.CENTER
+            button.setPadding(dp(button, 8), dp(button, 6), dp(button, 8), dp(button, 6))
+        }
         val parent = button.parent
         val params = button.layoutParams
         if (parent is LinearLayout && parent.orientation == LinearLayout.VERTICAL &&
