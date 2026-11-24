@@ -1,5 +1,6 @@
 """Static release-signing gates; never materializes or prints secret values."""
 from pathlib import Path
+import re
 
 root = Path(__file__).resolve().parents[1]
 gradle = (root / "app/build.gradle.kts").read_text(encoding="utf-8")
@@ -34,4 +35,13 @@ for fragment in ("*.p12", "*.jks", "*.keystore"):
 # Key material must not be shipped with the repository.
 assert not list(root.rglob("*.p12"))
 assert not list(root.rglob("*.jks"))
+# Prevent mutable third-party workflow refs and accidental credential persistence.
+for workflow_path in (".github/workflows/android.yml", ".github/workflows/release-apk.yml"):
+    body = (root / workflow_path).read_text(encoding="utf-8")
+    uses = re.findall(r"^\s*(?:-\s*)?uses:\s*([^\s#]+)", body, re.MULTILINE)
+    assert uses and all(re.fullmatch(r"[^@]+@[0-9a-f]{40}", ref) for ref in uses), workflow_path
+    assert body.count("persist-credentials: false") == sum(ref.startswith("actions/checkout@") for ref in uses)
+    assert "toolchain: '1.100.0'" in body
+assert "Remove temporary permanent signing keystore" in workflow
+assert 'run: rm -f -- "$LEGION_RELEASE_STORE_FILE"' in workflow
 print("PASS: permanent release signing is gated on secrets and pinned certificate")
