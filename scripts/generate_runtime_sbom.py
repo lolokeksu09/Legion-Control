@@ -36,7 +36,8 @@ def generate(inventory, cargo, app_version, config, revision):
     items = [component(p["group"], p["name"], p["version"], "maven") for p in inventory[config]]
     for p in packages:
         if p is native[0]:
-            items.append(component("", p["name"], p["version"], "cargo"))
+            items.append({"type": "library", "name": p["name"], "version": p["version"],
+                          "bom-ref": "local:legion-core:" + p["version"]})
         elif p.get("source", "").startswith("registry+"):
             item = component("", p["name"], p["version"], "cargo")
             if p.get("checksum"):
