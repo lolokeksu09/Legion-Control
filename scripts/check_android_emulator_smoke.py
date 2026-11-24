@@ -466,8 +466,7 @@ def main() -> None:
     click("Поиск по инструментам Legion Control", scrolls=0)
     adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
     # Clear any restored search text, then select a standalone Activity target.
-    for _ in range(48):
-        adb("shell", "input", "keyevent", "KEYCODE_DEL")
+    adb("shell", "input", "keyevent", "--longpress", *["KEYCODE_DEL"] * 32)
     adb("shell", "input", "text", "replay")
     expect("Мгновенный повтор")
     adb("shell", "input", "keyevent", "KEYCODE_BACK")
@@ -479,14 +478,13 @@ def main() -> None:
     back_until(TOOLS_MARKER)
     click("Поиск по инструментам Legion Control", scrolls=0)
     adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
-    for _ in range(48):
-        adb("shell", "input", "keyevent", "KEYCODE_DEL")
+    adb("shell", "input", "keyevent", "--longpress", *["KEYCODE_DEL"] * 32)
     adb("shell", "input", "text", "audio")
     expect("Audio Lab")
     if visible("Gaming Lab"):
         raise AssertionError("Tool search left unrelated modules visible")
     adb("shell", "input", "keyevent", "KEYCODE_BACK")  # Dismiss IME
-    click("Audio Lab", scrolls=7)
+    click("Audio Lab", scrolls=7, exact_only=True)
     stage("18-tools-search-opens-audio", "AUDIO LAB")
     back_until(TOOLS_MARKER)
     click("Поиск по инструментам Legion Control", scrolls=0)
