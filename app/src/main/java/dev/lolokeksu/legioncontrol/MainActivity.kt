@@ -2,7 +2,6 @@ package dev.lolokeksu.legioncontrol
 
 import androidx.activity.ComponentActivity
 import androidx.lifecycle.ViewModelProvider
-import android.app.AlertDialog
 import android.os.Bundle
 import android.os.BatteryManager
 import android.os.Build
@@ -492,7 +491,7 @@ class MainActivity : ComponentActivity() {
             Toast.makeText(this, "Сначала остановите тест батареи", Toast.LENGTH_SHORT).show()
             return
         }
-        AlertDialog.Builder(this)
+        LegionDialogs.builder(this)
             .setTitle("Завершить сеанс Rust?")
             .setMessage(
                 "Будет очищена только текущая история Rust (до 64 образцов) в оперативной памяти. " +

@@ -6,7 +6,6 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
-import android.app.AlertDialog
 import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Color
@@ -178,7 +177,7 @@ class ConnectivityLabFragment : Fragment() {
             "Google DNS · dns.google",
             "Quad9 · dns.quad9.net"
         )
-        AlertDialog.Builder(requireContext()).setTitle("Публичный сервер для диагностики")
+        LegionDialogs.builder(requireContext()).setTitle("Публичный сервер для диагностики")
             .setItems(names) { _,index ->
                 viewModel.chooseHost(ConnectivityProbe.targets[index])
                 hostButton.text="Сервер: "+names[index]
@@ -199,7 +198,7 @@ class ConnectivityLabFragment : Fragment() {
 
     private fun selectHistory(items:List<ConnectivityRun>) {
         if(items.isEmpty()) { show("Для "+viewModel.host+" пока нет сохранённых запусков.");return }
-        AlertDialog.Builder(requireContext()).setTitle("История · "+viewModel.host)
+        LegionDialogs.builder(requireContext()).setTitle("История · "+viewModel.host)
             .setItems(items.map { r ->
                 DateFormat.getDateTimeInstance().format(Date(r.startedAtMs))+
                     " · "+r.mode+" · "+r.status
@@ -237,10 +236,10 @@ class ConnectivityLabFragment : Fragment() {
     private fun confirmDelete() {
         val id=viewModel.selectedRunId ?: return show("Сначала выберите запись.")
         if(testing) return show("Остановите тест перед удалением.")
-        AlertDialog.Builder(requireContext()).setTitle("Удалить эту запись?")
+        LegionDialogs.builder(requireContext()).setTitle("Удалить эту запись?")
             .setMessage("Удалятся только этот сетевой тест и его DNS/TCP/TLS замеры. "+
                 "Другие записи, игровые сессии и профили сохранятся.")
-            .setPositiveButton("Удалить") { _,_ ->
+            .setDestructive().setPositiveButton("Удалить") { _,_ ->
                 viewModel.delete(id)
             }.setNegativeButton("Отмена",null).show()
     }

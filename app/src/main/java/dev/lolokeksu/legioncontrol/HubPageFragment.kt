@@ -1,6 +1,5 @@
 package dev.lolokeksu.legioncontrol
 
-import android.app.AlertDialog
 import android.app.NotificationManager
 import android.content.Intent
 import android.graphics.Color
@@ -125,7 +124,7 @@ class HubPageFragment : Fragment() {
         if (cls == GameSessionActivity::class.java) {
             runCatching { NavHostFragment.findNavController(this).navigate(R.id.gameSessionFragment,extras) }
                 .onFailure { error ->
-                    AlertDialog.Builder(requireContext()).setTitle("Не удалось открыть Game Session")
+                    LegionDialogs.builder(requireContext()).setTitle("Не удалось открыть Game Session")
                         .setMessage(error.javaClass.simpleName)
                         .setPositiveButton("Понятно",null).show()
                 }
@@ -142,7 +141,7 @@ class HubPageFragment : Fragment() {
                 })
             }
         }.onFailure { exception ->
-            AlertDialog.Builder(requireContext()).setTitle("Не удалось открыть раздел")
+            LegionDialogs.builder(requireContext()).setTitle("Не удалось открыть раздел")
                 .setMessage(exception.javaClass.simpleName)
                 .setPositiveButton("Понятно", null).show()
         }
@@ -355,7 +354,7 @@ class HubPageFragment : Fragment() {
     private fun openStandaloneFeature(cls: Class<*>, args: Bundle) {
         runCatching { startActivity(Intent(requireContext(), cls).putExtras(args)) }
             .onFailure {
-                AlertDialog.Builder(requireContext()).setTitle("Не удалось открыть действие")
+                LegionDialogs.builder(requireContext()).setTitle("Не удалось открыть действие")
                     .setMessage(it.javaClass.simpleName).setPositiveButton("Понятно", null).show()
             }
     }
@@ -542,7 +541,7 @@ class HubPageFragment : Fragment() {
                 startActivity(Intent(action))
             }
             .onFailure {
-                AlertDialog.Builder(requireContext()).setTitle("Настройки недоступны")
+                LegionDialogs.builder(requireContext()).setTitle("Настройки недоступны")
                     .setMessage("Android не открыл этот экран: " + it.javaClass.simpleName)
                     .setPositiveButton("Понятно", null).show()
             }

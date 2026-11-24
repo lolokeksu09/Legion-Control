@@ -1,6 +1,5 @@
 package dev.lolokeksu.legioncontrol
 
-import android.app.AlertDialog
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
@@ -191,7 +190,7 @@ class GamePreflightActivity : FragmentActivity() {
         val list=ListView(this).apply { this.adapter=adapter }
         content.addView(search,LinearLayout.LayoutParams(-1,-2))
         content.addView(list,LinearLayout.LayoutParams(-1,320.dp))
-        val dialog=AlertDialog.Builder(this).setTitle("Выбрать игру").setView(content)
+        val dialog=LegionDialogs.builder(this).setTitle("Выбрать игру").setView(content)
             .setNegativeButton("Отмена",null).create()
         search.addTextChangedListener(object:TextWatcher {
             override fun beforeTextChanged(s:CharSequence?,start:Int,count:Int,after:Int) {}
@@ -244,7 +243,7 @@ class GamePreflightActivity : FragmentActivity() {
             isChecked=preset.requireValidatedNetwork
         }
         panel.addView(network)
-        AlertDialog.Builder(this).setTitle("Требования ${current.selected.label}")
+        LegionDialogs.builder(this).setTitle("Требования ${current.selected.label}")
             .setView(ScrollView(this).apply { addView(panel) })
             .setPositiveButton("Сохранить") { _,_ ->
                 model.savePreset(PreflightPreset(hz[hzField.selectedItemPosition],
@@ -261,14 +260,14 @@ class GamePreflightActivity : FragmentActivity() {
             return
         }
         if(report.critical>0) {
-            AlertDialog.Builder(this).setTitle("Есть тепловые ограничения")
+            LegionDialogs.builder(this).setTitle("Есть тепловые ограничения")
                 .setMessage("Отложите нагрузку. Дайте устройству остыть и повторите проверку.")
                 .setPositiveButton("Понятно",null).show()
             return
         }
         val run={ launchChecked(report) }
         if(report.warnings>0 || report.unknown>0) {
-            AlertDialog.Builder(this).setTitle("Запустить игру?")
+            LegionDialogs.builder(this).setTitle("Запустить игру?")
                 .setMessage("Предупреждений: ${report.warnings}, неизвестных показателей: ${report.unknown}. " +
                     "Запуск не применяет системные настройки автоматически.")
                 .setPositiveButton("Запустить") { _,_-> run() }

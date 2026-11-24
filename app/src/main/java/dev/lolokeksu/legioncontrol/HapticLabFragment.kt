@@ -6,7 +6,6 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
-import android.app.AlertDialog
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
@@ -194,7 +193,7 @@ class HapticLabFragment:Fragment() {
 
     private fun chooseRunDialog(runs: List<HapticTestRun>) {
         if (runs.isEmpty()) { show("История тактильных тестов пуста."); return }
-        AlertDialog.Builder(requireContext()).setTitle("История Haptic Lab · ${runs.size}")
+        LegionDialogs.builder(requireContext()).setTitle("История Haptic Lab · ${runs.size}")
             .setItems(runs.map { r ->
                 DateFormat.getDateTimeInstance().format(Date(r.startedAtMs)) +
                     " · " + r.pattern + " · " + r.level + " · " + r.result
@@ -214,7 +213,7 @@ class HapticLabFragment:Fragment() {
             "NOT_FELT · не ощущалась",
             "UNCERTAIN · не уверен"
         )
-        AlertDialog.Builder(requireContext()).setTitle("Как вы ощутили вибрацию?")
+        LegionDialogs.builder(requireContext()).setTitle("Как вы ощутили вибрацию?")
             .setView(note)
             .setItems(ratings.toTypedArray()) { _,index ->
                 val value=ratings[index].substringBefore(" ")
@@ -249,10 +248,10 @@ class HapticLabFragment:Fragment() {
     private fun confirmDelete() {
         val id=viewModel.selectedRunId ?: return show("Сначала выберите тест из истории.")
         if(playing)return show("Остановите тест перед удалением.")
-        AlertDialog.Builder(requireContext()).setTitle("Удалить выбранный тактильный тест?")
+        LegionDialogs.builder(requireContext()).setTitle("Удалить выбранный тактильный тест?")
             .setMessage("Удалится только локальная запись этого тактильного запроса "+
                 "и ваша субъективная оценка. Другие модули сохранят данные.")
-            .setPositiveButton("Удалить") { _,_ ->
+            .setDestructive().setPositiveButton("Удалить") { _,_ ->
                 viewModel.delete(id)
             }.setNegativeButton("Отмена",null).show()
     }

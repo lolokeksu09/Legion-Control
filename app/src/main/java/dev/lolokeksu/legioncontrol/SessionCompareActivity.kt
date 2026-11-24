@@ -1,6 +1,5 @@
 package dev.lolokeksu.legioncontrol
 
-import android.app.AlertDialog
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
@@ -76,7 +75,7 @@ class SessionCompareActivity:FragmentActivity() {
         selection=label("История не выбрана.")
         choose=button("ВЫБРАТЬ ИГРУ ИЗ ИСТОРИИ", "compare.game") {
             val choices=vm.state.value?.packages.orEmpty()
-            if(choices.isNotEmpty())AlertDialog.Builder(this).setTitle("Игра из истории")
+            if(choices.isNotEmpty())LegionDialogs.builder(this).setTitle("Игра из истории")
                 .setItems(choices.toTypedArray()) { _,i->vm.choosePackage(choices[i]) }
                 .setNegativeButton("Отмена",null).show()
         }
@@ -86,7 +85,7 @@ class SessionCompareActivity:FragmentActivity() {
         swap=button("Поменять A и B местами") { vm.swap() }
         window=button("Выбрать окно сравнения", "compare.window") {
             val options=SessionCompareAnalysis.windows
-            AlertDialog.Builder(this).setTitle("Первые минуты каждой сессии")
+            LegionDialogs.builder(this).setTitle("Первые минуты каждой сессии")
                 .setItems(options.map { "$it мин" }.toTypedArray()) { _,i->vm.chooseWindow(options[i]) }
                 .setNegativeButton("Отмена",null).show()
         }
@@ -94,7 +93,7 @@ class SessionCompareActivity:FragmentActivity() {
         root.addView(LegionUiSupport.sectionLabel(this,"СОВМЕЩЁННЫЙ ГРАФИК"))
         graphButton=button("Выбрать показатель сравнения", "compare.graph") {
             val options=CompareGraph.entries
-            AlertDialog.Builder(this).setTitle("Показатель")
+            LegionDialogs.builder(this).setTitle("Показатель")
                 .setItems(options.map { it.label }.toTypedArray()) { _,i->
                     metric=options[i];vm.state.value?.let(::render)
                 }.setNegativeButton("Отмена",null).show()
@@ -136,7 +135,7 @@ class SessionCompareActivity:FragmentActivity() {
         val s=vm.state.value ?: return
         val options=s.sessions.filter { it.id!=(if(sideA)s.bId else s.aId) }
         if(options.isEmpty())return
-        AlertDialog.Builder(this).setTitle(if(sideA)"Сессия A" else "Сессия B")
+        LegionDialogs.builder(this).setTitle(if(sideA)"Сессия A" else "Сессия B")
             .setItems(options.map(::name).toTypedArray()) { _,i->vm.chooseSession(sideA,options[i].id) }
             .setNegativeButton("Отмена",null).show()
     }

@@ -1,6 +1,5 @@
 package dev.lolokeksu.legioncontrol
 
-import android.app.AlertDialog
 import android.graphics.Color
 import android.graphics.Typeface
 import android.os.Bundle
@@ -71,7 +70,7 @@ class LiveMonitorActivity : FragmentActivity() {
         status = label("Мониторинг не запущен.", 14f, LegionUiSupport.ACCENT)
         intervalButton = action("Интервал измерений") {
             val intervals = MonitorPolicy.intervals
-            AlertDialog.Builder(this).setTitle("Интервал измерений")
+            LegionDialogs.builder(this).setTitle("Интервал измерений")
                 .setSingleChoiceItems(intervals.map { "${it / 1000} с" }.toTypedArray(),
                     intervals.indexOf(model.state.value?.intervalMs ?: 5000L)) { dialog, index ->
                     model.interval(intervals[index])
@@ -80,7 +79,7 @@ class LiveMonitorActivity : FragmentActivity() {
         }
         startButton = action("НАЧАТЬ МОНИТОРИНГ", "monitor.start") {
             if (model.state.value?.points?.isNotEmpty() == true) {
-                AlertDialog.Builder(this).setTitle("Начать новый мониторинг?")
+                LegionDialogs.builder(this).setTitle("Начать новый мониторинг?")
                     .setMessage("Новые измерения заменят текущие замеры в памяти. Сначала экспортируйте CSV, если хотите сохранить их. Контрольная точка останется.")
                     .setPositiveButton("Начать") { _, _ -> model.start() }
                     .setNegativeButton("Отмена", null).show()
@@ -93,7 +92,7 @@ class LiveMonitorActivity : FragmentActivity() {
         root.addView(LegionUiSupport.sectionLabel(this, "ГРАФИК"))
         metricButton = action("Выбрать показатель графика", "monitor.chart") {
             val options = MonitorMetric.entries
-            AlertDialog.Builder(this).setTitle("Показатель графика")
+            LegionDialogs.builder(this).setTitle("Показатель графика")
                 .setSingleChoiceItems(options.map { it.label }.toTypedArray(),
                     options.indexOf(metric)) { dialog, index ->
                     metric = options[index]

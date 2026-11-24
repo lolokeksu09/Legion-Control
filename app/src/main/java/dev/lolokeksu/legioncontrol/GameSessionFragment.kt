@@ -8,7 +8,6 @@ import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.fragment.NavHostFragment
-import android.app.AlertDialog
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
@@ -205,7 +204,7 @@ class GameSessionFragment : Fragment() {
         val labels = apps.map {
             it.loadLabel(requireContext().packageManager).toString()+"\n"+it.activityInfo.packageName
         }.toTypedArray()
-        AlertDialog.Builder(requireContext()).setTitle("Выбрать приложение")
+        LegionDialogs.builder(requireContext()).setTitle("Выбрать приложение")
             .setItems(labels) { _, which ->
                 val app = apps[which]
                 selectedPackage = app.activityInfo.packageName
@@ -255,7 +254,7 @@ class GameSessionFragment : Fragment() {
             filters=arrayOf(android.text.InputFilter.LengthFilter(120))
             setTextColor(Color.BLACK)
         }
-        AlertDialog.Builder(requireContext())
+        LegionDialogs.builder(requireContext())
             .setTitle("Отметить момент во время записи")
             .setView(field)
             .setPositiveButton("Добавить") { _,_ ->

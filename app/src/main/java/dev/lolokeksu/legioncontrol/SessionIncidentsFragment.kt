@@ -1,7 +1,6 @@
 package dev.lolokeksu.legioncontrol
 
 import android.app.Activity
-import android.app.AlertDialog
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
@@ -110,7 +109,7 @@ class SessionIncidentsFragment : Fragment() {
             it.appLabel + " · " + fmt.format(Date(it.startedAtMs)) + "\n" +
                 (it.endReason ?: "Запись не завершена")
         }.toTypedArray()
-        AlertDialog.Builder(requireContext()).setTitle("Сессии · " + rows.size)
+        LegionDialogs.builder(requireContext()).setTitle("Сессии · " + rows.size)
             .setItems(labels) { _, position -> vm.select(rows[position].id) }
             .setNegativeButton("Отмена", null).show()
     }
@@ -118,7 +117,7 @@ class SessionIncidentsFragment : Fragment() {
     private fun pickFilter() {
         val kinds = SessionIncidents.Kind.entries
         val choices = (listOf("Все категории") + kinds.map { it.label }).toTypedArray()
-        AlertDialog.Builder(requireContext()).setTitle("Выберите тип")
+        LegionDialogs.builder(requireContext()).setTitle("Выберите тип")
             .setItems(choices) { _, position ->
                 vm.selectKind(if (position == 0) null else kinds[position - 1])
             }.setNegativeButton("Отмена", null).show()
