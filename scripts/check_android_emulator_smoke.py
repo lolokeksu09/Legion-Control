@@ -256,7 +256,7 @@ def main() -> None:
     live_network_output = adb("shell", "am", "instrument", "-w", "-e", "class",
         PACKAGE + ".LiveNetworkArchiveInstrumentedTest",
         PACKAGE + ".test/androidx.test.runner.AndroidJUnitRunner", timeout=120)
-    if "OK (1 test)" not in live_network_output or "FAILURES" in live_network_output:
+    if "OK (2 tests)" not in live_network_output or "FAILURES" in live_network_output:
         raise AssertionError("Live network archive instrumentation failed: " + live_network_output[-1400:])
     print("PASS: isolated live network archive round-trip, deduplication and explicit deletion", flush=True)
     adb("shell", "pm", "clear", PACKAGE, timeout=40)

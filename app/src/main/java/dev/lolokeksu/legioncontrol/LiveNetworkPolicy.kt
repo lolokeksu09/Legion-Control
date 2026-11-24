@@ -3,6 +3,8 @@ package dev.lolokeksu.legioncontrol
 import java.util.Locale
 import kotlin.math.abs
 
+internal enum class LiveIpMode(val label:String) { AUTO("Авто · IPv4 при наличии"), IPV4("Только IPv4"), IPV6("Только IPv6") }
+
 internal data class LiveNetworkPoint(
     val offsetMs: Long,
     val network: String,
@@ -13,7 +15,10 @@ internal data class LiveNetworkPoint(
     val gatewayMs: Double?,
     val gatewayState: String,
     val gatewayAddress: String? = null,
-    val gatewayKey: String? = gatewayAddress
+    val gatewayKey: String? = gatewayAddress,
+    val dnsMs: Double? = null,
+    val family: String? = null,
+    val validated: Boolean? = null
 )
 
 internal data class LiveNetworkSummary(
@@ -37,7 +42,7 @@ internal object LiveNetworkPolicy {
 
     fun valid(value: Double?): Boolean = value != null && value.isFinite() && value in 0.0..120_000.0
     fun connected(a: LiveNetworkPoint,b: LiveNetworkPoint): Boolean =
-        a.route!=null && a.route==b.route && a.network==b.network && a.endpoint!=null && a.endpoint==b.endpoint
+        a.route!=null && a.route==b.route && a.network==b.network && a.endpoint!=null && a.endpoint==b.endpoint && a.family==b.family
 
     fun summarize(points: List<LiveNetworkPoint>): LiveNetworkSummary {
         val good=points.count { it.tcpState=="OK" && valid(it.tcpMs) }

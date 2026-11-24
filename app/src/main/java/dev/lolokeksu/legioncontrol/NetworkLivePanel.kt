@@ -29,6 +29,8 @@ internal class NetworkLivePanel(context:Context,private val exportRequest:(Strin
     private var ioBusy=false
     private var visible=false
     private var plan=LiveNetworkPlan.NORMAL
+    private var ipMode=LiveIpMode.AUTO
+    private var showDns=false
     private var activeId=""
     private var activeHost=""
     private var activeStarted=0L
@@ -55,7 +57,10 @@ internal class NetworkLivePanel(context:Context,private val exportRequest:(Strin
         LegionUiSupport.reportSurface(this)
     }
     private val tcpChart=LiveLatencyChart(context,false)
+    private val dnsChart=LiveLatencyChart(context,false,true)
+    private val chartToggle=Button(context).apply { text="График: TCP"; isAllCaps=false; setOnClickListener { toggleChart() } }
     private val gatewayChart=LiveLatencyChart(context,true)
+    private val ipButton=Button(context).apply { text=ipMode.label; isAllCaps=false; setOnClickListener { chooseIpMode() } }
     private val planButton=Button(context).apply { text=plan.label; isAllCaps=false; setOnClickListener { choosePlan() } }
     private val start=Button(context).apply { text="Запустить живой тест"; isAllCaps=false; setOnClickListener { begin() } }
     private val stop=Button(context).apply { text="Остановить живой тест"; isAllCaps=false; isEnabled=false; setOnClickListener { stop() } }
@@ -76,11 +81,15 @@ internal class NetworkLivePanel(context:Context,private val exportRequest:(Strin
         })
         addView(target)
         addView(planButton)
+        addView(ipButton)
         addView(start)
         addView(stop)
         addView(status)
-        addView(LegionUiSupport.sectionLabel(context,"TCP · внешний узел"))
+        addView(LegionUiSupport.sectionLabel(context,"ВНЕШНИЙ УЗЕЛ · TCP / DNS"))
+        addView(chartToggle)
         addView(tcpChart,LayoutParams(LayoutParams.MATCH_PARENT,(150*dp).toInt()))
+        addView(dnsChart,LayoutParams(LayoutParams.MATCH_PARENT,(150*dp).toInt()))
+        dnsChart.visibility=View.GONE
         addView(LegionUiSupport.sectionLabel(context,"WI-FI · доступность шлюза"))
         addView(gatewayChart,LayoutParams(LayoutParams.MATCH_PARENT,(150*dp).toInt()))
         addView(LegionUiSupport.sectionLabel(context,"АРХИВ ЖИВЫХ ТЕСТОВ"))
@@ -93,6 +102,7 @@ internal class NetworkLivePanel(context:Context,private val exportRequest:(Strin
         start.isEnabled=ready
         target.isEnabled=ready
         planButton.isEnabled=ready
+        ipButton.isEnabled=ready
         stop.isEnabled=running
         saveButton.isEnabled=ready && record!=null && !saved
         historyButton.isEnabled=ready
@@ -107,9 +117,10 @@ internal class NetworkLivePanel(context:Context,private val exportRequest:(Strin
         target.error=null
         activeId=UUID.randomUUID().toString(); activeHost=host; activeStarted=System.currentTimeMillis().coerceAtLeast(1L)
         val selectedPlan=plan
+        val selectedIp=ipMode
         record=null; saved=false
         points.clear()
-        tcpChart.update(emptyList()); gatewayChart.update(emptyList())
+        updateCharts(emptyList())
         val id=token.incrementAndGet()
         running=true; buttons(); onRunningChanged()
         status.text="Начинается тест: "+host+":443"
@@ -119,7 +130,7 @@ internal class NetworkLivePanel(context:Context,private val exportRequest:(Strin
                 val begin=SystemClock.elapsedRealtime()
                 repeat(selectedPlan.count) { index ->
                     if(token.get()!=id || Thread.currentThread().isInterrupted) return@submit
-                    val point=probe.capture(host,SystemClock.elapsedRealtime()-begin) { token.get()!=id }
+                    val point=probe.capture(host,SystemClock.elapsedRealtime()-begin,selectedIp) { token.get()!=id }
                     main.post {
                         if(!closed && token.get()==id && running) {
                             points.add(point); render("Проба "+(index+1)+"/"+selectedPlan.count)
@@ -144,6 +155,7 @@ internal class NetworkLivePanel(context:Context,private val exportRequest:(Strin
             "TCP_ERROR" -> "ошибка TCP"
             "DNS_ERROR" -> "ошибка DNS"
             "NO_NETWORK" -> "нет сети"
+            "NO_ADDRESS" -> "нет адреса выбранного семейства"
             "SWITCHED" -> "сеть изменилась"
             "NO_REPLY" -> "нет ответа"
             "UNAVAILABLE" -> "недоступно"
@@ -153,18 +165,20 @@ internal class NetworkLivePanel(context:Context,private val exportRequest:(Strin
         val delta=if(p!=null && prior!=null && LiveNetworkPolicy.connected(prior,p) &&
             LiveNetworkPolicy.valid(p.tcpMs) && LiveNetworkPolicy.valid(prior.tcpMs)) p.tcpMs!!-prior.tcpMs!! else null
         status.text=prefix+" · "+(p?.network ?: "—")+"\n"+
-            "TCP: "+fmt(p?.tcpMs)+" мс · "+state(p?.tcpState)+"\n"+
+            "TCP: "+fmt(p?.tcpMs)+" мс · "+state(p?.tcpState)+" · "+(p?.family ?: "—")+"\n"+
+            "DNS: "+fmt(p?.dnsMs)+" мс · Android сеть: "+(when(p?.validated){true->"подтверждена";false->"не подтверждена";null->"н/д"})+"\n"+
             "Шлюз: "+(p?.gatewayAddress ?: "н/д")+" · "+fmt(p?.gatewayMs)+" мс · "+state(p?.gatewayState)+"\n"+
             "Изменение TCP между соседними пробами: "+fmt(delta)+" мс\n"+
             "Джиттер TCP: "+fmt(s.jitterMs)+" мс · ошибки: "+fmt(s.failurePercent)+"%\n"+
             "Успех / ошибка / недоступно: "+s.successful+" / "+s.failed+" / "+s.unavailable+
             " · смены сети: "+s.switches+"\n"+
+            LiveNetworkInsights.describe(points)+"\n"+
             "Ошибки проб не равны потерям IP-пакетов. Нет ответа шлюза — не доказательство поломки."
-        tcpChart.update(points.toList()); gatewayChart.update(points.toList())
+        updateCharts(points.toList())
     }
     private fun freeze(end:LiveNetworkEnd) {
         record=points.takeIf { it.isNotEmpty() }?.let {
-            LiveNetworkRecord(activeId,activeHost,activeStarted,plan,end,it.toList())
+            LiveNetworkRecord(activeId,activeHost,activeStarted,plan,end,it.toList(),ipMode)
         }
         saved=false
     }
@@ -178,6 +192,22 @@ internal class NetworkLivePanel(context:Context,private val exportRequest:(Strin
         LegionDialogs.builder(context).setTitle("Режим живой диагностики")
             .setItems(options.map{it.label}.toTypedArray()) { _,i->plan=options[i];planButton.text=plan.label }
             .setNegativeButton("Отмена",null).show()
+    }
+    private fun chooseIpMode() {
+        if(!start.isEnabled) return
+        val options=LiveIpMode.entries
+        LegionDialogs.builder(context).setTitle("Семейство адресов")
+            .setItems(options.map{it.label}.toTypedArray()) { _,i->ipMode=options[i];ipButton.text=ipMode.label }
+            .setNegativeButton("Отмена",null).show()
+    }
+    private fun toggleChart() {
+        showDns=!showDns
+        tcpChart.visibility=if(showDns) View.GONE else View.VISIBLE
+        dnsChart.visibility=if(showDns) View.VISIBLE else View.GONE
+        chartToggle.text=if(showDns) "График: DNS" else "График: TCP"
+    }
+    private fun updateCharts(data:List<LiveNetworkPoint>) {
+        tcpChart.update(data);dnsChart.update(data);gatewayChart.update(data)
     }
     fun screenStarted() { visible=true }
     fun screenStopped() { visible=false; stop() }
@@ -207,7 +237,7 @@ internal class NetworkLivePanel(context:Context,private val exportRequest:(Strin
         }
     }
     private fun label(r:LiveNetworkRecord)=DateFormat.getDateTimeInstance().format(Date(r.startedAt))+
-        " · "+r.host+" · "+r.points.size+"/"+r.plan.count+" · "+r.end
+        " · "+r.host+" · "+r.ipMode.name+" · "+r.points.size+"/"+r.plan.count+" · "+r.end
     private fun history() {
         archiveTask({withArchive{it.list()}}) { records->
             if(records.isEmpty()) { archiveStatus.text="Архив пуст."; return@archiveTask }
@@ -218,7 +248,7 @@ internal class NetworkLivePanel(context:Context,private val exportRequest:(Strin
                         record=r; saved=true
                         points.clear(); points.addAll(r.points)
                         status.text=LiveNetworkReports.report(r)
-                        tcpChart.update(r.points); gatewayChart.update(r.points)
+                        updateCharts(r.points)
                         archiveStatus.text="Открыта запись: "+label(r)
                         buttons()
                     }
@@ -246,7 +276,7 @@ internal class NetworkLivePanel(context:Context,private val exportRequest:(Strin
                 archiveTask({withArchive{it.delete(r.id)}}) { removed->
                     if(removed) {
                         record=null; saved=false; points.clear()
-                        tcpChart.update(emptyList());gatewayChart.update(emptyList())
+                        updateCharts(emptyList())
                         status.text="Запись удалена."; archiveStatus.text="Удалена одна запись."
                     } else archiveStatus.text="Запись уже отсутствует."
                     buttons()
@@ -273,17 +303,17 @@ internal class NetworkLivePanel(context:Context,private val exportRequest:(Strin
     }
 }
 
-private class LiveLatencyChart(context:Context,private val gateway:Boolean):View(context) {
+private class LiveLatencyChart(context:Context,private val gateway:Boolean,private val dns:Boolean=false):View(context) {
     private val frame=LegionChartFrame(this)
     private val paint=Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color=if(gateway) 0xFF80CBC4.toInt() else 0xFF90CAF9.toInt()
         strokeWidth=frame.lineWidth
     }
     private var data:List<LiveNetworkPoint> = emptyList()
-    private fun value(p:LiveNetworkPoint)=if(gateway) p.gatewayMs else p.tcpMs
+    private fun value(p:LiveNetworkPoint)=when { gateway -> p.gatewayMs; dns -> p.dnsMs; else -> p.tcpMs }
     fun update(points:List<LiveNetworkPoint>) {
         data=points
-        contentDescription=(if(gateway) "Доступность шлюза" else "TCP задержка")+
+        contentDescription=(if(gateway) "Доступность шлюза" else if(dns) "Время DNS" else "TCP задержка")+
             ": "+points.count { LiveNetworkPolicy.valid(value(it)) }+" успешных измерений"
         invalidate()
     }
@@ -301,7 +331,7 @@ private class LiveLatencyChart(context:Context,private val gateway:Boolean):View
             val x=plot.left+plot.width()*(p.offsetMs.toDouble()/duration).toFloat()
             val y=frame.y(plot,v,0.0,hi)
             val a=previous
-            if(a!=null && (if(gateway) a.route!=null && a.route==p.route && a.network==p.network && a.gatewayKey!=null && a.gatewayKey==p.gatewayKey else LiveNetworkPolicy.connected(a,p))) {
+            if(a!=null && (if(gateway) a.route!=null && a.route==p.route && a.network==p.network && a.gatewayKey!=null && a.gatewayKey==p.gatewayKey else if(dns) a.route!=null && a.route==p.route && a.network==p.network else LiveNetworkPolicy.connected(a,p))) {
                 val av=value(a)!!
                 val ax=plot.left+plot.width()*(a.offsetMs.toDouble()/duration).toFloat()
                 canvas.drawLine(ax,frame.y(plot,av,0.0,hi),x,y,paint)

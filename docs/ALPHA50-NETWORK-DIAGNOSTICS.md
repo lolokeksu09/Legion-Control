@@ -17,3 +17,10 @@ Acceptance: unit cases for host rejection, missing samples, failure denominator,
 - NET-08: reopen saved result with charts, median/p95/max, failures and gateway stats. A/B compares distinct complete runs with identical target and plan, not causal diagnosis. CSV exports a frozen selected report through SAF; no automatic sharing. Explicit confirmation before single-record deletion.
 - NET-09: archive independent of existing legacy CSV/ZIP backup; no schema migration or new dependency/permission. Archive is NOT included in full-backup ZIP in this increment. Physical network and SAF/UI verification remain pending.
 - Verification additions: pure JVM redaction/comparison/CSV tests and emulator-only real archive persistence/deduplication/delete test, explicitly gated in smoke script. Exact candidate CI required.
+
+## Increment 3 — IP family controls and evidence-based diagnostics
+
+- NET-10: Auto / IPv4 only / IPv6 only modes, one TCP candidate per probe, no transparent fallback in explicit modes. NO_ADDRESS is separate from DNS/TCP errors. Host input remains DNS name or IPv4 literal; IPv6 uses a DNS hostname. DNS resolver timing is omitted for IPv4 literals, includes failed resolutions, and may reflect cache.
+- NET-11: Android validated-network flag, actual attempted family, DNS timing and separate evidence counts. Toggle TCP/DNS chart within existing panel. Local gateway and external outcomes are paired by observed probe; no automatic attribution to provider/router/game.
+- NET-12: A/B deltas for matched completed tests, same plan/target and either same IP mode or explicit IPv4 vs IPv6. Auto cannot be compared with a forced mode. At least 3 measurements per side for median/p95 differences; percentage points for error-rate change. No extrapolated latency or packet loss.
+- NET-13: JSON payload v2 inside same isolated SQLite schema; read v1 with unknown DNS/family/validation, never fabricate values. CSV extends columns; identifiers stay redacted. New unit tests and emulator archive compatibility/capacity gate. Exact new revision CI pending; physical network/SAF/visual acceptance still outstanding.

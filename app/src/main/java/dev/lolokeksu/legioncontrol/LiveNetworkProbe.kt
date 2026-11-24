@@ -5,13 +5,14 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.SystemClock
 import java.net.Inet4Address
+import java.net.Inet6Address
 import java.net.InetSocketAddress
 import java.net.NetworkInterface
 
 /** Explicit visible-only probes. TCP is bound to the captured Android Network. */
 internal class LiveNetworkProbe(context: Context) {
     private val cm=requireNotNull(context.getSystemService(ConnectivityManager::class.java))
-    fun capture(host: String,offsetMs: Long,isCancelled:()->Boolean={false}): LiveNetworkPoint {
+    fun capture(host: String,offsetMs: Long,mode:LiveIpMode=LiveIpMode.AUTO,isCancelled:()->Boolean={false}): LiveNetworkPoint {
         require(LiveNetworkPolicy.host(host)==host)
         fun checkCancel() { if(Thread.currentThread().isInterrupted || isCancelled()) throw InterruptedException() }
         fun elapsed(start:Long)=((SystemClock.elapsedRealtimeNanos()-start)/1_000_000.0)
@@ -44,11 +45,19 @@ internal class LiveNetworkProbe(context: Context) {
             }
         }
         checkCancel()
+        val resolveStart=SystemClock.elapsedRealtimeNanos()
         val addresses=runCatching { net.getAllByName(host) }.getOrNull()
+        val dnsMs=if(host.matches(Regex("[0-9.]+"))) null else elapsed(resolveStart)
         checkCancel()
-        val address=addresses?.firstOrNull { it is Inet4Address } ?: addresses?.firstOrNull()
+        val address=when(mode) {
+            LiveIpMode.AUTO -> addresses?.firstOrNull { it is Inet4Address } ?: addresses?.firstOrNull()
+            LiveIpMode.IPV4 -> addresses?.firstOrNull { it is Inet4Address }
+            LiveIpMode.IPV6 -> addresses?.firstOrNull { it is Inet6Address }
+        }
+        val family=when(address) { is Inet4Address -> "IPV4"; is Inet6Address -> "IPV6"; else -> null }
+        val validated=caps?.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
         var tcpMs:Double?=null
-        var tcpState="DNS_ERROR"
+        var tcpState=if(addresses.isNullOrEmpty()) "DNS_ERROR" else "NO_ADDRESS"
         if(address!=null) {
             val start=SystemClock.elapsedRealtimeNanos()
             tcpState="TCP_ERROR"
@@ -63,6 +72,6 @@ internal class LiveNetworkProbe(context: Context) {
         }
         checkCancel()
         if(cm.activeNetwork!=net) return LiveNetworkPoint(offsetMs,transport,net.networkHandle,null,null,"SWITCHED",null,"UNAVAILABLE")
-        return LiveNetworkPoint(offsetMs,transport,net.networkHandle,address?.hostAddress,tcpMs,tcpState,gatewayMs,gatewayState,gatewayAddress)
+        return LiveNetworkPoint(offsetMs,transport,net.networkHandle,address?.hostAddress,tcpMs,tcpState,gatewayMs,gatewayState,gatewayAddress,dnsMs=dnsMs,family=family,validated=validated)
     }
 }
