@@ -29,11 +29,14 @@ object GameLaunchProfiles {
 
     fun save(context: Context, pkg: String, profile: GameLaunchProfile): Boolean {
         require(GameLaunchProfilePolicy.validPackage(pkg))
-        synchronized(lock) {
-            val edit = prefs(context).edit()
-            if (profile.actionable) edit.putString(PREFIX + pkg, profile.encode())
-            else edit.remove(PREFIX + pkg)
-            return edit.commit()
+        return ProfileMaintenanceGate.tryRun({false}) {
+            if(LegionDataBackup.hasPendingRestore(context)) return@tryRun false
+            synchronized(lock) {
+                val edit = prefs(context).edit()
+                if (profile.actionable) edit.putString(PREFIX + pkg, profile.encode())
+                else edit.remove(PREFIX + pkg)
+                edit.commit()
+            }
         }
     }
 
@@ -55,12 +58,20 @@ object GameLaunchProfiles {
         prefs(context).contains(ACTIVE) && prefs(context).getString(OWNER,null)==owner
     }
 
-    internal fun restoreAutomatic(context:Context,owner:String):GameLaunchResult = synchronized(lock) {
-        if(!ownsAutomatic(context,owner)) GameLaunchResult(true,"Нет записи возврата этой авто-сессии.")
-        else restore(context)
-    }
+    internal fun restoreAutomatic(context:Context,owner:String):GameLaunchResult =
+        ProfileMaintenanceGate.tryRun({maintenanceBusy()}) {
+            synchronized(lock) {
+                if(!ownsAutomatic(context,owner))
+                    GameLaunchResult(true,"Нет записи возврата этой авто-сессии.")
+                else restoreLocked(context)
+            }
+        }
 
-    private fun applyInternal(context:Context,pkg:String,owner:String?,approved:GameLaunchProfile?):GameLaunchResult = synchronized(lock) {
+    private fun applyInternal(context:Context,pkg:String,owner:String?,approved:GameLaunchProfile?):GameLaunchResult =
+        ProfileMaintenanceGate.tryRun({maintenanceBusy()}) {
+        if(LegionDataBackup.hasPendingRestore(context)) return@tryRun GameLaunchResult(false,
+            "Сначала завершите прерванное восстановление ZIP в Capture Studio.")
+        synchronized(lock) {
         if (!GameLaunchProfilePolicy.validPackage(pkg)) {
             return@synchronized GameLaunchResult(false, "Некорректный пакет приложения.")
         }
@@ -160,15 +171,23 @@ object GameLaunchProfiles {
         }
     }
 
+        }
+
+    private fun maintenanceBusy()=GameLaunchResult(false,"Выполняется восстановление ZIP. Повторите действие после завершения.")
+
     /**
      * Per-field compare-before-restore. If the user changed a value afterwards,
      * that field is NOT overwritten. Failed writes remain queued for manual retry.
      */
-    fun restore(context: Context): GameLaunchResult = synchronized(lock) {
+    fun restore(context: Context): GameLaunchResult = ProfileMaintenanceGate.tryRun({maintenanceBusy()}) {
+        synchronized(lock) { restoreLocked(context) }
+    }
+
+    private fun restoreLocked(context: Context): GameLaunchResult {
         val raw = prefs(context).getString(ACTIVE, null)
-            ?: return@synchronized GameLaunchResult(true, "Нет применённого профиля для возврата.")
+            ?: return GameLaunchResult(true, "Нет применённого профиля для возврата.")
         val ticket = GameLaunchUndo.decode(raw)
-            ?: return@synchronized GameLaunchResult(false,
+            ?: return GameLaunchResult(false,
                 "Запись возврата повреждена. Автоматические системные изменения запрещены.")
         var restored = 0
         var conflicts = 0
@@ -238,7 +257,7 @@ object GameLaunchProfiles {
         } else prefs(context).edit().remove(ACTIVE).remove(OWNER).commit()
         val summary = "Восстановлено: $restored; изменения пользователя не тронуты: $conflicts; " +
             "ошибок Android: $failures."
-        if (!saved) GameLaunchResult(false, "$summary Не удалось сохранить результат возврата.")
+        return if (!saved) GameLaunchResult(false, "$summary Не удалось сохранить результат возврата.")
         else GameLaunchResult(!remaining.pending,
             "$summary " + if (remaining.pending) "Есть незавершённые действия, повторите возврат."
             else "Возврат завершён.")

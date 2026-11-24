@@ -24,4 +24,20 @@ class IntegrationRecoveryTest {
             GameLaunchProfilePolicy.restoreAndVerify({7},{_ -> error("write blocked")},change)
         }.isFailure)
     }
+    @org.junit.Test fun maintenanceGateIsNonBlockingReentrantAndReleasedAfterFailure() {
+        val worker=java.util.concurrent.Executors.newSingleThreadExecutor()
+        try {
+            ProfileMaintenanceGate.tryRun({error("unexpected busy")}) {
+                org.junit.Assert.assertEquals("nested",ProfileMaintenanceGate.tryRun({"blocked"}){"nested"})
+                val other=worker.submit<String>{ProfileMaintenanceGate.tryRun({"blocked"}){"unsafe"}}
+                org.junit.Assert.assertEquals("blocked",other.get(2,java.util.concurrent.TimeUnit.SECONDS))
+            }
+            org.junit.Assert.assertTrue(runCatching{
+                ProfileMaintenanceGate.tryRun({error("unexpected busy")}){error("simulated failure")}
+            }.isFailure)
+            org.junit.Assert.assertEquals("released",worker.submit<String>{
+                ProfileMaintenanceGate.tryRun({"blocked"}){"released"}
+            }.get(2,java.util.concurrent.TimeUnit.SECONDS))
+        } finally { worker.shutdownNow() }
+    }
 }

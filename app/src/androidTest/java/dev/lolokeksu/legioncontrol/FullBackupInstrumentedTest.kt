@@ -117,6 +117,7 @@ class FullBackupInstrumentedTest {
         val legacy2=createZip(app,"legacy-v2")
         val invalidAux=createZip(app,"invalid-aux")
         val invalidPreset = createZip(app, "invalid-preset")
+        val blockedExport = createZip(app, "blocked-export")
         val presetA = PreflightPreset(120,30,41,3,true)
         val presetB = PreflightPreset(60,10,44,1,false)
         val preflight = app.getSharedPreferences("legion-preflight-v1", Context.MODE_PRIVATE)
@@ -281,6 +282,23 @@ class FullBackupInstrumentedTest {
             assertEquals(PreflightPreset(), PreflightPresets.read(app, pkgA))
             // Pending journal blocks ordinary mutations. Simulate replay of one archive before a second crash.
             assertTrue(runCatching{LiveNetworkArchive(app).use{it.save(net)}}.isFailure)
+            val profilePrefs=app.getSharedPreferences("legion-launch-profiles-v1",Context.MODE_PRIVATE)
+            val profilePkg="com.example.legionci.profile"
+            // Pending replay must not allow new global changes or erase an undo
+            // ticket left by an earlier app version. Synthetic ticket, no system write.
+            assertFalse(GameLaunchProfiles.save(app,profilePkg,GameLaunchProfile(mediaPercent=20)))
+            assertFalse(GameLaunchProfiles.apply(app,profilePkg).success)
+            val syntheticUndo=GameLaunchUndo(profilePkg,LaunchSettingChange(1,2),null,null,null).encode()
+            assertTrue(profilePrefs.edit().putString("pending_global_undo",syntheticUndo).commit())
+            try {
+                assertTrue(runCatching{LegionDataBackup.recoverPendingRestore(app)}.isFailure)
+                assertEquals(syntheticUndo,profilePrefs.getString("pending_global_undo",null))
+                assertTrue(LegionDataBackup.hasPendingRestore(app))
+                assertNull(prefs.getString("ci_restore_sentinel",null))
+            } finally {
+                // Remove the synthetic fixture only, never apply it to Android.
+                assertTrue(profilePrefs.edit().remove("pending_global_undo").commit())
+            }
             LiveNetworkArchive(app).use{it.restoreSnapshot(listOf(net.redacted()))}
             assertTrue("Recovery replays committed preferences",
                 LegionDataBackup.recoverPendingRestore(app))
@@ -290,6 +308,14 @@ class FullBackupInstrumentedTest {
             assertAuxiliary()
             assertFalse("Recovery clears durable intent when finished",
                 LegionDataBackup.recoverPendingRestore(app))
+            val exportUndo=GameLaunchUndo(profilePkg,LaunchSettingChange(1,2),null,null,null).encode()
+            assertTrue(profilePrefs.edit().putString("pending_global_undo",exportUndo).commit())
+            try {
+                assertTrue("Export must not transfer a pending device-global undo ticket",
+                    runCatching{LegionDataBackup.export(app,blockedExport)}.isFailure)
+            } finally {
+                assertTrue(profilePrefs.edit().remove("pending_global_undo").commit())
+            }
             // A second import must reject the now populated database.
             assertTrue(runCatching {
                 LegionDataBackup.restoreOnEmptyDatabase(app, backup)
@@ -316,6 +342,7 @@ class FullBackupInstrumentedTest {
             app.contentResolver.delete(legacy2,null,null)
             app.contentResolver.delete(invalidAux,null,null)
             app.contentResolver.delete(invalidPreset, null, null)
+            app.contentResolver.delete(blockedExport,null,null)
             preflight.edit().clear().commit()
             app.contentResolver.delete(backup, null, null)
             app.contentResolver.delete(tampered, null, null)
