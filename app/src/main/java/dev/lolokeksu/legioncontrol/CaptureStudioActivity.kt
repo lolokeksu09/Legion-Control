@@ -289,12 +289,14 @@ class CaptureStudioActivity : ComponentActivity() {
                 .setTitle("Восстановить локальные данные?")
                 .setMessage("Архив проверен: SQLite v${inspected.preview.schema}, " +
                     "таблиц ${inspected.preview.tables}, записей ${inspected.preview.rows}, " +
-                    "параметров ${inspected.preview.settings}.\n\n" +
+                    "параметров ${inspected.preview.settings}.\n" +
+                    "Сетевых тестов: ${inspected.preview.networkRuns}; батарейных: ${inspected.preview.batteryRuns}.\n\n" +
                     "Импорт разрешён только в ПУСТУЮ базу и не удаляет существующую " +
                     "историю. Настройки, включённые в архив, будут заменены. " +
                     (if(inspected.preview.archiveVersion == 1)
                         "ZIP v1 не содержит Game Preflight: текущие требования игр сохранятся. "
-                    else "ZIP v2 включает требования Game Preflight. ") +
+                    else if(inspected.preview.archiveVersion==2) "ZIP v2 включает Game Preflight, но не новые архивы диагностики. "
+                    else "ZIP v3 включает новые архивы диагностики; оба должны быть пустыми. ") +
                     "MP4/PNG и ключ подписи не импортируются.")
                 .setPositiveButton("Восстановить") { _, _ ->
                     val confirmed = inspected.preview.identity

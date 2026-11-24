@@ -59,7 +59,7 @@ for needed in (
     "savePending(context, marker, staged.preferenceBytes, staged.manifest.getInt(\"version\"))",
     "target.execSQL(\"PRAGMA application_id = $marker\")",
     "check(recoverPendingRestore(context))",
-    "if (committed) applyPreferences(context, values)",
+    "if (committed) {", "archives?.restore(context)", "applyPreferences(context, values)",
     "atomic.finishWrite(output)", "MAX_DB",
     "GameSessionRecorderService.sessionActive", "CaptureMode.MAINTENANCE"
 ):

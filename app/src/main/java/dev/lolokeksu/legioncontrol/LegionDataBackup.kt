@@ -20,13 +20,14 @@ import java.util.zip.ZipOutputStream
 
 data class LegionBackupPreview(val tables: Int, val rows: Long, val schema: Int,
                                val settings: Int, val archiveVersion: Int = 2,
-                               val identity: BackupArchiveIdentity? = null)
+                               val identity: BackupArchiveIdentity? = null,
+                               val networkRuns:Int=0,val batteryRuns:Int=0)
 
 data class BackupArchiveIdentity(val version: Int, val databaseSha256: String,
                                  val preferencesSha256: String)
 
 /**
- * Local, portable recovery for all v12 SQLite tables plus non-secret user preferences.
+ * Local recovery for all v12 SQLite tables, diagnostic archives and non-secret user preferences.
  * The backup has no videos, screenshots, keystore or cloud storage.
  *
  * Restore NEVER overwrites a populated database. The user must choose a clean
@@ -34,7 +35,8 @@ data class BackupArchiveIdentity(val version: Int, val databaseSha256: String,
  */
 object LegionDataBackup {
     private const val MAX_DB = 256L * 1024L * 1024L
-    private const val MAX_PREFS = 512 * 1024
+    private const val MAX_LEGACY_PREFS = 512 * 1024
+    private const val MAX_PREFS = 4 * 1024 * 1024
     private const val MAX_META = 16 * 1024
     private const val MAX_ROWS = 2_000_000L
     private const val PENDING_JOURNAL = "legion-restore-pending-v1.json"
@@ -42,17 +44,17 @@ object LegionDataBackup {
 
     /** A failed recovery is visible in the hub rather than being silently ignored. */
     fun recoveryWarning(): String? = lastRecoveryFailure?.let {
-        "Восстановление настроек из ZIP не завершено ($it). Откройте Capture Studio → «Завершить прерванное восстановление». Не удаляйте данные приложения."
+        "Восстановление локальных данных из ZIP не завершено ($it). Откройте Capture Studio → «Завершить прерванное восстановление». Не удаляйте данные приложения."
     }
     private val legacyNames = listOf(
         "legion-game-capture-profiles", "legion-capture-studio",
         "legion-launch-profiles-v1", ToolboxPreferences.NAME
     )
     private val names = legacyNames + PreflightPresets.STORE
-    private const val FORMAT_VERSION = 2
+    private const val FORMAT_VERSION = 3
     private fun namesFor(version: Int) = when(version) {
         1 -> legacyNames
-        FORMAT_VERSION -> names
+        2, FORMAT_VERSION -> names
         else -> error("Unsupported backup version")
     }
     private val nameRule = Regex("[A-Za-z][A-Za-z0-9_]{0,79}")
@@ -60,10 +62,19 @@ object LegionDataBackup {
 
     private data class Staged(val sqlite: File, val manifest: JSONObject,
                               val preferences: Map<String, Map<String, Any>>,
-                              val preferenceBytes: ByteArray)
+                              val preferenceBytes: ByteArray, val archives: DiagnosticBackupBundle?)
 
     private fun pendingFile(context: Context): AtomicFile =
         AtomicFile(File(context.filesDir, PENDING_JOURNAL))
+
+    /** All auxiliary mutations share this monitor with the restore transaction/replay.
+     * A pending journal must be recovered before ordinary save/delete can proceed. */
+    internal fun checkArchiveWritesAllowed(context:Context) {
+        val f=pendingFile(context).baseFile
+        check(!f.exists() && !File(f.path+".bak").exists() && !File(f.path+".new").exists()) {
+            "Сначала завершите прерванное восстановление в Capture Studio."
+        }
+    }
 
     /** Bound memory before reading a damaged journal, not after allocating its contents. */
     internal fun readBounded(input: InputStream, maxBytes: Int): ByteArray {
@@ -144,10 +155,14 @@ object LegionDataBackup {
             val preferenceBytes = entry.getString("preferences_json").toByteArray(Charsets.UTF_8)
             require(sha256(preferenceBytes) == entry.getString("preferences_sha256"))
             val values = parsePreferences(preferenceBytes, version)
+            val archives=DiagnosticBackupBundle.parse(context,preferenceBytes,version)
             val committed = LocalHistoryStore(context).use { helper ->
                 sqliteMarker(helper.readableDatabase) == marker
             }
-            if (committed) applyPreferences(context, values)
+            if (committed) {
+                archives?.restore(context)
+                applyPreferences(context, values)
+            }
             atomic.delete()
             lastRecoveryFailure = null
             return committed
@@ -157,7 +172,8 @@ object LegionDataBackup {
         }
     }
 
-    fun export(context: Context, uri: Uri): LegionBackupPreview {
+    @Synchronized fun export(context: Context, uri: Uri): LegionBackupPreview {
+        checkArchiveWritesAllowed(context)
         check(!GameSessionRecorderService.sessionActive) {
             "Остановите запись игровой сессии перед созданием архива."
         }
@@ -167,7 +183,8 @@ object LegionDataBackup {
         var temporary: File? = null
         try {
             val tmp = newStagingFile(context).also { temporary = it }
-            val prefs = preferencesJson(context)
+            val archives=DiagnosticBackupBundle.capture(context)
+            val prefs = preferencesJson(context,archives)
             LocalHistoryStore(context).use { helper ->
                 helper.readableDatabase.execSQL("VACUUM INTO ?", arrayOf(tmp.absolutePath))
             }
@@ -194,7 +211,8 @@ object LegionDataBackup {
                 zip.closeEntry()
             }
             return preview.copy(settings = countSettings(parsePreferences(prefs, FORMAT_VERSION)),
-                identity = identity(manifest))
+                identity = identity(manifest), archiveVersion=FORMAT_VERSION,
+                networkRuns=archives.network.size,batteryRuns=archives.battery.size)
         } finally {
             temporary?.delete()
             CaptureCoordinator.release(CaptureMode.MAINTENANCE)
@@ -205,7 +223,8 @@ object LegionDataBackup {
         withStaged(context, uri) { stage ->
             inspectSQLite(context, stage.sqlite)
                 .copy(settings = countSettings(stage.preferences), archiveVersion = stage.manifest.getInt("version"),
-                    identity = identity(stage.manifest))
+                    identity = identity(stage.manifest),networkRuns=stage.archives?.network?.size ?: 0,
+                    batteryRuns=stage.archives?.battery?.size ?: 0)
         }
 
     fun restoreOnEmptyDatabase(context: Context, uri: Uri,
@@ -243,7 +262,9 @@ object LegionDataBackup {
                 }
                 val preview = inspectSQLite(context, staged.sqlite)
                     .copy(settings = countSettings(staged.preferences), archiveVersion = staged.manifest.getInt("version"),
-                        identity = identity(staged.manifest))
+                        identity = identity(staged.manifest),networkRuns=staged.archives?.network?.size ?: 0,
+                        batteryRuns=staged.archives?.battery?.size ?: 0)
+                staged.archives?.requireEmptyTargets(context)
                 val source = SQLiteDatabase.openDatabase(staged.sqlite.absolutePath, null,
                     SQLiteDatabase.OPEN_READONLY)
                 try {
@@ -369,7 +390,8 @@ object LegionDataBackup {
                 manifest.getString("preferences_sha256") == sha256(preferences)) {
                 "Контрольная сумма архива не совпадает"
             }
-            return body(Staged(file, manifest, parsePreferences(preferences, manifest.getInt("version")), preferences))
+            return body(Staged(file, manifest, parsePreferences(preferences, manifest.getInt("version")), preferences,
+                DiagnosticBackupBundle.parse(context,preferences,manifest.getInt("version"))))
         } finally {
             file.delete()
         }
@@ -457,7 +479,7 @@ object LegionDataBackup {
         return "\"" + value + "\""
     }
 
-    private fun preferencesJson(context: Context): ByteArray {
+    private fun preferencesJson(context: Context,archives:DiagnosticBackupBundle): ByteArray {
         val root = JSONObject()
         for (name in names) {
             val values = JSONObject()
@@ -466,7 +488,7 @@ object LegionDataBackup {
             for ((key, value) in stored) {
                 if(name == PreflightPresets.STORE)
                     require(PreflightPresets.validBackupEntry(key, value))
-                if (key == "pending_global_undo" || key == "last_result" ||
+                if (key == "pending_global_undo" || key == "pending_auto_owner" || key == "last_result" ||
                     key == "replay_status") continue
                 require(key.length in 1..(if(name == PreflightPresets.STORE) 207 else 150))
                 val wrapped = when (value) {
@@ -481,22 +503,29 @@ object LegionDataBackup {
             }
             root.put(name, values)
         }
+        require(root.toString().toByteArray(Charsets.UTF_8).size<=MAX_LEGACY_PREFS)
+        root.put(DiagnosticBackupBundle.KEY,archives.encode(context))
         val bytes = root.toString().toByteArray(Charsets.UTF_8)
         require(bytes.size <= MAX_PREFS)
         return bytes
     }
 
     private fun parsePreferences(bytes: ByteArray, version: Int): Map<String, Map<String, Any>> {
-        require(bytes.size <= MAX_PREFS)
+        require(bytes.size <= if(version>=3) MAX_PREFS else MAX_LEGACY_PREFS)
         val root = JSONObject(String(bytes, Charsets.UTF_8))
         val expected = namesFor(version)
-        require(root.keys().asSequence().toSet() == expected.toSet())
+        require(root.keys().asSequence().toSet() == expected.toSet() +
+            (if(version>=3) setOf(DiagnosticBackupBundle.KEY) else emptySet()))
+        if(version>=3) {
+            root.remove(DiagnosticBackupBundle.KEY)
+            require(root.toString().toByteArray(Charsets.UTF_8).size<=MAX_LEGACY_PREFS)
+        }
         return expected.associateWith { name ->
             val obj = root.getJSONObject(name)
             require(obj.length() <= (if(name == PreflightPresets.STORE) PreflightPresets.LIMIT else 500))
             obj.keys().asSequence().associateWith { key ->
                 require(key.length in 1..(if(name == PreflightPresets.STORE) 207 else 150) && key != "pending_global_undo" &&
-                    key != "last_result" && key != "replay_status")
+                    key != "last_result" && key != "replay_status" && key != "pending_auto_owner")
                 val wrapped = obj.getJSONObject(key)
                 require(wrapped.keys().asSequence().toSet() == setOf("type", "value"))
                 if(name == PreflightPresets.STORE) {

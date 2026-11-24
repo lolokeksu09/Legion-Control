@@ -1,0 +1,8 @@
+# Alpha 55 — full backup v3
+
+Base: integrated Alpha 54 fc2290a (build and emulator success). Branch stacked on #72; main/release unchanged.
+
+- BAK-01: ZIP v3 retains the same three entry names and SQLite v12. A typed diagnostic_archives extension inside the hashed preferences.json payload includes all saved Network and Battery runs (max 50/30). It is never written to preferences. Redacted identifiers, bounds, unique IDs and metric states validated before import. Legacy settings size 512 KiB; combined v3 payload 4 MiB. No APK/signing secret/media or live undo-owner state exported.
+- BAK-02: restore v3 rejects nonempty main or either auxiliary archive; v1/v2 remain readable and leave auxiliary archives unchanged. No automatic deletion or merge.
+- BAK-03: existing AtomicFile journal + committed main SQLite marker also covers both archives. Each archive import is atomic, replay accepts only empty or exactly matching records, rejects divergent records. Ordinary auxiliary writes/deletes serialize with restore and are blocked while journal pending. Recovery can resume after one archive committed. This is recoverable multi-database replay, NOT a single cross-database transaction. Existing preference recovery path remains.
+- BAK-04: preview/confirmation shows counts, same approved hash binds archive content. Existing legacy instrumentation expanded for v3 round trip, populated auxiliary rejection, legacy preservation, interrupted restore and partial replay. Physical SAF and exact new CI pending. Last automation report and unsaved RAM-only measurements are not included. No release/version bump.
