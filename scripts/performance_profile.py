@@ -70,7 +70,7 @@ def cpu_delta(first, second, elapsed: float, hz: int | None) -> dict:
 def system_cpu(output: str, pid: int) -> float | None:
     # Android's own observation window, distinct from our monotonic idle window.
     m = re.search(r"(?m)^\s*[+]?(\d+(?:\.\d+)?)%\s+" + str(pid) +
-                  "/" + re.escape(PACKAGE) + r":", output)
+                  "/" + re.escape(PACKAGE) + r":(?:\s|$)", output)
     return float(m.group(1)) if m else None
 
 
