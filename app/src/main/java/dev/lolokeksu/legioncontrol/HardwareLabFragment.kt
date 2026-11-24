@@ -155,7 +155,11 @@ class HardwareLabFragment : Fragment() {
         if(requestCode!=batteryCsvRequest)return
         val csv=pendingBatteryCsv;pendingBatteryCsv=null
         val uri=data?.data
-        if(resultCode==android.app.Activity.RESULT_OK && csv!=null && uri!=null) batteryLab?.writeCsv(uri,csv)
+        if(resultCode==android.app.Activity.RESULT_OK && uri!=null) {
+            val panel=batteryLab
+            if(csv!=null && panel!=null) panel.writeCsv(uri,csv)
+            else report("Исходные замеры недоступны. Повторите экспорт CSV.")
+        }
     }
     override fun onSaveInstanceState(outState:Bundle) {
         pendingBatteryCsv?.let{outState.putString("batteryCsv",it)}

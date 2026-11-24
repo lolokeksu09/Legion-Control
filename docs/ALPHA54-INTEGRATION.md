@@ -11,3 +11,10 @@ INT-02: cross-module source review and fix confirmed lifecycle/rollback/measurem
 INT-03: publication remains gated; retain Alpha 49 version/signing until separately approved release preparation. No Beta release or physical-performance claim. New archives are not covered by existing full backup ZIP; explicit CSV export only. Physical network, battery, automation and visual/SAF acceptance outstanding.
 
 Source integration is not a passing build. See exact PR CI for evidence.
+
+## Source audit corrections
+
+- INT-02a: network confirmation before replacing an unsaved test; visibility gate and consistent save/delete callback state even if temporarily hidden; SAF CSV error feedback if payload/view missing. Equivalent battery archive callback handling.
+- INT-02b: restore requires Android readback of original value before clearing a field from durable journal; retain brightness-mode ticket if brightness restoration fails. Tests cover accepted, ignored, rejected and unreadable writes through a fake setting. No actual DND or OEM settings restoration claimed.
+- INT-02c: watchdog checks arm/overall deadlines independently of pending query; recheck ownership before processing delayed observations. Clock baseline uses simultaneous elapsed/wall start; stop request is not ignored just because overlay start is still queued.
+- Remaining: complete visual/device acceptance, archive ZIP integration, measured performance, game event limitations and final release metadata. Existing full backup format intentionally unchanged.

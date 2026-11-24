@@ -270,7 +270,11 @@ class ConnectivityLabFragment : Fragment() {
         if(requestCode==EXPORT_LIVE_CSV) {
             val csv=pendingLiveCsv; pendingLiveCsv=null
             val uri=data?.data
-            if(resultCode==Activity.RESULT_OK && csv!=null && uri!=null) livePanel?.writeCsv(uri,csv)
+            if(resultCode==Activity.RESULT_OK && uri!=null) {
+                val panel=livePanel
+                if(csv!=null && panel!=null) panel.writeCsv(uri,csv)
+                else show("Исходные замеры недоступны. Повторите экспорт CSV.")
+            }
             return
         }
         if(requestCode!=EXPORT_CSV || resultCode!=Activity.RESULT_OK) return

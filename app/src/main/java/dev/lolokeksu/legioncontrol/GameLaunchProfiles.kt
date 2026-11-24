@@ -151,7 +151,8 @@ object GameLaunchProfiles {
                 nm.setInterruptionFilter(it.requested)
             }
             GameLaunchResult(true,
-                "Изменения запрошены у Android. Исходные значения сохранены; возврат вручную.")
+                if(owner==null) "Изменения запрошены у Android. Исходные значения сохранены; возврат вручную."
+                else "Изменения запрошены у Android. Исходные значения сохранены для авто-возврата.")
         } catch (e: Exception) {
             val undo = restore(context)
             GameLaunchResult(false, "Применение прервано: ${e.javaClass.simpleName}. " +
@@ -184,7 +185,7 @@ object GameLaunchProfiles {
                     RestoreChoice.ALREADY_ORIGINAL -> null
                     RestoreChoice.CHANGED_BY_USER -> { conflicts++; null }
                     RestoreChoice.RESTORE -> {
-                        write(change.original)
+                        GameLaunchProfilePolicy.restoreAndVerify(read,write,change)
                         restored++
                         null
                     }
@@ -212,7 +213,10 @@ object GameLaunchProfiles {
             runCatching { Settings.System.getInt(resolver, Settings.System.SCREEN_BRIGHTNESS) }
                 .getOrNull()?.let { it != change.original && it != change.requested } == true
         } == true
-        val mode = if (manualBrightness) {
+        val mode = if (brightness != null) {
+            // Do not reactivate adaptive brightness while its value still needs retry.
+            ticket.brightnessMode
+        } else if (manualBrightness) {
             if (ticket.brightnessMode != null) conflicts++
             null
         } else restoreField(ticket.brightnessMode,

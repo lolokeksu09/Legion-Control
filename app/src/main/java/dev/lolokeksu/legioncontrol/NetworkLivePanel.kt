@@ -98,7 +98,7 @@ internal class NetworkLivePanel(context:Context,private val exportRequest:(Strin
     }
     fun setLegacyBusy(busy:Boolean) { legacyBusy=busy; buttons() }
     private fun buttons() {
-        val ready=!running && !legacyBusy && !ioBusy && !closed
+        val ready=visible && !running && !legacyBusy && !ioBusy && !closed
         start.isEnabled=ready
         target.isEnabled=ready
         planButton.isEnabled=ready
@@ -111,7 +111,15 @@ internal class NetworkLivePanel(context:Context,private val exportRequest:(Strin
         deleteButton.isEnabled=ready && saved && record!=null
     }
     private fun begin() {
-        if(running || legacyBusy || closed || ioBusy) return
+        if(!start.isEnabled)return
+        if(record!=null && !saved) {
+            LegionDialogs.builder(context).setTitle("Начать новый сетевой тест?")
+                .setMessage("Несохранённые измерения текущего теста будут заменены.")
+                .setPositiveButton("Начать") { _,_->startRun() }.setNegativeButton("Отмена",null).show()
+        } else startRun()
+    }
+    private fun startRun() {
+        if(!start.isEnabled)return
         val host=LiveNetworkPolicy.host(target.text.toString())
         if(host==null) { target.error="Введите домен или IPv4 без URL и порта"; return }
         target.error=null
@@ -209,10 +217,10 @@ internal class NetworkLivePanel(context:Context,private val exportRequest:(Strin
     private fun updateCharts(data:List<LiveNetworkPoint>) {
         tcpChart.update(data);dnsChart.update(data);gatewayChart.update(data)
     }
-    fun screenStarted() { visible=true }
-    fun screenStopped() { visible=false; stop() }
+    fun screenStarted() { visible=true;buttons() }
+    fun screenStopped() { visible=false; stop();buttons() }
 
-    private fun <T> archiveTask(work:()->T,success:(T)->Unit) {
+    private fun <T> archiveTask(work:()->T,deliverWhenHidden:Boolean=false,success:(T)->Unit) {
         if(closed || ioBusy || running || legacyBusy) return
         ioBusy=true; buttons()
         io.execute {
@@ -220,8 +228,8 @@ internal class NetworkLivePanel(context:Context,private val exportRequest:(Strin
             main.post {
                 if(!closed) {
                     ioBusy=false; buttons()
-                    result.onSuccess { if(visible) success(it) }
-                        .onFailure { if(visible) archiveStatus.text="Ошибка архива: "+(it.message?.take(140) ?: it.javaClass.simpleName) }
+                    result.onSuccess { if(visible || deliverWhenHidden) success(it) }
+                        .onFailure { archiveStatus.text="Ошибка архива: "+(it.message?.take(140) ?: it.javaClass.simpleName) }
                 }
             }
         }
@@ -232,7 +240,7 @@ internal class NetworkLivePanel(context:Context,private val exportRequest:(Strin
     }
     private fun saveRecord() {
         val snapshot=record ?: return
-        archiveTask({ withArchive{it.save(snapshot)} }) {
+        archiveTask({ withArchive{it.save(snapshot)} },deliverWhenHidden=true) {
             saved=true; buttons(); archiveStatus.text="Сохранено · "+snapshot.host
         }
     }
@@ -245,12 +253,19 @@ internal class NetworkLivePanel(context:Context,private val exportRequest:(Strin
                 .setItems(records.map(::label).toTypedArray()) { _,i->
                     if(!running && !ioBusy && !legacyBusy) {
                         val r=records[i]
-                        record=r; saved=true
-                        points.clear(); points.addAll(r.points)
-                        status.text=LiveNetworkReports.report(r)
-                        updateCharts(r.points)
-                        archiveStatus.text="Открыта запись: "+label(r)
-                        buttons()
+                        fun open() {
+                            if(!visible || running || ioBusy || legacyBusy || closed)return
+                            record=r; saved=true
+                            points.clear(); points.addAll(r.points)
+                            status.text=LiveNetworkReports.report(r)
+                            updateCharts(r.points)
+                            archiveStatus.text="Открыта запись: "+label(r)
+                            buttons()
+                        }
+                        if(record!=null && !saved) LegionDialogs.builder(context).setTitle("Открыть запись?")
+                            .setMessage("Несохранённый текущий тест будет заменён.")
+                            .setPositiveButton("Открыть") { _,_->open() }.setNegativeButton("Отмена",null).show()
+                        else open()
                     }
                 }.setNegativeButton("Отмена",null).show()
         }
@@ -273,7 +288,7 @@ internal class NetworkLivePanel(context:Context,private val exportRequest:(Strin
         LegionDialogs.builder(context).setTitle("Удалить сетевой тест?")
             .setMessage(label(r)+"\nДругие записи и старая история DNS/TLS не изменятся.")
             .setDestructive().setPositiveButton("Удалить") { _,_->
-                archiveTask({withArchive{it.delete(r.id)}}) { removed->
+                archiveTask({withArchive{it.delete(r.id)}},deliverWhenHidden=true) { removed->
                     if(removed) {
                         record=null; saved=false; points.clear()
                         updateCharts(emptyList())
@@ -284,11 +299,23 @@ internal class NetworkLivePanel(context:Context,private val exportRequest:(Strin
             }.setNegativeButton("Отмена",null).show()
     }
     fun writeCsv(uri:Uri,csv:String) {
-        archiveTask({
-            require(csv.length<=100_000)
-            val stream=requireNotNull(context.applicationContext.contentResolver.openOutputStream(uri,"wt"))
-            stream.bufferedWriter(Charsets.UTF_8).use { it.write(csv) }
-        }) { archiveStatus.text="CSV сохранён в выбранный документ." }
+        if(closed || ioBusy || running) {
+            archiveStatus.text="Экспорт не выполнен: повторите сохранение CSV."
+            return
+        }
+        ioBusy=true;buttons()
+        io.execute {
+            val result=runCatching {
+                require(csv.length<=100_000)
+                val stream=requireNotNull(context.applicationContext.contentResolver.openOutputStream(uri,"wt"))
+                stream.bufferedWriter(Charsets.UTF_8).use { it.write(csv) }
+            }
+            main.post { if(!closed) {
+                ioBusy=false
+                archiveStatus.text=if(result.isSuccess) "CSV сохранён в выбранный документ." else "Ошибка экспорта CSV."
+                buttons()
+            } }
+        }
     }
     fun stop() {
         if(!running) return

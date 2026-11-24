@@ -62,7 +62,7 @@ class GameToolboxService : Service() {
                 .putExtra("auto_confirmed_at",System.currentTimeMillis()))
         }
         internal fun stopAutomation(context:Context) {
-            if(active) context.startService(Intent(context,GameToolboxService::class.java).setAction(ACTION_AUTO_STOP))
+            context.startService(Intent(context,GameToolboxService::class.java).setAction(ACTION_AUTO_STOP))
         }
 
         fun refresh(context: Context) {

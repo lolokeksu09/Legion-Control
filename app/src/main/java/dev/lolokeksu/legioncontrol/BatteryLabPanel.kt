@@ -123,7 +123,7 @@ internal class BatteryLabPanel(context:Context,private val exportRequest:(String
         })+"\n"+BatteryLabReport.report(points)
         buttons()
     }
-    private fun <T> archive(work:(BatteryLabArchive)->T,done:(T)->Unit) {
+    private fun <T> archive(work:(BatteryLabArchive)->T,deliverWhenHidden:Boolean=false,done:(T)->Unit) {
         if(closed||running||ioBusy||!visible)return
         ioBusy=true;buttons()
         io.execute {
@@ -133,7 +133,7 @@ internal class BatteryLabPanel(context:Context,private val exportRequest:(String
             }
             main.post {
                 if(!closed){ioBusy=false
-                    result.onSuccess{if(visible)done(it)}.onFailure{notice.text="Ошибка архива: "+it.message.orEmpty().take(120)}
+                    result.onSuccess{if(visible || deliverWhenHidden)done(it)}.onFailure{notice.text="Ошибка архива: "+it.message.orEmpty().take(120)}
                     buttons()
                 }
             }
@@ -142,7 +142,7 @@ internal class BatteryLabPanel(context:Context,private val exportRequest:(String
     private fun label(r:BatteryLabRun)=DateFormat.getDateTimeInstance().format(Date(r.startedAt))+" · "+r.plan.label+" · "+r.points.first().plug+" · "+r.end
     private fun save() {
         val r=run?:return
-        archive({it.save(r)}){saved=true;notice.text="Тест сохранён."}
+        archive({it.save(r)},deliverWhenHidden=true){saved=true;notice.text="Тест сохранён."}
     }
     private fun history() {
         archive({it.list()}){list->
@@ -150,7 +150,7 @@ internal class BatteryLabPanel(context:Context,private val exportRequest:(String
             LegionDialogs.builder(context).setTitle("История · "+list.size+"/30")
                 .setItems(list.map(::label).toTypedArray()){_,i->
                     val selected=list[i]
-                    fun open(){run=selected;saved=true;points=selected.points.toMutableList();chart.update(points);report.text=label(selected)+"\n"+BatteryLabReport.report(points);notice.text="Открыта запись.";buttons()}
+                    fun open(){if(!visible||closed||running||ioBusy)return;run=selected;saved=true;points=selected.points.toMutableList();chart.update(points);report.text=label(selected)+"\n"+BatteryLabReport.report(points);notice.text="Открыта запись.";buttons()}
                     if(run!=null&&!saved) LegionDialogs.builder(context).setTitle("Открыть запись?")
                         .setMessage("Несохранённый текущий тест будет заменён.").setPositiveButton("Открыть"){_,_->open()}
                         .setNegativeButton("Отмена",null).show() else open()
@@ -177,13 +177,13 @@ internal class BatteryLabPanel(context:Context,private val exportRequest:(String
         if(!saved)return
         LegionDialogs.builder(context).setTitle("Удалить тест Battery Lab?")
             .setMessage("Удалится только выбранная запись.").setDestructive()
-            .setPositiveButton("Удалить"){_,_->archive({it.delete(r.id)}){removed->
+            .setPositiveButton("Удалить"){_,_->archive({it.delete(r.id)},deliverWhenHidden=true){removed->
                 if(removed){run=null;saved=false;points.clear();chart.update(emptyList());report.text="Запись удалена."}
                 notice.text=if(removed)"Удалена одна запись." else "Запись отсутствует."
             }}.setNegativeButton("Отмена",null).show()
     }
     fun writeCsv(uri:android.net.Uri,csv:String) {
-        if(closed||ioBusy||running)return
+        if(closed||ioBusy||running){notice.text="Экспорт не выполнен: повторите сохранение CSV.";return}
         ioBusy=true;buttons()
         io.execute {
             val result=runCatching {

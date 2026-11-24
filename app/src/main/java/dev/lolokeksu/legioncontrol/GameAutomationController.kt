@@ -30,8 +30,9 @@ internal class GameAutomationController(
     private val owner=UUID.randomUUID().toString()
     private val armedElapsed=SystemClock.elapsedRealtime()
     private var lastPollElapsed=armedElapsed
+    private val initialWall=System.currentTimeMillis()
     private var watermark=confirmedAt-1
-    private var lastWall=confirmedAt
+    private var lastWall=initialWall
     private var startedElapsed:Long?=null
     private var maxTemp:Int?=null
     private var maxThermal:Int?=null
@@ -41,7 +42,11 @@ internal class GameAutomationController(
     private val watchdog=object:Runnable {
         override fun run(){
             if(stopped)return
-            if(!runCatching{available()}.getOrDefault(false) || SystemClock.elapsedRealtime()-lastPollElapsed>GameAutomationPolicy.MAX_POLL_GAP_MS) {
+            val now=SystemClock.elapsedRealtime()
+            if(now-armedElapsed>=GameAutomationPolicy.MAX_MS || (startedElapsed==null && now-armedElapsed>=GameAutomationPolicy.ARM_MS)) {
+                stop("Лимит времени");return
+            }
+            if(!runCatching{available()}.getOrDefault(false) || now-lastPollElapsed>GameAutomationPolicy.MAX_POLL_GAP_MS) {
                 stop("Экран/доступ изменился или наблюдение зависло");return
             }
             main.postDelayed(this,2000L)
@@ -105,6 +110,9 @@ internal class GameAutomationController(
                 if(!runCatching{available()}.getOrDefault(false) || SystemClock.elapsedRealtime()-elapsed>GameAutomationPolicy.MAX_POLL_GAP_MS) {
                     stop("Наблюдение прервано");return@post
                 }
+                val nowElapsed=SystemClock.elapsedRealtime()
+                if(nowElapsed-armedElapsed>=GameAutomationPolicy.MAX_MS || (startedElapsed==null && nowElapsed-armedElapsed>=GameAutomationPolicy.ARM_MS)) {stop("Лимит времени");return@post}
+                if(owned&&!GameLaunchProfiles.ownsAutomatic(context,owner)){stop("Запись возврата изменена вручную");return@post}
                 val o=result.getOrElse{stop("События Android недоступны");return@post}
                 val nowWall=System.currentTimeMillis()
                 if(nowWall<wall || nowWall-wall>GameAutomationPolicy.MAX_POLL_GAP_MS){stop("Изменение часов или задержка чтения");return@post}
