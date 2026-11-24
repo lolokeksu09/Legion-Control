@@ -10,7 +10,9 @@ import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
+import android.widget.ArrayAdapter
 import android.widget.TextView
+import android.view.ViewGroup
 import kotlin.math.roundToInt
 
 /**
@@ -19,6 +21,22 @@ import kotlin.math.roundToInt
  */
 object LegionDialogs {
     fun builder(context: Context): Builder = Builder(context)
+
+    /** Filterable picker rows for embedded lists (e.g. game search). */
+    fun listAdapter(context: Context, items: List<String>): ArrayAdapter<String> =
+        object : ArrayAdapter<String>(context, android.R.layout.simple_list_item_1, items) {
+            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View =
+                super.getView(position, convertView, parent).apply {
+                    if (this is TextView) {
+                        textSize = 14f
+                        setTextColor(Color.WHITE)
+                        val density = resources.displayMetrics.density
+                        minimumHeight = (48 * density).roundToInt()
+                        setPadding((12 * density).roundToInt(), (8 * density).roundToInt(),
+                            (12 * density).roundToInt(), (8 * density).roundToInt())
+                    }
+                }
+        }
 
     class Builder internal constructor(private val context: Context) {
         private val delegate = AlertDialog.Builder(context, R.style.LegionDialogTheme)
