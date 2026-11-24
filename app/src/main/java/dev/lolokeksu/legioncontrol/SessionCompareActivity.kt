@@ -41,7 +41,7 @@ class SessionCompareActivity:FragmentActivity() {
         val current=vm.state.value
         if(uri==null) {
             current?.let(::render)
-        } else if(pair!=null && current?.pair===pair && current.busy==false) {
+        } else if(pair!=null && current!=null && current.pair===pair && !current.busy) {
             vm.export(uri,pair)
         } else {
             current?.let(::render)
