@@ -27,6 +27,7 @@ class SessionLibraryViewModel(app:Application):AndroidViewModel(app) {
     private val main=Handler(Looper.getMainLooper())
     private val live=MutableLiveData(LibraryState())
     val state:LiveData<LibraryState> = live
+    internal val pendingDocument = PendingDocument<LibraryDetail>()
     private var initialized=false
     private var closed=false
     private fun current()=requireNotNull(live.value)
@@ -106,6 +107,7 @@ class SessionLibraryViewModel(app:Application):AndroidViewModel(app) {
         }
     }
     override fun onCleared() {
+        pendingDocument.take()
         closed=true
         main.removeCallbacksAndMessages(null)
         worker.shutdownNow()
