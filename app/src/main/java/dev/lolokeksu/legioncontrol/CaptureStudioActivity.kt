@@ -74,9 +74,10 @@ class CaptureStudioActivity : ComponentActivity() {
                 setPadding(0, 0, 0, 16.dp)
             })
         }
-        fun action(value: String, onClick: () -> Unit) {
+        fun action(value: String, featureId: String? = null, onClick: () -> Unit) {
             root.addView(Button(this).apply {
                 text = value
+                if(featureId != null) FeatureReveal.bind(this, featureId)
                 LegionUiSupport.styleAction(this)
                 setOnClickListener { onClick() }
             })
@@ -95,7 +96,7 @@ class CaptureStudioActivity : ComponentActivity() {
         root.addView(status)
 
         heading("Запись")
-        action("НАЧАТЬ ЗАПИСЬ ЭКРАНА") { askConsent() }
+        action("НАЧАТЬ ЗАПИСЬ ЭКРАНА", "capture.record") { askConsent() }
         action("ПОСТАВИТЬ ЗАПИСЬ НА ПАУЗУ") {
             if (CaptureRecordingService.recording && !CaptureRecordingService.paused) {
                 runCatching { CaptureRecordingService.pause(this) }
@@ -129,7 +130,7 @@ class CaptureStudioActivity : ComponentActivity() {
             "Внутренний звук выбранной игры записывается при согласии Android и " +
             "если игра допускает AudioPlaybackCapture; иначе сохраняется видео без звука. " +
             "Сохраняется только реально накопленный фрагмент.")
-        action("ЗАПУСТИТЬ REPLAY-БУФЕР") {
+        action("ЗАПУСТИТЬ REPLAY-БУФЕР", "capture.replay") {
             AlertDialog.Builder(this)
                 .setTitle("Длительность Replay")
                 .setItems(arrayOf("30 секунд", "60 секунд", "120 секунд")) { _, chosen ->
@@ -153,7 +154,7 @@ class CaptureStudioActivity : ComponentActivity() {
         note("Один PNG после отдельного согласия Android. Через 5 секунд после согласия " +
             "будет захвачен текущий экран — переключитесь на нужную игру. " +
             "Защищённые окна могут скрываться.")
-        action("СДЕЛАТЬ СКРИНШОТ ЭКРАНА") { askScreenshotConsent() }
+        action("СДЕЛАТЬ СКРИНШОТ ЭКРАНА", "capture.screenshot") { askScreenshotConsent() }
         action("ОТМЕНИТЬ СКРИНШОТ") {
             CaptureScreenshotService.cancel(this)
             status.text = "Отмена снимка запрошена."
@@ -167,7 +168,7 @@ class CaptureStudioActivity : ComponentActivity() {
             setPadding(0, 0, 0, 8.dp)
         }
         root.addView(choices)
-        action("Разрешение · 720p / 1080p") { selectOption(
+        action("Разрешение · 720p / 1080p", "capture.quality") { selectOption(
             "Максимальная длинная сторона",
             "edge", intArrayOf(1280, 1920), arrayOf("1280 пикселей (720p при 16:9)", "1920 пикселей (1080p при 16:9)")
         ) }
@@ -179,7 +180,7 @@ class CaptureStudioActivity : ComponentActivity() {
             "Битрейт кодирования",
             "mbit", intArrayOf(4, 8, 12), arrayOf("4 Мбит/с", "8 Мбит/с", "12 Мбит/с")
         ) }
-        action("Звук игры · включить / выключить") {
+        action("Звук игры · включить / выключить", "capture.audio") {
             viewModel.choosePlaybackAudio(!viewModel.playbackAudioEnabled())
         }
         note("По умолчанию без звука. Android запросит RECORD_AUDIO при запуске со звуком; " +
@@ -218,7 +219,7 @@ class CaptureStudioActivity : ComponentActivity() {
         note("Готовые MP4 — в системной папке Movies/LegionControl/. " +
             "Здесь показываются только клипы, сохранённые самим Legion Control. " +
             "Никакие чужие видео приложение не читает.")
-        action("ОТКРЫТЬ БИБЛИОТЕКУ КЛИПОВ") { browseClips() }
+        action("ОТКРЫТЬ БИБЛИОТЕКУ КЛИПОВ", "capture.clips") { browseClips() }
         note("CLIP WORKSHOP · Выделяйте фрагменты MP4 без потери качества и " +
             "сохраняйте отдельные PNG-кадры. Начало MP4 округляется к предыдущему " +
             "ключевому кадру; исходный файл сохраняется.")
@@ -233,9 +234,9 @@ class CaptureStudioActivity : ComponentActivity() {
         heading("Полная локальная резервная копия")
         note("История SQLite и настройки Legion Control в одном ZIP через SAF. " +
             "Архив содержит сведения о ваших приложениях и сессиях — храните его приватно. " +
-            "Видеофайлы MP4 и PNG, а также индивидуальные требования Game Preflight в архив НЕ входят. " +
-            "При восстановлении ZIP требования Game Preflight потребуется настроить отдельно.")
-        action("ЭКСПОРТ ИСТОРИИ И НАСТРОЕК") {
+            "ZIP v2 включает индивидуальные требования Game Preflight. Старые ZIP v1 поддерживаются. " +
+            "Видеофайлы MP4 и PNG в архив НЕ входят.")
+        action("ЭКСПОРТ ИСТОРИИ И НАСТРОЕК", "capture.backup") {
             val choose = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
                 addCategory(Intent.CATEGORY_OPENABLE)
                 type = "application/zip"
@@ -244,7 +245,7 @@ class CaptureStudioActivity : ComponentActivity() {
             runCatching { startActivityForResult(choose, REQUEST_EXPORT_FULL_BACKUP) }
                 .onFailure { status.text = "SAF недоступен: " + it.javaClass.simpleName }
         }
-        action("ПРОВЕРИТЬ И ВОССТАНОВИТЬ ИЗ ZIP") {
+        action("ПРОВЕРИТЬ И ВОССТАНОВИТЬ ИЗ ZIP", "capture.restore") {
             val choose = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
                 addCategory(Intent.CATEGORY_OPENABLE)
                 type = "application/zip"
@@ -253,7 +254,7 @@ class CaptureStudioActivity : ComponentActivity() {
                 .onFailure { status.text = "SAF недоступен: " + it.javaClass.simpleName }
         }
 
-        action("ЗАВЕРШИТЬ ПРЕРВАННОЕ ВОССТАНОВЛЕНИЕ") {
+        action("ЗАВЕРШИТЬ ПРЕРВАННОЕ ВОССТАНОВЛЕНИЕ", "capture.resume") {
             viewModel.retryInterruptedRestore()
         }
         note("Если Android остановил приложение во время импорта ZIP, этот пункт " +
@@ -290,7 +291,10 @@ class CaptureStudioActivity : ComponentActivity() {
                     "таблиц ${inspected.preview.tables}, записей ${inspected.preview.rows}, " +
                     "параметров ${inspected.preview.settings}.\n\n" +
                     "Импорт разрешён только в ПУСТУЮ базу и не удаляет существующую " +
-                    "историю. Все текущие пользовательские настройки будут заменены. " +
+                    "историю. Настройки, включённые в архив, будут заменены. " +
+                    (if(inspected.preview.archiveVersion == 1)
+                        "ZIP v1 не содержит Game Preflight: текущие требования игр сохранятся. "
+                    else "ZIP v2 включает требования Game Preflight. ") +
                     "MP4/PNG и ключ подписи не импортируются.")
                 .setPositiveButton("Восстановить") { _, _ ->
                     viewModel.restoreFullBackup(inspected.uri)
