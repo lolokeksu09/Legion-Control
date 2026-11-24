@@ -31,6 +31,13 @@ def pss_kib(raw):
     return int(m[1])
 
 
+def clock_ticks(raw):
+    value = raw.strip()
+    if not re.fullmatch(r"[0-9]{1,6}", value) or not 1 <= int(value) <= 100000:
+        raise ValueError("Invalid Android clock tick calibration")
+    return int(value)
+
+
 def proc_stat(raw):
     # comm can contain spaces or parentheses; remaining fields begin at state (3).
     fields = raw.strip().rsplit(")", 1)[1].split()
@@ -110,6 +117,12 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(pss_kib("  TOTAL 3456 100 99"), 3456)
         with self.assertRaises(ValueError):
             pss_kib("TOTAL RSS: 1234")
+
+    def test_clock_ticks(self):
+        self.assertEqual(clock_ticks("100\r\n"), 100)
+        for raw in ("", "permission denied", "0", "100001", "100 200"):
+            with self.assertRaises(ValueError):
+                clock_ticks(raw)
 
     def test_proc_stat(self):
         fields = ["S"] + ["0"] * 20

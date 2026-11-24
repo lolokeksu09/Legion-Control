@@ -7,3 +7,6 @@ PERF-01: CI smoke captures performance-home.json on Android 35 emulator: three p
 PERF-02: Games and Tools skip unrelated Ready-to-Ready rebuilds, preserving focused search, pending debounce and row objects. Games still rerender on app list/favorite changes, both on warning/loading/error changes; explicit user actions render normally. Other tabs unchanged. JVM policy test covers decisions; existing UI smoke checks search/navigation.
 
 PERF-03: baseline is initial Alpha 57 measurement; no before/after speedup claimed. For comparison run identical script/device/build type against both source revisions. CPU may be unavailable under Android proc access restrictions; explicit partial status, no silent success. No new permissions, database migrations or dependency additions. Release metadata remains Alpha 49; publication not requested.
+
+## CI correction
+Run 45444672713: build PASS; emulator failed before measurements at "Android clock tick calibration missing". The calibration instrumentation itself passed (3 tests), but the shell output did not contain the expected custom key. Replace that fragile output handoff with a debug-only private cache file, read through run-as before pm clear. Parser tests reject absent/invalid values, and raw resource instrumentation is saved. This is a targeted repair; exact new emulator execution remains required.
