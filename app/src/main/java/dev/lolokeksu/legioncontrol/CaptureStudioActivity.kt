@@ -233,7 +233,8 @@ class CaptureStudioActivity : ComponentActivity() {
         heading("Полная локальная резервная копия")
         note("История SQLite и настройки Legion Control в одном ZIP через SAF. " +
             "Архив содержит сведения о ваших приложениях и сессиях — храните его приватно. " +
-            "Видеофайлы MP4 и PNG в архив НЕ входят.")
+            "Видеофайлы MP4 и PNG, а также индивидуальные требования Game Preflight в архив НЕ входят. " +
+            "При восстановлении ZIP требования Game Preflight потребуется настроить отдельно.")
         action("ЭКСПОРТ ИСТОРИИ И НАСТРОЕК") {
             val choose = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
                 addCategory(Intent.CATEGORY_OPENABLE)
