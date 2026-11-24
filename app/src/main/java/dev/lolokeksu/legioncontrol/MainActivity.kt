@@ -309,6 +309,7 @@ class MainActivity : ComponentActivity() {
             isFillViewport = true
             addView(layout)
         }, "ДИАГНОСТИКА УСТРОЙСТВА")
+        FeatureReveal.fromActivity(this, layout, FeatureModule.DIAGNOSTICS)
         // The real Rust writer survives recreation and never retains Android UI objects.
         sampleController = ViewModelProvider(this)[RustSampleController::class.java]
         sampleController.uiState.observe(this) { state ->

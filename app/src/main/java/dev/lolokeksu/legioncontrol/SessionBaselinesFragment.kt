@@ -83,6 +83,7 @@ class SessionBaselinesFragment:Fragment() {
     override fun onViewCreated(view:View,savedInstanceState:Bundle?) {
         super.onViewCreated(view,savedInstanceState)
         LegionUiSupport.styleModuleTree(view)
+        FeatureReveal.fromFragment(this, view, FeatureModule.BASELINES)
         vm=ViewModelProvider(this)[SessionBaselinesViewModel::class.java]
         vm.state.observe(viewLifecycleOwner) { state ->
             output.text=state.text

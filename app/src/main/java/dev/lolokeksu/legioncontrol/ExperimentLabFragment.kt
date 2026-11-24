@@ -131,6 +131,7 @@ class ExperimentLabFragment : Fragment() {
     override fun onViewCreated(view:View,savedInstanceState:Bundle?) {
         super.onViewCreated(view,savedInstanceState)
         LegionUiSupport.styleModuleTree(view)
+        FeatureReveal.fromFragment(this, view, FeatureModule.EXPERIMENT)
         vm=ViewModelProvider(this)[ExperimentLabViewModel::class.java]
         vm.state.observe(viewLifecycleOwner) { state ->
             display(state.message)

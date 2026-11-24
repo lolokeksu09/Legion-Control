@@ -67,6 +67,7 @@ class GamepadLiveActivity : Activity() {
         LegionUiSupport.setModuleActivityContent(this, ScrollView(this).apply {
             addView(root)
         }, "ПРОВЕРКА ГЕЙМПАДА")
+        FeatureReveal.fromActivity(this, root, FeatureModule.GAMEPAD)
         root.requestFocus()
     }
 

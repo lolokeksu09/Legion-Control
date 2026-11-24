@@ -12,9 +12,19 @@ files = {
     "HAPTIC": "HapticLabFragment.kt", "NETWORK": "ConnectivityLabFragment.kt",
     "PROFILE": "SmartProfilesFragment.kt", "APPS": "ApplicationCenterFragment.kt",
     "SESSION": "GameSessionFragment.kt", "TOOLBOX": "GameToolboxFragment.kt",
+    "GAMING": "GamingDiagnosticsFragment.kt",
+    "HARDWARE": "HardwareLabFragment.kt",
+    "COMPAT": "CompatibilityLabFragment.kt",
+    "EXPERIMENT": "ExperimentLabFragment.kt",
+    "SIGNALS": "SessionSignalsFragment.kt",
+    "INCIDENTS": "SessionIncidentsFragment.kt",
+    "BASELINES": "SessionBaselinesFragment.kt",
+    "DIAGNOSTICS": "MainActivity.kt",
+    "GAMEPAD": "GamepadLiveActivity.kt",
 }
 entries = re.findall(r'FeatureEntry\("([^"]+)", FeatureModule\.(\w+), "([^"]+)", "([^"]+)", "([^"]+)"\)', registry)
-assert len(entries) == 26, len(entries)
+assert len(entries) == 62, len(entries)
+assert len({e[1] for e in entries}) == 17
 assert len({e[0] for e in entries}) == len(entries)
 for key, module, title, anchor, _ in entries:
     source = (src / files[module]).read_text()
@@ -25,4 +35,4 @@ assert "requestRectangleOnScreen" in helper
 assert "FeatureFinder.resolve(id, module)" in helper
 assert "performClick(" not in helper and "callOnClick(" not in helper
 assert "startService(" not in helper and "startActivity(" not in helper
-print("PASS: 26 stable feature IDs bind to real controls across eight modules; reveal never executes actions")
+print("PASS: 62 stable feature IDs bind to real controls across 17 modules; reveal never executes actions")

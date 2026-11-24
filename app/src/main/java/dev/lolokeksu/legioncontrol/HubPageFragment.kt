@@ -334,15 +334,18 @@ class HubPageFragment : Fragment() {
     }
 
     /** Search results reveal existing controls; opening a result never runs the action. */
+    private fun openStandaloneFeature(cls: Class<*>, args: Bundle) {
+        runCatching { startActivity(Intent(requireContext(), cls).putExtras(args)) }
+            .onFailure {
+                AlertDialog.Builder(requireContext()).setTitle("Не удалось открыть действие")
+                    .setMessage(it.javaClass.simpleName).setPositiveButton("Понятно", null).show()
+            }
+    }
+
     private fun openFeature(entry: FeatureEntry) {
         val args = Bundle().apply { putString(FeatureFinder.EXTRA_FEATURE_ID, entry.id) }
         when (entry.module) {
-            FeatureModule.CAPTURE -> runCatching {
-                startActivity(Intent(requireContext(), CaptureStudioActivity::class.java).putExtras(args))
-            }.onFailure {
-                AlertDialog.Builder(requireContext()).setTitle("Не удалось открыть действие")
-                    .setMessage(it.javaClass.simpleName).setPositiveButton("Понятно", null).show()
-            }.let { Unit }
+            FeatureModule.CAPTURE -> openStandaloneFeature(CaptureStudioActivity::class.java, args)
             FeatureModule.AUDIO -> open(AudioLabActivity::class.java, args)
             FeatureModule.HAPTIC -> open(HapticLabActivity::class.java, args)
             FeatureModule.NETWORK -> open(ConnectivityLabActivity::class.java, args)
@@ -350,6 +353,15 @@ class HubPageFragment : Fragment() {
             FeatureModule.APPS -> open(ApplicationCenterActivity::class.java, args)
             FeatureModule.SESSION -> open(GameSessionActivity::class.java, args)
             FeatureModule.TOOLBOX -> open(GameToolboxActivity::class.java, args)
+            FeatureModule.GAMING -> open(GamingDiagnosticsActivity::class.java, args)
+            FeatureModule.HARDWARE -> open(HardwareLabActivity::class.java, args)
+            FeatureModule.COMPAT -> open(CompatibilityLabActivity::class.java, args)
+            FeatureModule.EXPERIMENT -> open(ExperimentLabActivity::class.java, args)
+            FeatureModule.SIGNALS -> NavHostFragment.findNavController(this).navigate(R.id.sessionSignalsFragment, args)
+            FeatureModule.INCIDENTS -> NavHostFragment.findNavController(this).navigate(R.id.sessionIncidentsFragment, args)
+            FeatureModule.BASELINES -> NavHostFragment.findNavController(this).navigate(R.id.sessionBaselinesFragment, args)
+            FeatureModule.DIAGNOSTICS -> openStandaloneFeature(MainActivity::class.java, args)
+            FeatureModule.GAMEPAD -> openStandaloneFeature(GamepadLiveActivity::class.java, args)
         }
     }
 
@@ -398,21 +410,6 @@ class HubPageFragment : Fragment() {
             results.removeAllViews()
             val filter = toolQuery.trim().lowercase(Locale.ROOT)
             var shown = 0
-            if (filter.isNotEmpty()) {
-                val functions = FeatureFinder.search(filter)
-                if (functions.isNotEmpty()) {
-                    results.addView(LegionUiSupport.sectionLabel(requireContext(), "КОНКРЕТНЫЕ ФУНКЦИИ"))
-                    functions.forEach { entry ->
-                        results.addView(LegionUiSupport.actionTile(
-                            requireContext(), entry.title,
-                            "${entry.module.displayName} · открыть действие"
-                        ) { openFeature(entry) }, LinearLayout.LayoutParams(-1, -2).apply {
-                            bottomMargin = 10.dp
-                        })
-                    }
-                    shown += functions.size
-                }
-            }
             for ((category, entries) in catalog) {
                 val matching = entries.filter { entry ->
                     filter.isEmpty() || (category + " " + entry.title + " " + entry.description)
@@ -430,6 +427,21 @@ class HubPageFragment : Fragment() {
                     )
                 }
                 shown += matching.size
+            }
+            if (filter.isNotEmpty()) {
+                val functions = FeatureFinder.search(filter)
+                if (functions.isNotEmpty()) {
+                    results.addView(LegionUiSupport.sectionLabel(requireContext(), "КОНКРЕТНЫЕ ФУНКЦИИ"))
+                    functions.forEach { entry ->
+                        results.addView(LegionUiSupport.actionTile(
+                            requireContext(), entry.title,
+                            "${entry.module.displayName} · открыть действие"
+                        ) { openFeature(entry) }, LinearLayout.LayoutParams(-1, -2).apply {
+                            bottomMargin = 10.dp
+                        })
+                    }
+                    shown += functions.size
+                }
             }
             if (shown == 0) {
                 results.addView(text("Инструменты не найдены. Попробуйте другое название.", 13f, muted))

@@ -10,6 +10,9 @@ class FeatureFinderTest {
         assertTrue(FeatureFinder.search("снимок png").any { it.id == "capture.screenshot" })
         assertTrue(FeatureFinder.search("подключенные аудиовыходы").any { it.id == "audio.routes" })
         assertTrue(FeatureFinder.search("dns tls").any { it.id == "network.single" })
+        assertTrue(FeatureFinder.search("widevine").any { it.id == "compat.drm" })
+        assertTrue(FeatureFinder.search("sha256").any { it.id == "hardware.storage" })
+        assertTrue(FeatureFinder.search("тепловая история").any { it.id == "diag.thermal" })
         assertTrue(FeatureFinder.search("unlikelysearch999").isEmpty())
         assertTrue(FeatureFinder.search("   ").isEmpty())
     }

@@ -6,7 +6,16 @@ import java.util.Locale
 enum class FeatureModule(val displayName: String) {
     CAPTURE("Capture Studio"), AUDIO("Audio Lab"), HAPTIC("Haptic Lab"),
     NETWORK("Connectivity Observatory"), PROFILE("Smart Profiles"),
-    APPS("Application Center"), SESSION("Game Session"), TOOLBOX("Game Toolbox")
+    APPS("Application Center"), SESSION("Game Session"), TOOLBOX("Game Toolbox"),
+    GAMING("Gaming Lab"),
+    HARDWARE("Hardware Lab"),
+    COMPAT("Compatibility Lab"),
+    EXPERIMENT("Experiment Lab"),
+    SIGNALS("Session Signals"),
+    INCIDENTS("Session Incidents"),
+    BASELINES("Session Baselines"),
+    DIAGNOSTICS("Диагностика Kotlin + Rust"),
+    GAMEPAD("Gamepad Live")
 }
 
 data class FeatureEntry(
@@ -50,7 +59,43 @@ object FeatureFinder {
         FeatureEntry("session.mark", FeatureModule.SESSION, "Метка игровой сессии", "Добавить метку во время записи", "session marker телеметрия"),
         FeatureEntry("session.csv", FeatureModule.SESSION, "Экспорт игровой истории", "Сохранить историю замеров CSV", "session csv история"),
         FeatureEntry("toolbox.profile", FeatureModule.TOOLBOX, "Профиль запуска игры", "Настроить профиль", "game toolbox яркость громкость dnd"),
-        FeatureEntry("toolbox.undo", FeatureModule.TOOLBOX, "Возврат системных настроек", "Восстановить прежние настройки", "game toolbox undo rollback яркость")
+        FeatureEntry("toolbox.undo", FeatureModule.TOOLBOX, "Возврат системных настроек", "Восстановить прежние настройки", "game toolbox undo rollback яркость"),
+        FeatureEntry("gaming.network", FeatureModule.GAMING, "Анализ сети игры", "1 · Network Analyzer — TCP/DNS", "сеть tcp dns network latency"),
+        FeatureEntry("gaming.wifi", FeatureModule.GAMING, "Состояние Wi-Fi и LTE", "6 · Wi-Fi / LTE Inspector", "wifi lte мобильная сеть сигнал"),
+        FeatureEntry("gaming.battery", FeatureModule.GAMING, "Диагностика батареи", "2 · Battery Intelligence", "battery заряд аккумулятор"),
+        FeatureEntry("gaming.thermal", FeatureModule.GAMING, "Тепловые события", "3 · Thermal Guard — включить/выключить события", "thermal нагрев температура троттлинг"),
+        FeatureEntry("gaming.touch", FeatureModule.GAMING, "Проверка мультитача", "4 · Touch Analyzer — мультитач и края", "touch экран касания сенсор"),
+        FeatureEntry("gaming.frames", FeatureModule.GAMING, "Интервалы кадров интерфейса", "5 · Frame Pacing — 5 секунд", "frame pacing плавность кадры интерфейс"),
+        FeatureEntry("gaming.charging", FeatureModule.GAMING, "Анализ зарядки", "8 · Charging Analyzer — сравнить с прошлым замером", "charging зарядка аккумулятор"),
+        FeatureEntry("gaming.health", FeatureModule.GAMING, "Состояние системы", "10 · System Health", "system health память состояние"),
+        FeatureEntry("hardware.route", FeatureModule.HARDWARE, "Маршруты локальной сети", "1 · Local Route Inspector", "route шлюз локальная сеть"),
+        FeatureEntry("hardware.events", FeatureModule.HARDWARE, "События подключения", "2 · Network Events — 30 секунд", "network events соединение"),
+        FeatureEntry("hardware.storage", FeatureModule.HARDWARE, "Проверка накопителя", "3 · Storage Lab — 8 МиБ / SHA-256", "storage диск запись чтение память sha256"),
+        FeatureEntry("hardware.motion", FeatureModule.HARDWARE, "Стабильность датчиков движения", "4 · Motion Stability — 5 секунд", "motion акселерометр гироскоп"),
+        FeatureEntry("hardware.display", FeatureModule.HARDWARE, "Тест цветов и пикселей", "5 · Display Patterns — пиксели и цвета", "display экран битые пиксели oled amoled"),
+        FeatureEntry("hardware.codec", FeatureModule.HARDWARE, "Аппаратные видеодекодеры", "6 · Codec Inspector — аппаратные видеодекодеры", "codec видео декодер"),
+        FeatureEntry("compat.hdr", FeatureModule.COMPAT, "Режимы экрана и HDR", "1 · Display Modes & HDR", "display hdr частота обновления"),
+        FeatureEntry("compat.audio", FeatureModule.COMPAT, "Аудиовыходы Android", "2 · Audio Output Inspector", "audio output звук"),
+        FeatureEntry("compat.controllers", FeatureModule.COMPAT, "Список игровых контроллеров", "3 · Gamepad Inventory", "gamepad геймпад bluetooth usb контроллер"),
+        FeatureEntry("compat.drm", FeatureModule.COMPAT, "Совместимость Widevine", "5 · DRM / Widevine Compatibility", "drm widevine защищенное видео"),
+        FeatureEntry("compat.cpu", FeatureModule.COMPAT, "Локальный тест CPU", "7 · Quick Compute Probe · локальный CPU-тест", "cpu процессор производительность"),
+        FeatureEntry("compat.report", FeatureModule.COMPAT, "Отчёт совместимости", "Полный отчёт о совместимости", "android compatibility отчёт"),
+        FeatureEntry("experiment.create", FeatureModule.EXPERIMENT, "Создать A/B эксперимент", "Создать эксперимент", "experiment сравнение условия"),
+        FeatureEntry("experiment.compare", FeatureModule.EXPERIMENT, "Сравнить результаты A/B", "Показать сравнение A/B", "experiment сравнение ab"),
+        FeatureEntry("experiment.csv", FeatureModule.EXPERIMENT, "Экспорт эксперимента CSV", "Экспортировать A/B данные CSV", "experiment export отчет"),
+        FeatureEntry("signals.timeline", FeatureModule.SIGNALS, "Хронология игровой сессии", "Обновить хронологию", "session signals события метки"),
+        FeatureEntry("signals.csv", FeatureModule.SIGNALS, "Экспорт событий сессии", "Сохранить события выбранной сессии CSV", "session signals csv история"),
+        FeatureEntry("incidents.filter", FeatureModule.INCIDENTS, "Фильтр проблемных состояний", "Фильтр категорий", "session incidents эпизоды ошибки"),
+        FeatureEntry("incidents.csv", FeatureModule.INCIDENTS, "Экспорт эпизодов CSV", "Сохранить эпизоды CSV", "session incidents отчет"),
+        FeatureEntry("baselines.week", FeatureModule.BASELINES, "Базовые показатели за неделю", "За последние 7 дней", "session baseline сравнение 7 дней"),
+        FeatureEntry("baselines.month", FeatureModule.BASELINES, "Базовые показатели за месяц", "За последние 30 дней", "session baseline сравнение 30 дней"),
+        FeatureEntry("baselines.csv", FeatureModule.BASELINES, "Экспорт базовых показателей", "Экспортировать сравнение CSV", "session baseline csv отчет"),
+        FeatureEntry("diag.measure", FeatureModule.DIAGNOSTICS, "Замер устройства Kotlin/Rust", "Обновить измерение", "rust jni измерение батареи"),
+        FeatureEntry("diag.battery", FeatureModule.DIAGNOSTICS, "Тест батареи 60 секунд", "Тест батареи · 60 секунд", "battery расход заряд"),
+        FeatureEntry("diag.thermal", FeatureModule.DIAGNOSTICS, "Тепловая история", "Тепловая история", "thermal температура история"),
+        FeatureEntry("diag.sensors", FeatureModule.DIAGNOSTICS, "Показания датчиков", "Снять показания датчиков", "sensor сенсор акселерометр"),
+        FeatureEntry("diag.zip", FeatureModule.DIAGNOSTICS, "Архив полной диагностики", "Экспорт полной диагностики ZIP", "rust diagnostic zip экспорт"),
+        FeatureEntry("gamepad.refresh", FeatureModule.GAMEPAD, "Обновить контроллеры", "Обновить список контроллеров", "gamepad bluetooth usb геймпад")
     )
 
     fun resolve(id: String?, module: FeatureModule): FeatureEntry? =
