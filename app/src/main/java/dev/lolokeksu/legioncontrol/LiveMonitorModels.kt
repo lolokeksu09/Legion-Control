@@ -27,11 +27,13 @@ enum class MonitorMetric(val label: String, val unit: String) {
     DISPLAY("Частота дисплея", "Гц"),
     BATTERY("Заряд батареи", "%");
 
+    val deltaUnit: String get() = if(this == BATTERY) "п.п." else unit
+
     fun value(p: MonitorPoint): Double? = when (this) {
-        TEMPERATURE -> p.temperatureDeciC?.div(10.0)
-        RAM -> p.availableRamBytes?.div(1073741824.0)
-        DISPLAY -> p.displayHz?.toDouble()
-        BATTERY -> p.battery?.toDouble()
+        TEMPERATURE -> p.temperatureDeciC?.takeIf { it in -400..1200 }?.div(10.0)
+        RAM -> p.availableRamBytes?.takeIf { it >= 0 && (p.totalRamBytes == null || it <= p.totalRamBytes) }?.div(1073741824.0)
+        DISPLAY -> p.displayHz?.takeIf { it.isFinite() && it in 1f..1000f }?.toDouble()
+        BATTERY -> p.battery?.takeIf { it in 0..100 }?.toDouble()
     }
 }
 
