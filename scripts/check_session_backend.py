@@ -40,7 +40,7 @@ for name in ("BatteryManager.EXTRA_PLUGGED", "BatteryManager.EXTRA_STATUS",
 for name in ("engine.resetSession()", "engine.durationMs()", "AndroidPowerSource.read("):
     assert name in controller, name
 for name in ("sampleController.resetSession()", "Intent.ACTION_SEND", "Intent.EXTRA_TEXT",
-             "Intent.createChooser", "AlertDialog.Builder(this)", "latestReport = null"):
+             "Intent.createChooser", "LegionDialogs.builder(this)", "latestReport = null"):
     assert name in activity, name
 assert "setPositiveButton(" in activity and "setNegativeButton(" in activity
 assert "versionCode = 48" in build
