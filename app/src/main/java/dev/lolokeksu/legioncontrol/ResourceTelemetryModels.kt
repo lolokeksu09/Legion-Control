@@ -74,6 +74,11 @@ data class StorageMetrics(
  * Fields can be unavailable independently. Battery current is a manufacturer-
  * reported signed microampere value, NOT charger wattage or Bypass status.
  */
+data class MonitorResourceSnapshot(
+    val systemMemory: ProbeResult<MemoryMetrics>,
+    val thermalHeadroom: ProbeResult<Float>
+)
+
 data class ResourceTelemetrySnapshot(
     val elapsedRealtimeMs: Long,
     val systemMemory: ProbeResult<MemoryMetrics>,
