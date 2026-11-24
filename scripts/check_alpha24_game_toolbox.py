@@ -64,6 +64,19 @@ assert "Settings.canDrawOverlays(this)" in service
 assert "START_NOT_STICKY" in service and "startForeground(" in service
 assert "stopSelf()" in service and "removeView(" in service
 assert "handler.removeCallbacks(clock)" in service and "onDestroy()" in service
+# Collapsed overlay owns only the handle until first expansion. No polling
+# timer or hidden panel construction during startup. Retain actual action paths.
+create = service.split("private fun createOverlay() {", 1)[1].split("private inner class DragHandler", 1)[0]
+toggle = service.split("private fun togglePanel() {", 1)[1].split("private fun applyPreferences()", 1)[0]
+refresh = service.split("private fun refreshClock() {", 1)[1].split("override fun onBind", 1)[0]
+assert "buildPanel()" not in create and "handler.post(clock)" not in service
+assert "if (!expanded && panel == null)" in toggle and "val tools = buildPanel()" in toggle
+assert "refreshClock()" in toggle and "handler.removeCallbacks(clock)" in refresh
+assert "if (expanded && overlay != null) clock.run()" in refresh
+assert "expanded && overlay != null && panel?.visibility == View.VISIBLE" in service
+assert "lastFeedback = message.take(220)" in service and "text = lastFeedback" in service
+assert "collapsedClockHasNoFrameOrNextWakeup" in tests
+assert "reopenedClockUsesOriginalElapsedTimeAndNextSecondBoundary" in tests
 assert "ACTION_STOP" in service and ".addAction(" in service
 assert "setOnTouchListener(DragHandler())" in service
 assert "ToolboxTuning.position(" in service and "ToolboxTuning.sizeDp(" in service

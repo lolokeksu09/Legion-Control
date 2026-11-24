@@ -81,6 +81,7 @@ class GameToolboxService : Service() {
     private var params: WindowManager.LayoutParams? = null
     private var ticker: TextView? = null
     private var feedback: TextView? = null
+    private var lastFeedback = "Все действия — вручную. Для DND и яркости нужны специальные разрешения."
     private var expanded = false
     private var startedAt = 0L
     private var automation:GameAutomationController?=null
@@ -88,11 +89,22 @@ class GameToolboxService : Service() {
 
     private val clock = object : Runnable {
         override fun run() {
-            val seconds = (SystemClock.elapsedRealtime() - startedAt).coerceAtLeast(0) / 1000
-            ticker?.text = "Панель активна " + (seconds / 60) + " мин " +
+            val frame = ToolboxTuning.clockFrame(
+                expanded && overlay != null && panel?.visibility == View.VISIBLE,
+                startedAt, SystemClock.elapsedRealtime()
+            ) ?: return
+            val label = ticker ?: return
+            val seconds = frame.seconds
+            val value = "Панель активна " + (seconds / 60) + " мин " +
                 (seconds % 60).toString().padStart(2, '0') + " с"
-            if (overlay != null) handler.postDelayed(this, 1000)
+            if (label.text.toString() != value) label.text = value
+            handler.postDelayed(this, frame.nextDelayMs)
         }
+    }
+
+    private fun refreshClock() {
+        handler.removeCallbacks(clock)
+        if (expanded && overlay != null) clock.run()
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -121,8 +133,7 @@ class GameToolboxService : Service() {
                 promoteToForeground()
                 startedAt = SystemClock.elapsedRealtime()
                 createOverlay()
-                active = true
-                handler.post(clock)
+                active = true // Collapsed: no panel timer or hidden view work.
             } catch (_: Exception) {
                 stopSelf()
             }
@@ -207,13 +218,9 @@ class GameToolboxService : Service() {
             contentDescription = "Открыть или свернуть Game Toolbox. Удерживать и переместить."
         }
         root.addView(handle, LinearLayout.LayoutParams(buttonSize, buttonSize))
-        val tools = buildPanel()
-        tools.visibility = View.GONE
-        root.addView(tools, LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        // Construct the heavy controls only if the user actually opens them.
         overlay = root
         bubble = handle
-        panel = tools
 
         val metrics = windows.currentWindowMetrics.bounds
         val config = WindowManager.LayoutParams(
@@ -351,7 +358,7 @@ class GameToolboxService : Service() {
             setTextColor(0xFFFFD88A.toInt())
             setPadding(0, 8.dp, 0, 0)
             maxLines = 4
-            text = "Все действия — вручную. Для DND и яркости нужны специальные разрешения."
+            text = lastFeedback
         }
         box.addView(feedback)
         return box
@@ -397,16 +404,27 @@ class GameToolboxService : Service() {
     }
 
     private fun showFeedback(message: String) {
-        feedback?.text = message.take(220)
+        lastFeedback = message.take(220)
+        feedback?.let { if (it.text.toString() != lastFeedback) it.text = lastFeedback }
     }
 
     private fun togglePanel() {
+        val root = overlay ?: return
+        if (!expanded && panel == null) {
+            val tools = buildPanel()
+            tools.visibility = View.GONE
+            root.addView(tools, LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+            panel = tools
+        }
         expanded = !expanded
         panel?.visibility = if (expanded) View.VISIBLE else View.GONE
         applyPreferences()
+        refreshClock()
         // Panel height becomes known after the first layout pass. Reposition the
         // complete expanded panel on screen even if the user dragged LC to the bottom.
         if (expanded) overlay?.post {
+            if (!expanded) return@post
             val root = overlay ?: return@post
             val p = params ?: return@post
             val height = windows.currentWindowMetrics.bounds.height()
