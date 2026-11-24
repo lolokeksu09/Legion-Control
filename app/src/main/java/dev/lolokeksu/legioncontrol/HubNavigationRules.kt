@@ -4,7 +4,7 @@ package dev.lolokeksu.legioncontrol
 enum class HubTab(val key: String, val title: String, val shortTitle: String) {
     HOME("home", "Главная", "Главная"),
     GAMES("games", "Игры", "Игры"),
-    TOOLS("tools", "Инструменты", "Инструменты"),
+    TOOLS("tools", "Инструменты", "Инстр."),
     HISTORY("history", "История", "История"),
     SETTINGS("settings", "Настройки", "Настройки");
 
