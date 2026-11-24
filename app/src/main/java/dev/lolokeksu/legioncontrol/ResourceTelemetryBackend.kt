@@ -54,6 +54,11 @@ object ResourceTelemetryBackend {
         )
     }
 
+    /** Only the two resource fields required by the frequent live monitor. */
+    fun readForMonitor(context: Context): MonitorResourceSnapshot =
+        MonitorResourceSnapshot(readSystemMemory(context),
+            readThermalHeadroom(context, SystemClock.elapsedRealtime()))
+
     private fun readSystemMemory(context: Context): ProbeResult<MemoryMetrics> {
         return try {
             val manager = context.getSystemService(Context.ACTIVITY_SERVICE)
