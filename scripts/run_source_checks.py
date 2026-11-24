@@ -62,6 +62,7 @@ CHECKS = (
     "check_runtime_osv.py",
     "check_unified_dialogs.py",
     "check_performance_profile.py",
+    "check_smoke_ui_selector.py",
 )
 
 def main():

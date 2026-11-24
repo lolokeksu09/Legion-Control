@@ -10,6 +10,7 @@ import time
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from performance_profile import PerformanceProfile
+from smoke_ui_selector import locate
 
 PACKAGE = "dev.lolokeksu.legioncontrol"
 TOOLS_MARKER = "ВСЕ СИСТЕМНЫЕ ИНСТРУМЕНТЫ"
@@ -145,24 +146,7 @@ def dimensions() -> tuple[int, int]:
 
 
 def find(needle: str, exact_only: bool = False) -> tuple[int, int] | None:
-    tree = hierarchy()
-    candidates = []
-    for node in tree.iter("node"):
-        label = node.get("text", "")
-        desc = node.get("content-desc", "")
-        bounds = node.get("bounds", "")
-        exact = label == needle or desc == needle
-        partial = needle.casefold() in (label + " " + desc).casefold()
-        if not partial or (exact_only and not exact):
-            continue
-        match = re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", bounds)
-        if match:
-            x1,y1,x2,y2 = map(int, match.groups())
-            candidates.append((0 if exact else 1, (x1+x2)//2,(y1+y2)//2))
-    if not candidates:
-        return None
-    candidates.sort()
-    return candidates[0][1], candidates[0][2]
+    return locate(hierarchy(), needle, exact_only)
 
 
 def click(needle: str, scrolls: int = 7, direction: str = "down",
@@ -174,7 +158,7 @@ def click(needle: str, scrolls: int = 7, direction: str = "down",
             tapped_at = time.monotonic()
             adb("shell", "input", "tap", str(pos[0]), str(pos[1]))
             time.sleep(.75)
-            print("TAP:", needle, flush=True)
+            print("TAP:", needle, "at", pos, flush=True)
             return tapped_at
         if attempt != scrolls:
             if direction == "up":
@@ -308,6 +292,7 @@ def main() -> None:
     # shell must NOT launch them directly. Use the actual user-visible Hub.
     click("Инструменты")
     expect(TOOLS_MARKER)
+    expect_selected_tab("Инструменты")
     click("Gaming Lab", scrolls=16)
     expect("LEGION CONTROL · GAMING LAB")
     expect("ПРОВЕРКИ УСТРОЙСТВА")
