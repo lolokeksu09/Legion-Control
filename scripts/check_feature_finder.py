@@ -33,8 +33,9 @@ assert len({e[0] for e in entries}) == len(entries)
 for key, module, title, anchor, _ in entries:
     source = (src / files[module]).read_text()
     assert f'"{anchor}"' in source, (key, anchor)
-    if module == "CAPTURE":
-        assert f'action("{anchor}", "{key}")' in source, key
+    if module in {"CAPTURE", "MONITOR", "PREFLIGHT", "COMPARE", "LIBRARY"}:
+        helper_name = "action" if module in {"CAPTURE", "MONITOR"} else "button"
+        assert f'{helper_name}("{anchor}", "{key}")' in source, key
     assert f'FeatureModule.{module}' in source, (key, module)
     assert f'FeatureModule.{module} ->' in (src / "HubPageFragment.kt").read_text()
 assert "requestRectangleOnScreen" in helper

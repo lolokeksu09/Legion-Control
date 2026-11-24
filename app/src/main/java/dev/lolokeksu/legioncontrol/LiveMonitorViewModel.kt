@@ -15,6 +15,7 @@ data class MonitorState(
     val points: List<MonitorPoint> = emptyList(),
     val baseline: MonitorPoint? = null,
     val intervalMs: Long = 5000L,
+    val exporting: Boolean = false,
     val message: String = "Мониторинг не запущен. Выберите интервал и нажмите старт."
 )
 
@@ -23,6 +24,8 @@ class LiveMonitorViewModel(app: Application) : AndroidViewModel(app) {
     private val worker = Executors.newSingleThreadExecutor()
     private val mutable = MutableLiveData(MonitorState())
     val state: LiveData<MonitorState> = mutable
+    private val pendingDocument = PendingDocument<List<MonitorPoint>>()
+    val hasPendingDocument get() = pendingDocument.hasPending
     private var visible = false
     private var generation = 0L
     private var started = 0L
@@ -42,7 +45,7 @@ class LiveMonitorViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun start() {
-        if (!visible || current().running) return
+        if (!visible || current().running || current().exporting || hasPendingDocument) return
         generation++
         started = SystemClock.elapsedRealtime()
         mutable.value = current().copy(running = true, points = emptyList(),
@@ -58,7 +61,7 @@ class LiveMonitorViewModel(app: Application) : AndroidViewModel(app) {
             val elapsed = (SystemClock.elapsedRealtime() - runStart).coerceAtLeast(0)
             val app = getApplication<Application>()
             val telemetry = runCatching { GameSessionTelemetry.snapshot(app) }.getOrNull()
-            val resources = runCatching { ResourceTelemetryBackend.read(app) }.getOrNull()
+            val resources = runCatching { ResourceTelemetryBackend.readForMonitor(app) }.getOrNull()
             val memory = resources?.systemMemory?.value
             val point = MonitorPoint(
                 elapsedMs = elapsed,
@@ -106,10 +109,25 @@ class LiveMonitorViewModel(app: Application) : AndroidViewModel(app) {
         mutable.value = current().copy(baseline = null, message = "Контрольная точка сброшена.")
     }
 
-    fun export(uri: android.net.Uri) {
-        // Freeze the selected run before touching a document provider.
-        val points = current().points.toList()
-        if (points.isEmpty() || current().running) return
+    /** Freeze the run before opening the system document picker. */
+    fun beginExport(): Boolean {
+        val s = current()
+        if(s.running || s.exporting || s.points.isEmpty()) return false
+        return pendingDocument.begin(s.points.toList())
+    }
+
+    fun finishExport(uri: android.net.Uri?) {
+        val points = pendingDocument.take()
+        if(uri == null) {
+            mutable.value = current().copy(message = "Экспорт отменён.")
+            return
+        }
+        if(points == null) {
+            mutable.value = current().copy(message = "Исходные замеры недоступны. Повторите экспорт.")
+            return
+        }
+        if(current().running || current().exporting) return
+        mutable.value = current().copy(exporting = true, message = "Сохраняю CSV…")
         val token = generation
         worker.execute {
             val result = runCatching {
@@ -119,13 +137,14 @@ class LiveMonitorViewModel(app: Application) : AndroidViewModel(app) {
             }
             main.post {
                 if (token != generation) return@post
-                mutable.value = current().copy(message = if (result.isSuccess)
+                mutable.value = current().copy(exporting = false, message = if (result.isSuccess)
                     "CSV сохранён: ${points.size} замеров." else "Не удалось сохранить CSV.")
             }
         }
     }
 
     override fun onCleared() {
+        pendingDocument.take()
         generation++
         main.removeCallbacks(tick)
         pending?.cancel(true)

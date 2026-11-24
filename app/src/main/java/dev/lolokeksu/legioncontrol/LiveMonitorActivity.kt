@@ -31,7 +31,7 @@ class LiveMonitorActivity : FragmentActivity() {
     private var metric = MonitorMetric.TEMPERATURE
     private val Int.dp get() = (this * resources.displayMetrics.density + .5f).toInt()
     private val document = registerForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
-        if (uri != null && ::model.isInitialized) model.export(uri)
+        if (::model.isInitialized) model.finishExport(uri)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -55,8 +55,9 @@ class LiveMonitorActivity : FragmentActivity() {
                 setPadding(0, 5.dp, 0, 10.dp)
                 root.addView(this, LinearLayout.LayoutParams(-1, -2))
             }
-        fun action(title: String, click: () -> Unit): Button = Button(this).apply {
+        fun action(title: String, featureId: String? = null, click: () -> Unit): Button = Button(this).apply {
             text = title
+            if(featureId != null) FeatureReveal.bind(this, featureId)
             LegionUiSupport.styleAction(this)
             setOnClickListener { click() }
             root.addView(this)
@@ -77,7 +78,7 @@ class LiveMonitorActivity : FragmentActivity() {
                     dialog.dismiss()
                 }.setNegativeButton("Отмена", null).show()
         }
-        startButton = action("НАЧАТЬ МОНИТОРИНГ") {
+        startButton = action("НАЧАТЬ МОНИТОРИНГ", "monitor.start") {
             if (model.state.value?.points?.isNotEmpty() == true) {
                 AlertDialog.Builder(this).setTitle("Начать новый мониторинг?")
                     .setMessage("Новые измерения заменят текущие замеры в памяти. Сначала экспортируйте CSV, если хотите сохранить их. Контрольная точка останется.")
@@ -90,7 +91,7 @@ class LiveMonitorActivity : FragmentActivity() {
         root.addView(LegionUiSupport.sectionLabel(this, "ТЕКУЩИЕ ПОКАЗАНИЯ"))
         summary = label("Показаний пока нет.")
         root.addView(LegionUiSupport.sectionLabel(this, "ГРАФИК"))
-        metricButton = action("Выбрать показатель графика") {
+        metricButton = action("Выбрать показатель графика", "monitor.chart") {
             val options = MonitorMetric.entries
             AlertDialog.Builder(this).setTitle("Показатель графика")
                 .setSingleChoiceItems(options.map { it.label }.toTypedArray(),
@@ -104,12 +105,18 @@ class LiveMonitorActivity : FragmentActivity() {
         chart = MonitorChartView(this)
         root.addView(chart, LinearLayout.LayoutParams(-1, 172.dp).apply { bottomMargin = 12.dp })
         root.addView(LegionUiSupport.sectionLabel(this, "СРАВНЕНИЕ С КОНТРОЛЬНОЙ ТОЧКОЙ"))
-        pinButton = action("ЗАФИКСИРОВАТЬ КОНТРОЛЬНУЮ ТОЧКУ") { model.pinBaseline() }
+        pinButton = action("ЗАФИКСИРОВАТЬ КОНТРОЛЬНУЮ ТОЧКУ", "monitor.baseline") { model.pinBaseline() }
         comparison = label("Контрольная точка не выбрана.")
         clearButton = action("Сбросить контрольную точку") { model.clearBaseline() }
         root.addView(LegionUiSupport.sectionLabel(this, "ЭКСПОРТ"))
-        exportButton = action("СОХРАНИТЬ МОНИТОРИНГ CSV") {
-            document.launch("legion-monitor-${System.currentTimeMillis()}.csv")
+        exportButton = action("СОХРАНИТЬ МОНИТОРИНГ CSV", "monitor.csv") {
+            if (!model.beginExport()) return@action
+            model.state.value?.let(::render)
+            runCatching { document.launch("legion-monitor-${System.currentTimeMillis()}.csv") }
+                .onFailure {
+                    model.finishExport(null)
+                    status.text = "Не удалось открыть выбор документа."
+                }
         }
         label("До 120 замеров в памяти. Для сохранения данных остановите мониторинг и экспортируйте CSV. Данные не отправляются в сеть и не добавляются в SQLite.",
             13f, LegionUiSupport.MUTED)
@@ -129,11 +136,11 @@ class LiveMonitorActivity : FragmentActivity() {
         // Keep the stable action anchor for the finder.
         intervalButton.text = "Интервал измерений"
         intervalButton.contentDescription = "Интервал измерений: ${state.intervalMs / 1000} секунд"
-        startButton.isEnabled = !state.running
+        startButton.isEnabled = !state.running && !state.exporting && !model.hasPendingDocument
         stopButton.isEnabled = state.running
         pinButton.isEnabled = state.points.isNotEmpty()
         clearButton.isEnabled = state.baseline != null
-        exportButton.isEnabled = !state.running && state.points.isNotEmpty()
+        exportButton.isEnabled = !state.running && !state.exporting && !model.hasPendingDocument && state.points.isNotEmpty()
         val last = state.points.lastOrNull()
         summary.text = if (last == null) "Показаний пока нет." else buildString {
             append("Замеров: ").append(state.points.size).append(" · время: ")
@@ -154,7 +161,7 @@ class LiveMonitorActivity : FragmentActivity() {
         }
         val values = state.points.mapNotNull(metric::value)
         chartSummary.text = if (values.isEmpty()) "${metric.label} · нет доступных показаний" else
-            "${metric.label} · минимум ${format(values.minOrNull(), metric.unit)} · максимум ${format(values.maxOrNull(), metric.unit)} · доступно ${values.size}/${state.points.size}"
+            "${metric.label} · минимум ${format(values.minOrNull(), metric.unit)} · максимум ${format(values.maxOrNull(), metric.unit)} · последнее ${format(state.points.lastOrNull()?.let(metric::value), metric.unit)} · доступно ${values.size}/${state.points.size}"
         chart.update(state.points, metric)
         comparison.text = if (state.baseline == null) "Контрольная точка не выбрана." else buildString {
             append("Изменение относительно сохранённого замера:\n")
@@ -162,7 +169,7 @@ class LiveMonitorActivity : FragmentActivity() {
                 val delta = MonitorPolicy.delta(m, state.baseline, last)
                 append(m.label).append(": ")
                     .append(if (delta != null && delta > 0) "+" else "")
-                    .append(format(delta, m.unit)).append('\n')
+                    .append(format(delta, m.deltaUnit)).append('\n')
             }
         }
     }
