@@ -28,14 +28,20 @@ class SessionLibraryActivity:FragmentActivity() {
     private lateinit var next:Button
     private lateinit var previous:Button
     private lateinit var export:Button
-    private var pendingExport:LibraryDetail?=null
     private var lastDetail:LibraryDetail?=null
     private val Int.dp get()=(this*resources.displayMetrics.density+.5f).toInt()
     private val document=registerForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
-        val selected=pendingExport
-        pendingExport=null
-        if(uri!=null && selected!=null && ::vm.isInitialized)vm.export(uri,selected)
-        else if(uri!=null && ::status.isInitialized)status.text="Выбор изменился. Повторите экспорт."
+        if(!::vm.isInitialized) return@registerForActivityResult
+        val selected=vm.pendingDocument.take()
+        val current=vm.state.value
+        if(uri==null) {
+            current?.let(::render)
+        } else if(selected!=null && current?.detail===selected && current.busy==false) {
+            vm.export(uri,selected)
+        } else {
+            current?.let(::render)
+            if(::status.isInitialized)status.text="Исходный результат недоступен. Повторите экспорт."
+        }
     }
     override fun onCreate(savedInstanceState:Bundle?) {
         super.onCreate(savedInstanceState)
@@ -89,9 +95,14 @@ class SessionLibraryActivity:FragmentActivity() {
         detail=label("Выберите завершённую запись.").apply { setTextIsSelectable(true) }
         export=button("ЭКСПОРТ ВЫБРАННОЙ СЕССИИ ZIP") {
             val selected=vm.state.value?.detail ?: return@button
-            pendingExport=selected
+            if(!vm.pendingDocument.begin(selected)) return@button
+            export.isEnabled=false
             runCatching { document.launch("legion-session-${selected.header.id.take(8)}.zip") }
-                .onFailure { pendingExport=null;status.text="Не удалось открыть выбор документа." }
+                .onFailure {
+                    vm.pendingDocument.take()
+                    vm.state.value?.let(::render)
+                    status.text="Не удалось открыть выбор документа."
+                }
         }
         LegionUiSupport.setModuleActivityContent(this,ScrollView(this).apply { addView(root) },"БИБЛИОТЕКА ИГРОВЫХ СЕССИЙ")
         vm.state.observe(this,::render)
@@ -105,7 +116,7 @@ class SessionLibraryActivity:FragmentActivity() {
         previous.isEnabled=!s.busy && s.previous.isNotEmpty()
         next.isEnabled=!s.busy && s.next!=null && s.previous.size<499
         if(s.next!=null && s.previous.size>=499) filters.append("\nЛимит 500 страниц. Уточните фильтр.")
-        export.isEnabled=!s.busy && s.detail!=null
+        export.isEnabled=!s.busy && s.detail!=null && !vm.pendingDocument.hasPending
         list.removeAllViews()
         if(s.rows.isEmpty())list.addView(TextView(this).apply {
             text="Записей нет.";setTextColor(LegionUiSupport.MUTED);setPadding(0,8.dp,0,8.dp)
