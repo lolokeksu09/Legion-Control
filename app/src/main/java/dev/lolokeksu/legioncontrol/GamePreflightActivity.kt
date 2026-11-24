@@ -60,8 +60,9 @@ class GamePreflightActivity : FragmentActivity() {
                 setPadding(0,6.dp,0,10.dp)
                 root.addView(this)
             }
-        fun button(title:String,action:()->Unit)=Button(this).apply {
+        fun button(title:String,featureId:String?=null,action:()->Unit)=Button(this).apply {
             this.text=title
+            if(featureId!=null) FeatureReveal.bind(this,featureId)
             LegionUiSupport.styleAction(this)
             setOnClickListener { action() }
             root.addView(this)
@@ -76,17 +77,17 @@ class GamePreflightActivity : FragmentActivity() {
         }
         root.addView(LegionUiSupport.sectionLabel(this,"ИГРА И ТРЕБОВАНИЯ"))
         selection=text("Игра не выбрана.")
-        choose=button("ВЫБРАТЬ ИГРУ ДЛЯ ПРОВЕРКИ") { chooseApp() }
+        choose=button("ВЫБРАТЬ ИГРУ ДЛЯ ПРОВЕРКИ", "preflight.game") { chooseApp() }
         refresh=button("Обновить список приложений") { model.loadApps() }
         requirements=text("Требования появятся после выбора игры.")
-        edit=button("НАСТРОИТЬ ТРЕБОВАНИЯ ИГРЫ") { configure() }
-        check=button("ВЫПОЛНИТЬ ПРОВЕРКУ ПЕРЕД ЗАПУСКОМ") { model.check() }
+        edit=button("НАСТРОИТЬ ТРЕБОВАНИЯ ИГРЫ", "preflight.requirements") { configure() }
+        check=button("ВЫПОЛНИТЬ ПРОВЕРКУ ПЕРЕД ЗАПУСКОМ", "preflight.check") { model.check() }
         root.addView(LegionUiSupport.sectionLabel(this,"РЕЗУЛЬТАТ ПРОВЕРКИ"))
         reportSummary=text("Проверка ещё не выполнялась.")
         results=LinearLayout(this).apply { orientation=LinearLayout.VERTICAL }
         root.addView(results)
         launch=button("ЗАПУСТИТЬ ПРОВЕРЕННУЮ ИГРУ") { requestLaunch() }
-        share=button("Поделиться отчётом проверки") {
+        share=button("Поделиться отчётом проверки", "preflight.report") {
             val report=model.state.value?.report ?: return@button
             open(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
                 type="text/plain"
