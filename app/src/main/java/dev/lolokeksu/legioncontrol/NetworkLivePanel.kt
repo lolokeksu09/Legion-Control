@@ -30,7 +30,7 @@ internal class NetworkLivePanel(context:Context,private val exportRequest:(Strin
     private var visible=false
     private var plan=LiveNetworkPlan.NORMAL
     private var ipMode=LiveIpMode.AUTO
-    private var showDns=false
+    private var chartMode=0
     private var activeId=""
     private var activeHost=""
     private var activeStarted=0L
@@ -56,44 +56,50 @@ internal class NetworkLivePanel(context:Context,private val exportRequest:(Strin
         textSize=13f
         LegionUiSupport.reportSurface(this)
     }
+    private val metrics=CompactLabUi.metric(context).apply{text="TCP — мс  ·  DNS — мс\nДжиттер — мс  ·  ошибки — %"}
     private val tcpChart=LiveLatencyChart(context,false)
     private val dnsChart=LiveLatencyChart(context,false,true)
-    private val chartToggle=Button(context).apply { text="График: TCP"; isAllCaps=false; setOnClickListener { toggleChart() } }
+    private val chartToggle=Button(context).apply { text="График: TCP"; isAllCaps=false; setOnClickListener { chooseChart() } }
     private val gatewayChart=LiveLatencyChart(context,true)
     private val ipButton=Button(context).apply { text=ipMode.label; isAllCaps=false; setOnClickListener { chooseIpMode() } }
     private val planButton=Button(context).apply { text=plan.label; isAllCaps=false; setOnClickListener { choosePlan() } }
-    private val start=Button(context).apply { text="Запустить живой тест"; isAllCaps=false; setOnClickListener { begin() } }
-    private val stop=Button(context).apply { text="Остановить живой тест"; isAllCaps=false; isEnabled=false; setOnClickListener { stop() } }
+    private val start=Button(context).apply { text="Запустить тест"; isAllCaps=false; setOnClickListener { begin() } }
+    private val stop=Button(context).apply { text="Остановить тест"; isAllCaps=false; isEnabled=false; setOnClickListener { stop() } }
 
     private val archiveStatus=TextView(context).apply { text="Архив: до 50 записей, без автоматического удаления. Сохраняйте нужные тесты вручную."; textSize=13f }
-    private val saveButton=Button(context).apply { text="Сохранить текущий тест"; isAllCaps=false; setOnClickListener { saveRecord() } }
-    private val historyButton=Button(context).apply { text="Архив · открыть запись"; isAllCaps=false; setOnClickListener { history() } }
-    private val compareButton=Button(context).apply { text="Сравнить с записью A/B"; isAllCaps=false; setOnClickListener { compareRecord() } }
-    private val exportButton=Button(context).apply { text="Экспорт выбранного теста CSV"; isAllCaps=false; setOnClickListener { record?.let { exportRequest(LiveNetworkReports.csv(it)) } } }
-    private val deleteButton=Button(context).apply { text="Удалить выбранную запись"; isAllCaps=false; setOnClickListener { deleteRecord() } }
+    private val saveButton=Button(context).apply { text="Сохранить"; isAllCaps=false; setOnClickListener { saveRecord() } }
+    private val historyButton=Button(context).apply { text="История"; isAllCaps=false; setOnClickListener { history() } }
+    private val compareButton=Button(context).apply { text="Сравнение A/B"; isAllCaps=false; setOnClickListener { compareRecord() } }
+    private val exportButton=Button(context).apply { text="Экспорт CSV"; isAllCaps=false; setOnClickListener { record?.let { exportRequest(LiveNetworkReports.csv(it)) } } }
+    private val deleteButton=Button(context).apply { text="Удалить запись"; isAllCaps=false; setOnClickListener { deleteRecord() } }
 
     init {
         orientation=VERTICAL
         addView(LegionUiSupport.sectionLabel(context,"ЖИВАЯ ДИАГНОСТИКА СЕТИ"))
-        addView(TextView(context).apply {
-            text="TCP :443 к указанному узлу; он увидит ваш IP. Wi-Fi шлюз: доступность через Android, не гарантированный ICMP. Не игровой ping."
-            textSize=13f
-        })
+        addView(CompactLabUi.label(context,"TCP :443 · внешний узел увидит IP. Шлюз — доступность, не ICMP. Не игровой ping."))
         addView(target)
-        addView(planButton)
-        addView(ipButton)
-        addView(start)
-        addView(stop)
-        addView(status)
-        addView(LegionUiSupport.sectionLabel(context,"ВНЕШНИЙ УЗЕЛ · TCP / DNS"))
-        addView(chartToggle)
-        addView(tcpChart,LayoutParams(LayoutParams.MATCH_PARENT,(150*dp).toInt()))
-        addView(dnsChart,LayoutParams(LayoutParams.MATCH_PARENT,(150*dp).toInt()))
-        dnsChart.visibility=View.GONE
-        addView(LegionUiSupport.sectionLabel(context,"WI-FI · доступность шлюза"))
-        addView(gatewayChart,LayoutParams(LayoutParams.MATCH_PARENT,(150*dp).toInt()))
-        addView(LegionUiSupport.sectionLabel(context,"АРХИВ ЖИВЫХ ТЕСТОВ"))
-        addView(archiveStatus); addView(saveButton); addView(historyButton); addView(compareButton); addView(exportButton); addView(deleteButton)
+        addView(CompactLabUi.row(context,planButton,ipButton))
+        addView(start);addView(stop)
+        addView(metrics)
+        val graphs=LinearLayout(context).apply {
+            orientation=VERTICAL
+            addView(chartToggle)
+            addView(tcpChart,LayoutParams(-1,(150*dp).toInt()))
+            addView(dnsChart,LayoutParams(-1,(150*dp).toInt()))
+            addView(gatewayChart,LayoutParams(-1,(150*dp).toInt()))
+        }
+        addView(CompactLabUi.disclosure(context,"Графики сети",graphs))
+        showChart()
+        addView(CompactLabUi.disclosure(context,"Подробный сетевой отчёт",status))
+        addView(LegionUiSupport.sectionLabel(context,"АРХИВ"))
+        addView(archiveStatus)
+        addView(CompactLabUi.row(context,saveButton,historyButton))
+        val actions=LinearLayout(context).apply {
+            orientation=VERTICAL
+            addView(CompactLabUi.row(context,compareButton,exportButton))
+            addView(deleteButton)
+        }
+        addView(CompactLabUi.disclosure(context,"Действия с записью",actions))
         buttons()
     }
     fun setLegacyBusy(busy:Boolean) { legacyBusy=busy; buttons() }
@@ -103,6 +109,8 @@ internal class NetworkLivePanel(context:Context,private val exportRequest:(Strin
         target.isEnabled=ready
         planButton.isEnabled=ready
         ipButton.isEnabled=ready
+        start.visibility=if(running) View.GONE else View.VISIBLE
+        stop.visibility=if(running) View.VISIBLE else View.GONE
         stop.isEnabled=running
         saveButton.isEnabled=ready && record!=null && !saved
         historyButton.isEnabled=ready
@@ -132,6 +140,7 @@ internal class NetworkLivePanel(context:Context,private val exportRequest:(Strin
         val id=token.incrementAndGet()
         running=true; buttons(); onRunningChanged()
         status.text="Начинается тест: "+host+":443"
+        updateMetrics("Ожидание пробы")
         future=worker.submit {
             try {
                 val probe=LiveNetworkProbe(context.applicationContext)
@@ -172,6 +181,7 @@ internal class NetworkLivePanel(context:Context,private val exportRequest:(Strin
         val prior=points.getOrNull(points.lastIndex-1)
         val delta=if(p!=null && prior!=null && LiveNetworkPolicy.connected(prior,p) &&
             LiveNetworkPolicy.valid(p.tcpMs) && LiveNetworkPolicy.valid(prior.tcpMs)) p.tcpMs!!-prior.tcpMs!! else null
+        updateMetrics(prefix)
         status.text=prefix+" · "+(p?.network ?: "—")+"\n"+
             "TCP: "+fmt(p?.tcpMs)+" мс · "+state(p?.tcpState)+" · "+(p?.family ?: "—")+"\n"+
             "DNS: "+fmt(p?.dnsMs)+" мс · Android сеть: "+(when(p?.validated){true->"подтверждена";false->"не подтверждена";null->"н/д"})+"\n"+
@@ -208,11 +218,21 @@ internal class NetworkLivePanel(context:Context,private val exportRequest:(Strin
             .setItems(options.map{it.label}.toTypedArray()) { _,i->ipMode=options[i];ipButton.text=ipMode.label }
             .setNegativeButton("Отмена",null).show()
     }
-    private fun toggleChart() {
-        showDns=!showDns
-        tcpChart.visibility=if(showDns) View.GONE else View.VISIBLE
-        dnsChart.visibility=if(showDns) View.VISIBLE else View.GONE
-        chartToggle.text=if(showDns) "График: DNS" else "График: TCP"
+    private fun updateMetrics(prefix:String) {
+        val p=points.lastOrNull();val s=LiveNetworkPolicy.summarize(points)
+        fun f(v:Double?)=v?.let{String.format(Locale.US,"%.1f",it)} ?: "—"
+        metrics.text=prefix+" · "+(p?.network ?: "—")+"\nTCP "+f(p?.tcpMs)+" мс  ·  DNS "+f(p?.dnsMs)+" мс\nДжиттер "+f(s.jitterMs)+" мс  ·  ошибки "+f(s.failurePercent)+" %"
+    }
+    private fun chooseChart() {
+        LegionDialogs.builder(context).setTitle("Показатель графика")
+            .setItems(arrayOf("TCP","DNS","Wi-Fi шлюз")){_,i->chartMode=i;showChart()}
+            .setNegativeButton("Отмена",null).show()
+    }
+    private fun showChart() {
+        tcpChart.visibility=if(chartMode==0)View.VISIBLE else View.GONE
+        dnsChart.visibility=if(chartMode==1)View.VISIBLE else View.GONE
+        gatewayChart.visibility=if(chartMode==2)View.VISIBLE else View.GONE
+        chartToggle.text="График: "+arrayOf("TCP","DNS","Wi-Fi шлюз")[chartMode]
     }
     private fun updateCharts(data:List<LiveNetworkPoint>) {
         tcpChart.update(data);dnsChart.update(data);gatewayChart.update(data)
@@ -258,6 +278,7 @@ internal class NetworkLivePanel(context:Context,private val exportRequest:(Strin
                             record=r; saved=true
                             points.clear(); points.addAll(r.points)
                             status.text=LiveNetworkReports.report(r)
+                            updateMetrics("Архив")
                             updateCharts(r.points)
                             archiveStatus.text="Открыта запись: "+label(r)
                             buttons()
@@ -292,7 +313,7 @@ internal class NetworkLivePanel(context:Context,private val exportRequest:(Strin
                     if(removed) {
                         record=null; saved=false; points.clear()
                         updateCharts(emptyList())
-                        status.text="Запись удалена."; archiveStatus.text="Удалена одна запись."
+                        updateMetrics("Запись удалена");status.text="Запись удалена."; archiveStatus.text="Удалена одна запись."
                     } else archiveStatus.text="Запись уже отсутствует."
                     buttons()
                 }
