@@ -52,49 +52,8 @@ jobs:
       - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
         with:
           gradle-version: '9.6.0'
-      - name: Verify source contract
-        run: |
-          python3 scripts/check_backend.py
-          python3 scripts/check_release_signing.py
-          python3 scripts/check_session_backend.py
-          python3 scripts/check_persistent_history.py
-          python3 scripts/check_resource_telemetry.py
-          python3 scripts/check_diagnostics_integration.py
-          python3 scripts/check_thermal_battery_trends.py
-          python3 scripts/check_diagnostic_sqlite_migration.py
-          python3 scripts/check_extended_diagnostics_csv.py
-          python3 scripts/check_battery_health_backend.py
-          python3 scripts/check_sensor_sqlite_migration.py
-          python3 scripts/check_alpha11_diagnostics.py
-          python3 scripts/check_alpha12_integration.py
-          python3 scripts/check_alpha13_timed_battery.py
-          python3 scripts/check_alpha14_gaming.py
-          python3 scripts/check_alpha15_hardware.py
-          python3 scripts/check_alpha16_compatibility.py
-          python3 scripts/check_alpha17_sessions.py
-          python3 scripts/check_alpha18_smart_profiles.py
-          python3 scripts/check_alpha19_experiments.py
-          python3 scripts/check_alpha20_connectivity.py
-          python3 scripts/check_alpha21_application_center.py
-          python3 scripts/check_alpha22_audio_lab.py
-          python3 scripts/check_alpha23_haptic_lab.py
-          python3 scripts/check_alpha24_game_toolbox.py
-          python3 scripts/check_alpha25_capture_studio.py
-          python3 scripts/check_alpha26_mvvm_navigation.py
-          python3 scripts/check_alpha27_mvvm_backend.py
-          python3 scripts/check_alpha38_game_capture_profiles.py
-          python3 scripts/check_alpha39_replay.py
-          python3 scripts/check_alpha40_audit_remediation.py
-          python3 scripts/check_alpha41_replay_timestamps.py
-          python3 scripts/check_feature_finder.py
-          python3 scripts/check_live_monitor.py
-          python3 scripts/check_game_preflight.py
-          python3 scripts/check_session_compare.py
-          python3 scripts/check_session_library.py
-      - name: Verify alpha.44 legacy route and module design parity
-        run: python3 scripts/check_alpha44_module_ui.py
-      - name: Validate alpha.42 Game Toolbox unified UI routing and permissions
-        run: python3 scripts/check_alpha42_toolbox_ui.py
+      - name: Run shared source and SQLite checks
+        run: python3 scripts/run_source_checks.py
       - name: Test local CSV and Russian plural formatting before release
         run: gradle --no-daemon testDebugUnitTest
       - name: Test and build real Rust native libraries
