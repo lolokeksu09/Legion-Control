@@ -17,7 +17,8 @@ enum class FeatureModule(val displayName: String) {
     DIAGNOSTICS("Диагностика Kotlin + Rust"),
     GAMEPAD("Gamepad Live"),
     MONITOR("Live Monitor"),
-    PREFLIGHT("Game Preflight")
+    PREFLIGHT("Game Preflight"),
+    COMPARE("Session Compare")
 }
 
 data class FeatureEntry(
@@ -105,7 +106,12 @@ object FeatureFinder {
         FeatureEntry("preflight.game", FeatureModule.PREFLIGHT, "Выбор игры для предпусковой проверки", "ВЫБРАТЬ ИГРУ ДЛЯ ПРОВЕРКИ", "game preflight игра запуск проверка"),
         FeatureEntry("preflight.requirements", FeatureModule.PREFLIGHT, "Требования конкретной игры", "НАСТРОИТЬ ТРЕБОВАНИЯ ИГРЫ", "preflight target fps hz требования ram батарея"),
         FeatureEntry("preflight.check", FeatureModule.PREFLIGHT, "Проверка перед запуском игры", "ВЫПОЛНИТЬ ПРОВЕРКУ ПЕРЕД ЗАПУСКОМ", "game preflight энергосбережение дисплей температура сеть"),
-        FeatureEntry("preflight.report", FeatureModule.PREFLIGHT, "Поделиться результатами предпусковой проверки", "Поделиться отчётом проверки", "preflight report отчет")
+        FeatureEntry("preflight.report", FeatureModule.PREFLIGHT, "Поделиться результатами предпусковой проверки", "Поделиться отчётом проверки", "preflight report отчет"),
+        FeatureEntry("compare.game", FeatureModule.COMPARE, "Выбрать игру для сравнения сессий", "ВЫБРАТЬ ИГРУ ИЗ ИСТОРИИ", "session compare история игры сравнение"),
+        FeatureEntry("compare.window", FeatureModule.COMPARE, "Сравнение одинаковых временных окон", "Выбрать окно сравнения", "session compare 5 10 15 30 минут"),
+        FeatureEntry("compare.run", FeatureModule.COMPARE, "Сравнить выбранные записи", "СРАВНИТЬ ВЫБРАННЫЕ СЕССИИ", "session compare заряд нагрев сеть дисплей"),
+        FeatureEntry("compare.graph", FeatureModule.COMPARE, "Совмещённый график сессий", "Выбрать показатель сравнения", "session compare график температура заряд герцы"),
+        FeatureEntry("compare.csv", FeatureModule.COMPARE, "Экспорт сравнения двух сессий CSV", "СОХРАНИТЬ СРАВНЕНИЕ CSV", "session compare экспорт csv")
     )
 
     fun resolve(id: String?, module: FeatureModule): FeatureEntry? =
