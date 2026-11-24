@@ -64,8 +64,8 @@ class SessionCompareActivity:FragmentActivity() {
             setPadding(0,5.dp,0,10.dp)
             root.addView(this)
         }
-        fun button(title:String,action:()->Unit)=Button(this).apply {
-            text=title;LegionUiSupport.styleAction(this);setOnClickListener { action() };root.addView(this)
+        fun button(title:String,featureId:String?=null,action:()->Unit)=Button(this).apply {
+            text=title;if(featureId!=null)FeatureReveal.bind(this,featureId);LegionUiSupport.styleAction(this);setOnClickListener { action() };root.addView(this)
         }
         label("SESSION COMPARE",22f).apply {
             setTypeface(Typeface.DEFAULT,Typeface.BOLD);isAccessibilityHeading=true
@@ -74,7 +74,7 @@ class SessionCompareActivity:FragmentActivity() {
         status=label("Загрузка истории…",14f,LegionUiSupport.ACCENT)
         root.addView(LegionUiSupport.sectionLabel(this,"ИСТОЧНИКИ"))
         selection=label("История не выбрана.")
-        choose=button("ВЫБРАТЬ ИГРУ ИЗ ИСТОРИИ") {
+        choose=button("ВЫБРАТЬ ИГРУ ИЗ ИСТОРИИ", "compare.game") {
             val choices=vm.state.value?.packages.orEmpty()
             if(choices.isNotEmpty())AlertDialog.Builder(this).setTitle("Игра из истории")
                 .setItems(choices.toTypedArray()) { _,i->vm.choosePackage(choices[i]) }
@@ -84,15 +84,15 @@ class SessionCompareActivity:FragmentActivity() {
         a=button("ВЫБРАТЬ СЕССИЮ A") { pick(true) }
         b=button("ВЫБРАТЬ СЕССИЮ B") { pick(false) }
         swap=button("Поменять A и B местами") { vm.swap() }
-        window=button("Выбрать окно сравнения") {
+        window=button("Выбрать окно сравнения", "compare.window") {
             val options=SessionCompareAnalysis.windows
             AlertDialog.Builder(this).setTitle("Первые минуты каждой сессии")
                 .setItems(options.map { "$it мин" }.toTypedArray()) { _,i->vm.chooseWindow(options[i]) }
                 .setNegativeButton("Отмена",null).show()
         }
-        run=button("СРАВНИТЬ ВЫБРАННЫЕ СЕССИИ") { vm.compare() }
+        run=button("СРАВНИТЬ ВЫБРАННЫЕ СЕССИИ", "compare.run") { vm.compare() }
         root.addView(LegionUiSupport.sectionLabel(this,"СОВМЕЩЁННЫЙ ГРАФИК"))
-        graphButton=button("Выбрать показатель сравнения") {
+        graphButton=button("Выбрать показатель сравнения", "compare.graph") {
             val options=CompareGraph.entries
             AlertDialog.Builder(this).setTitle("Показатель")
                 .setItems(options.map { it.label }.toTypedArray()) { _,i->
@@ -104,7 +104,7 @@ class SessionCompareActivity:FragmentActivity() {
         root.addView(chart,LinearLayout.LayoutParams(-1,180.dp).apply { bottomMargin=12.dp })
         root.addView(LegionUiSupport.sectionLabel(this,"РЕЗУЛЬТАТ"))
         output=label("Сравнение не выполнялось.").apply { setTextIsSelectable(true) }
-        export=button("СОХРАНИТЬ СРАВНЕНИЕ CSV") {
+        export=button("СОХРАНИТЬ СРАВНЕНИЕ CSV", "compare.csv") {
             val pair=vm.state.value?.pair ?: return@button
             if(!vm.pendingDocument.begin(pair)) return@button
             export.isEnabled=false
