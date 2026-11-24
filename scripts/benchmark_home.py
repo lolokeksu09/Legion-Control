@@ -37,7 +37,7 @@ def proc_stat(raw):
     return int(fields[11]) + int(fields[12]), int(fields[19])
 
 
-def benchmark_home(adb, expect, package, apk, evidence):
+def benchmark_home(adb, expect, package, apk, evidence, ticks_per_second):
     report = {"schema": 1, "status": "incomplete", "environment": "CI debug emulator; process-cold, not storage-cold",
               "apk_sha256": hashlib.sha256(Path(apk).read_bytes()).hexdigest(),
               "samples": [], "errors": []}
@@ -47,9 +47,15 @@ def benchmark_home(adb, expect, package, apk, evidence):
             raise RuntimeError("Benchmark restricted to emulator")
         report["sdk"] = adb("shell", "getprop", "ro.build.version.sdk").strip()
         report["abi"] = adb("shell", "getprop", "ro.product.cpu.abi").strip()
+        if not re.fullmatch(r"[a-zA-Z0-9_.]+", package):
+            raise ValueError("Invalid benchmark package")
+        if not isinstance(ticks_per_second, int) or ticks_per_second <= 0:
+            raise ValueError("Missing device clock tick calibration")
+        report["clock_ticks_per_second"] = ticks_per_second
         for _ in range(3):
             adb("shell", "am", "force-stop", package)
-            if adb("shell", "pidof", package).strip():
+            # pidof legitimately returns exit 1 if the process does not exist.
+            if adb("shell", "pidof " + package + " || true").strip():
                 raise RuntimeError("Old process survived force-stop")
             raw = adb("shell", "am", "start", "-W", "-n",
                       package + "/.NavigationHostActivity", timeout=60)
@@ -72,13 +78,7 @@ def benchmark_home(adb, expect, package, apk, evidence):
                     raise ValueError("CPU process changed")
                 sample["idle_cpu_ticks"] = b - a
                 sample["idle_window_seconds"] = round(t1 - t0, 3)
-                try:
-                    hz = int(adb("shell", "getconf", "CLK_TCK").strip())
-                    if hz <= 0:
-                        raise ValueError("Invalid CLK_TCK")
-                    sample["idle_cpu_percent_one_core"] = round(100 * (b-a) / hz / (t1-t0), 3)
-                except Exception as error:
-                    sample["cpu_percent_unavailable"] = type(error).__name__
+                sample["idle_cpu_percent_one_core"] = round(100 * (b-a) / ticks_per_second / (t1-t0), 3)
             except Exception as error:
                 sample["cpu_unavailable"] = type(error).__name__
             report["samples"].append(sample)

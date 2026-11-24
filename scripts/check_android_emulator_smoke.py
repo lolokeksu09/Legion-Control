@@ -274,7 +274,7 @@ def main() -> None:
     resource_output = adb("shell", "am", "instrument", "-w", "-e", "class",
         PACKAGE + ".ResourceOptimizationInstrumentedTest",
         PACKAGE + ".test/androidx.test.runner.AndroidJUnitRunner", timeout=120)
-    if "OK (2 tests)" not in resource_output or "FAILURES" in resource_output:
+    if "OK (3 tests)" not in resource_output or "FAILURES" in resource_output:
         raise AssertionError("Resource optimization instrumentation failed: " + resource_output[-1400:])
     print("PASS: real indexed lookup, profile count and bounded public launcher/Hub signals", flush=True)
     live_network_output = adb("shell", "am", "instrument", "-w", "-e", "class",
@@ -305,7 +305,10 @@ def main() -> None:
                 PACKAGE + "/.NavigationHostActivity", timeout=60)
     expect("Готов к запуску")
     from benchmark_home import benchmark_home
-    benchmark_home(adb, expect, PACKAGE, apk, EVIDENCE)
+    clock_ticks = re.search(r"(?m)^INSTRUMENTATION_STATUS: legion_clock_ticks=(\d+)\s*$", resource_output)
+    if not clock_ticks:
+        raise AssertionError("Android clock tick calibration missing")
+    benchmark_home(adb, expect, PACKAGE, apk, EVIDENCE, int(clock_ticks[1]))
     expect("Готов к запуску")
     capture("01-hub-launch")
 

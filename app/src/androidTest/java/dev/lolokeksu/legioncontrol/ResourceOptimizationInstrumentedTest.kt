@@ -9,6 +9,12 @@ import java.util.UUID
 
 @RunWith(AndroidJUnit4::class)
 class ResourceOptimizationInstrumentedTest {
+    @Test fun deviceClockTicksForCpuBenchmark() {
+        val hz=android.system.Os.sysconf(android.system.OsConstants._SC_CLK_TCK)
+        assertTrue(hz in 1L..100000L)
+        val bundle=android.os.Bundle().apply { putString("legion_clock_ticks",hz.toString()) }
+        InstrumentationRegistry.getInstrumentation().sendStatus(0,bundle)
+    }
     @Test fun indexedLookupMatchesExistingLibraryAndCountMatchesProfiles() {
         val app=InstrumentationRegistry.getInstrumentation().targetContext
         val pkg="dev.legion.optimization.p"+UUID.randomUUID().toString().replace("-","")
