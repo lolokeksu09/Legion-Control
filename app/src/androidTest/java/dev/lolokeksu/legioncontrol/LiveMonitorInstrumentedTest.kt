@@ -52,6 +52,101 @@ class LiveMonitorInstrumentedTest {
         }
     }
 
+    @Test fun sharedDialogsPreserveConfirmationAndChoiceSemantics() {
+        ActivityScenario.launch(LiveMonitorActivity::class.java).use { scenario ->
+            val idle = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
+            lateinit var dialog: android.app.AlertDialog
+            var confirmed = 0
+            var picked = -1
+            val flags = booleanArrayOf(false, true)
+            var saved: BooleanArray? = null
+            lateinit var field: android.widget.EditText
+            scenario.onActivity { activity ->
+                dialog = LegionDialogs.builder(activity).setTitle("Подтверждение")
+                    .setMessage("Применить изменение?")
+                    .setPositiveButton("Применить") { _, _ -> confirmed++ }
+                    .setNegativeButton("Отмена", null).show()
+            }
+            idle.waitForIdleSync()
+            scenario.onActivity {
+                assertTrue(dialog.isShowing)
+                assertEquals(14f, dialog.getButton(android.content.DialogInterface.BUTTON_POSITIVE)
+                    .textSize / it.resources.displayMetrics.scaledDensity, 1f)
+                dialog.getButton(android.content.DialogInterface.BUTTON_NEGATIVE).performClick()
+            }
+            idle.waitForIdleSync()
+            scenario.onActivity { activity ->
+                assertEquals(0, confirmed)
+                assertFalse(dialog.isShowing)
+                dialog = LegionDialogs.builder(activity).setTitle("Выбор")
+                    .setItems(arrayOf("Первый", "Второй")) { _, index -> picked = index }
+                    .setNegativeButton("Отмена", null).show()
+            }
+            idle.waitForIdleSync()
+            scenario.onActivity {
+                val list = dialog.listView
+                assertTrue(list.performItemClick(list.getChildAt(1), 1, list.adapter.getItemId(1)))
+            }
+            idle.waitForIdleSync()
+            scenario.onActivity { activity ->
+                assertEquals(1, picked)
+                assertFalse(dialog.isShowing)
+                dialog = LegionDialogs.builder(activity).setTitle("Один вариант")
+                    .setSingleChoiceItems(arrayOf("Первый", "Второй"), 0) { source, index ->
+                        picked = index
+                        source.dismiss()
+                    }.setNegativeButton("Отмена", null).show()
+            }
+            idle.waitForIdleSync()
+            scenario.onActivity {
+                val list = dialog.listView
+                assertEquals(0, list.checkedItemPosition)
+                list.performItemClick(list.getChildAt(1), 1, list.adapter.getItemId(1))
+            }
+            idle.waitForIdleSync()
+            scenario.onActivity { activity ->
+                assertEquals(1, picked)
+                assertFalse(dialog.isShowing)
+                dialog = LegionDialogs.builder(activity).setTitle("Правила")
+                    .setMultiChoiceItems(arrayOf("Первое", "Второе"), flags) { _, i, checked -> flags[i] = checked }
+                    .setPositiveButton("Сохранить") { _, _ -> saved = flags.copyOf() }
+                    .setNegativeButton("Отмена", null).show()
+            }
+            idle.waitForIdleSync()
+            scenario.onActivity {
+                val list = dialog.listView
+                assertTrue(list.isItemChecked(1))
+                list.performItemClick(list.getChildAt(0), 0, list.adapter.getItemId(0))
+                assertNull(saved)
+                dialog.getButton(android.content.DialogInterface.BUTTON_POSITIVE).performClick()
+            }
+            idle.waitForIdleSync()
+            scenario.onActivity { activity ->
+                assertArrayEquals(booleanArrayOf(true, true), saved)
+                assertFalse(dialog.isShowing)
+                field = android.widget.EditText(activity).apply { setText("test") }
+                dialog = LegionDialogs.builder(activity).setTitle("Ввод")
+                    .setView(field)
+                    .setPositiveButton("Сохранить") { _, _ ->
+                        assertEquals("test", field.text.toString())
+                        confirmed++
+                    }.setNegativeButton("Отмена", null).create()
+                dialog.show()
+            }
+            idle.waitForIdleSync()
+            scenario.onActivity {
+                assertTrue(dialog.isShowing)
+                assertEquals(android.graphics.Color.WHITE, field.currentTextColor)
+                dialog.getButton(android.content.DialogInterface.BUTTON_POSITIVE).performClick()
+            }
+            idle.waitForIdleSync()
+            scenario.onActivity {
+                assertEquals(1, confirmed)
+                assertFalse(dialog.isShowing)
+            }
+        }
+    }
+
     @Test fun realReadingsStopWhenScreenStopsAndRequireExplicitRestart() {
         ActivityScenario.launch(LiveMonitorActivity::class.java).use { scenario ->
             lateinit var model: LiveMonitorViewModel
