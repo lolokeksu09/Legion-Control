@@ -1,6 +1,7 @@
 package dev.lolokeksu.legioncontrol
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 /** Pure input-boundary tests for user-configurable, foreground-only toolbox UI. */
@@ -22,6 +23,20 @@ class ToolboxTuningTest {
         assertEquals(0, ToolboxTuning.position(-15, 100))
         assertEquals(100, ToolboxTuning.position(200, 100))
         assertEquals(0, ToolboxTuning.position(20, -4))
+    }
+
+    @Test fun collapsedClockHasNoFrameOrNextWakeup() {
+        assertNull(ToolboxTuning.clockFrame(false, 10_000L, 11_500L))
+        assertNull(ToolboxTuning.clockFrame(false, 10_000L, 1_000_000L))
+    }
+
+    @Test fun reopenedClockUsesOriginalElapsedTimeAndNextSecondBoundary() {
+        assertEquals(ToolboxClockFrame(0L, 1000L), ToolboxTuning.clockFrame(true, 10_000L, 10_000L))
+        assertEquals(ToolboxClockFrame(1L, 500L), ToolboxTuning.clockFrame(true, 10_000L, 11_500L))
+        assertNull(ToolboxTuning.clockFrame(false, 10_000L, 12_000L))
+        assertEquals(ToolboxClockFrame(65L, 250L), ToolboxTuning.clockFrame(true, 10_000L, 75_750L))
+        assertEquals(ToolboxClockFrame(66L, 1000L), ToolboxTuning.clockFrame(true, 10_000L, 76_000L))
+        assertNull(ToolboxTuning.clockFrame(true, 10_000L, 9_999L))
     }
 
     @Test fun audioStepsRespectRealStreamLimits() {

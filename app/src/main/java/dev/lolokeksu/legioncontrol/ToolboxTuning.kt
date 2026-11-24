@@ -1,7 +1,16 @@
 package dev.lolokeksu.legioncontrol
 
 /** Pure limits shared by Android Activity, overlay service and JVM tests. */
+internal data class ToolboxClockFrame(val seconds: Long, val nextDelayMs: Long)
+
 object ToolboxTuning {
+    /** No periodic UI work when collapsed; elapsed time is independent of visibility. */
+    internal fun clockFrame(visible: Boolean, startedAtMs: Long, nowMs: Long): ToolboxClockFrame? {
+        if (!visible || startedAtMs < 0 || nowMs < startedAtMs) return null
+        val elapsed = nowMs - startedAtMs
+        return ToolboxClockFrame(elapsed / 1000L, 1000L - elapsed % 1000L)
+    }
+
     fun opacity(value: Int): Int = value.coerceIn(55, 100)
     fun sizeDp(value: Int): Int = value.coerceIn(44, 72)
     fun position(value: Int, available: Int): Int =
