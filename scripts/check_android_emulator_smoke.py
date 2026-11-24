@@ -347,6 +347,10 @@ def main() -> None:
     expect("ИГРОВАЯ ПАНЕЛЬ")  # Header owned by canonical NavigationHostActivity
     expect("Выбрать игру или приложение")
     expect("Главная")  # Persistent bottom navigation on formerly standalone screen
+    click("Доступ для автоматизации")
+    expect("Доступ к статистике использования")
+    capture("01c-game-automation-expanded")
+    click("Доступ для автоматизации")
     back_until(GAMES_MARKER)
 
     click("Game Session")
@@ -425,6 +429,12 @@ def main() -> None:
     stage("08-gaming-lab", "LEGION CONTROL · GAMING LAB")
     click("HARDWARE LAB · ещё 6 диагностик")
     stage("09-hardware-lab", "LEGION CONTROL · HARDWARE LAB")
+    click("Графики батареи")
+    click("График: мощность")
+    click("температура", exact_only=True)
+    expect("График: температура")
+    capture("09-battery-chart-selector")
+    click("Графики батареи",direction="up")
     click("COMPATIBILITY · ещё 7 функций")
     stage("10-compatibility", "LEGION CONTROL · COMPATIBILITY")
     back_until("LEGION CONTROL · HARDWARE LAB")
@@ -433,6 +443,12 @@ def main() -> None:
 
     click("Connectivity Observatory")
     stage("11-connectivity-idle", "CONNECTIVITY OBSERVATORY")
+    click("Графики сети")
+    click("График: TCP")
+    click("DNS", exact_only=True)
+    expect("График: DNS")
+    capture("11-network-chart-selector")
+    click("Графики сети",direction="up")
     back_until(TOOLS_MARKER)
     click("Experiment Lab")
     stage("12-experiment-lab", "LEGION · EXPERIMENT LAB")
