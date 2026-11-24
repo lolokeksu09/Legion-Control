@@ -51,8 +51,9 @@ class SmartProfilesFragment : Fragment() {
         fun note(t:String) { root.addView(TextView(requireContext()).apply {
             text=t;textSize=13f;setTextColor(0xFFAFAFAF.toInt());setPadding(0,9.dp,0,12.dp)
         }) }
-        fun action(t:String,run:()->Unit) {
+        fun action(t:String,featureId:String?=null,run:()->Unit) {
             root.addView(Button(requireContext()).apply {
+                if(featureId!=null) FeatureReveal.bind(this,featureId)
                 text=t;minHeight=48.dp;setOnClickListener { run() }
             })
         }
@@ -98,7 +99,7 @@ class SmartProfilesFragment : Fragment() {
         }
         root.addView(tcpBox)
         action("СОХРАНИТЬ ПРОФИЛЬ") { save() }
-        action("Настроить 6 правил профиля") { configureRules() }
+        action("Настроить 6 правил профиля", "profile.rules") { configureRules() }
         action("Открыть Game Session с этим профилем") { openSession() }
         action("Удалить профиль (с подтверждением)") { confirmDelete() }
         note("Правила оцениваются каждые ~15 секунд только во время явно запущенной записи. " +
@@ -152,7 +153,7 @@ class SmartProfilesFragment : Fragment() {
         action("Разрешить изменение системных настроек") {
             launchSettings(SmartSystemControls.writeSettingsIntent(requireContext()))
         }
-        action("Яркость 50% (с сохранением исходного значения)") {
+        action("Яркость 50% (с сохранением исходного значения)", "profile.brightness") {
             show(SmartSystemControls.setBrightness(requireContext(),50))
         }
         action("Тайм-аут экрана · 2 минуты") {
@@ -164,7 +165,7 @@ class SmartProfilesFragment : Fragment() {
         note("Яркость/тайм-аут требуют отдельного спецдоступа WRITE_SETTINGS. " +
             "На некоторых прошивках изменение DND или системных настроек будет заблокировано.")
         root.addView(LegionUiSupport.sectionLabel(requireContext(), "РЕЗЕРВНЫЕ КОПИИ"))
-        action("Экспортировать профили и правила JSON") { createBackup() }
+        action("Экспортировать профили и правила JSON", "profile.export") { createBackup() }
         action("Импортировать профили JSON (с подтверждением)") { selectBackup() }
         note("Backup включает профили и правила, не историю сессий. " +
             "Экспорт истории замеров CSV/ZIP остаётся в Game Session.")
@@ -184,6 +185,7 @@ class SmartProfilesFragment : Fragment() {
     override fun onViewCreated(view:View,savedInstanceState:Bundle?) {
         super.onViewCreated(view,savedInstanceState)
         LegionUiSupport.styleModuleTree(view)
+        FeatureReveal.fromFragment(this, view, FeatureModule.PROFILE)
         viewModel=ViewModelProvider(this)[SmartProfilesViewModel::class.java]
         viewModel.state.observe(viewLifecycleOwner) { update ->
             show(update.message)

@@ -67,8 +67,9 @@ class ConnectivityLabFragment : Fragment() {
                 setLineSpacing(3f,1f)
             })
         }
-        fun button(textValue:String,onClick:()->Unit):Button {
+        fun button(textValue:String,featureId:String?=null,onClick:()->Unit):Button {
             return Button(requireContext()).apply {
+                if(featureId!=null) FeatureReveal.bind(this,featureId)
                 text=textValue
                 minHeight=50.dp
                 isAllCaps=false
@@ -102,8 +103,8 @@ class ConnectivityLabFragment : Fragment() {
         root.addView(resultView)
         root.addView(LegionUiSupport.sectionLabel(requireContext(), "ПРОВЕРКА СОЕДИНЕНИЯ"))
         hostButton=button("Сервер: Cloudflare · one.one.one.one") { chooseHost() }
-        singleButton=button("ОДИН ЗАМЕР · DNS / IPv4 / IPv6 / TCP / TLS") { startTest(1) }
-        stabilityButton=button("ТЕСТ СТАБИЛЬНОСТИ · до 6 циклов (~60 секунд)") { startTest(6) }
+        singleButton=button("ОДИН ЗАМЕР · DNS / IPv4 / IPv6 / TCP / TLS", "network.single") { startTest(1) }
+        stabilityButton=button("ТЕСТ СТАБИЛЬНОСТИ · до 6 циклов (~60 секунд)", "network.stability") { startTest(6) }
         stopButton=button("ОСТАНОВИТЬ текущий тест") { cancelTest(true) }
         stopButton.isEnabled=false
         description("Каждый цикл: DNS, до одного соединения IPv4 и IPv6, "+
@@ -111,7 +112,7 @@ class ConnectivityLabFragment : Fragment() {
             "DNS-кэш Android может влиять на результаты. "+
             "При уходе с экрана запись отменяется; фоновый сервис не запускается.")
         root.addView(LegionUiSupport.sectionLabel(requireContext(), "ИСТОРИЯ И СРАВНЕНИЕ"))
-        button("История проверок · выбрать запись") { showHistory() }
+        button("История проверок · выбрать запись", "network.history") { showHistory() }
         button("Подробный отчёт выбранной записи") { showSelected() }
         button("Сравнить два последних запуска одного сервера") { compare() }
         button("Сводка по этому серверу за 7 дней") { weekReport() }
@@ -128,6 +129,7 @@ class ConnectivityLabFragment : Fragment() {
     override fun onViewCreated(view:View,savedInstanceState:Bundle?) {
         super.onViewCreated(view,savedInstanceState)
         LegionUiSupport.styleModuleTree(view)
+        FeatureReveal.fromFragment(this, view, FeatureModule.NETWORK)
         viewModel=ViewModelProvider(this)[ConnectivityLabViewModel::class.java]
         viewModel.state.observe(viewLifecycleOwner) { ui ->
             testing=ui.testing

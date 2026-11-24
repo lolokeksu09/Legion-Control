@@ -226,9 +226,33 @@ def main() -> None:
         "-e", "class",
         "dev.lolokeksu.legioncontrol.FullBackupInstrumentedTest",
         PACKAGE + ".test/androidx.test.runner.AndroidJUnitRunner", timeout=190)
-    if "OK (1 test)" not in test_output or "FAILURES" in test_output:
+    if "OK (2 tests)" not in test_output or "FAILURES" in test_output:
         raise AssertionError("Backup restore instrumentation failed: " + test_output[-1400:])
     print("PASS: emulator-only SQLite backup/restore and corruption round-trip",flush=True)
+    monitor_output = adb("shell", "am", "instrument", "-w", "-e", "class",
+        PACKAGE + ".LiveMonitorInstrumentedTest",
+        PACKAGE + ".test/androidx.test.runner.AndroidJUnitRunner", timeout=120)
+    if "OK (3 tests)" not in monitor_output or "FAILURES" in monitor_output:
+        raise AssertionError("Live Monitor instrumentation failed: " + monitor_output[-1400:])
+    print("PASS: actual monitor readings, baseline, foreground lifecycle and explicit restart", flush=True)
+    preflight_output = adb("shell", "am", "instrument", "-w", "-e", "class",
+        PACKAGE + ".GamePreflightInstrumentedTest",
+        PACKAGE + ".test/androidx.test.runner.AndroidJUnitRunner", timeout=120)
+    if "OK (1 test)" not in preflight_output or "FAILURES" in preflight_output:
+        raise AssertionError("Game Preflight instrumentation failed: " + preflight_output[-1400:])
+    print("PASS: actual per-game preflight report and isolated persistent presets", flush=True)
+    compare_output = adb("shell", "am", "instrument", "-w", "-e", "class",
+        PACKAGE + ".SessionCompareInstrumentedTest",
+        PACKAGE + ".test/androidx.test.runner.AndroidJUnitRunner", timeout=120)
+    if "OK (1 test)" not in compare_output or "FAILURES" in compare_output:
+        raise AssertionError("Session Compare instrumentation failed: " + compare_output[-1400:])
+    print("PASS: emulator-only seeded SQLite sessions, equal windows, A/B swap and data isolation", flush=True)
+    library_output = adb("shell", "am", "instrument", "-w", "-e", "class",
+        PACKAGE + ".SessionLibraryInstrumentedTest",
+        PACKAGE + ".test/androidx.test.runner.AndroidJUnitRunner", timeout=120)
+    if "OK (1 test)" not in library_output or "FAILURES" in library_output:
+        raise AssertionError("Session Library instrumentation failed: " + library_output[-1400:])
+    print("PASS: local library pagination, package/state isolation and selected session ZIP", flush=True)
     adb("shell", "pm", "clear", PACKAGE, timeout=40)
     adb("shell", "am", "force-stop", PACKAGE)
     adb("shell", "am", "start", "-W", "-n", PACKAGE + "/.NavigationHostActivity", timeout=60)
@@ -455,12 +479,36 @@ def main() -> None:
     click("Инструменты")
     expect(TOOLS_MARKER)
     click("Поиск по инструментам Legion Control", scrolls=0)
+    adb("shell", "input", "text", "stereo")
+    expect("Проверка стерео")
+    adb("shell", "input", "keyevent", "KEYCODE_BACK")
+    click("Проверка стерео", scrolls=0)
+    # The specific control must be visible without manual swiping or activation.
+    expect("Стерео · 440 Гц")
+    capture("18a-finder-stereo-anchor")
+    back_until(TOOLS_MARKER)
+    click("Поиск по инструментам Legion Control", scrolls=0)
+    adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
+    # Clear any restored search text, then select a standalone Activity target.
+    adb("shell", "input", "keyevent", "--longpress", *["KEYCODE_DEL"] * 32)
+    adb("shell", "input", "text", "replay")
+    expect("Мгновенный повтор")
+    adb("shell", "input", "keyevent", "KEYCODE_BACK")
+    click("Мгновенный повтор", scrolls=0)
+    expect("ЗАПУСТИТЬ REPLAY-БУФЕР")
+    capture("18b-finder-replay-anchor")
+    if "ReplayCaptureService" in adb("shell", "dumpsys", "activity", "services", PACKAGE):
+        raise AssertionError("Opening a finder result unexpectedly started Replay")
+    back_until(TOOLS_MARKER)
+    click("Поиск по инструментам Legion Control", scrolls=0)
+    adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
+    adb("shell", "input", "keyevent", "--longpress", *["KEYCODE_DEL"] * 32)
     adb("shell", "input", "text", "audio")
     expect("Audio Lab")
     if visible("Gaming Lab"):
         raise AssertionError("Tool search left unrelated modules visible")
     adb("shell", "input", "keyevent", "KEYCODE_BACK")  # Dismiss IME
-    click("Audio Lab", scrolls=0)
+    click("Audio Lab", scrolls=7, exact_only=True)
     stage("18-tools-search-opens-audio", "AUDIO LAB")
     back_until(TOOLS_MARKER)
     click("Поиск по инструментам Legion Control", scrolls=0)
@@ -469,8 +517,55 @@ def main() -> None:
     adb("shell", "input", "keyevent", "KEYCODE_BACK")
     click("Сбросить поиск", scrolls=0)
     expect("Capture Studio")
+    click("Настройки")
+    expect(SETTINGS_MARKER)
+    expect("Поверх других окон")
+    click("Резервная копия ZIP", scrolls=12)
+    expect("ЭКСПОРТ ИСТОРИИ И НАСТРОЕК")
+    capture("18c-settings-backup-anchor")
+    back_until(SETTINGS_MARKER)
     click("Главная")
     stage("19-return-home-after-search", "Готов к запуску")
+    click("Live Monitor", scrolls=10, exact_only=True)
+    stage("20-live-monitor-idle", "ЖИВОЙ МОНИТОР УСТРОЙСТВА")
+    expect("Показаний пока нет")
+    click("НАЧАТЬ МОНИТОРИНГ", exact_only=True)
+    expect(" / 120 замеров")
+    click("ОСТАНОВИТЬ МОНИТОРИНГ", exact_only=True)
+    expect("Мониторинг остановлен пользователем")
+    capture("21-live-monitor-stopped")
+    expect_scrolling("Доступная RAM:", seconds=20)
+    click("ЗАФИКСИРОВАТЬ КОНТРОЛЬНУЮ ТОЧКУ", scrolls=10, exact_only=True)
+    expect("Изменение относительно сохранённого замера")
+    capture("22-live-monitor-baseline")
+    # The origin Home is scrolled down to the Live Monitor tile. Its title may
+    # be offscreen or loading. Press Back once and wait for the fixed host header;
+    # repeated Back presses on Home would exit to Android Launcher.
+    adb("shell", "input", "keyevent", "KEYCODE_BACK")
+    expect("GAME HUB ·")
+    expect_selected_tab("Главная")
+    expect_scrolling("Готов к запуску", seconds=25)
+    click("Игры")
+    click("Game Preflight", scrolls=8, exact_only=True)
+    stage("23-game-preflight-idle", "ПРОВЕРКА ПЕРЕД ИГРОЙ")
+    expect("ВЫБРАТЬ ИГРУ ДЛЯ ПРОВЕРКИ")
+    expect("Игра не выбрана")
+    back_until(GAMES_MARKER)
+    click("История")
+    click("Session Compare", scrolls=10, exact_only=True)
+    stage("24-session-compare-idle", "СРАВНЕНИЕ ИГРОВЫХ СЕССИЙ")
+    expect("ВЫБРАТЬ ИГРУ ИЗ ИСТОРИИ")
+    adb("shell", "input", "keyevent", "KEYCODE_BACK")
+    expect("ИСТОРИЯ И ДИАГНОСТИКА")
+    expect_selected_tab("История")
+    click("Session Library", scrolls=10, direction="up", exact_only=True)
+    stage("25-session-library", "БИБЛИОТЕКА ИГРОВЫХ СЕССИЙ")
+    expect("Фильтр по игре")
+    adb("shell", "input", "keyevent", "KEYCODE_BACK")
+    expect("ИСТОРИЯ И ДИАГНОСТИКА")
+    expect_selected_tab("История")
+    click("Главная")
+    expect_scrolling("Готов к запуску", seconds=25)
     print("PASS: Android emulator UI navigation, explicit marker persisted in SQLite,",
           "signal correlation, selected package, foreground START/STOP, back stack",flush=True)
 

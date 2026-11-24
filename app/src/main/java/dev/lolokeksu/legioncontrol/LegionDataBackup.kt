@@ -19,7 +19,11 @@ import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
 data class LegionBackupPreview(val tables: Int, val rows: Long, val schema: Int,
-                               val settings: Int)
+                               val settings: Int, val archiveVersion: Int = 2,
+                               val identity: BackupArchiveIdentity? = null)
+
+data class BackupArchiveIdentity(val version: Int, val databaseSha256: String,
+                                 val preferencesSha256: String)
 
 /**
  * Local, portable recovery for all v12 SQLite tables plus non-secret user preferences.
@@ -40,10 +44,17 @@ object LegionDataBackup {
     fun recoveryWarning(): String? = lastRecoveryFailure?.let {
         "Восстановление настроек из ZIP не завершено ($it). Откройте Capture Studio → «Завершить прерванное восстановление». Не удаляйте данные приложения."
     }
-    private val names = listOf(
+    private val legacyNames = listOf(
         "legion-game-capture-profiles", "legion-capture-studio",
         "legion-launch-profiles-v1", ToolboxPreferences.NAME
     )
+    private val names = legacyNames + PreflightPresets.STORE
+    private const val FORMAT_VERSION = 2
+    private fun namesFor(version: Int) = when(version) {
+        1 -> legacyNames
+        FORMAT_VERSION -> names
+        else -> error("Unsupported backup version")
+    }
     private val nameRule = Regex("[A-Za-z][A-Za-z0-9_]{0,79}")
     private val allowedEntries = setOf("manifest.json", "preferences.json", "history.sqlite")
 
@@ -53,6 +64,33 @@ object LegionDataBackup {
 
     private fun pendingFile(context: Context): AtomicFile =
         AtomicFile(File(context.filesDir, PENDING_JOURNAL))
+
+    /** Bound memory before reading a damaged journal, not after allocating its contents. */
+    internal fun readBounded(input: InputStream, maxBytes: Int): ByteArray {
+        require(maxBytes > 0)
+        val result = ByteArrayOutputStream()
+        val block = ByteArray(minOf(8192, maxBytes))
+        var remaining = maxBytes
+        while (remaining > 0) {
+            val n = input.read(block, 0, minOf(block.size, remaining))
+            if (n < 0) return result.toByteArray()
+            if (n == 0) {
+                val one = input.read()
+                if (one < 0) return result.toByteArray()
+                result.write(one)
+                remaining--
+            } else {
+                result.write(block, 0, n)
+                remaining -= n
+            }
+        }
+        require(input.read() == -1) { "Recovery journal exceeds size limit" }
+        return result.toByteArray()
+    }
+
+    private fun identity(manifest: JSONObject) = BackupArchiveIdentity(
+        manifest.getInt("version"), manifest.getString("database_sha256"),
+        manifest.getString("preferences_sha256"))
 
     private fun sqliteMarker(db: SQLiteDatabase): Int =
         db.rawQuery("PRAGMA application_id", null).use { cursor ->
@@ -64,9 +102,9 @@ object LegionDataBackup {
      * Durable preference intent precedes the SQLite transaction. No preferences
      * change until the same SQLite transaction commits its matching marker.
      */
-    private fun savePending(context: Context, marker: Int, preferenceBytes: ByteArray) {
+    private fun savePending(context: Context, marker: Int, preferenceBytes: ByteArray, version: Int) {
         val journal = JSONObject()
-            .put("version", 1)
+            .put("version", version)
             .put("sqlite_marker", marker)
             .put("preferences_sha256", sha256(preferenceBytes))
             .put("preferences_json", String(preferenceBytes, Charsets.UTF_8))
@@ -96,15 +134,16 @@ object LegionDataBackup {
             return false
         }
         try {
-            val bytes = atomic.openRead().use { it.readBytes() }
+            val bytes = atomic.openRead().use { readBounded(it, MAX_PREFS * 2 + MAX_META) }
             require(bytes.size in 1..(MAX_PREFS * 2 + MAX_META))
             val entry = JSONObject(String(bytes, Charsets.UTF_8))
-            require(entry.getInt("version") == 1)
+            val version = entry.getInt("version")
+            namesFor(version)
             val marker = entry.getInt("sqlite_marker")
             require(marker > 0)
             val preferenceBytes = entry.getString("preferences_json").toByteArray(Charsets.UTF_8)
             require(sha256(preferenceBytes) == entry.getString("preferences_sha256"))
-            val values = parsePreferences(preferenceBytes)
+            val values = parsePreferences(preferenceBytes, version)
             val committed = LocalHistoryStore(context).use { helper ->
                 sqliteMarker(helper.readableDatabase) == marker
             }
@@ -125,8 +164,9 @@ object LegionDataBackup {
         check(CaptureCoordinator.reserveConsent(CaptureMode.MAINTENANCE)) {
             "Завершите MediaProjection перед резервным копированием"
         }
-        val tmp = newStagingFile(context)
+        var temporary: File? = null
         try {
+            val tmp = newStagingFile(context).also { temporary = it }
             val prefs = preferencesJson(context)
             LocalHistoryStore(context).use { helper ->
                 helper.readableDatabase.execSQL("VACUUM INTO ?", arrayOf(tmp.absolutePath))
@@ -137,7 +177,7 @@ object LegionDataBackup {
             val preview = inspectSQLite(context, tmp)
             val manifest = JSONObject()
                 .put("format", "legion-control-local-backup")
-                .put("version", 1)
+                .put("version", FORMAT_VERSION)
                 .put("package", context.packageName)
                 .put("schema", HapticLabSchema.VERSION)
                 .put("database_sha256", sqliteHash)
@@ -153,9 +193,10 @@ object LegionDataBackup {
                 FileInputStream(tmp).use { it.copyTo(zip) }
                 zip.closeEntry()
             }
-            return preview.copy(settings = countSettings(parsePreferences(prefs)))
+            return preview.copy(settings = countSettings(parsePreferences(prefs, FORMAT_VERSION)),
+                identity = identity(manifest))
         } finally {
-            tmp.delete()
+            temporary?.delete()
             CaptureCoordinator.release(CaptureMode.MAINTENANCE)
         }
     }
@@ -163,18 +204,25 @@ object LegionDataBackup {
     fun preview(context: Context, uri: Uri): LegionBackupPreview =
         withStaged(context, uri) { stage ->
             inspectSQLite(context, stage.sqlite)
-                .copy(settings = countSettings(stage.preferences))
+                .copy(settings = countSettings(stage.preferences), archiveVersion = stage.manifest.getInt("version"),
+                    identity = identity(stage.manifest))
         }
 
-    fun restoreOnEmptyDatabase(context: Context, uri: Uri): LegionBackupPreview =
-        restoreCore(context, uri, null)
+    fun restoreOnEmptyDatabase(context: Context, uri: Uri,
+                               confirmed: BackupArchiveIdentity): LegionBackupPreview =
+        restoreCore(context, uri, confirmed, null)
+
+    /** Emulator fixtures already operate on explicitly constructed local archives. */
+    internal fun restoreOnEmptyDatabase(context: Context, uri: Uri): LegionBackupPreview =
+        restoreCore(context, uri, requireNotNull(preview(context, uri).identity), null)
 
     /** Test seam: simulate a process interruption after DB COMMIT but before settings. */
     internal fun restoreInterruptedForTest(context: Context, uri: Uri,
                                           interrupt: () -> Unit): LegionBackupPreview =
-        restoreCore(context, uri, interrupt)
+        restoreCore(context, uri, requireNotNull(preview(context, uri).identity), interrupt)
 
     @Synchronized private fun restoreCore(context: Context, uri: Uri,
+                                          confirmed: BackupArchiveIdentity,
                                           afterDbCommit: (() -> Unit)?): LegionBackupPreview {
         recoverPendingRestore(context) // complete or discard a prior interrupted attempt
         check(!GameSessionRecorderService.sessionActive) {
@@ -190,8 +238,12 @@ object LegionDataBackup {
         try {
             check(!GameSessionRecorderService.sessionActive)
             return withStaged(context, uri) { staged ->
+                check(identity(staged.manifest) == confirmed) {
+                    "Архив изменился после проверки. Откройте и подтвердите его заново."
+                }
                 val preview = inspectSQLite(context, staged.sqlite)
-                    .copy(settings = countSettings(staged.preferences))
+                    .copy(settings = countSettings(staged.preferences), archiveVersion = staged.manifest.getInt("version"),
+                        identity = identity(staged.manifest))
                 val source = SQLiteDatabase.openDatabase(staged.sqlite.absolutePath, null,
                     SQLiteDatabase.OPEN_READONLY)
                 try {
@@ -216,7 +268,7 @@ object LegionDataBackup {
                             check(BackupRestorePolicy.acceptsEmptyTarget(existingCounts)) {
                                 "База содержит пользовательские данные. Импорт разрешён только в пустую базу."
                             }
-                            savePending(context, marker, staged.preferenceBytes)
+                            savePending(context, marker, staged.preferenceBytes, staged.manifest.getInt("version"))
                             for (table in tables) {
                                 source.rawQuery("SELECT * FROM " + sqlName(table), null)
                                     .use { cursor ->
@@ -309,7 +361,7 @@ object LegionDataBackup {
             val preferences = requireNotNull(raw["preferences.json"])
             val manifest = JSONObject(String(manifestBytes, Charsets.UTF_8))
             require(manifest.getString("format") == "legion-control-local-backup" &&
-                manifest.getInt("version") == 1 && manifest.getString("package") ==
+                manifest.getInt("version") in 1..FORMAT_VERSION && manifest.getString("package") ==
                 context.packageName && manifest.getInt("schema") == HapticLabSchema.VERSION) {
                 "Несовместимая резервная копия"
             }
@@ -317,7 +369,7 @@ object LegionDataBackup {
                 manifest.getString("preferences_sha256") == sha256(preferences)) {
                 "Контрольная сумма архива не совпадает"
             }
-            return body(Staged(file, manifest, parsePreferences(preferences), preferences))
+            return body(Staged(file, manifest, parsePreferences(preferences, manifest.getInt("version")), preferences))
         } finally {
             file.delete()
         }
@@ -409,10 +461,14 @@ object LegionDataBackup {
         val root = JSONObject()
         for (name in names) {
             val values = JSONObject()
-            for ((key, value) in context.getSharedPreferences(name, Context.MODE_PRIVATE).all) {
+            val stored = context.getSharedPreferences(name, Context.MODE_PRIVATE).all
+            if(name == PreflightPresets.STORE) require(stored.size <= PreflightPresets.LIMIT)
+            for ((key, value) in stored) {
+                if(name == PreflightPresets.STORE)
+                    require(PreflightPresets.validBackupEntry(key, value))
                 if (key == "pending_global_undo" || key == "last_result" ||
                     key == "replay_status") continue
-                require(key.length in 1..150)
+                require(key.length in 1..(if(name == PreflightPresets.STORE) 207 else 150))
                 val wrapped = when (value) {
                     is String -> JSONObject().put("type", "string").put("value", value)
                     is Int -> JSONObject().put("type", "int").put("value", value)
@@ -430,18 +486,23 @@ object LegionDataBackup {
         return bytes
     }
 
-    private fun parsePreferences(bytes: ByteArray): Map<String, Map<String, Any>> {
+    private fun parsePreferences(bytes: ByteArray, version: Int): Map<String, Map<String, Any>> {
         require(bytes.size <= MAX_PREFS)
         val root = JSONObject(String(bytes, Charsets.UTF_8))
-        require(root.keys().asSequence().toSet() == names.toSet())
-        return names.associateWith { name ->
+        val expected = namesFor(version)
+        require(root.keys().asSequence().toSet() == expected.toSet())
+        return expected.associateWith { name ->
             val obj = root.getJSONObject(name)
-            require(obj.length() <= 500)
+            require(obj.length() <= (if(name == PreflightPresets.STORE) PreflightPresets.LIMIT else 500))
             obj.keys().asSequence().associateWith { key ->
-                require(key.length in 1..150 && key != "pending_global_undo" &&
+                require(key.length in 1..(if(name == PreflightPresets.STORE) 207 else 150) && key != "pending_global_undo" &&
                     key != "last_result" && key != "replay_status")
                 val wrapped = obj.getJSONObject(key)
                 require(wrapped.keys().asSequence().toSet() == setOf("type", "value"))
+                if(name == PreflightPresets.STORE) {
+                    require(wrapped.getString("type") == "string")
+                    require(PreflightPresets.validBackupEntry(key, wrapped.get("value")))
+                }
                 when (wrapped.getString("type")) {
                     "string" -> wrapped.getString("value").also { require(it.length <= 100_000) }
                     "int" -> wrapped.getInt("value")
@@ -460,7 +521,8 @@ object LegionDataBackup {
         data.values.sumOf { it.size }
 
     private fun applyPreferences(context: Context, values: Map<String, Map<String, Any>>) {
-        for (name in names) {
+        // A v1 archive or recovery journal never clears the Preflight store.
+        for (name in names.filter { it in values }) {
             val editor = context.getSharedPreferences(name, Context.MODE_PRIVATE)
                 .edit().clear()
             for ((key, value) in values.getValue(name)) {

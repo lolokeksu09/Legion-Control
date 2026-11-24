@@ -47,8 +47,9 @@ class SessionBaselinesFragment:Fragment() {
             setTextColor(0xFFB4B4B4.toInt())
             setPadding(0,12.dp,0,14.dp)
         })
-        fun button(label:String,click:()->Unit) {
+        fun button(label:String,featureId:String?=null,click:()->Unit) {
             root.addView(Button(requireContext()).apply {
+                if(featureId!=null) FeatureReveal.bind(this,featureId)
                 text=label
                 isAllCaps=false
                 minHeight=48.dp
@@ -56,8 +57,8 @@ class SessionBaselinesFragment:Fragment() {
             })
         }
         button("Выбрать игру из локальной истории") { vm.pickPackages() }
-        button("За последние 7 дней") { vm.setDays(7) }
-        button("За последние 30 дней") { vm.setDays(30) }
+        button("За последние 7 дней", "baselines.week") { vm.setDays(7) }
+        button("За последние 30 дней", "baselines.month") { vm.setDays(30) }
         button("Обновить базовые показатели") { vm.refresh() }
         button("Открыть Session Signals выбранной игры") { openSignals() }
         button("Session Incidents · эпизоды выбранной игры") {
@@ -66,7 +67,7 @@ class SessionBaselinesFragment:Fragment() {
                 Bundle().apply { vm.selectedPackage?.let { putString("smart_package", it) } }
             )
         }
-        button("Экспортировать сравнение CSV") { export() }
+        button("Экспортировать сравнение CSV", "baselines.csv") { export() }
         button("Поделиться текстовым сравнением") { share() }
         output=TextView(requireContext()).apply {
             text="Нет загруженных данных."
@@ -83,6 +84,7 @@ class SessionBaselinesFragment:Fragment() {
     override fun onViewCreated(view:View,savedInstanceState:Bundle?) {
         super.onViewCreated(view,savedInstanceState)
         LegionUiSupport.styleModuleTree(view)
+        FeatureReveal.fromFragment(this, view, FeatureModule.BASELINES)
         vm=ViewModelProvider(this)[SessionBaselinesViewModel::class.java]
         vm.state.observe(viewLifecycleOwner) { state ->
             output.text=state.text

@@ -63,8 +63,9 @@ class ApplicationCenterFragment:Fragment() {
                 if(multiLine) { minLines=2;maxLines=5 }
                 root.addView(this)
             }
-        fun button(label:String,action:()->Unit) {
+        fun button(label:String,featureId:String?=null,action:()->Unit) {
             root.addView(Button(requireContext()).apply {
+                if(featureId!=null) FeatureReveal.bind(this,featureId)
                 text=label
                 LegionUiSupport.styleAction(this)
                 setOnClickListener { action() }
@@ -93,14 +94,14 @@ class ApplicationCenterFragment:Fragment() {
         title("Проверка версий и изменений")
         button("Проверить версию и состояние выбранного") { scanOne() }
         button("Проверить изменения всех отслеживаемых приложений") { scanAll() }
-        button("Карточка приложения и видимые разрешения") { inspect() }
+        button("Карточка приложения и видимые разрешения", "apps.permissions") { inspect() }
         button("Последние события обновлений и видимости") { showEvents() }
         title("Управление записью")
         button("Удалить из библиотеки (с подтверждением)") { confirmRemove() }
         note("Проверка вручную сравнивает видимую версию и дату обновления с "+
             "предыдущей записью. «Пакет недоступен» не означает, что он удалён.")
         title("Использование · Android API")
-        button("Использование приложения за 24 часа") { usage(1) }
+        button("Использование приложения за 24 часа", "apps.usage") { usage(1) }
         button("Использование приложения за 7 дней") { usage(7) }
         button("Разрешить Usage Access в настройках") {
             openSystem(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
@@ -147,6 +148,7 @@ class ApplicationCenterFragment:Fragment() {
     override fun onViewCreated(view:View,savedInstanceState:Bundle?) {
         super.onViewCreated(view,savedInstanceState)
         LegionUiSupport.styleModuleTree(view)
+        FeatureReveal.fromFragment(this, view, FeatureModule.APPS)
         viewModel = ViewModelProvider(this)[ApplicationCenterViewModel::class.java]
         viewModel.state.observe(viewLifecycleOwner) { update ->
             show(update.message)

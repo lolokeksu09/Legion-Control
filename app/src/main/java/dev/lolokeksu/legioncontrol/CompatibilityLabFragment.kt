@@ -54,31 +54,31 @@ class CompatibilityLabFragment : Fragment() {
         }
         root.addView(output)
         root.addView(LegionUiSupport.sectionLabel(requireContext(), "ЭКРАН И ЗВУК"))
-        addButton(root, "1 · Display Modes & HDR") {
+        addButton(root, "1 · Display Modes & HDR", "compat.hdr") {
             viewModel.run(CompatibilityRead.DISPLAY,requireActivity().display)
         }
-        addButton(root, "2 · Audio Output Inspector") {
+        addButton(root, "2 · Audio Output Inspector", "compat.audio") {
             viewModel.run(CompatibilityRead.AUDIO,requireActivity().display)
         }
         root.addView(LegionUiSupport.sectionLabel(requireContext(), "КОНТРОЛЛЕРЫ"))
-        addButton(root, "3 · Gamepad Inventory") {
+        addButton(root, "3 · Gamepad Inventory", "compat.controllers") {
             viewModel.run(CompatibilityRead.GAMEPADS,requireActivity().display)
         }
         addButton(root, "4 · Gamepad Live · кнопки и стики") {
             ModuleNavigation.open(this,GamepadLiveActivity::class.java)
         }
         root.addView(LegionUiSupport.sectionLabel(requireContext(), "СОВМЕСТИМОСТЬ И ПРОИЗВОДИТЕЛЬНОСТЬ"))
-        addButton(root, "5 · DRM / Widevine Compatibility") {
+        addButton(root, "5 · DRM / Widevine Compatibility", "compat.drm") {
             viewModel.run(CompatibilityRead.DRM,requireActivity().display)
         }
         addButton(root, "6 · Gaming Readiness · снимок системы") {
             viewModel.run(CompatibilityRead.READINESS,requireActivity().display)
         }
-        addButton(root, "7 · Quick Compute Probe · локальный CPU-тест") {
+        addButton(root, "7 · Quick Compute Probe · локальный CPU-тест", "compat.cpu") {
             viewModel.run(CompatibilityRead.COMPUTE,requireActivity().display)
         }
         root.addView(LegionUiSupport.sectionLabel(requireContext(), "ОТЧЁТ"))
-        addButton(root, "Полный отчёт о совместимости") { runFullReport() }
+        addButton(root, "Полный отчёт о совместимости", "compat.report") { runFullReport() }
         addButton(root, "Поделиться последним завершённым отчётом") { shareLastReport() }
         addButton(root, "Вернуться в Hardware Lab") {
             val controller=runCatching { NavHostFragment.findNavController(this) }.getOrNull()
@@ -93,14 +93,16 @@ class CompatibilityLabFragment : Fragment() {
     override fun onViewCreated(view:View,savedInstanceState:Bundle?) {
         super.onViewCreated(view,savedInstanceState)
         LegionUiSupport.styleModuleTree(view)
+        FeatureReveal.fromFragment(this, view, FeatureModule.COMPAT)
         viewModel=ViewModelProvider(this)[CompatibilityLabViewModel::class.java]
         viewModel.report.observe(viewLifecycleOwner) { output.text=it }
     }
 
     private val Int.dp get() = (this * resources.displayMetrics.density).toInt()
 
-    private fun addButton(root: LinearLayout, title: String, action: () -> Unit) {
+    private fun addButton(root: LinearLayout, title: String, featureId: String? = null, action: () -> Unit) {
         root.addView(Button(requireContext()).apply {
+            if(featureId!=null) FeatureReveal.bind(this,featureId)
             text = title
             isAllCaps = false
             minHeight = 48.dp

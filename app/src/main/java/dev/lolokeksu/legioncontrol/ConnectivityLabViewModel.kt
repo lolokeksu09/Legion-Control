@@ -20,7 +20,8 @@ data class ConnectivityLabUiState(
     val testing:Boolean,
     val nonce:Int=0,
     val runs:List<ConnectivityRun>?=null,
-    val shareText:String?=null
+    val shareText:String?=null,
+    val deletedRunId:String?=null
 )
 
 /** Explicit, cancellable DNS/TCP/TLS user tests. No Activity reference or background service. */
@@ -148,8 +149,11 @@ class ConnectivityLabViewModel(application:Application):AndroidViewModel(applica
                 "новые циклы не начнутся.", true, generation.get())
     }
 
-    fun showHistory() = localWithRuns {
-        ConnectivityRepository(getApplication<Application>()).use { it.runs(host,50) }
+    fun showHistory() {
+        val target=host
+        localWithRuns {
+            ConnectivityRepository(getApplication<Application>()).use { it.runs(target,50) }
+        }
     }
 
     fun showSelected(id:String) = local {
@@ -183,12 +187,12 @@ class ConnectivityLabViewModel(application:Application):AndroidViewModel(applica
         ConnectivityLabUiState(text,false,nonce,shareText=text)
     }
 
-    fun delete(id:String) = local {
+    fun delete(id:String) = submit { nonce ->
         val removed=ConnectivityRepository(getApplication<Application>()).use { it.delete(id) }
-        if(removed) {
-            selectedRunId=null
-            "Сетевой тест удалён. История других модулей не изменена."
-        }else "Запись уже отсутствует."
+        ConnectivityLabUiState(
+            if(removed) "Сетевой тест удалён. История других модулей не изменена."
+            else "Запись уже отсутствует.",
+            false,nonce,deletedRunId=id)
     }
 
     fun exportCsv(uri:Uri) = local {
@@ -232,7 +236,11 @@ class ConnectivityLabViewModel(application:Application):AndroidViewModel(applica
                     " · "+it.message.orEmpty().take(120),false,request)
             }
             main.post {
-                if(!closed.get() && generation.get()==request) mutableState.value=state
+                if(!closed.get() && generation.get()==request) {
+                    if(state.deletedRunId!=null && selectedRunId==state.deletedRunId)
+                        selectedRunId=null
+                    mutableState.value=state.copy(deletedRunId=null)
+                }
             }
         }
     }

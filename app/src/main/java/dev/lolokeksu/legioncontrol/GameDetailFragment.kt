@@ -144,6 +144,9 @@ class GameDetailFragment : Fragment() {
                 vm.chooseForToolbox(pkg, app.label)
             }
         }
+        addAction("Game Preflight", "Проверить заряд, температуру, дисплей, RAM и сеть перед запуском") {
+            open(GamePreflightActivity::class.java) { it.putExtra(GamePreflightActivity.EXTRA_PACKAGE,pkg) }
+        }
         addAction("Открыть Game Toolbox", "Панель поверх игр требует разрешения Android") {
             open(GameToolboxActivity::class.java)
         }
@@ -159,6 +162,12 @@ class GameDetailFragment : Fragment() {
             open(SmartProfilesActivity::class.java) {
                 it.putExtra("app_center_package", pkg)
             }
+        }
+        addAction("Session Library", "Открыть историю записей этой игры") {
+            open(SessionLibraryActivity::class.java) { it.putExtra(SessionLibraryActivity.EXTRA_PACKAGE,pkg) }
+        }
+        addAction("Session Compare", "Сравнить одинаковые интервалы двух записей этой игры") {
+            open(SessionCompareActivity::class.java) { it.putExtra(SessionCompareActivity.EXTRA_PACKAGE,pkg) }
         }
         addAction("Experiment Lab", "Сравнения и заметки для выбранного пакета") {
             open(ExperimentLabActivity::class.java) {

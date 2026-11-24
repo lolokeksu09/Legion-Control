@@ -60,8 +60,9 @@ class GameSessionFragment : Fragment() {
             setTextColor(Color.LTGRAY)
             setPadding(0,9.dp,0,12.dp)
         }
-        fun action(t: String, click: () -> Unit) {
+        fun action(t: String, featureId: String? = null, click: () -> Unit) {
             root.addView(Button(requireContext()).apply {
+                if(featureId!=null) FeatureReveal.bind(this,featureId)
                 text=t
                 minHeight=48.dp
                 setOnClickListener { click() }
@@ -110,7 +111,7 @@ class GameSessionFragment : Fragment() {
         root.addView(reportView)
         action("Открыть выбранное приложение") { openSelectedApp() }
         action("ОСТАНОВИТЬ ЗАПИСЬ") { stopRecording() }
-        action("Добавить метку во время записи") { addUserMark() }
+        action("Добавить метку во время записи", "session.mark") { addUserMark() }
 
         root.addView(LegionUiSupport.sectionLabel(requireContext(), "ДОПОЛНИТЕЛЬНЫЕ НАСТРОЙКИ"))
         action("Smart Profiles · сохранённые настройки") {
@@ -132,6 +133,14 @@ class GameSessionFragment : Fragment() {
         action("Session Signals · хронология и события") { openSessionSignals() }
         action("Session Incidents · эпизоды и длительность") { openSessionIncidents() }
         action("Session Baselines · сравнение с историей") { openSessionBaselines() }
+        action("Session Compare · выбрать две записи") {
+            val pkg=packageInput.text.toString().trim()
+            runCatching {
+                startActivity(Intent(requireContext(),SessionCompareActivity::class.java).apply {
+                    if(ApplicationInventory.isPackageName(pkg))putExtra(SessionCompareActivity.EXTRA_PACKAGE,pkg)
+                })
+            }.onFailure { reportView.text="Не удалось открыть сравнение." }
+        }
         action("Разрешить уведомления о записи (Android 13+)") {
             if (requireContext().checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)
                 requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS),REQUEST_NOTIFICATION)
@@ -140,7 +149,7 @@ class GameSessionFragment : Fragment() {
         action("Обновить и показать последние сессии") { refresh() }
         action("Сравнить две последние сессии") { compare() }
         root.addView(LegionUiSupport.sectionLabel(requireContext(), "ЭКСПОРТ"))
-        action("Сохранить историю замеров CSV") { createFile(REQUEST_CSV) }
+        action("Сохранить историю замеров CSV", "session.csv") { createFile(REQUEST_CSV) }
         action("Сохранить полный архив сессий ZIP") { createFile(REQUEST_ZIP) }
         action("Статистика использования приложений (опционально)") {
             startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
@@ -159,6 +168,7 @@ class GameSessionFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         LegionUiSupport.styleModuleTree(view)
+        FeatureReveal.fromFragment(this, view, FeatureModule.SESSION)
         viewModel = ViewModelProvider(this)[GameSessionViewModel::class.java]
         viewModel.state.observe(viewLifecycleOwner) { snapshot ->
             reportView.text = snapshot.report

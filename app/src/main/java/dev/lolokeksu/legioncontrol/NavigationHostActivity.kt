@@ -52,8 +52,9 @@ class NavigationHostActivity : FragmentActivity() {
             setBackgroundColor(Color.BLACK)
         }
         root.setOnApplyWindowInsetsListener { view, insets ->
-            val bars = insets.getInsets(WindowInsets.Type.systemBars())
-            view.setPadding(0, bars.top, 0, bars.bottom)
+            val bars = insets.getInsets(WindowInsets.Type.systemBars() or
+                WindowInsets.Type.displayCutout() or WindowInsets.Type.ime())
+            view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
             insets
         }
 
@@ -89,7 +90,7 @@ class NavigationHostActivity : FragmentActivity() {
             setPadding(0, 4.dp, 0, 0)
         }
         titles.addView(subtitle)
-        header.addView(titles)
+        header.addView(titles, LinearLayout.LayoutParams(0, -2, 1f))
         root.addView(header)
 
         val separator = View(this).apply { setBackgroundColor(0xFF22262B.toInt()) }
@@ -100,7 +101,7 @@ class NavigationHostActivity : FragmentActivity() {
         val bottom = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
-            setPadding(7.dp, 9.dp, 7.dp, 8.dp)
+            setPadding(5.dp, 5.dp, 5.dp, 5.dp)
             setBackgroundColor(0xFF0D0F12.toInt())
         }
         root.addView(bottom)
@@ -132,19 +133,21 @@ class NavigationHostActivity : FragmentActivity() {
             }
             val icon = ImageView(this).apply {
                 setImageResource(icons[index])
+                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
                 imageTintList = ColorStateList.valueOf(muted)
             }
             column.addView(icon, LinearLayout.LayoutParams(21.dp, 21.dp))
             val text = TextView(this).apply {
                 text = tabs[index].shortTitle
-                textSize = 10f
+                textSize = 12f
                 gravity = Gravity.CENTER
                 setTextColor(muted)
                 setPadding(0, 6.dp, 0, 0)
-                maxLines = 1
+                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
             }
-            column.addView(text)
-            bottom.addView(column, LinearLayout.LayoutParams(0, 57.dp, 1f))
+            column.minimumHeight = 48.dp
+            column.addView(text, LinearLayout.LayoutParams(-1, -2))
+            bottom.addView(column, LinearLayout.LayoutParams(0, -2, 1f))
             buttons[id] = icon to text
             tabSurfaces[id] = column
             column.setOnClickListener {

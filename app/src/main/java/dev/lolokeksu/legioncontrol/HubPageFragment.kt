@@ -153,6 +153,18 @@ class HubPageFragment : Fragment() {
     private fun render(state: HubLoadState) {
         if (!isAdded || !::column.isInitialized) return
         column.removeAllViews()
+        if (page() == HubTab.SETTINGS) {
+            showSettings((state as? HubLoadState.Ready)?.snapshot)
+            LegionDataBackup.recoveryWarning()?.let(::info)
+            if(state is HubLoadState.Failed) {
+                info(state.message)
+                tile("Повторить чтение сводки", "Настройки и восстановление доступны независимо") {
+                    viewModel.refresh()
+                }
+            }
+            if(state is HubLoadState.Ready) state.snapshot.warnings.forEach(::info)
+            return
+        }
         when (state) {
             HubLoadState.Loading -> {
                 if (page() == HubTab.TOOLS) {
@@ -232,6 +244,9 @@ class HubPageFragment : Fragment() {
             open(GameSessionActivity::class.java)
         }
         group("Состояние Android")
+        tile("Live Monitor", "Температура, RAM, заряд и частота дисплея в реальном времени") {
+            open(LiveMonitorActivity::class.java)
+        }
         tile("Батарея · ${s.batteryPercent?.let { "$it%" } ?: "нет данных"}",
             "Частота дисплея: ${s.refreshHz?.let { String.format(Locale.US, "%.1f Гц", it) } ?: "нет данных"} · это не FPS игры") {
             open(MainActivity::class.java)
@@ -250,6 +265,9 @@ class HubPageFragment : Fragment() {
         section("Игровая библиотека",
             "Настоящие Android-приложения из Launcher и избранное Application Center.")
         group("Игровые функции")
+        tile("Game Preflight", "Проверка требований выбранной игры перед запуском") {
+            open(GamePreflightActivity::class.java)
+        }
         tile("Game Session", "Запись состояния устройства во время игры") {
             open(GameSessionActivity::class.java)
         }
@@ -333,9 +351,45 @@ class HubPageFragment : Fragment() {
         redraw()
     }
 
+    /** Search results reveal existing controls; opening a result never runs the action. */
+    private fun openStandaloneFeature(cls: Class<*>, args: Bundle) {
+        runCatching { startActivity(Intent(requireContext(), cls).putExtras(args)) }
+            .onFailure {
+                AlertDialog.Builder(requireContext()).setTitle("Не удалось открыть действие")
+                    .setMessage(it.javaClass.simpleName).setPositiveButton("Понятно", null).show()
+            }
+    }
+
+    private fun openFeature(entry: FeatureEntry) {
+        val args = Bundle().apply { putString(FeatureFinder.EXTRA_FEATURE_ID, entry.id) }
+        when (entry.module) {
+            FeatureModule.CAPTURE -> openStandaloneFeature(CaptureStudioActivity::class.java, args)
+            FeatureModule.AUDIO -> open(AudioLabActivity::class.java, args)
+            FeatureModule.HAPTIC -> open(HapticLabActivity::class.java, args)
+            FeatureModule.NETWORK -> open(ConnectivityLabActivity::class.java, args)
+            FeatureModule.PROFILE -> open(SmartProfilesActivity::class.java, args)
+            FeatureModule.APPS -> open(ApplicationCenterActivity::class.java, args)
+            FeatureModule.SESSION -> open(GameSessionActivity::class.java, args)
+            FeatureModule.TOOLBOX -> open(GameToolboxActivity::class.java, args)
+            FeatureModule.GAMING -> open(GamingDiagnosticsActivity::class.java, args)
+            FeatureModule.HARDWARE -> open(HardwareLabActivity::class.java, args)
+            FeatureModule.COMPAT -> open(CompatibilityLabActivity::class.java, args)
+            FeatureModule.EXPERIMENT -> open(ExperimentLabActivity::class.java, args)
+            FeatureModule.SIGNALS -> NavHostFragment.findNavController(this).navigate(R.id.sessionSignalsFragment, args)
+            FeatureModule.INCIDENTS -> NavHostFragment.findNavController(this).navigate(R.id.sessionIncidentsFragment, args)
+            FeatureModule.BASELINES -> NavHostFragment.findNavController(this).navigate(R.id.sessionBaselinesFragment, args)
+            FeatureModule.DIAGNOSTICS -> openStandaloneFeature(MainActivity::class.java, args)
+            FeatureModule.GAMEPAD -> openStandaloneFeature(GamepadLiveActivity::class.java, args)
+            FeatureModule.MONITOR -> openStandaloneFeature(LiveMonitorActivity::class.java, args)
+            FeatureModule.PREFLIGHT -> openStandaloneFeature(GamePreflightActivity::class.java, args)
+            FeatureModule.COMPARE -> openStandaloneFeature(SessionCompareActivity::class.java, args)
+            FeatureModule.LIBRARY -> openStandaloneFeature(SessionLibraryActivity::class.java, args)
+        }
+    }
+
     /** Searchable feature catalog; launches the existing real modules without migrating their data. */
     private fun showTools() {
-        section("Инструменты", "Найдите инструмент по названию или назначению.")
+        section("Инструменты", "Найдите модуль или конкретную функцию: Replay, ZIP, стерео, DNS.")
         val catalog = listOf(
             "Запись и медиа" to listOf(
                 CatalogAction("Capture Studio", "Запись экрана и библиотека MP4") { open(CaptureStudioActivity::class.java) },
@@ -347,6 +401,8 @@ class HubPageFragment : Fragment() {
                 CatalogAction("Gamepad Live", "Кнопки и стики контроллера") { open(GamepadLiveActivity::class.java) }
             ),
             "Система и производительность" to listOf(
+                CatalogAction("Game Preflight", "Предпусковая проверка выбранной игры") { open(GamePreflightActivity::class.java) },
+                CatalogAction("Live Monitor", "Живые замеры, график и сравнение") { open(LiveMonitorActivity::class.java) },
                 CatalogAction("Gaming Lab", "Батарея, сеть, сенсоры и производительность") { open(GamingDiagnosticsActivity::class.java) },
                 CatalogAction("Hardware Lab", "Аппаратные измерения и тесты") { open(HardwareLabActivity::class.java) },
                 CatalogAction("Compatibility Lab", "Совместимость функций Android") { open(CompatibilityLabActivity::class.java) },
@@ -356,11 +412,13 @@ class HubPageFragment : Fragment() {
                 CatalogAction("Connectivity Observatory", "DNS, IPv4/IPv6, TCP и TLS") { open(ConnectivityLabActivity::class.java) }
             ),
             "Эксперименты" to listOf(
-                CatalogAction("Experiment Lab", "A/B-сравнения и заметки") { open(ExperimentLabActivity::class.java) }
+                CatalogAction("Experiment Lab", "A/B-сравнения и заметки") { open(ExperimentLabActivity::class.java) },
+                CatalogAction("Session Compare", "Две выбранные сессии и совмещённые графики") { open(SessionCompareActivity::class.java) },
+                CatalogAction("Session Library", "Фильтры истории и ZIP одной записи") { open(SessionLibraryActivity::class.java) }
             )
         )
         val input = EditText(requireContext()).apply {
-            hint = "Поиск инструмента"
+            hint = "Поиск функций и инструментов"
             setTextColor(fg)
             setHintTextColor(muted)
             textSize = 14f
@@ -396,6 +454,21 @@ class HubPageFragment : Fragment() {
                 }
                 shown += matching.size
             }
+            if (filter.isNotEmpty()) {
+                val functions = FeatureFinder.search(filter)
+                if (functions.isNotEmpty()) {
+                    results.addView(LegionUiSupport.sectionLabel(requireContext(), "КОНКРЕТНЫЕ ФУНКЦИИ"))
+                    functions.forEach { entry ->
+                        results.addView(LegionUiSupport.actionTile(
+                            requireContext(), entry.title,
+                            "${entry.module.displayName} · открыть действие"
+                        ) { openFeature(entry) }, LinearLayout.LayoutParams(-1, -2).apply {
+                            bottomMargin = 10.dp
+                        })
+                    }
+                    shown += functions.size
+                }
+            }
             if (shown == 0) {
                 results.addView(text("Инструменты не найдены. Попробуйте другое название.", 13f, muted))
                 results.addView(
@@ -421,7 +494,11 @@ class HubPageFragment : Fragment() {
         group("Записи")
         tile("Игровые сессии", "Просмотр сохранённых Game Session") { open(GameSessionActivity::class.java) }
         tile("Клипы MP4", "Movies/LegionControl/ · локальная библиотека") { open(CaptureStudioActivity::class.java) }
+        tile("Session Library", "Фильтры, страницы и архив отдельной записи") { open(SessionLibraryActivity::class.java) }
         group("Анализ игровых сеансов")
+        tile("Session Compare", "Две выбранные записи одной игры · сравнение одинаковых интервалов") {
+            open(SessionCompareActivity::class.java)
+        }
         tile("Session Signals", "Хронология событий, метки, разрывы телеметрии и экспорт") {
             NavHostFragment.findNavController(this).navigate(R.id.sessionSignalsFragment)
         }
@@ -455,34 +532,63 @@ class HubPageFragment : Fragment() {
         }
     }
 
-    private fun showSettings(s: HubSnapshot) {
-        section("Настройки", "Локальные параметры. Системные спецдоступы предоставляет только Android.")
-        group("Настройки модулей и локальные данные")
-        tile("Application Center", "${s.trackedCount} записей в библиотеке · избранное и заметки") {
+    private fun systemSettings(action: String, scoped: Boolean = false) {
+        val request = Intent(action).apply {
+            if (scoped) data = android.net.Uri.parse("package:" + requireContext().packageName)
+        }
+        runCatching { startActivity(request) }
+            .recoverCatching {
+                if (!scoped) throw it
+                startActivity(Intent(action))
+            }
+            .onFailure {
+                AlertDialog.Builder(requireContext()).setTitle("Настройки недоступны")
+                    .setMessage("Android не открыл этот экран: " + it.javaClass.simpleName)
+                    .setPositiveButton("Понятно", null).show()
+            }
+    }
+
+    private fun showSettings(s: HubSnapshot?) {
+        section("Настройки", "Разрешения, локальные данные и параметры модулей.")
+        group("Разрешения Android")
+        tile("Поверх других окон", if (Settings.canDrawOverlays(requireContext())) "Разрешено" else "Не разрешено") {
+            systemSettings(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, true)
+        }
+        val notifications = requireContext().getSystemService(NotificationManager::class.java)
+        tile("Режим «Не беспокоить»",
+            if (notifications.isNotificationPolicyAccessGranted) "Специальный доступ разрешён" else "Нужен спецдоступ Android") {
+            systemSettings(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
+        }
+        tile("Изменение системных настроек",
+            if (Settings.System.canWrite(requireContext())) "Разрешено" else "Нужен спецдоступ Android") {
+            systemSettings(Settings.ACTION_MANAGE_WRITE_SETTINGS, true)
+        }
+        tile("Уведомления", if (notifications.areNotificationsEnabled()) "Разрешено" else "Отключены в Android") {
+            runCatching {
+                startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                    .putExtra(Settings.EXTRA_APP_PACKAGE, requireContext().packageName))
+            }.onFailure { systemSettings(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, true) }
+        }
+        tile("Использование приложений", "Официальные настройки Android") {
+            systemSettings(Settings.ACTION_USAGE_ACCESS_SETTINGS)
+        }
+        group("Резервное копирование и файлы")
+        for (id in listOf("capture.backup", "capture.restore", "capture.resume", "capture.clips")) {
+            val entry = FeatureFinder.resolve(id, FeatureModule.CAPTURE) ?: continue
+            tile(entry.title, "Capture Studio · локальные данные") { openFeature(entry) }
+        }
+        group("Параметры модулей")
+        tile("Application Center", s?.let { "${it.trackedCount} записей в библиотеке · избранное и заметки" } ?: "Избранное и заметки") {
             open(ApplicationCenterActivity::class.java)
         }
-        tile("Smart Profiles", "${s.profileCount} профилей · импорт и экспорт JSON") {
+        tile("Smart Profiles", s?.let { "${it.profileCount} профилей · импорт и экспорт JSON" } ?: "Импорт и экспорт JSON") {
             open(SmartProfilesActivity::class.java)
         }
         tile("Game Toolbox", "Размер, прозрачность, выбранная игра") {
             open(GameToolboxActivity::class.java)
         }
-        group("Разрешения Android")
-        tile("Поверх других окон", if (Settings.canDrawOverlays(requireContext())) "Разрешено" else "Не разрешено") {
-            open(GameToolboxActivity::class.java)
-        }
-        val notifications = requireContext().getSystemService(NotificationManager::class.java)
-        tile("Режим «Не беспокоить»",
-            if (notifications.isNotificationPolicyAccessGranted) "Специальный доступ разрешён" else "Нужен спецдоступ Android") {
-            open(GameToolboxActivity::class.java)
-        }
-        tile("Изменение системных настроек",
-            if (Settings.System.canWrite(requireContext())) "Разрешено" else "Нужен спецдоступ Android") {
-            open(SmartProfilesActivity::class.java)
-        }
-        tile("Использование приложений", "Официальные настройки Android") {
-            runCatching { startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)) }
-                .onFailure { info("Настройки Android недоступны: " + it.javaClass.simpleName) }
+        tile("Capture Studio", "Качество, звук, длительность и профили записи") {
+            open(CaptureStudioActivity::class.java)
         }
         group("О проекте")
         info("Legion Control ${LegionUiSupport.versionLabel(requireContext())} · Android 13+ · Kotlin + Rust. " +

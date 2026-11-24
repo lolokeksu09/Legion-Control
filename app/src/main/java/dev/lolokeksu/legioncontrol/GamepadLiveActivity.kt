@@ -53,6 +53,7 @@ class GamepadLiveActivity : Activity() {
         root.addView(Button(this).apply {
             LegionUiSupport.styleAction(this)
             text = "Обновить список контроллеров"
+            FeatureReveal.bind(this, "gamepad.refresh")
             isAllCaps = false
             setOnClickListener {
                 eventView.text = ControllerInventory.format(ControllerInventory.connected())
@@ -67,6 +68,7 @@ class GamepadLiveActivity : Activity() {
         LegionUiSupport.setModuleActivityContent(this, ScrollView(this).apply {
             addView(root)
         }, "ПРОВЕРКА ГЕЙМПАДА")
+        FeatureReveal.fromActivity(this, root, FeatureModule.GAMEPAD)
         root.requestFocus()
     }
 

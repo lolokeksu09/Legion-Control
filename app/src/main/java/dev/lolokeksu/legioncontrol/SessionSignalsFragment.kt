@@ -46,8 +46,9 @@ class SessionSignalsFragment:Fragment() {
             setTextColor(0xFFAAAAAA.toInt())
             setPadding(0,10.dp,0,16.dp)
         })
-        fun action(text:String,click:()->Unit) {
+        fun action(text:String,featureId:String?=null,click:()->Unit) {
             root.addView(Button(requireContext()).apply {
+                if(featureId!=null) FeatureReveal.bind(this,featureId)
                 this.text=text
                 isAllCaps=false
                 minHeight=48.dp
@@ -55,8 +56,8 @@ class SessionSignalsFragment:Fragment() {
             })
         }
         action("Выбрать записанную сессию") { vm.pickSessions() }
-        action("Обновить хронологию") { vm.refresh() }
-        action("Сохранить события выбранной сессии CSV") { saveCsv() }
+        action("Обновить хронологию", "signals.timeline") { vm.refresh() }
+        action("Сохранить события выбранной сессии CSV", "signals.csv") { saveCsv() }
         action("Поделиться текстовым анализом") { share() }
         action("Session Incidents · длительность состояний") {
             val args = Bundle().apply {
@@ -90,6 +91,7 @@ class SessionSignalsFragment:Fragment() {
     override fun onViewCreated(view:View,saved:Bundle?) {
         super.onViewCreated(view,saved)
         LegionUiSupport.styleModuleTree(view)
+        FeatureReveal.fromFragment(this, view, FeatureModule.SIGNALS)
         vm=ViewModelProvider(this)[SessionSignalsViewModel::class.java]
         vm.state.observe(viewLifecycleOwner) { state ->
             report.text=state.message

@@ -17,7 +17,7 @@ main = (src / "MainActivity.kt").read_text(encoding="utf-8")
 gradle = (root / "app/build.gradle.kts").read_text(encoding="utf-8")
 legacy = (src / "LocalHistoryStore.kt").read_text(encoding="utf-8")
 unit = (root / "app/src/test/java/dev/lolokeksu/legioncontrol/CaptureConfigTest.kt").read_text(encoding="utf-8")
-assert 'versionCode = 47' in gradle and 'versionName = "0.1.0-alpha.47"' in gradle
+assert 'versionCode = 48' in gradle and 'versionName = "0.1.0-alpha.48"' in gradle
 assert 'applicationId = "dev.lolokeksu.legioncontrol"' in gradle
 assert "HapticLabSchema.VERSION" in legacy, "Existing SQLite v12 must remain intact"
 assert "CAPTURE STUDIO" in main and "CaptureStudioActivity::class.java" in main
