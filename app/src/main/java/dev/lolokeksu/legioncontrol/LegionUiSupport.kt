@@ -324,7 +324,8 @@ object LegionUiSupport {
         }
         val selectedIndex = when (activity) {
             is GameToolboxActivity, is GameSessionActivity,
-            is SmartProfilesActivity, is ApplicationCenterActivity -> 1
+            is SmartProfilesActivity, is ApplicationCenterActivity, is GamePreflightActivity -> 1
+            is SessionCompareActivity, is SessionLibraryActivity -> 3
             else -> 2
         }
         for (index in labels.indices) {
