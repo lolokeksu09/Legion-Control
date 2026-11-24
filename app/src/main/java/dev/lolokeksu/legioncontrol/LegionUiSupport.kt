@@ -13,7 +13,9 @@ import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowInsets
+import android.widget.ArrayAdapter
 import android.widget.Button
+import android.widget.Spinner
 import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.ImageView
@@ -44,6 +46,32 @@ object LegionUiSupport {
             cornerRadius = dp(view, radius).toFloat()
             setStroke(dp(view, 1).coerceAtLeast(1), stroke)
         }
+
+    /** One compact selector for every module; native selection and keyboard support retained. */
+    fun spinner(context: Context, items: List<String>): Spinner = Spinner(context, Spinner.MODE_DROPDOWN).apply {
+        minimumHeight = dp(this, 48)
+        backgroundTintList = ColorStateList.valueOf(MUTED)
+        setPopupBackgroundDrawable(shape(this, PANEL, BORDER, 14))
+        adapter = object : ArrayAdapter<String>(context, android.R.layout.simple_spinner_item, items) {
+            init { setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
+            private fun style(view: View): View = view.apply {
+                if (this is TextView) {
+                    textSize = 14f
+                    setTextColor(Color.WHITE)
+                    minimumHeight = dp(this, 48)
+                    gravity = Gravity.CENTER_VERTICAL or Gravity.START
+                    setPadding(dp(this, 14), dp(this, 9), dp(this, 14), dp(this, 9))
+                    if (this is android.widget.CheckedTextView) {
+                        checkMarkTintList = ColorStateList.valueOf(ACCENT)
+                    }
+                }
+            }
+            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View =
+                style(super.getView(position, convertView, parent))
+            override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup): View =
+                style(super.getDropDownView(position, convertView, parent))
+        }
+    }
 
     private fun textStates(): ColorStateList = ColorStateList(
         arrayOf(intArrayOf(-android.R.attr.state_enabled),
