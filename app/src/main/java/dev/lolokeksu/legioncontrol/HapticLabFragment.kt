@@ -12,7 +12,6 @@ import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.provider.Settings
-import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
@@ -57,24 +56,7 @@ class HapticLabFragment:Fragment() {
         }
         fun spinner(label:String,items:List<String>):Spinner {
             detail(label)
-            val control=Spinner(requireContext())
-            val adapter=object:ArrayAdapter<String>(requireContext(),android.R.layout.simple_spinner_item,items) {
-                override fun getView(position:Int,convertView:View?,parent:ViewGroup):View {
-                    return TextView(context).apply {
-                        text=getItem(position);textSize=16f;setTextColor(Color.WHITE)
-                        setBackgroundColor(0xFF17171B.toInt())
-                        setPadding(13.dp,14.dp,13.dp,14.dp)
-                    }
-                }
-                override fun getDropDownView(position:Int,convertView:View?,parent:ViewGroup):View {
-                    return TextView(context).apply {
-                        text=getItem(position);textSize=15f;setTextColor(Color.WHITE)
-                        setBackgroundColor(0xFF24242C.toInt())
-                        setPadding(15.dp,13.dp,15.dp,13.dp)
-                    }
-                }
-            }
-            control.adapter=adapter
+            val control=LegionUiSupport.spinner(requireContext(),items)
             root.addView(control,LinearLayout.LayoutParams(-1,-2).apply { bottomMargin=12.dp })
             return control
         }
