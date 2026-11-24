@@ -30,7 +30,7 @@ for name in (".CompatibilityLabActivity",".GamepadLiveActivity"):
     matches=[x for x in manifest.findall("./application/activity") if x.attrib.get(a+"name")==name]
     assert len(matches)==1 and matches[0].attrib.get(a+"exported")=="false",name
 assert 'CompatibilityLabActivity::class.java' in hardware
-assert 'versionCode = 49' in gradle and 'versionName = "0.1.0-alpha.49"' in gradle
+assert 'versionCode = 59' in gradle and 'versionName = "0.1.0-beta.1"' in gradle
 assert "HapticLabSchema.VERSION" in store
 assert "DROP TABLE" not in store
 for n,label in enumerate([
