@@ -29,11 +29,14 @@ object GameLaunchProfiles {
 
     fun save(context: Context, pkg: String, profile: GameLaunchProfile): Boolean {
         require(GameLaunchProfilePolicy.validPackage(pkg))
-        synchronized(lock) {
-            val edit = prefs(context).edit()
-            if (profile.actionable) edit.putString(PREFIX + pkg, profile.encode())
-            else edit.remove(PREFIX + pkg)
-            return edit.commit()
+        return ProfileMaintenanceGate.tryRun({false}) {
+            if(LegionDataBackup.hasPendingRestore(context)) return@tryRun false
+            synchronized(lock) {
+                val edit = prefs(context).edit()
+                if (profile.actionable) edit.putString(PREFIX + pkg, profile.encode())
+                else edit.remove(PREFIX + pkg)
+                edit.commit()
+            }
         }
     }
 
@@ -60,7 +63,11 @@ object GameLaunchProfiles {
         else restore(context)
     }
 
-    private fun applyInternal(context:Context,pkg:String,owner:String?,approved:GameLaunchProfile?):GameLaunchResult = synchronized(lock) {
+    private fun applyInternal(context:Context,pkg:String,owner:String?,approved:GameLaunchProfile?):GameLaunchResult =
+        ProfileMaintenanceGate.tryRun({maintenanceBusy()}) {
+        if(LegionDataBackup.hasPendingRestore(context)) return@tryRun GameLaunchResult(false,
+            "Сначала завершите прерванное восстановление ZIP в Capture Studio.")
+        synchronized(lock) {
         if (!GameLaunchProfilePolicy.validPackage(pkg)) {
             return@synchronized GameLaunchResult(false, "Некорректный пакет приложения.")
         }
@@ -160,11 +167,18 @@ object GameLaunchProfiles {
         }
     }
 
+        }
+
+    private fun maintenanceBusy()=GameLaunchResult(false,"Выполняется восстановление ZIP. Повторите действие после завершения.")
+
     /**
      * Per-field compare-before-restore. If the user changed a value afterwards,
      * that field is NOT overwritten. Failed writes remain queued for manual retry.
      */
-    fun restore(context: Context): GameLaunchResult = synchronized(lock) {
+    fun restore(context: Context): GameLaunchResult = ProfileMaintenanceGate.tryRun({maintenanceBusy()}) {
+        // Manual undo remains available when a journal is pending, but not
+        // concurrently with replay. Otherwise recovery could clear the ticket.
+        synchronized(lock) {
         val raw = prefs(context).getString(ACTIVE, null)
             ?: return@synchronized GameLaunchResult(true, "Нет применённого профиля для возврата.")
         val ticket = GameLaunchUndo.decode(raw)
@@ -242,5 +256,6 @@ object GameLaunchProfiles {
         else GameLaunchResult(!remaining.pending,
             "$summary " + if (remaining.pending) "Есть незавершённые действия, повторите возврат."
             else "Возврат завершён.")
+    }
     }
 }

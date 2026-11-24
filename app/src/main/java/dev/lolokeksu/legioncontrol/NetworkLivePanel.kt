@@ -231,7 +231,7 @@ internal class NetworkLivePanel(context:Context,private val exportRequest:(Strin
     fun screenStopped() { visible=false; stop();buttons() }
 
     private fun <T> archiveTask(work:()->T,deliverWhenHidden:Boolean=false,success:(T)->Unit) {
-        if(closed || ioBusy || running || legacyBusy) return
+        if(closed || ioBusy || running || legacyBusy || !visible) return
         ioBusy=true; buttons()
         io.execute {
             val result=runCatching(work)
@@ -298,6 +298,7 @@ internal class NetworkLivePanel(context:Context,private val exportRequest:(Strin
         LegionDialogs.builder(context).setTitle("Удалить сетевой тест?")
             .setMessage(label(r)+"\nДругие записи и старая история DNS/TLS не изменятся.")
             .setDestructive().setPositiveButton("Удалить") { _,_->
+                if(!deleteButton.isEnabled || record?.id!=r.id) return@setPositiveButton
                 archiveTask({withArchive{it.delete(r.id)}},deliverWhenHidden=true) { removed->
                     if(removed) {
                         record=null; saved=false; points.clear()

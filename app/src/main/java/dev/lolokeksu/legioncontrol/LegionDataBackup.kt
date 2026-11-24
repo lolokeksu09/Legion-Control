@@ -69,9 +69,12 @@ object LegionDataBackup {
 
     /** All auxiliary mutations share this monitor with the restore transaction/replay.
      * A pending journal must be recovered before ordinary save/delete can proceed. */
-    internal fun checkArchiveWritesAllowed(context:Context) {
+    internal fun hasPendingRestore(context:Context):Boolean {
         val f=pendingFile(context).baseFile
-        check(!f.exists() && !File(f.path+".bak").exists() && !File(f.path+".new").exists()) {
+        return f.exists() || File(f.path+".bak").exists() || File(f.path+".new").exists()
+    }
+    internal fun checkArchiveWritesAllowed(context:Context) {
+        check(!hasPendingRestore(context)) {
             "Сначала завершите прерванное восстановление в Capture Studio."
         }
     }
@@ -141,14 +144,15 @@ object LegionDataBackup {
      * If SQLite rolled back, discard intent; if committed, replay all settings.
      * The atomic journal remains after a partial settings write, allowing retries.
      */
-    @Synchronized fun recoverPendingRestore(context: Context): Boolean {
+    @Synchronized fun recoverPendingRestore(context: Context): Boolean =
+        ProfileMaintenanceGate.tryRun({error("Завершите изменение игрового профиля и повторите восстановление.")}) {
         val atomic = pendingFile(context)
         val rawFile = atomic.baseFile
         if (!rawFile.exists() && !File(rawFile.path + ".bak").exists()) {
             // An unpublished .new journal cannot authorize a main database commit.
             if(File(rawFile.path+".new").exists()) atomic.delete()
             lastRecoveryFailure = null
-            return false
+            return@tryRun false
         }
         try {
             val bytes = atomic.openRead().use { readBounded(it, MAX_PREFS * 2 + MAX_META) }
@@ -166,12 +170,15 @@ object LegionDataBackup {
                 sqliteMarker(helper.readableDatabase) == marker
             }
             if (committed) {
+                check(GameLaunchProfiles.pendingPackage(context)==null) {
+                    "Сначала выполните ручной возврат игрового профиля; журнал ZIP сохранён."
+                }
                 archives?.restore(context)
                 applyPreferences(context, values)
             }
             atomic.delete()
             lastRecoveryFailure = null
-            return committed
+            committed
         } catch (error: Exception) {
             lastRecoveryFailure = error.javaClass.simpleName
             throw error
@@ -248,7 +255,8 @@ object LegionDataBackup {
 
     @Synchronized private fun restoreCore(context: Context, uri: Uri,
                                           confirmed: BackupArchiveIdentity,
-                                          afterDbCommit: (() -> Unit)?): LegionBackupPreview {
+                                          afterDbCommit: (() -> Unit)?): LegionBackupPreview =
+        ProfileMaintenanceGate.tryRun({error("Завершите изменение игрового профиля и повторите восстановление.")}) {
         check(!GameToolboxService.isPanelActive()) { "Остановите Game Toolbox перед восстановлением." }
         recoverPendingRestore(context) // complete or discard a prior interrupted attempt
         check(!GameSessionRecorderService.sessionActive) {
@@ -263,7 +271,7 @@ object LegionDataBackup {
         }
         try {
             check(!GameSessionRecorderService.sessionActive)
-            return withStaged(context, uri) { staged ->
+            withStaged(context, uri) { staged ->
                 check(identity(staged.manifest) == confirmed) {
                     "Архив изменился после проверки. Откройте и подтвердите его заново."
                 }

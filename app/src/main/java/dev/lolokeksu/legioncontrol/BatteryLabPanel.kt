@@ -190,7 +190,9 @@ internal class BatteryLabPanel(context:Context,private val exportRequest:(String
         if(!saved)return
         LegionDialogs.builder(context).setTitle("Удалить тест Battery Lab?")
             .setMessage("Удалится только выбранная запись.").setDestructive()
-            .setPositiveButton("Удалить"){_,_->archive({it.delete(r.id)},deliverWhenHidden=true){removed->
+            .setPositiveButton("Удалить"){_,_->
+                if(!deleteButton.isEnabled || run?.id!=r.id) return@setPositiveButton
+                archive({it.delete(r.id)},deliverWhenHidden=true){removed->
                 if(removed){run=null;saved=false;points.clear();chart.update(emptyList());report.text="Запись удалена."}
                 notice.text=if(removed)"Удалена одна запись." else "Запись отсутствует."
             }}.setNegativeButton("Отмена",null).show()
