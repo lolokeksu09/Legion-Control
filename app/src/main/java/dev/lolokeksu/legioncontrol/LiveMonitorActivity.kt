@@ -88,7 +88,7 @@ class LiveMonitorActivity : FragmentActivity() {
         stopButton = action("ОСТАНОВИТЬ МОНИТОРИНГ") { model.stop() }
 
         root.addView(LegionUiSupport.sectionLabel(this, "ТЕКУЩИЕ ПОКАЗАНИЯ"))
-        summary = label("Показаний пока нет.")
+        summary = label("Показаний пока нет.").apply { LegionUiSupport.reportSurface(this) }
         root.addView(LegionUiSupport.sectionLabel(this, "ГРАФИК"))
         metricButton = action("Выбрать показатель графика", "monitor.chart") {
             val options = MonitorMetric.entries
@@ -131,6 +131,7 @@ class LiveMonitorActivity : FragmentActivity() {
 
     private fun render(state: MonitorState) {
         status.text = state.message + "\nИнтервал: ${state.intervalMs / 1000} с"
+        LegionUiSupport.notice(status, if(state.exporting) LegionUiSupport.Notice.LOADING else LegionUiSupport.Notice.INFO)
         intervalButton.isEnabled = !state.running
         // Keep the stable action anchor for the finder.
         intervalButton.text = "Интервал измерений"
