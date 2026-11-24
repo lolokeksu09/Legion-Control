@@ -78,6 +78,18 @@ jobs:
           grep -Fq 'MISMATCH' "$RUNNER_TEMP/reject-untrusted.log"
           rm -f "$LEGION_RELEASE_STORE_FILE"
           echo "PASS: disposable release certificate works and is rejected for distribution"
+      - name: Generate resolved Android and Rust runtime SBOMs
+        run: |
+          gradle --no-daemon -I scripts/dependency_inventory.init.gradle :app:writeRuntimeDependencyInventory
+          python3 scripts/generate_runtime_sbom.py --revision "$(git rev-parse HEAD)" --output runtime-sbom
+      - name: Attach resolved runtime dependency inventories
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: Legion-Control-runtime-sbom
+          path: |
+            runtime-sbom/*.cdx.json
+            app/build/reports/dependency-inventory/android-runtime.json
+          if-no-files-found: error
       - name: Stage both APKs at a flat artifact root
         run: |
           mkdir -p ci-apks
