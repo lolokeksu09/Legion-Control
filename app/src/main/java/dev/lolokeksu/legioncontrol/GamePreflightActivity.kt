@@ -147,8 +147,8 @@ class GamePreflightActivity : FragmentActivity() {
         reportSummary.text="Ограничения: ${report.critical} · предупреждения: ${report.warnings} · неизвестно: ${report.unknown}\n" +
             if(fresh) "Снимок выполнен по запросу. Не является FPS или ping игры." else
                 "Снимок устарел для запуска. Выполните проверку снова."
-        LegionUiSupport.notice(reportSummary, if(!fresh || report.warnings>0) LegionUiSupport.Notice.WARNING
-            else if(report.critical>0) LegionUiSupport.Notice.ERROR else LegionUiSupport.Notice.INFO)
+        LegionUiSupport.notice(reportSummary, if(report.critical>0) LegionUiSupport.Notice.ERROR
+            else if(!fresh || report.warnings>0) LegionUiSupport.Notice.WARNING else LegionUiSupport.Notice.INFO)
         for(f in report.findings) {
             val row=LinearLayout(this).apply {
                 orientation=LinearLayout.VERTICAL
