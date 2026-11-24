@@ -8,8 +8,8 @@ import android.provider.Settings
 data class GameLaunchResult(val success: Boolean, val message: String)
 
 /**
- * Explicit, per-package, on-device launch actions. No automatic monitoring of games,
- * no foreground-app observation and no privileged OEM APIs. All writes are global
+ * Explicit per-package launch actions, including separately approved one-shot automation.
+ * No privileged OEM APIs. All writes are global
  * Android settings, so an undo ticket is committed BEFORE the first write.
  */
 object GameLaunchProfiles {

@@ -37,7 +37,16 @@ internal class GameAutomationController(
     private var maxThermal:Int?=null
     private var owned=false
     private var stopped=false
-    private var tick=Runnable{poll()}
+    private val tick=Runnable{poll()}
+    private val watchdog=object:Runnable {
+        override fun run(){
+            if(stopped)return
+            if(!runCatching{available()}.getOrDefault(false) || SystemClock.elapsedRealtime()-lastPollElapsed>GameAutomationPolicy.MAX_POLL_GAP_MS) {
+                stop("Экран/доступ изменился или наблюдение зависло");return
+            }
+            main.postDelayed(this,2000L)
+        }
+    }
     private data class Observation(val events:List<AutomationEvent>,val temp:Int?,val thermal:Int?)
     private fun available():Boolean {
         val nm=context.getSystemService(NotificationManager::class.java)
@@ -52,6 +61,7 @@ internal class GameAutomationController(
             GameLaunchProfiles.profile(context,pkg)!=approved||GameLaunchProfiles.pendingPackage(context)!=null||
             !runCatching{available()}.getOrDefault(false)){stop("Предусловия автоматизации не выполнены");return}
         update("Авто: ожидание входа в выбранную игру (до 90 с).")
+        main.postDelayed(watchdog,2000L)
         poll()
     }
     private fun poll() {
@@ -96,10 +106,13 @@ internal class GameAutomationController(
                     stop("Наблюдение прервано");return@post
                 }
                 val o=result.getOrElse{stop("События Android недоступны");return@post}
-                val decision=GameAutomationPolicy.decide(o.events,confirmedAt,watermark,wall,startedElapsed!=null)
+                val nowWall=System.currentTimeMillis()
+                if(nowWall<wall || nowWall-wall>GameAutomationPolicy.MAX_POLL_GAP_MS){stop("Изменение часов или задержка чтения");return@post}
+                val decision=GameAutomationPolicy.decide(o.events.filter{it.wallMs<=wall},confirmedAt,watermark,nowWall,startedElapsed!=null)
                 watermark=maxOf(watermark,o.events.filter{it.wallMs<=wall}.maxOfOrNull{it.wallMs} ?: watermark)
                 when(decision){
                     AutomationDecision.APPLY -> {
+                        if(o.temp?.let{it>=450}==true || o.thermal?.let{it>=3}==true){stop("Тепловое предупреждение до применения профиля");return@post}
                         val applied=GameLaunchProfiles.applyAutomatic(context,pkg,owner,approved)
                         owned=GameLaunchProfiles.ownsAutomatic(context,owner)
                         if(!applied.success){stop("Применение отклонено: "+applied.message);return@post}
@@ -122,7 +135,7 @@ internal class GameAutomationController(
     }
     fun stop(reason:String) {
         if(stopped)return
-        stopped=true;main.removeCallbacks(tick);worker.shutdownNow()
+        stopped=true;main.removeCallbacks(tick);main.removeCallbacks(watchdog);worker.shutdownNow()
         val hadOwner=GameLaunchProfiles.ownsAutomatic(context,owner)
         val restore=if(hadOwner) runCatching{GameLaunchProfiles.restoreAutomatic(context,owner)}
             .getOrElse{GameLaunchResult(false,"Ошибка возврата: "+it.javaClass.simpleName)}
