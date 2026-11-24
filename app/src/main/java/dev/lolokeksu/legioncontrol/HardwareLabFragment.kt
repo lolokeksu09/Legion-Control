@@ -56,17 +56,17 @@ class HardwareLabFragment : Fragment() {
         }
         root.addView(result)
         root.addView(LegionUiSupport.sectionLabel(requireContext(), "СЕТЬ"))
-        addButton(root, "1 · Local Route Inspector") {
+        addButton(root, "1 · Local Route Inspector", "hardware.route") {
             viewModel.run(HardwareProbe.ROUTE)
         }
-        addButton(root, "2 · Network Events — 30 секунд") { toggleNetworkEvents() }
+        addButton(root, "2 · Network Events — 30 секунд", "hardware.events") { toggleNetworkEvents() }
         root.addView(LegionUiSupport.sectionLabel(requireContext(), "ПАМЯТЬ И СЕНСОРЫ"))
-        addButton(root, "3 · Storage Lab — 8 МиБ / SHA-256") {
+        addButton(root, "3 · Storage Lab — 8 МиБ / SHA-256", "hardware.storage") {
             viewModel.run(HardwareProbe.STORAGE)
         }
-        addButton(root, "4 · Motion Stability — 5 секунд") { toggleMotion() }
+        addButton(root, "4 · Motion Stability — 5 секунд", "hardware.motion") { toggleMotion() }
         root.addView(LegionUiSupport.sectionLabel(requireContext(), "ЭКРАН И КОДЕКИ"))
-        addButton(root, "5 · Display Patterns — пиксели и цвета") {
+        addButton(root, "5 · Display Patterns — пиксели и цвета", "hardware.display") {
             AlertDialog.Builder(requireContext())
                 .setTitle("Проверка экрана")
                 .setMessage(
@@ -81,7 +81,7 @@ class HardwareLabFragment : Fragment() {
                 }
                 .show()
         }
-        addButton(root, "6 · Codec Inspector — аппаратные видеодекодеры") {
+        addButton(root, "6 · Codec Inspector — аппаратные видеодекодеры", "hardware.codec") {
             viewModel.run(HardwareProbe.CODEC)
         }
         root.addView(LegionUiSupport.sectionLabel(requireContext(), "ОТЧЁТ И ДОПОЛНИТЕЛЬНАЯ ПРОВЕРКА"))
@@ -109,8 +109,9 @@ class HardwareLabFragment : Fragment() {
 
     private val Int.dp: Int get() = (this * resources.displayMetrics.density).toInt()
 
-    private fun addButton(root: LinearLayout, label: String, action: () -> Unit) {
+    private fun addButton(root: LinearLayout, label: String, featureId: String? = null, action: () -> Unit) {
         root.addView(Button(requireContext()).apply {
+            if(featureId!=null) FeatureReveal.bind(this,featureId)
             text = label
             isAllCaps = false
             minHeight = 48.dp
