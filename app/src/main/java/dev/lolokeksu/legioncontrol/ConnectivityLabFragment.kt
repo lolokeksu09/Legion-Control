@@ -35,6 +35,7 @@ class ConnectivityLabFragment : Fragment() {
 
     private lateinit var viewModel:ConnectivityLabViewModel
     private var testing=false
+    private var livePanel: NetworkLivePanel? = null
     private lateinit var hostButton:Button
     private lateinit var singleButton:Button
     private lateinit var stabilityButton:Button
@@ -101,6 +102,7 @@ class ConnectivityLabFragment : Fragment() {
         }
         LegionUiSupport.reportSurface(resultView)
         root.addView(resultView)
+        livePanel=NetworkLivePanel(requireContext()) { updateButtons() }.also { root.addView(it) }
         root.addView(LegionUiSupport.sectionLabel(requireContext(), "ПРОВЕРКА СОЕДИНЕНИЯ"))
         hostButton=button("Сервер: Cloudflare · one.one.one.one") { chooseHost() }
         singleButton=button("ОДИН ЗАМЕР · DNS / IPv4 / IPv6 / TCP / TLS", "network.single") { startTest(1) }
@@ -160,9 +162,11 @@ class ConnectivityLabFragment : Fragment() {
 
     private fun updateButtons() {
         if(::singleButton.isInitialized) {
-            singleButton.isEnabled=!testing
-            stabilityButton.isEnabled=!testing
-            hostButton.isEnabled=!testing
+            val liveBusy=livePanel?.running==true
+            singleButton.isEnabled=!testing && !liveBusy
+            stabilityButton.isEnabled=!testing && !liveBusy
+            hostButton.isEnabled=!testing && !liveBusy
+            livePanel?.setLegacyBusy(testing)
             stopButton.isEnabled=testing
         }
     }
@@ -186,7 +190,9 @@ class ConnectivityLabFragment : Fragment() {
             }.setNegativeButton("Отмена",null).show()
     }
 
-    private fun startTest(cycles:Int) = viewModel.startTest(cycles)
+    private fun startTest(cycles:Int) {
+        if(livePanel?.running!=true) viewModel.startTest(cycles)
+    }
 
     private fun cancelTest(display:Boolean) {
         viewModel.cancelTest()
@@ -253,8 +259,15 @@ class ConnectivityLabFragment : Fragment() {
     }
 
     override fun onStop() {
+        livePanel?.stop()
         cancelTest(false)
         super.onStop()
+    }
+
+    override fun onDestroyView() {
+        livePanel?.close()
+        livePanel=null
+        super.onDestroyView()
     }
 
     override fun onSaveInstanceState(outState:Bundle) {
