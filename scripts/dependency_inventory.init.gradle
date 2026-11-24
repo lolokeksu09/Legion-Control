@@ -18,7 +18,7 @@ gradle.projectsEvaluated {
                 result[name] = resolution.allComponents.collect { it.id }
                     .findAll { it instanceof ModuleComponentIdentifier }
                     .collect { [group: it.group, name: it.module, version: it.version] }
-                    .unique().sort { a, b -> [a.group,a.name,a.version] <=> [b.group,b.name,b.version] }
+                    .unique().sort { a, b -> (a.group <=> b.group) ?: (a.name <=> b.name) ?: (a.version <=> b.version) }
             }
             def file = output.get().asFile
             file.parentFile.mkdirs()
