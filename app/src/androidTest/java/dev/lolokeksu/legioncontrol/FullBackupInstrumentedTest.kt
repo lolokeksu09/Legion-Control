@@ -117,6 +117,7 @@ class FullBackupInstrumentedTest {
         val legacy2=createZip(app,"legacy-v2")
         val invalidAux=createZip(app,"invalid-aux")
         val invalidPreset = createZip(app, "invalid-preset")
+        val blockedExport = createZip(app, "blocked-export")
         val presetA = PreflightPreset(120,30,41,3,true)
         val presetB = PreflightPreset(60,10,44,1,false)
         val preflight = app.getSharedPreferences("legion-preflight-v1", Context.MODE_PRIVATE)
@@ -307,6 +308,14 @@ class FullBackupInstrumentedTest {
             assertAuxiliary()
             assertFalse("Recovery clears durable intent when finished",
                 LegionDataBackup.recoverPendingRestore(app))
+            val exportUndo=GameLaunchUndo(profilePkg,LaunchSettingChange(1,2),null,null,null).encode()
+            assertTrue(profilePrefs.edit().putString("pending_global_undo",exportUndo).commit())
+            try {
+                assertTrue("Export must not transfer a pending device-global undo ticket",
+                    runCatching{LegionDataBackup.export(app,blockedExport)}.isFailure)
+            } finally {
+                assertTrue(profilePrefs.edit().remove("pending_global_undo").commit())
+            }
             // A second import must reject the now populated database.
             assertTrue(runCatching {
                 LegionDataBackup.restoreOnEmptyDatabase(app, backup)
@@ -333,6 +342,7 @@ class FullBackupInstrumentedTest {
             app.contentResolver.delete(legacy2,null,null)
             app.contentResolver.delete(invalidAux,null,null)
             app.contentResolver.delete(invalidPreset, null, null)
+            app.contentResolver.delete(blockedExport,null,null)
             preflight.edit().clear().commit()
             app.contentResolver.delete(backup, null, null)
             app.contentResolver.delete(tampered, null, null)

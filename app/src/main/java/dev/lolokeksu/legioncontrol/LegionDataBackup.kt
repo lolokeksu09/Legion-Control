@@ -188,6 +188,10 @@ object LegionDataBackup {
     @Synchronized fun export(context: Context, uri: Uri): LegionBackupPreview =
         ProfileMaintenanceGate.tryRun({error("Завершите изменение игрового профиля и повторите экспорт ZIP.")}) {
         checkArchiveWritesAllowed(context)
+        check(!context.getSharedPreferences("legion-launch-profiles-v1",Context.MODE_PRIVATE)
+            .contains("pending_global_undo")) {
+            "Сначала верните системные настройки игрового профиля перед созданием резервной копии."
+        }
         check(!GameSessionRecorderService.sessionActive) {
             "Остановите запись игровой сессии перед созданием архива."
         }

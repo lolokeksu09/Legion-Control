@@ -46,6 +46,8 @@ backup = (root / "app/src/main/java/dev/lolokeksu/legioncontrol/LegionDataBackup
 export = backup[backup.index("@Synchronized fun export"):backup.index("fun preview")]
 assert "ProfileMaintenanceGate.tryRun" in export
 assert export.index("ProfileMaintenanceGate.tryRun") < export.index("checkArchiveWritesAllowed")
+assert "pending_global_undo" in export
+
 
 
 
