@@ -35,34 +35,47 @@ internal class BatteryLabPanel(context:Context,private val exportRequest:(String
     private var saved=false
     private val tick=Runnable{sample()}
     private val report=TextView(context).apply{ text="Запустите наблюдение или откройте сохранённый тест.";textSize=13f;LegionUiSupport.reportSurface(this) }
-    private val notice=TextView(context).apply{text="Ручной архив · до 30 записей";textSize=13f}
+    private val notice=TextView(context).apply{text="Сохранение вручную. Автоудаления нет.";textSize=13f}
     private val chart=BatteryLabChart(context)
     private fun button(label:String,action:()->Unit)=Button(context).apply{text=label;isAllCaps=false;setOnClickListener{action()}}
-    private val planButton=button("Длительность: "+plan.label){choosePlan()}
-    private val startButton=button("Начать наблюдение"){begin()}
+    private val planButton=button("Время: "+plan.label){choosePlan()}
+    private val startButton=button("Начать тест"){begin()}
     private val stopButton=button("Остановить"){finish(BatteryLabEnd.USER_STOP)}
-    private val chartButton=button("График: мощность"){chart.next();chartButtonLabel()}
-    private val saveButton=button("Сохранить тест"){save()}
-    private val historyButton=button("История Battery Lab"){history()}
-    private val compareButton=button("Сравнить тесты A/B"){compare()}
-    private val shareButton=button("Поделиться отчётом"){share()}
-    private val exportButton=button("Экспорт CSV"){run?.let{exportRequest(BatteryLabReport.csv(it))}}
-    private val deleteButton=button("Удалить сохранённый тест"){delete()}
+    private val chartButton=button("График: мощность"){chooseChart()}
+    private val saveButton=button("Сохранить"){save()}
+    private val historyButton=button("История"){history()}
+    private val compareButton=button("Сравнить A/B"){compare()}
+    private val shareButton=button("Отправить отчёт"){share()}
+    private val exportButton=button("CSV"){run?.let{exportRequest(BatteryLabReport.csv(it))}}
+    private val deleteButton=button("Удалить запись"){delete()}
     init {
         orientation=VERTICAL
         addView(LegionUiSupport.sectionLabel(context,"BATTERY LAB 2.0"))
         addView(TextView(context).apply{text="Наблюдение только на открытом экране. Мощность рассчитана по току и напряжению батареи; + заряд, − разряд. Не измерение адаптера.";textSize=13f})
-        addView(planButton);addView(startButton);addView(stopButton);addView(report)
+        addView(CompactActionRow(context,planButton,startButton,stopButton))
         addView(chartButton)
-        addView(chart,LayoutParams(LayoutParams.MATCH_PARENT,(180*resources.displayMetrics.density).toInt()))
-        addView(notice);addView(saveButton);addView(historyButton);addView(compareButton);addView(shareButton);addView(exportButton);addView(deleteButton)
+        addView(chart,LayoutParams(LayoutParams.MATCH_PARENT,(156*resources.displayMetrics.density).toInt()))
+        addView(report)
+        addView(LegionUiSupport.sectionLabel(context,"АРХИВ · ДО 30 ЗАПИСЕЙ"))
+        addView(notice)
+        addView(CompactActionRow(context,saveButton,historyButton))
+        addView(CompactActionRow(context,compareButton,exportButton))
+        addView(CompactActionRow(context,shareButton,deleteButton))
         buttons()
     }
-    private fun chartButtonLabel(){chartButton.text="График: "+chart.metric.label}
+    private fun chooseChart() {
+        val metrics=BatteryLabMetric.entries
+        LegionDialogs.builder(context).setTitle("График измерений")
+            .setItems(metrics.map{it.label}.toTypedArray()){_,i->
+                chart.select(metrics[i]);chartButton.text="График: "+chart.metric.label
+            }.setNegativeButton("Отмена",null).show()
+    }
     fun setVisible(value:Boolean) { visible=value;if(!value) finish(BatteryLabEnd.BACKGROUND);buttons() }
     private fun buttons() {
         val ready=visible&&!closed&&!running&&!ioBusy
         planButton.isEnabled=ready;startButton.isEnabled=ready;stopButton.isEnabled=running
+        startButton.visibility=if(running) View.GONE else View.VISIBLE
+        stopButton.visibility=if(running) View.VISIBLE else View.GONE
         saveButton.isEnabled=ready&&run!=null&&!saved
         historyButton.isEnabled=ready;compareButton.isEnabled=ready&&run?.end==BatteryLabEnd.COMPLETE
         shareButton.isEnabled=ready&&run!=null;exportButton.isEnabled=ready&&run!=null;deleteButton.isEnabled=ready&&saved&&run!=null
@@ -71,7 +84,7 @@ internal class BatteryLabPanel(context:Context,private val exportRequest:(String
         if(!startButton.isEnabled)return
         val list=BatteryLabPlan.entries
         LegionDialogs.builder(context).setTitle("Длительность наблюдения")
-            .setItems(list.map{it.label}.toTypedArray()){_,i->plan=list[i];planButton.text="Длительность: "+plan.label}
+            .setItems(list.map{it.label}.toTypedArray()){_,i->plan=list[i];planButton.text="Время: "+plan.label}
             .setNegativeButton("Отмена",null).show()
     }
     private fun begin() {
@@ -208,7 +221,7 @@ private class BatteryLabChart(context:Context):View(context) {
     private var points=emptyList<BatteryLabPoint>()
     var metric=BatteryLabMetric.POWER
         private set
-    fun next(){metric=BatteryLabMetric.entries[(metric.ordinal+1)%BatteryLabMetric.entries.size];update(points)}
+    fun select(value:BatteryLabMetric){metric=value;update(points)}
     fun update(data:List<BatteryLabPoint>){points=data;contentDescription=metric.label+" · "+data.count{metric.value(it)!=null}+" измерений";invalidate()}
     override fun onDraw(canvas:Canvas) {
         super.onDraw(canvas)
