@@ -88,6 +88,24 @@ class GameLaunchProfilePolicyTest {
         assertTrue(ticket.encode().startsWith("v2|"))
     }
 
+    @Test fun implicitRuleSnapshotDistinguishesMissingFromInactive() {
+        assertEquals(0, AppDndRuleSnapshot(false, 0, 1).encoded)
+        assertEquals(AppDndRuleSnapshot(false, 0, 1), AppDndRuleSnapshot.decode(0))
+        assertEquals(AppDndRuleSnapshot(true, 0, 2), AppDndRuleSnapshot.decode(102))
+    }
+
+    @Test fun implicitRuleSnapshotTracksFilterAsWellAsActivation() {
+        val priority = AppDndRuleSnapshot(true, 1, 2)
+        val alarms = AppDndRuleSnapshot(true, 1, 4)
+        assertTrue(priority.encoded != alarms.encoded)
+        assertEquals(priority, AppDndRuleSnapshot.decode(priority.encoded))
+    }
+
+    @Test fun invalidImplicitRuleSnapshotIsRejected() {
+        assertTrue(runCatching { AppDndRuleSnapshot.decode(99) }.isFailure)
+        assertTrue(runCatching { AppDndRuleSnapshot.decode(115) }.isFailure)
+    }
+
     @Test fun malformedRestoreTicketIsRejectedRatherThanApplied() {
         for (bad in listOf("v1|com.example.game|0,8|a,2|-|-",
             "v1|com.example.game|0,-1|-|-|-",

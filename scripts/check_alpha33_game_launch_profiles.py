@@ -37,6 +37,11 @@ assert "rule.owner == null && rule.configurationActivity == null" in engine
 assert "ticket.focusScope == FocusUndoScope.GLOBAL_FILTER" in engine
 assert "legacyFocusSkipped" in engine
 assert "FocusUndoScope.APP_RULE" in policy
+assert "AppDndRuleSnapshot" in policy
+assert "rule.interruptionFilter" in engine
+assert "AutomaticZenRule.Builder(rule)" in engine
+assert "updateAutomaticZenRule" in engine
+assert "current.encoded != requested.encoded" in engine
 assert tests.count("@Test") >= 10
 # Every launch-profile mutation and ZIP replay follows one lock order:
 # maintenance gate first, then the profile ticket monitor. In particular,
