@@ -138,3 +138,6 @@ Game Toolbox получил единый диалог редактировани
 | LC-05d-04: AAC выборка не создаёт лишний полный список | Один фильтр по video PTS внутри audio buffer; JVM: boundary + identity. |
 
 Бюджет относится к уникальным удерживаемым H.264 sample bytes, не к PSS: временная аллокация codec output, индексы/объекты, MediaCodec, AAC и muxer считаются отдельно. Цена строгого бюджета — временное укорочение/пауза live GOP при большом экспорте; активный экспорт не отменяется. Frozen AAC пока может перекрываться с живым AAC в рамках отдельных малых бюджетов; дальнейшая задача. Существующий opt-in захват, STOP и fallback video-only сохранены. Физических замеров на Lenovo Y70 нет; CI exact SHA обязателен.
+
+
+LC-05d-05: codec access units проверяются по размеру, timestamp, sync-frame и доступному frozen budget до создания Java ByteArray. Отказ не копирует sample; при пропуске слишком большого кадра сбрасывается только live GOP, frozen lease не повреждён. JVM-тест считает вызовы copyBytes и проверяет восстановление с нового keyframe. Аллокации допустимых samples, native codec/PCM и фактический CPU/PSS не измерены.

@@ -372,18 +372,22 @@ class ReplayCaptureService : Service() {
                             if (info.size > 0 &&
                                 info.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG == 0 &&
                                 info.size <= 4 * 1024 * 1024) {
-                                val data = requireNotNull(encoder.getOutputBuffer(index))
-                                    .duplicate()
-                                data.position(info.offset)
-                                data.limit(info.offset + info.size)
-                                val bytes = ByteArray(info.size)
-                                data.get(bytes)
                                 if (videoMinusNanoClockUs == null) {
                                     videoMinusNanoClockUs = ReplayVideoClock.offsetFromDequeue(
                                         info.presentationTimeUs, System.nanoTime() / 1000L)
                                 }
-                                buffer.add(ReplayFrame(bytes, info.presentationTimeUs,
-                                    info.flags and MediaCodec.BUFFER_FLAG_KEY_FRAME != 0))
+                                buffer.addEncoded(info.size, info.presentationTimeUs,
+                                    info.flags and MediaCodec.BUFFER_FLAG_KEY_FRAME != 0) {
+                                    val data = requireNotNull(encoder.getOutputBuffer(index)).duplicate()
+                                    data.position(info.offset)
+                                    data.limit(info.offset + info.size)
+                                    ByteArray(info.size).also { data.get(it) }
+                                }
+                            }
+                            if (info.size > 4 * 1024 * 1024 &&
+                                info.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG == 0) {
+                                // Oversized codec output is a gap: discard the undecodable live GOP only.
+                                buffer.clear()
                             }
                             val isEnd = info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0
                             if (isEnd) break

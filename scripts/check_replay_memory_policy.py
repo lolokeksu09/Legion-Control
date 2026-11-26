@@ -28,6 +28,10 @@ assert "buffer.freezeAt(nowVideoUs)" in service and "finishExport(lease)" in ser
 assert "lease.close()" in service and "exporting.set(false)" in service
 assert "frozenExportAndLiveWindowShareOneByteBudget" in video_tests
 assert "pressureKeepsFrozenBytesButStopsGrowingUntilRelease" in video_tests
+assert "buffer.addEncoded(info.size, info.presentationTimeUs" in service
+assert "if (!canAdmit(size, ptsUs, keyFrame, false)) return false" in video
+assert video.index("if (!canAdmit(size, ptsUs, keyFrame, false))") < video.index("val bytes = copyBytes()")
+assert "rejectedCodecSamplesDoNotAllocateAndResumeFromSync" in video_tests
 assert "snapshotForVideo(" in audio_capture
 assert "buffer.snapshot(0L, Long.MAX_VALUE)" not in audio_capture
 assert "videoClockSnapshotSelectsOnlyMatchingPackets" in audio_tests

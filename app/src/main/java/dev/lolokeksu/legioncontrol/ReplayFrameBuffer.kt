@@ -53,23 +53,41 @@ class ReplayFrameBuffer(
     )
 
     @Synchronized fun add(frame: ReplayFrame): Boolean {
-        if (frame.bytes.isEmpty() || frame.ptsUs < 0 ||
-            frame.bytes.size.toLong() > byteLimit) return false
-        if (frames.isEmpty() && !frame.keyFrame) return false
-        if (frames.isNotEmpty() && frame.ptsUs <= frames.last.ptsUs) return false
+        val shared = frozenFrames.containsKey(frame)
+        if (!canAdmit(frame.bytes.size, frame.ptsUs, frame.keyFrame, shared)) return false
+        appendAccepted(frame, shared)
+        return true
+    }
 
-        // If a frozen export alone leaves no space for this sample, do not keep
-        // a GOP with a missing access unit. Resume only from a new sync frame.
-        if (!frozenFrames.containsKey(frame) && frozenBytes + frame.bytes.size > byteLimit) {
+    /** Codec output stays in its native buffer until the rolling window can admit it. */
+    @Synchronized internal fun addEncoded(
+        size: Int, ptsUs: Long, keyFrame: Boolean, copyBytes: () -> ByteArray
+    ): Boolean {
+        if (!canAdmit(size, ptsUs, keyFrame, false)) return false
+        val bytes = copyBytes()
+        require(bytes.size == size)
+        appendAccepted(ReplayFrame(bytes, ptsUs, keyFrame), false)
+        return true
+    }
+
+    private fun canAdmit(size: Int, ptsUs: Long, keyFrame: Boolean, shared: Boolean): Boolean {
+        if (size <= 0 || ptsUs < 0L) return false
+        if (frames.isNotEmpty() && ptsUs <= frames.last.ptsUs) return false
+        if (size.toLong() > byteLimit || (!shared && frozenBytes + size > byteLimit)) {
+            // A missing access unit invalidates the live GOP. Wait for a new sync frame.
             clear()
             return false
         }
+        if (frames.isEmpty() && !keyFrame) return false
+        return true
+    }
+
+    private fun appendAccepted(frame: ReplayFrame, shared: Boolean) {
         frames.addLast(frame)
         byteCount += frame.bytes.size
-        if (frozenFrames.containsKey(frame)) sharedBytes += frame.bytes.size
+        if (shared) sharedBytes += frame.bytes.size
         if (frame.keyFrame) keyFrameCount++
         trim(frame.ptsUs)
-        return true
     }
 
     /** Reduce the cap under memory pressure without retaining an undecodable GOP prefix. */

@@ -183,6 +183,26 @@ class ReplayFrameBufferTest {
         assertTrue(buffer.snapshot().first().keyFrame)
     }
 
+    @Test fun rejectedCodecSamplesDoNotAllocateAndResumeFromSync() {
+        val buffer = ReplayFrameBuffer(30, 80L)
+        for (s in 0..3) buffer.add(frame(s, s % 2 == 0))
+        val lease = requireNotNull(buffer.freezeAt(3_000_000L))
+        var copies = 0
+        fun copy(): ByteArray { copies++; return ByteArray(20) }
+        assertFalse(buffer.addEncoded(20, 4_000_000L, true, ::copy))
+        assertEquals(0, copies)
+        assertEquals(0L, buffer.sizeBytes)
+        lease.close()
+        assertFalse(buffer.addEncoded(20, 5_000_000L, false, ::copy))
+        assertEquals(0, copies)
+        assertTrue(buffer.addEncoded(20, 6_000_000L, true, ::copy))
+        assertTrue(buffer.addEncoded(20, 7_000_000L, false, ::copy))
+        assertEquals(2, copies)
+        assertEquals(6_000_000L, buffer.snapshot().first().ptsUs)
+        assertFalse(buffer.addEncoded(100, 8_000_000L, false) { error("must not copy") })
+        assertTrue(buffer.snapshot().isEmpty())
+    }
+
     @Test fun resetDropsOnlyInMemoryFrames() {
         val buffer = ReplayFrameBuffer(60)
         buffer.add(frame(0, true))
