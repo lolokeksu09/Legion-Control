@@ -322,10 +322,9 @@ class GameToolboxFragment : Fragment() {
                 it.loadLabel(requireContext().packageManager).toString() + "\n" + it.activityInfo.packageName
             }.toTypedArray()) { _, index ->
                 val app = applications[index]
-                prefs.edit()
-                    .putString(ToolboxPreferences.GAME, app.activityInfo.packageName)
-                    .putString(ToolboxPreferences.LABEL, app.loadLabel(requireContext().packageManager).toString())
-                    .apply()
+                val saved = ToolboxGameSelection.select(requireContext(), app.activityInfo.packageName,
+                    app.loadLabel(requireContext().packageManager).toString())
+                status.text = if (saved) "Игра выбрана." else "Не удалось выбрать игру: проверьте доступность и восстановление ZIP."
                 renderStatus()
             }
             .setNegativeButton("Отмена", null)

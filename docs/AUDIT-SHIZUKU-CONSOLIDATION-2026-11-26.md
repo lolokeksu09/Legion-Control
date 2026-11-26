@@ -18,3 +18,14 @@ Baseline: d689ada0bd7cc20bfdb6d08493a35335e373519d (stacked PR #88 including #87
 Official integration reference: https://github.com/RikkaApps/Shizuku-API (Guide, protected provider, binder lifecycle, permission requests, UID and checkRemotePermission). SDK is fixed to 13.1.5. The initial Shizuku integration performs actual authorized Binder reads; no shell command execution, no hidden API or root. A connected service is not proof of available game FPS/Touch Boost/Bypass. Existing public Android controls work independently.
 
 The initial code patch addresses LC-S01–06; LC-S07–10 remain explicitly open. User data is not deleted. Runtime rendering and physical Shizuku behavior require device verification.
+
+
+## LC-S11 — read-only background policy through Shizuku
+
+Explicit Settings action opens a non-daemon UserService using the official API. Fixed read-only probes: cached_apps_freezer, DeviceConfig use_freezer, low_power, app_standby_enabled, adaptive_battery_management_enabled. UID 2000 checked on both sides; no caller-supplied arguments, writes, arbitrary command interface or root. Each subprocess has a 1.5 s timeout and limited normalized output; parent operation times out after 20 s, closes on disconnect or leaving Settings. Configuration values are not proof of effective OEM behavior. Missing values are not represented as disabled. Two JVM parser tests and source guards. Physical execution NOT RUN.
+
+## LC-S12 — Game Hub and Toolbox consolidation
+
+One durable game-selection path for Hub and Toolbox, serialized against ZIP restoration. Game detail selects then opens Toolbox only after successful commit on worker and only while originating destination remains active. Shared action tile instead of duplicate renderer, real app icon when visible, grouped launch/history/media actions, library pagination scrolls to count, redundant four global shortcuts replaced with catalog link. Existing routes, local history and favorites retained. Visual check NOT RUN.
+
+Build-only alpha.59 iteration keeps versionCode 59 and permanent certificate; same-version update via package installer depends on installer policy. No data migration. New version number reserved for public release.

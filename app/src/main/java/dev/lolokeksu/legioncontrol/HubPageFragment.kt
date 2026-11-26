@@ -48,6 +48,7 @@ class HubPageFragment : Fragment() {
     private var pendingSearch:Runnable?=null
     private var observedSnapshot:HubLoadState?=null
     private var shizukuStatusView: TextView? = null
+    private var systemAudit: ShizukuSystemAudit? = null
     private var shizukuProbeEpoch = 0
     private var shizukuProbeRunning = false
     private var shizukuListening = false
@@ -129,6 +130,8 @@ class HubPageFragment : Fragment() {
             Shizuku.removeRequestPermissionResultListener(permissionResult)
             shizukuListening = false
         }
+        systemAudit?.cancel()
+        systemAudit = null
         shizukuProbeEpoch++
         shizukuProbeRunning = false
         super.onStop()
@@ -140,6 +143,8 @@ class HubPageFragment : Fragment() {
     }
 
     private fun invalidateShizuku() {
+        systemAudit?.cancel()
+        systemAudit = null
         shizukuProbeEpoch++
         shizukuProbeRunning = false
         refreshShizuku()
@@ -163,7 +168,7 @@ class HubPageFragment : Fragment() {
     }
 
     private fun inspectShizuku() {
-        if (shizukuProbeRunning) return
+        if (shizukuProbeRunning || systemAudit != null) return
         val ctx = requireContext().applicationContext
         val epoch = ++shizukuProbeEpoch
         shizukuProbeRunning = true
@@ -177,6 +182,21 @@ class HubPageFragment : Fragment() {
                 }
             }
         }, "legion-shizuku-inspect").start()
+    }
+
+    private fun inspectBackgroundPolicy() {
+        if (shizukuProbeRunning || systemAudit != null) return
+        val ctx = requireContext()
+        val epoch = ++shizukuProbeEpoch
+        val audit = ShizukuSystemAudit(ctx)
+        systemAudit = audit
+        shizukuStatusView?.text = "Чтение конфигурации фоновых процессов…"
+        audit.run { report ->
+            if (epoch == shizukuProbeEpoch && shizukuListening) {
+                systemAudit = null
+                shizukuStatusView?.text = report
+            }
+        }
     }
 
     override fun onResume() {
@@ -493,8 +513,13 @@ class HubPageFragment : Fragment() {
             }
             override fun afterTextChanged(s: Editable?) {}
         })
-        previous.setOnClickListener { libraryPage--; redraw() }
-        next.setOnClickListener { libraryPage++; redraw() }
+        fun movePage(delta: Int) {
+            libraryPage += delta
+            redraw()
+            (view as? ScrollView)?.smoothScrollTo(0, count.top)
+        }
+        previous.setOnClickListener { movePage(-1) }
+        next.setOnClickListener { movePage(1) }
         filter.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onNothingSelected(parent: AdapterView<*>?) = Unit
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
@@ -517,18 +542,8 @@ class HubPageFragment : Fragment() {
         tile("Управление библиотекой", "Категории, заметки, сохранённые приложения") {
             open(ApplicationCenterActivity::class.java)
         }
-        group("Игровые функции")
-        tile("Game Preflight", "Проверка требований выбранной игры перед запуском") {
-            open(GamePreflightActivity::class.java)
-        }
-        tile("Game Session", "Запись состояния устройства во время игры") {
-            open(GameSessionActivity::class.java)
-        }
-        tile("Game Toolbox", "Плавающая игровая панель управления") {
-            open(GameToolboxActivity::class.java)
-        }
-        tile("Smart Profiles", "Профили и правила для приложений") {
-            open(SmartProfilesActivity::class.java)
+        tile("Игровые инструменты", "Все модули в едином каталоге") {
+            NavHostFragment.findNavController(this).navigate(R.id.toolsFragment)
         }
     }
 
@@ -537,6 +552,7 @@ class HubPageFragment : Fragment() {
         pendingSearch=null
     }
     override fun onDestroyView() {
+        shizukuStatusView = null
         cancelSearch()
         observedSnapshot=null
         super.onDestroyView()
@@ -773,6 +789,9 @@ class HubPageFragment : Fragment() {
         column.addView(requireNotNull(shizukuStatusView))
         tile("Настроить Shizuku", "Подключить ADB shell или открыть менеджер Shizuku") { configureShizuku() }
         tile("Проверить права ADB shell", "Только чтение · доступ к системным возможностям") { inspectShizuku() }
+        tile("Фоновые процессы", "Freezer, App Standby, энергосбережение · чтение через Shizuku") {
+            inspectBackgroundPolicy()
+        }
         group("Возможности и ограничения")
         for (item in PermissionCenterModel.limitations(access)) {
             column.addView(LegionUiSupport.permissionRow(requireContext(), item) {},

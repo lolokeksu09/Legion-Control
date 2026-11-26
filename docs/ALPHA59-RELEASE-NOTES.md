@@ -6,3 +6,6 @@ Application ID, pinned permanent signing certificate, SQLite v12, and arm64-v8a/
 
 
 Additional alpha.59 integration: optional Shizuku API 13.1.5, shell UID and permission diagnostics, consolidated 19-module tool registry, simpler Settings and compact summary/permission rows. Daily CI skips the full emulator suite per owner request; build and permanent certificate checks remain. No privileged write operations or root functionality added in this phase.
+
+
+Build-only refinement: fixed read-only Shizuku background policy report, shared Toolbox selection with ZIP gate, game detail grouping and actual app icon, pagination navigation. Version remains alpha.59, no public release; exact SHA identifies build.

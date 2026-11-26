@@ -27,7 +27,8 @@ assert "fun cardSurface(view: View)" in support
 for name, code in (("HubPageFragment", hub), ("GameToolboxFragment", toolbox)):
     assert "LegionUiSupport.actionTile(requireContext(), title," in code, name
 assert "LegionUiSupport.cardSurface(this)" in detail
-assert 'contentDescription = if (desc.isBlank()) title else "$title. $desc"' in detail
+assert "LegionUiSupport.actionTile(requireContext(), title, desc, callback)" in detail
+assert "getApplicationIcon(pkg)" in detail
 
 for kind, start, end, accessibility in (
     ("MP4", "for (clip in clips)", "private fun clipActions(", 'contentDescription = "Клип:'),

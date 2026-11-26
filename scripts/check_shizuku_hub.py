@@ -34,3 +34,18 @@ ci = (root / ".github/workflows/android.yml").read_text()
 assert "inputs.full_emulator == true" in ci and "default: false" in ci
 assert "testDebugUnitTest" in ci and "scripts/verify_apk.py" in ci
 print("PASS: optional Shizuku, shell-only diagnostics, unified 19-module catalog and opt-in emulator")
+
+# Scoped read-only Shizuku UserService, no general command API.
+audit = (src / "ShizukuSystemAudit.kt").read_text()
+service = (src / "ShellAuditService.kt").read_text()
+aidl = (root / "app/src/main/aidl/dev/lolokeksu/legioncontrol/IShellAudit.aidl").read_text()
+assert "String inspect() = 2;" in aidl and "void destroy() = 16777114;" in aidl
+assert "Process.myUid() != 2000" in service
+assert "ProcessBuilder(probe.args)" in service and "waitFor(1500L" in service
+assert "readNBytes(257)" in service and "destroyForcibly()" in service
+assert "daemon(false)" in audit and "unbindUserService(request.args, request, true)" in audit
+assert "systemAudit?.cancel()" in hub
+assert "cached_apps_freezer" in service and "activity_manager_native_boot" in service
+assert "ToolboxGameSelection.select" in (src / "HubRepository.kt").read_text()
+assert "ToolboxGameSelection.select" in (src / "GameToolboxFragment.kt").read_text()
+assert "ProfileMaintenanceGate.tryRun" in (src / "ToolboxGameSelection.kt").read_text()

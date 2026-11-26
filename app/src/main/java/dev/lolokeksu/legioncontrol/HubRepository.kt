@@ -111,13 +111,6 @@ class HubRepository(context: Context) {
     }
 
     /** Existing Toolbox reads exactly these keys; only a user click may change them. */
-    fun chooseToolboxGame(pkg: String, label: String): Boolean {
-        if (!ApplicationInventory.isPackageName(pkg)) return false
-        if (app.packageManager.getLaunchIntentForPackage(pkg) == null) return false
-        app.getSharedPreferences(ToolboxPreferences.NAME, Context.MODE_PRIVATE).edit()
-            .putString(ToolboxPreferences.GAME, pkg)
-            .putString(ToolboxPreferences.LABEL, label.take(100))
-            .apply()
-        return true
-    }
+    fun chooseToolboxGame(pkg: String, label: String): Boolean =
+        ToolboxGameSelection.select(app, pkg, label)
 }

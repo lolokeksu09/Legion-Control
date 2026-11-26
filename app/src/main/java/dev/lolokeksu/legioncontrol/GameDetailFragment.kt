@@ -9,6 +9,8 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
+import android.widget.ImageView
+import android.view.Gravity
 import android.widget.ScrollView
 import android.widget.TextView
 import androidx.fragment.app.Fragment
@@ -20,8 +22,8 @@ import androidx.navigation.fragment.NavHostFragment
  * Activities and repositories; no Android privileged game controls are invented.
  */
 class GameDetailFragment : Fragment() {
-    private val accent = 0xFF86B7FF.toInt()
-    private val muted = 0xFF9CA5B0.toInt()
+    private val accent = LegionUiSupport.ACCENT
+    private val muted = LegionUiSupport.MUTED
     private lateinit var vm: HubViewModel
     private lateinit var column: LinearLayout
     private lateinit var status: TextView
@@ -64,19 +66,12 @@ class GameDetailFragment : Fragment() {
         }
 
     private fun addAction(title: String, desc: String, callback: () -> Unit) {
-        val row = LinearLayout(requireContext()).apply {
-            orientation = LinearLayout.VERTICAL
-            background = LegionUiSupport.cardSurface(this)
-            setPadding(14.dp, 10.dp, 14.dp, 10.dp)
-            minimumHeight = 48.dp
-            isClickable = true
-            isFocusable = true
-            contentDescription = if (desc.isBlank()) title else "$title. $desc"
-            setOnClickListener { callback() }
-        }
-        row.addView(text(title, 15f, Color.WHITE, true).apply { importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO })
-        row.addView(text(desc, 12f, muted).apply { setPadding(0, 5.dp, 0, 0); importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO })
-        column.addView(row, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 6.dp })
+        column.addView(LegionUiSupport.actionTile(requireContext(), title, desc, callback),
+            LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 6.dp })
+    }
+
+    private fun section(title: String) {
+        column.addView(LegionUiSupport.sectionLabel(requireContext(), title))
     }
 
     private fun <T> open(cls: Class<T>, configure: (Intent) -> Unit = {}) {
@@ -120,8 +115,23 @@ class GameDetailFragment : Fragment() {
                 return
             }
         }
-        column.addView(text(app.label, 25f, Color.WHITE, true))
-        column.addView(text(pkg, 12f, muted).apply { setPadding(0, 6.dp, 0, 12.dp) })
+        val header = LinearLayout(requireContext()).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, 0, 0, 12.dp)
+        }
+        if (app.visible) {
+            val icon = runCatching { requireContext().packageManager.getApplicationIcon(pkg) }.getOrNull()
+            if (icon != null) header.addView(ImageView(requireContext()).apply {
+                setImageDrawable(icon)
+                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+            }, LinearLayout.LayoutParams(56.dp, 56.dp).apply { rightMargin = 12.dp })
+        }
+        val identity = LinearLayout(requireContext()).apply { orientation = LinearLayout.VERTICAL }
+        identity.addView(text(app.label, 24f, Color.WHITE, true).apply { isAccessibilityHeading = true })
+        identity.addView(text(pkg, 12f, muted).apply { setPadding(0, 5.dp, 0, 0) })
+        header.addView(identity, LinearLayout.LayoutParams(0, -2, 1f))
+        column.addView(header)
         column.addView(text(
             (if (app.favorite) "★ Избранное" else "Не в избранном") + " · " +
                 (if (app.visible) "Доступна для запуска" else "Не видна через Android Launcher"),
@@ -142,13 +152,13 @@ class GameDetailFragment : Fragment() {
         }
         LegionUiSupport.reportSurface(profileInfo)
         column.addView(profileInfo, ViewGroup.LayoutParams(-1, -2))
-        status = text("Действия выполняются только по нажатию. Без Root/Shizuku.", 12f, muted)
-        column.addView(status.apply { setPadding(0, 0, 0, 16.dp) })
+        status = text("Действия выполняются только по нажатию.", 12f, muted)
+        column.addView(status.apply {
+            setPadding(0, 8.dp, 0, 12.dp)
+            accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+        })
 
-        addAction(if (app.favorite) "Убрать из избранного" else "В избранное",
-            "Сохраняются прежние категории, псевдоним и заметка в SQLite") {
-            vm.toggleFavorite(pkg, app.label)
-        }
+        section("ЗАПУСК И ПОДГОТОВКА")
         if (app.visible) {
             addAction("ЗАПУСТИТЬ ПРИЛОЖЕНИЕ", "Открыть системным Launcher Intent") {
                 val launch = requireContext().packageManager.getLaunchIntentForPackage(pkg)
@@ -156,15 +166,18 @@ class GameDetailFragment : Fragment() {
                 else runCatching { startActivity(launch) }
                     .onFailure { status.text = "Запуск отклонён: " + it.javaClass.simpleName }
             }
-            addAction("Выбрать для Game Toolbox", "Подготовить эту игру для настройки профиля запуска и управления панелью") {
-                vm.chooseForToolbox(pkg, app.label)
+            addAction("Настроить Game Toolbox", "Выбрать именно эту игру и открыть её профиль") {
+                val sourceView = view
+                status.text = "Выбор игры…"
+                vm.chooseForToolbox(pkg, app.label) {
+                    if (sourceView != null && view === sourceView && isAdded &&
+                        NavHostFragment.findNavController(this).currentDestination?.id == R.id.gameDetailFragment)
+                        open(GameToolboxActivity::class.java)
+                }
             }
         }
         addAction("Game Preflight", "Проверить заряд, температуру, дисплей, RAM и сеть перед запуском") {
             open(GamePreflightActivity::class.java) { it.putExtra(GamePreflightActivity.EXTRA_PACKAGE,pkg) }
-        }
-        addAction("Открыть Game Toolbox", "Панель поверх игр требует разрешения Android") {
-            open(GameToolboxActivity::class.java)
         }
         addAction("Game Session", "Открыть запись сессии с заранее выбранным пакетом") {
             NavHostFragment.findNavController(this).navigate(
@@ -179,6 +192,7 @@ class GameDetailFragment : Fragment() {
                 it.putExtra("app_center_package", pkg)
             }
         }
+        section("ИСТОРИЯ И АНАЛИТИКА")
         addAction("Session Library", "Открыть историю записей этой игры") {
             open(SessionLibraryActivity::class.java) { it.putExtra(SessionLibraryActivity.EXTRA_PACKAGE,pkg) }
         }
@@ -189,6 +203,11 @@ class GameDetailFragment : Fragment() {
             open(ExperimentLabActivity::class.java) {
                 it.putExtra("experiment_package", pkg)
             }
+        }
+        section("МЕДИА И БИБЛИОТЕКА")
+        addAction(if (app.favorite) "Убрать из избранного" else "В избранное",
+            "Сохраняются прежние категории, псевдоним и заметка в SQLite") {
+            vm.toggleFavorite(pkg, app.label)
         }
         addAction("Capture Studio", "Начать запись только после согласия Android") {
             open(CaptureStudioActivity::class.java)

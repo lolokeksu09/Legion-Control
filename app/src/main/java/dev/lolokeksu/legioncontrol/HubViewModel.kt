@@ -6,6 +6,8 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import java.util.concurrent.Executors
 import android.os.SystemClock
+import android.os.Handler
+import android.os.Looper
 
 sealed interface HubLoadState {
     data object Loading : HubLoadState
@@ -76,14 +78,17 @@ class HubViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun chooseForToolbox(pkg: String, label: String) {
+    fun chooseForToolbox(pkg: String, label: String, onSelected: (() -> Unit)? = null) {
         if(closed)return
         worker.execute {
             val result = runCatching { backend.chooseToolboxGame(pkg, label) }
             mutableActionResult.postValue(result.fold(
-                { if (it) "Игра выбрана для Game Toolbox" else "Android не позволяет открыть эту игру" },
+                { if (it) "Игра выбрана для Game Toolbox" else "Не удалось выбрать игру: проверьте доступность и восстановление ZIP." },
                 { "Не удалось выбрать игру: " + it.javaClass.simpleName }
             ))
+            if (result.getOrNull() == true && onSelected != null) {
+                Handler(Looper.getMainLooper()).post { if (!closed) onSelected() }
+            }
         }
     }
 
