@@ -80,7 +80,7 @@ class GameLaunchProfilePolicyTest {
 
     @Test fun android15UndoRoundTripsImplicitRulePresence() {
         val ticket = GameLaunchUndo(
-            "com.example.game", null, null, null, LaunchSettingChange(0, 1),
+            "com.example.game", null, null, null, LaunchSettingChange(0, 113),
             FocusUndoScope.APP_RULE, false
         )
         val decoded = GameLaunchUndo.decode(ticket.encode())
