@@ -64,6 +64,14 @@ assert "Settings.canDrawOverlays(this)" in service
 assert "START_NOT_STICKY" in service and "startForeground(" in service
 assert "stopSelf()" in service and "removeView(" in service
 assert "handler.removeCallbacks(clock)" in service and "onDestroy()" in service
+clock = service[service.index("private val clock"):service.index("override fun onBind")]
+toggle = service[service.index("private fun togglePanel"):service.index("private fun applyPreferences")]
+start = service[service.index("override fun onStartCommand"):service.index("private fun updateAutomationNotification")]
+assert "if (!expanded || overlay == null) return" in clock
+assert "if (expanded && overlay != null) handler.postDelayed(this, 1000)" in clock
+assert "handler.post(clock)" not in start
+assert toggle.index("handler.removeCallbacks(clock)") < toggle.index("if (expanded) clock.run()")
+assert "SystemClock.elapsedRealtime() - startedAt" in clock
 assert "ACTION_STOP" in service and ".addAction(" in service
 assert "setOnTouchListener(DragHandler())" in service
 assert "ToolboxTuning.position(" in service and "ToolboxTuning.sizeDp(" in service

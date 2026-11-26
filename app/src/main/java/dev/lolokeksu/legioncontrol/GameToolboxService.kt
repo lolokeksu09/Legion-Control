@@ -89,10 +89,11 @@ class GameToolboxService : Service() {
 
     private val clock = object : Runnable {
         override fun run() {
+            if (!expanded || overlay == null) return
             val seconds = (SystemClock.elapsedRealtime() - startedAt).coerceAtLeast(0) / 1000
             ticker?.text = "Панель активна " + (seconds / 60) + " мин " +
                 (seconds % 60).toString().padStart(2, '0') + " с"
-            if (overlay != null) handler.postDelayed(this, 1000)
+            if (expanded && overlay != null) handler.postDelayed(this, 1000)
         }
     }
 
@@ -128,7 +129,7 @@ class GameToolboxService : Service() {
                 startedAt = SystemClock.elapsedRealtime()
                 createOverlay()
                 active = true
-                handler.post(clock)
+                // The initial overlay is collapsed; there is no visible clock to update.
             } catch (_: Exception) {
                 stopSelf()
             }
@@ -302,7 +303,7 @@ class GameToolboxService : Service() {
             setTextColor(0xFFB6BABF.toInt())
             textSize = 12f
             setPadding(0, 5.dp, 0, 6.dp)
-            text = "Таймер начинается при открытии панели"
+            text = "Время работы панели"
         }
         box.addView(ticker)
         fun row(left: String, leftAction: () -> Unit, right: String, rightAction: () -> Unit) {
@@ -411,6 +412,8 @@ class GameToolboxService : Service() {
     private fun togglePanel() {
         expanded = !expanded
         panel?.visibility = if (expanded) View.VISIBLE else View.GONE
+        handler.removeCallbacks(clock)
+        if (expanded) clock.run() // refresh immediately; elapsed time includes the collapsed interval
         applyPreferences()
         // Panel height becomes known after the first layout pass. Reposition the
         // complete expanded panel on screen even if the user dragged LC to the bottom.
