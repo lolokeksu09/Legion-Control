@@ -783,6 +783,10 @@ class HubPageFragment : Fragment() {
                 openCapabilitySettings(item.capability)
             }, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 6.dp })
         }
+        group("Системное управление")
+        tile("Параметры Android", "Громкость, яркость, DND, тайм-аут и возврат") {
+            SystemControlPanel.show(requireContext())
+        }
         group("Расширенный доступ")
         shizukuStatusView = LegionUiSupport.noticeView(requireContext(),
             ShizukuAccessBackend.snapshot(requireContext()).report(), LegionUiSupport.Notice.INFO)

@@ -56,7 +56,7 @@ object FeatureFinder {
         FeatureEntry("network.stability", FeatureModule.NETWORK, "Стабильность сети", "ТЕСТ СТАБИЛЬНОСТИ · до 6 циклов (~60 секунд)", "network jitter стабильность интернет"),
         FeatureEntry("network.history", FeatureModule.NETWORK, "История сетевых тестов", "История проверок · выбрать запись", "network история dns tcp"),
         FeatureEntry("profile.rules", FeatureModule.PROFILE, "Правила игрового профиля", "Настроить 6 правил профиля", "smart profile температура батареи порог"),
-        FeatureEntry("profile.brightness", FeatureModule.PROFILE, "Яркость экрана", "Яркость 50% (с сохранением исходного значения)", "brightness экран яркость"),
+        FeatureEntry("profile.brightness", FeatureModule.PROFILE, "Системное управление", "Параметры Android", "brightness экран яркость volume громкость dnd тайм-аут возврат"),
         FeatureEntry("profile.export", FeatureModule.PROFILE, "Экспорт профилей JSON", "Экспортировать профили и правила JSON", "smart profile backup json"),
         FeatureEntry("apps.permissions", FeatureModule.APPS, "Разрешения приложения", "Карточка приложения и видимые разрешения", "app permissions права"),
         FeatureEntry("apps.usage", FeatureModule.APPS, "Использование приложений", "Использование приложения за 24 часа", "usage access статистика время"),

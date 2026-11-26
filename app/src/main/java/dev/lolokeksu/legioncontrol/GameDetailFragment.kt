@@ -158,6 +158,20 @@ class GameDetailFragment : Fragment() {
             accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
         })
 
+        addAction("Редактировать профиль запуска", "Громкость, яркость и DND для этой игры") {
+            GameLaunchProfileEditor.show(requireContext(), pkg) { message ->
+                if (view != null && isAdded) {
+                    status.text = message
+                    val saved = GameLaunchProfiles.profile(requireContext(), pkg)
+                    profileInfo.text = GameProfilePresentation.report(saved,
+                        saved?.takeIf { it.actionable }?.let {
+                            CapabilityAccessBackend.profileAccess(requireContext(), it)
+                        }, GameLaunchProfiles.pendingPackage(requireContext()), pkg)
+                    profileInfo.contentDescription = profileInfo.text
+                }
+            }
+        }
+
         section("ЗАПУСК И ПОДГОТОВКА")
         if (app.visible) {
             addAction("ЗАПУСТИТЬ ПРИЛОЖЕНИЕ", "Открыть системным Launcher Intent") {
@@ -166,7 +180,7 @@ class GameDetailFragment : Fragment() {
                 else runCatching { startActivity(launch) }
                     .onFailure { status.text = "Запуск отклонён: " + it.javaClass.simpleName }
             }
-            addAction("Настроить Game Toolbox", "Выбрать именно эту игру и открыть её профиль") {
+            addAction("Открыть Game Toolbox", "Выбрать именно эту игру и управлять панелью") {
                 val sourceView = view
                 status.text = "Выбор игры…"
                 vm.chooseForToolbox(pkg, app.label) {

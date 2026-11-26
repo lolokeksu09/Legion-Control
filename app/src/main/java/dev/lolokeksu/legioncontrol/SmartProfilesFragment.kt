@@ -52,10 +52,9 @@ class SmartProfilesFragment : Fragment() {
             text=t;textSize=13f;setTextColor(0xFFAFAFAF.toInt());setPadding(0,9.dp,0,12.dp)
         }) }
         fun action(t:String,featureId:String?=null,run:()->Unit) {
-            root.addView(Button(requireContext()).apply {
+            root.addView(LegionUiSupport.actionTile(requireContext(), t, "", run).apply {
                 if(featureId!=null) FeatureReveal.bind(this,featureId)
-                text=t;minHeight=48.dp;setOnClickListener { run() }
-            })
+            }, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 6.dp })
         }
         fun edit(hintText:String,numeric:Boolean=false):EditText=EditText(requireContext()).apply {
             hint=hintText
@@ -79,10 +78,21 @@ class SmartProfilesFragment : Fragment() {
         }
         root.addView(TextView(requireContext()).apply {
             text="LEGION CONTROL · SMART PROFILES"
-            setTextColor(Color.WHITE);textSize=20f;setTypeface(null,Typeface.BOLD)
+            setTextColor(Color.WHITE);textSize=24f;setTypeface(null,Typeface.BOLD)
+            isAccessibilityHeading = true
         })
-        note("Для любых игр и приложений Android 13+. Настройки не требуют Root/Shizuku. " +
-            "Запись запускается вручную; системные изменения никогда не выполняются автоматически.")
+        note("Правила предупреждений и профиль запуска для выбранного приложения. " +
+            "Сохранение профиля не изменяет настройки Android.")
+        result=TextView(requireContext()).apply {
+            setTextColor(Color.WHITE)
+            textSize=14f
+            setPadding(0,20.dp,0,16.dp)
+            setLineSpacing(4f,1f)
+            text="Профили хранятся только на устройстве. Выберите приложение или загрузите профиль."
+            accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+        }
+        LegionUiSupport.reportSurface(result)
+        root.addView(result)
         root.addView(LegionUiSupport.sectionLabel(requireContext(), "ПРОФИЛЬ ИГРЫ"))
         action("Выбрать установленное приложение") { chooseInstalled() }
         action("Загрузить сохранённый профиль") { loadPicker() }
@@ -100,6 +110,11 @@ class SmartProfilesFragment : Fragment() {
         root.addView(tcpBox)
         action("СОХРАНИТЬ ПРОФИЛЬ") { save() }
         action("Настроить 6 правил профиля", "profile.rules") { configureRules() }
+        action("Профиль запуска игры") {
+            GameLaunchProfileEditor.show(requireContext(), packageNameInput()) { message ->
+                if (view != null) show(message)
+            }
+        }
         action("Открыть Game Session с этим профилем") { openSession() }
         action("Удалить профиль (с подтверждением)") { confirmDelete() }
         note("Правила оцениваются каждые ~15 секунд только во время явно запущенной записи. " +
@@ -118,64 +133,29 @@ class SmartProfilesFragment : Fragment() {
             })
         }
         root.addView(LegionUiSupport.sectionLabel(requireContext(), "АНАЛИТИКА ПРОФИЛЯ"))
-        action("Сводка по выбранному приложению · 24 часа") { insights(1) }
-        action("Сводка · 7 дней") { insights(7) }
-        action("Сводка · 30 дней") { insights(30) }
+        val periods = listOf(1, 7, 30)
+        val period = LegionUiSupport.spinner(requireContext(), listOf("24 часа", "7 дней", "30 дней")).apply {
+            contentDescription = "Период аналитики"
+        }
+        root.addView(period, LinearLayout.LayoutParams(-1, -2))
+        action("Показать аналитику") { insights(periods[period.selectedItemPosition.coerceIn(periods.indices)]) }
         action("Последние предупреждения") { events() }
+        analyticsPanel = LinearLayout(requireContext()).apply {
+            orientation = LinearLayout.VERTICAL
+            visibility = View.GONE
+        }
+        root.addView(analyticsPanel)
+
         root.addView(LegionUiSupport.sectionLabel(requireContext(), "СЕТЕВАЯ ДИАГНОСТИКА"))
         action("CONNECTIVITY OBSERVATORY · подробный DNS/TCP/TLS анализ") {
             ModuleNavigation.open(this,ConnectivityLabActivity::class.java)
         }
         action("NETWORK QUALITY LAB · разовый TCP/DNS-тест") { networkProbe() }
         note("Сетевой тест запускается строго по нажатию. Не измеряет ping игрового сервера.")
-        root.addView(LegionUiSupport.sectionLabel(requireContext(), "СИСТЕМНЫЕ ВОЗМОЖНОСТИ"))
-        action("Проверить возможности устройства") {
-            show(SmartCompatibilityBackend.inspect(requireContext()))
+        root.addView(LegionUiSupport.sectionLabel(requireContext(), "СИСТЕМНОЕ УПРАВЛЕНИЕ"))
+        action("Параметры Android", "profile.brightness") {
+            SystemControlPanel.show(requireContext())
         }
-        action("Состояние системных переключателей") {
-            show(SmartSystemControls.status(requireContext()))
-        }
-        action("Открыть разрешения уведомлений") {
-            CapabilityAccessBackend.settingsIntent(requireContext(), CapabilityAccess.NOTIFICATIONS)
-                ?.let { launchSettings(it) }
-        }
-        action("Открыть доступ к статистике использования") {
-            CapabilityAccessBackend.settingsIntent(requireContext(), CapabilityAccess.USAGE)
-                ?.let { launchSettings(it) }
-        }
-        action("Открыть доступ поверх окон") {
-            CapabilityAccessBackend.settingsIntent(requireContext(), CapabilityAccess.OVERLAY)
-                ?.let { launchSettings(it) }
-        }
-        root.addView(LegionUiSupport.sectionLabel(requireContext(), "УПРАВЛЕНИЕ ГРОМКОСТЬЮ"))
-        action("Громкость мультимедиа · 25%") { show(SmartSystemControls.setMediaVolume(requireContext(),25)) }
-        action("Громкость мультимедиа · 75%") { show(SmartSystemControls.setMediaVolume(requireContext(),75)) }
-        action("Громкость · своё значение") { setCustomVolume() }
-        root.addView(LegionUiSupport.sectionLabel(requireContext(), "РЕЖИМ «НЕ БЕСПОКОИТЬ»"))
-        action("Разрешить доступ к «Не беспокоить»") {
-            launchSettings(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS))
-        }
-        action("Включить «Не беспокоить»") {
-            show(SmartSystemControls.setDoNotDisturb(requireContext(),true))
-        }
-        action("Выключить «Не беспокоить»") {
-            show(SmartSystemControls.setDoNotDisturb(requireContext(),false))
-        }
-        root.addView(LegionUiSupport.sectionLabel(requireContext(), "ЭКРАН И ЯРКОСТЬ"))
-        action("Разрешить изменение системных настроек") {
-            launchSettings(SmartSystemControls.writeSettingsIntent(requireContext()))
-        }
-        action("Яркость 50% (с сохранением исходного значения)", "profile.brightness") {
-            show(SmartSystemControls.setBrightness(requireContext(),50))
-        }
-        action("Тайм-аут экрана · 2 минуты") {
-            show(SmartSystemControls.setScreenTimeout(requireContext(),120))
-        }
-        action("Восстановить ранее сохранённые экранные параметры") {
-            show(SmartSystemControls.restoreScreenSettings(requireContext()))
-        }
-        note("Яркость/тайм-аут требуют отдельного спецдоступа WRITE_SETTINGS. " +
-            "На некоторых прошивках изменение DND или системных настроек будет заблокировано.")
         root.addView(LegionUiSupport.sectionLabel(requireContext(), "РЕЗЕРВНЫЕ КОПИИ"))
         action("Экспортировать профили и правила JSON", "profile.export") { createBackup() }
         action("Импортировать профили JSON (с подтверждением)") { selectBackup() }
@@ -183,20 +163,6 @@ class SmartProfilesFragment : Fragment() {
             "Экспорт истории замеров CSV/ZIP остаётся в Game Session.")
         note("Плитку Legion Control можно добавить вручную через редактор шторки быстрых настроек. " +
             "Она открывает этот экран, не запускает запись скрыто.")
-        result=TextView(requireContext()).apply {
-            setTextColor(Color.WHITE)
-            textSize=14f
-            setPadding(0,20.dp,0,16.dp)
-            setLineSpacing(4f,1f)
-            text="Профили хранятся только на устройстве. Выберите приложение или загрузите профиль."
-        }
-        LegionUiSupport.reportSurface(result)
-        root.addView(result)
-        analyticsPanel = LinearLayout(requireContext()).apply {
-            orientation = LinearLayout.VERTICAL
-            visibility = View.GONE
-        }
-        root.addView(analyticsPanel)
         return ScrollView(requireContext()).apply { addView(root) }
     }
 
@@ -288,7 +254,20 @@ class SmartProfilesFragment : Fragment() {
             }
         }
         analyticsPanel.addView(table, LinearLayout.LayoutParams(-1, -2))
-        result.text = SmartInsightsPresentation.report(data)
+        val share = Button(requireContext()).apply {
+            text = "Поделиться отчётом"
+            setOnClickListener {
+                runCatching {
+                    startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT, SmartInsightsPresentation.report(data))
+                    }, "Отчёт аналитики"))
+                }.onFailure { result.text = "Не удалось открыть меню отправки." }
+            }
+        }
+        LegionUiSupport.styleAction(share)
+        analyticsPanel.addView(share)
+        result.text = "Аналитика обновлена · ${data.packageName} · ${data.days} дн."
         analyticsPanel.visibility = View.VISIBLE
     }
 
@@ -394,25 +373,6 @@ class SmartProfilesFragment : Fragment() {
     private fun events() = viewModel.events()
 
     private fun networkProbe() = viewModel.networkProbe()
-
-    private fun setCustomVolume() {
-        val edit=EditText(requireContext()).apply {
-            hint="0–100"
-            inputType=android.text.InputType.TYPE_CLASS_NUMBER
-        }
-        LegionDialogs.builder(requireContext()).setTitle("Громкость мультимедиа, %")
-            .setView(edit).setPositiveButton("Применить") { _,_ ->
-                val p=edit.text.toString().toIntOrNull()
-                if(p==null || p !in 0..100) show("Укажите процент 0–100.")
-                else show(SmartSystemControls.setMediaVolume(requireContext(),p))
-            }.setNegativeButton("Отмена",null).show()
-    }
-
-    private fun launchSettings(intent:Intent) {
-        runCatching { startActivity(intent) }.onFailure {
-            show("Не удалось открыть настройки: ${it.javaClass.simpleName}")
-        }
-    }
 
     private fun createBackup() {
         launchPicker(Intent(Intent.ACTION_CREATE_DOCUMENT).apply {

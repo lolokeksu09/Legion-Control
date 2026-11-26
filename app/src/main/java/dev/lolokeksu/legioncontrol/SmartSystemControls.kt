@@ -40,8 +40,41 @@ object SmartSystemControls {
                 "$current/$max"
             }
         }.getOrDefault("н/д")
+        val resolver = context.contentResolver
+        val brightness = runCatching {
+            Settings.System.getInt(resolver, Settings.System.SCREEN_BRIGHTNESS)
+        }.getOrNull()?.takeIf { it in 0..255 }
+        val mode = runCatching {
+            Settings.System.getInt(resolver, Settings.System.SCREEN_BRIGHTNESS_MODE)
+        }.getOrNull()
+        val timeout = runCatching {
+            Settings.System.getInt(resolver, Settings.System.SCREEN_OFF_TIMEOUT)
+        }.getOrNull()?.takeIf { it > 0 }
+        val filter = runCatching {
+            context.getSystemService(NotificationManager::class.java)?.currentInterruptionFilter
+        }.getOrNull()
+        val pending = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val pendingScreen = pending.contains("brightness") || pending.contains("brightness_mode") || pending.contains("timeout")
         return buildString {
             append("Звук мультимедиа: ").append(music).append('\n')
+            append("Яркость Android (0–255): ").append(brightness ?: "н/д").append(" · ")
+                .append(when (mode) {
+                    Settings.System.SCREEN_BRIGHTNESS_MODE_AUTOMATIC -> "авто"
+                    Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL -> "ручная"
+                    else -> "режим н/д"
+                }).append('\n')
+            append("Тайм-аут: ").append(timeout?.let { "${it / 1000} с" } ?: "н/д").append('\n')
+            append("Итоговый DND: ").append(when (filter) {
+                NotificationManager.INTERRUPTION_FILTER_ALL -> "выключен"
+                NotificationManager.INTERRUPTION_FILTER_PRIORITY -> "приоритет"
+                NotificationManager.INTERRUPTION_FILTER_ALARMS -> "только будильники"
+                NotificationManager.INTERRUPTION_FILTER_NONE -> "без прерываний"
+                else -> "н/д"
+            }).append('\n')
+            append("Ручной возврат экрана: ").append(if (pendingScreen) "есть сохранённые значения" else "нет записи").append('\n')
+            GameLaunchProfiles.pendingPackage(context)?.let {
+                append("Возврат игрового профиля: ").append(it).append('\n')
+            }
             append("Доступ к «Не беспокоить»: ").append(access[CapabilityAccess.DND].label).append('\n')
             append("Изменение системных параметров: ").append(access[CapabilityAccess.WRITE_SETTINGS].label).append('\n')
             append("Уведомления: ").append(access[CapabilityAccess.NOTIFICATIONS].label)

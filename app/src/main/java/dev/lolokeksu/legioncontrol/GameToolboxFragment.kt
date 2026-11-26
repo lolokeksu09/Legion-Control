@@ -239,16 +239,8 @@ class GameToolboxFragment : Fragment() {
             if(intent!=null) runCatching { startActivity(intent) }
                 .onFailure { status.text="Не удалось открыть настройки уведомлений." }
         }
-        tile("Доступ к режиму «Не беспокоить»", "Управляется настройками Android") {
-            runCatching { startActivity(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)) }
-                .onFailure { status.text = "Не удалось открыть настройки: ${it.javaClass.simpleName}" }
-        }
-        tile("Разрешение изменять яркость", "Управляется настройками Android") {
-            runCatching { startActivity(SmartSystemControls.writeSettingsIntent(requireContext())) }
-                .onFailure { status.text = "Не удалось открыть настройки: ${it.javaClass.simpleName}" }
-        }
-        tile("Восстановить исходную яркость", "Использует сохранённое состояние Smart Profiles") {
-            status.text = SmartSystemControls.restoreScreenSettings(requireContext())
+        tile("Системное управление", "Громкость, яркость, тайм-аут, DND и ручной возврат") {
+            SystemControlPanel.show(requireContext())
         }
         column.addView(text(
             "Закрытие панели пытается вернуть только принадлежащие автоматизации настройки. Ручные изменения DND " +
@@ -334,61 +326,16 @@ class GameToolboxFragment : Fragment() {
     private fun configureGameLaunchProfile() {
         val ctx = requireContext()
         val pkg = prefs.getString(ToolboxPreferences.GAME, null)
-        if (pkg == null || !GameLaunchProfilePolicy.validPackage(pkg)) {
+        if (pkg == null) {
             status.text = "Сначала выберите игру."
             return
         }
-        val current = GameLaunchProfiles.profile(ctx, pkg)
-        val volumes = GameLaunchProfilePolicy.editorPercentOptions(
-            listOf(0, 20, 40, 60, 80, 100), current?.mediaPercent)
-        val brightness = GameLaunchProfilePolicy.editorPercentOptions(
-            listOf(10, 20, 40, 60, 80, 100), current?.brightnessPercent)
-        val focus: List<Boolean?> = listOf(null, true, false)
-        val content = LinearLayout(ctx).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(20.dp, 8.dp, 20.dp, 8.dp)
-        }
-        fun selector(title: String, options: List<String>, selected: Int): android.widget.Spinner {
-            val label = text(title, 13f, fg, true).apply {
-                setPadding(0, 12.dp, 0, 4.dp)
-            }
-            content.addView(label)
-            return LegionUiSupport.spinner(ctx, options).also {
-                it.id = View.generateViewId()
-                label.labelFor = it.id
-                it.setSelection(selected.coerceIn(options.indices))
-                content.addView(it, LinearLayout.LayoutParams(-1, -2))
-            }
-        }
-        content.addView(text(
-            "Изменения затрагивают настройки Android целиком, а не только игру. " +
-                "Исходные значения сохраняются для ручного возврата.",
-            12f, muted
-        ).apply { setPadding(0, 4.dp, 0, 8.dp) })
-        val volume = selector("Громкость мультимедиа",
-            volumes.map { it?.let { value -> "$value%" } ?: "Не менять" },
-            volumes.indexOf(current?.mediaPercent).coerceAtLeast(0))
-        val light = selector("Яркость",
-            brightness.map { it?.let { value -> "$value%" } ?: "Не менять" },
-            brightness.indexOf(current?.brightnessPercent).coerceAtLeast(0))
-        val dnd = selector("Режим «Не беспокоить»",
-            listOf("Не менять", "Включить", "Выключить"),
-            focus.indexOf(current?.focusEnabled).coerceAtLeast(0))
-        val scroll = ScrollView(ctx).apply { addView(content) }
-        LegionDialogs.builder(ctx).setTitle("Профиль запуска · $pkg")
-            .setView(scroll)
-            .setPositiveButton("Сохранить") { _, _ ->
-                val profile = GameLaunchProfile(
-                    volumes[volume.selectedItemPosition],
-                    brightness[light.selectedItemPosition],
-                    focus[dnd.selectedItemPosition]
-                )
-                status.text = if (GameLaunchProfiles.save(ctx, pkg, profile)) {
-                    if (profile.actionable) "Профиль запуска сохранён." else "Профиль запуска удалён."
-                } else "Не удалось сохранить профиль. Проверьте, не выполняется ли восстановление ZIP."
+        GameLaunchProfileEditor.show(ctx, pkg) { message ->
+            if (view != null) {
+                status.text = message
                 renderStatus()
             }
-            .setNegativeButton("Отмена", null).show()
+        }
     }
 
     private fun confirmApplyGameLaunchProfile(withGame: Boolean) {

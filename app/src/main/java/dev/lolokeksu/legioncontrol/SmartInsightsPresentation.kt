@@ -38,6 +38,7 @@ internal object SmartInsightsPresentation {
             .append(" · открыто: ").append((result.sessions - result.completedSessions -
                 result.interruptedSessions).coerceAtLeast(0)).append('\n')
         append("Время завершённых сессий: ").append(result.totalCompletedMinutes).append(" мин\n")
+        append("Измерения: ").append(result.sampleCount).append('\n')
         append("Пик температуры батареи: ")
             .append(result.peakBatteryTempDeciC?.let { String.format(Locale.US, "%.1f °C", it / 10.0) } ?: "н/д")
             .append('\n')
