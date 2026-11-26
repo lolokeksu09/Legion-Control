@@ -166,7 +166,11 @@ assert "CaptureClipLibrary.listOwn(app)" in repo
 assert "ApplicationInventory.launchable(app)" in repo
 assert "HubFavoriteRules.toggle(" in repo
 assert "repository.save(pkg, fields.alias, fields.category, fields.note, fields.favorite)" in repo
-assert "ToolboxPreferences.GAME" in repo
+selection = (src/"ToolboxGameSelection.kt").read_text()
+assert "ToolboxGameSelection.select(app, pkg, label)" in repo
+assert "ToolboxPreferences.GAME" in selection and "ToolboxPreferences.LABEL" in selection
+assert "ProfileMaintenanceGate.tryRun" in selection and "LegionDataBackup.hasPendingRestore(context)" in selection
+assert ".commit()" in selection and "getLaunchIntentForPackage(pkg)" in selection
 inventory = (src/"ApplicationInventory.kt").read_text()
 assert "info.activityInfo.applicationInfo?.category==ApplicationInfo.CATEGORY_GAME" in inventory
 assert "item.isGame" in repo
