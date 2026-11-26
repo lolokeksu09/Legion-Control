@@ -72,11 +72,28 @@ class GameLaunchProfilePolicyTest {
         assertFalse(ticket.copy(media=null, brightness=null, brightnessMode=null, focus=null).pending)
     }
 
+    @Test fun legacyV1UndoDecodesAsGlobalFilterScope() {
+        val legacy = GameLaunchUndo.decode("v1|com.example.game|-|-|-|2,3")
+        assertEquals(FocusUndoScope.GLOBAL_FILTER, legacy?.focusScope)
+        assertTrue(legacy?.focusRuleExisted == true)
+    }
+
+    @Test fun android15UndoRoundTripsImplicitRulePresence() {
+        val ticket = GameLaunchUndo(
+            "com.example.game", null, null, null, LaunchSettingChange(0, 1),
+            FocusUndoScope.APP_RULE, false
+        )
+        val decoded = GameLaunchUndo.decode(ticket.encode())
+        assertEquals(ticket, decoded)
+        assertTrue(ticket.encode().startsWith("v2|"))
+    }
+
     @Test fun malformedRestoreTicketIsRejectedRatherThanApplied() {
         for (bad in listOf("v1|com.example.game|0,8|a,2|-|-",
             "v1|com.example.game|0,-1|-|-|-",
             "v1|com.example.game|0,2|0,2|x|-",
-            "v1|bad|1,2|-|-|-", "v2|com.example.game|-|-|-|-")) {
+            "v1|bad|1,2|-|-|-", "v2|com.example.game|-|-|-|-",
+            "v2|com.example.game|-|-|-|-|bad|0", "v2|com.example.game|-|-|-|-|app_rule|yes")) {
             assertNull(GameLaunchUndo.decode(bad))
         }
     }

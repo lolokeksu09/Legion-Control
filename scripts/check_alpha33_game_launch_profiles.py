@@ -31,6 +31,13 @@ assert "nm.isNotificationPolicyAccessGranted" in engine
 assert "GameLaunchProfilePolicy.restoreChoice(read(), change)" in engine
 assert "CHANGED_BY_USER" in engine
 assert "GameLaunchUndo.decode(raw)" in engine
+assert "Build.VERSION.SDK_INT >= 35" in engine
+assert "getAutomaticZenRuleState" in engine
+assert "rule.owner == null && rule.configurationActivity == null" in engine
+assert "ticket.focusScope == FocusUndoScope.GLOBAL_FILTER" in engine
+assert "legacyFocusSkipped" in engine
+assert "FocusUndoScope.APP_RULE" in policy
+assert tests.count("@Test") >= 10
 # Every launch-profile mutation and ZIP replay follows one lock order:
 # maintenance gate first, then the profile ticket monitor. In particular,
 # automatic rollback must not acquire the monitor before waiting for the gate.
