@@ -62,6 +62,8 @@ expected_actions = {
 actions = re.findall(r'layout\.addView\(Button\(this\)\.apply \{[\s\S]*?text = "([^"]+)"', host)
 assert len(actions) == len(set(actions)) and set(actions) == expected_actions, actions
 assert "mountLab(next)" in host and "transaction.commitNow()" in host
+assert host.index("if (currentPage == DiagnosticsPage.MONITOR) monitorPanel.setVisible(false)") < host.index("mountLab(next)")
+assert "putString(MainActivity.EXTRA_PAGE,diagnosticPage.name)" in hub
 assert "transaction.remove(old)" in host and "transaction.replace(R.id.device_lab_container,fragment,tag)" in host
 for name in ("GamingDiagnostics","HardwareLab","ConnectivityLab","CompatibilityLab","AudioLab","HapticLab"):
     assert name+"Fragment()" in host

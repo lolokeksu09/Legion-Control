@@ -307,7 +307,10 @@ class MainActivity : FragmentActivity() {
             text = "HAPTIC LAB · вибромотор, шаблоны и ручная оценка"
             minHeight = 52.dp
             setOnClickListener {
-                startActivity(Intent(this@MainActivity, HapticLabActivity::class.java))
+                startActivity(Intent(this@MainActivity, MainActivity::class.java).apply {
+                    putExtra(EXTRA_PAGE,DiagnosticsPage.HAPTIC.name)
+                })
+                finish()
             }
         })
         layout.addView(Button(this).apply {
@@ -315,7 +318,10 @@ class MainActivity : FragmentActivity() {
             text = "AUDIO LAB · стерео, частоты, маршруты и история"
             minHeight = 52.dp
             setOnClickListener {
-                startActivity(Intent(this@MainActivity, AudioLabActivity::class.java))
+                startActivity(Intent(this@MainActivity, MainActivity::class.java).apply {
+                    putExtra(EXTRA_PAGE,DiagnosticsPage.AUDIO.name)
+                })
+                finish()
             }
         })
         layout.addView(Button(this).apply {
@@ -331,7 +337,10 @@ class MainActivity : FragmentActivity() {
             text = "CONNECTIVITY OBSERVATORY · DNS / IPv4 / IPv6 / TCP / TLS"
             minHeight = 52.dp
             setOnClickListener {
-                startActivity(Intent(this@MainActivity, ConnectivityLabActivity::class.java))
+                startActivity(Intent(this@MainActivity, MainActivity::class.java).apply {
+                    putExtra(EXTRA_PAGE,DiagnosticsPage.NETWORK.name)
+                })
+                finish()
             }
         })
         layout.addView(Button(this).apply {
@@ -363,7 +372,10 @@ class MainActivity : FragmentActivity() {
             text = "Gaming Lab · сеть, сенсоры, производительность"
             minHeight = 52.dp
             setOnClickListener {
-                startActivity(Intent(this@MainActivity, GamingDiagnosticsActivity::class.java))
+                startActivity(Intent(this@MainActivity, MainActivity::class.java).apply {
+                    putExtra(EXTRA_PAGE,DiagnosticsPage.GAMING.name)
+                })
+                finish()
             }
         })
         monitorPanel = LiveMonitorPanel(this, ViewModelProvider(this)[LiveMonitorViewModel::class.java], savedInstanceState)
@@ -427,6 +439,7 @@ class MainActivity : FragmentActivity() {
                 timedTest?.stop(TimedBatteryStopReason.APP_BACKGROUND)
             }
             if (currentPage == DiagnosticsPage.SENSORS) cancelSensorCapture()
+            if (currentPage == DiagnosticsPage.MONITOR) monitorPanel.setVisible(false)
         }
         currentPage = next
         // Stop the previous laboratory before any new foreground probe can run.

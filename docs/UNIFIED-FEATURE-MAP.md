@@ -13,14 +13,14 @@
 | `capture.backup` | CAPTURE | Резервная копия ZIP | Медиацентр | `CaptureStudioActivity` |
 | `capture.restore` | CAPTURE | Восстановление из ZIP | Медиацентр | `CaptureStudioActivity` |
 | `capture.resume` | CAPTURE | Завершить прерванный импорт | Медиацентр | `CaptureStudioActivity` |
-| `audio.stereo` | AUDIO | Проверка стерео | Периферия | `AudioLabFragment` |
-| `audio.sweep` | AUDIO | Проверка частот | Периферия | `AudioLabFragment` |
-| `audio.routes` | AUDIO | Подключённые аудиовыходы | Периферия | `AudioLabFragment` |
-| `haptic.test` | HAPTIC | Проверка вибрации | Периферия | `HapticLabFragment` |
-| `haptic.capabilities` | HAPTIC | Возможности вибромотора | Периферия | `HapticLabFragment` |
-| `network.single` | NETWORK | Сетевой замер DNS/TCP/TLS | Устройство | `ConnectivityLabFragment` |
-| `network.stability` | NETWORK | Стабильность сети | Устройство | `ConnectivityLabFragment` |
-| `network.history` | NETWORK | История сетевых тестов | Устройство | `ConnectivityLabFragment` |
+| `audio.stereo` | AUDIO | Проверка стерео | Периферия | `MainActivity / AudioLabFragment` |
+| `audio.sweep` | AUDIO | Проверка частот | Периферия | `MainActivity / AudioLabFragment` |
+| `audio.routes` | AUDIO | Подключённые аудиовыходы | Периферия | `MainActivity / AudioLabFragment` |
+| `haptic.test` | HAPTIC | Проверка вибрации | Периферия | `MainActivity / HapticLabFragment` |
+| `haptic.capabilities` | HAPTIC | Возможности вибромотора | Периферия | `MainActivity / HapticLabFragment` |
+| `network.single` | NETWORK | Сетевой замер DNS/TCP/TLS | Устройство | `MainActivity / ConnectivityLabFragment` |
+| `network.stability` | NETWORK | Стабильность сети | Устройство | `MainActivity / ConnectivityLabFragment` |
+| `network.history` | NETWORK | История сетевых тестов | Устройство | `MainActivity / ConnectivityLabFragment` |
 | `profile.rules` | PROFILE | Правила игрового профиля | Игровой центр | `SmartProfilesFragment` |
 | `profile.brightness` | PROFILE | Системное управление | Игровой центр | `SmartProfilesFragment` |
 | `profile.export` | PROFILE | Экспорт профилей JSON | Игровой центр | `SmartProfilesFragment` |
@@ -30,27 +30,27 @@
 | `session.csv` | SESSION | Экспорт игровой истории | Игровой центр | `GameSessionFragment` |
 | `toolbox.profile` | TOOLBOX | Профиль запуска игры | Игровой центр | `GameToolboxFragment` |
 | `toolbox.undo` | TOOLBOX | Возврат системных настроек | Игровой центр | `GameToolboxFragment` |
-| `gaming.overview` | GAMING | Сводка устройства | Устройство | `GamingDiagnosticsFragment` |
-| `gaming.network` | GAMING | Анализ сети игры | Устройство | `GamingDiagnosticsFragment` |
-| `gaming.wifi` | GAMING | Состояние Wi-Fi и LTE | Устройство | `GamingDiagnosticsFragment` |
-| `gaming.battery` | GAMING | Диагностика батареи | Устройство | `GamingDiagnosticsFragment` |
-| `gaming.thermal` | GAMING | Тепловые события | Устройство | `GamingDiagnosticsFragment` |
-| `gaming.touch` | GAMING | Проверка мультитача | Устройство | `GamingDiagnosticsFragment` |
-| `gaming.frames` | GAMING | Интервалы кадров интерфейса | Устройство | `GamingDiagnosticsFragment` |
-| `gaming.charging` | GAMING | Анализ зарядки | Устройство | `GamingDiagnosticsFragment` |
-| `gaming.health` | GAMING | Состояние системы | Устройство | `GamingDiagnosticsFragment` |
-| `hardware.route` | HARDWARE | Маршруты локальной сети | Устройство | `HardwareLabFragment` |
-| `hardware.events` | HARDWARE | События подключения | Устройство | `HardwareLabFragment` |
-| `hardware.storage` | HARDWARE | Проверка накопителя | Устройство | `HardwareLabFragment` |
-| `hardware.motion` | HARDWARE | Стабильность датчиков движения | Устройство | `HardwareLabFragment` |
-| `hardware.display` | HARDWARE | Тест цветов и пикселей | Устройство | `HardwareLabFragment` |
-| `hardware.codec` | HARDWARE | Аппаратные видеодекодеры | Устройство | `HardwareLabFragment` |
-| `compat.hdr` | COMPAT | Режимы экрана и HDR | Устройство / периферия | `CompatibilityLabFragment` |
-| `compat.audio` | COMPAT | Аудиовыходы Android | Устройство / периферия | `CompatibilityLabFragment` |
-| `compat.controllers` | COMPAT | Список игровых контроллеров | Устройство / периферия | `CompatibilityLabFragment` |
-| `compat.drm` | COMPAT | Совместимость Widevine | Устройство / периферия | `CompatibilityLabFragment` |
-| `compat.cpu` | COMPAT | Локальный тест CPU | Устройство / периферия | `CompatibilityLabFragment` |
-| `compat.report` | COMPAT | Отчёт совместимости | Устройство / периферия | `CompatibilityLabFragment` |
+| `gaming.overview` | GAMING | Сводка устройства | Устройство | `MainActivity / GamingDiagnosticsFragment` |
+| `gaming.network` | GAMING | Анализ сети игры | Устройство | `MainActivity / GamingDiagnosticsFragment` |
+| `gaming.wifi` | GAMING | Состояние Wi-Fi и LTE | Устройство | `MainActivity / GamingDiagnosticsFragment` |
+| `gaming.battery` | GAMING | Диагностика батареи | Устройство | `MainActivity / GamingDiagnosticsFragment` |
+| `gaming.thermal` | GAMING | Тепловые события | Устройство | `MainActivity / GamingDiagnosticsFragment` |
+| `gaming.touch` | GAMING | Проверка мультитача | Устройство | `MainActivity / GamingDiagnosticsFragment` |
+| `gaming.frames` | GAMING | Интервалы кадров интерфейса | Устройство | `MainActivity / GamingDiagnosticsFragment` |
+| `gaming.charging` | GAMING | Анализ зарядки | Устройство | `MainActivity / GamingDiagnosticsFragment` |
+| `gaming.health` | GAMING | Состояние системы | Устройство | `MainActivity / GamingDiagnosticsFragment` |
+| `hardware.route` | HARDWARE | Маршруты локальной сети | Устройство | `MainActivity / HardwareLabFragment` |
+| `hardware.events` | HARDWARE | События подключения | Устройство | `MainActivity / HardwareLabFragment` |
+| `hardware.storage` | HARDWARE | Проверка накопителя | Устройство | `MainActivity / HardwareLabFragment` |
+| `hardware.motion` | HARDWARE | Стабильность датчиков движения | Устройство | `MainActivity / HardwareLabFragment` |
+| `hardware.display` | HARDWARE | Тест цветов и пикселей | Устройство | `MainActivity / HardwareLabFragment` |
+| `hardware.codec` | HARDWARE | Аппаратные видеодекодеры | Устройство | `MainActivity / HardwareLabFragment` |
+| `compat.hdr` | COMPAT | Режимы экрана и HDR | Устройство / периферия | `MainActivity / CompatibilityLabFragment` |
+| `compat.audio` | COMPAT | Аудиовыходы Android | Устройство / периферия | `MainActivity / CompatibilityLabFragment` |
+| `compat.controllers` | COMPAT | Список игровых контроллеров | Устройство / периферия | `MainActivity / CompatibilityLabFragment` |
+| `compat.drm` | COMPAT | Совместимость Widevine | Устройство / периферия | `MainActivity / CompatibilityLabFragment` |
+| `compat.cpu` | COMPAT | Локальный тест CPU | Устройство / периферия | `MainActivity / CompatibilityLabFragment` |
+| `compat.report` | COMPAT | Отчёт совместимости | Устройство / периферия | `MainActivity / CompatibilityLabFragment` |
 | `experiment.create` | EXPERIMENT | Создать A/B эксперимент | Аналитика / A/B | `ExperimentLabFragment` |
 | `experiment.compare` | EXPERIMENT | Сравнить результаты A/B | Аналитика / A/B | `ExperimentLabFragment` |
 | `experiment.csv` | EXPERIMENT | Экспорт эксперимента CSV | Аналитика / A/B | `ExperimentLabFragment` |

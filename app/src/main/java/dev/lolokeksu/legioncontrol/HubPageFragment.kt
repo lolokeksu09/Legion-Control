@@ -268,6 +268,22 @@ class HubPageFragment : Fragment() {
     }
 
     private fun <T> open(cls: Class<T>, extras: Bundle? = null) {
+        // Old catalog aliases resolve to the actual pages of the unified host.
+        val diagnosticPage = when(cls) {
+            GamingDiagnosticsActivity::class.java -> DiagnosticsPage.GAMING
+            HardwareLabActivity::class.java -> DiagnosticsPage.HARDWARE
+            ConnectivityLabActivity::class.java -> DiagnosticsPage.NETWORK
+            CompatibilityLabActivity::class.java -> DiagnosticsPage.COMPAT
+            AudioLabActivity::class.java -> DiagnosticsPage.AUDIO
+            HapticLabActivity::class.java -> DiagnosticsPage.HAPTIC
+            else -> null
+        }
+        if(diagnosticPage!=null) {
+            openStandaloneFeature(MainActivity::class.java,Bundle(extras ?: Bundle()).apply {
+                putString(MainActivity.EXTRA_PAGE,diagnosticPage.name)
+            })
+            return
+        }
         if (cls == GameSessionActivity::class.java) {
             runCatching { NavHostFragment.findNavController(this).navigate(R.id.gameSessionFragment,extras) }
                 .onFailure { error ->
