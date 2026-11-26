@@ -1,6 +1,7 @@
 package dev.lolokeksu.legioncontrol
 
 import java.util.ArrayDeque
+import java.util.IdentityHashMap
 
 /**
  * Memory-bounded H.264 replay window. Immutable encoded access units only.
@@ -11,7 +12,16 @@ data class ReplayFrame(val bytes: ByteArray, val ptsUs: Long, val keyFrame: Bool
 
 /** Consistent, read-only accounting of retained compressed video, not process RAM. */
 data class ReplayWindowStats(val frameCount: Int, val retainedDurationUs: Long,
-                             val encodedBytes: Long, val byteLimit: Long)
+                             val encodedBytes: Long, val byteLimit: Long,
+                             val exportBytes: Long = 0L, val retainedBytes: Long = encodedBytes)
+
+/** The exporter owns this immutable sample list until close(), even if live capture evicts it. */
+internal class ReplayVideoLease internal constructor(
+    val samples: List<ReplayFrame>,
+    private val release: (ReplayVideoLease) -> Unit
+) : AutoCloseable {
+    override fun close() = release(this)
+}
 
 class ReplayFrameBuffer(
     private val windowSeconds: Int,
@@ -26,6 +36,12 @@ class ReplayFrameBuffer(
     private var byteCount = 0L
     private var keyFrameCount = 0
     private var byteLimit = byteLimit
+    private var exportLease: ReplayVideoLease? = null
+    private val frozenFrames = IdentityHashMap<ReplayFrame, Boolean>()
+    private var frozenBytes = 0L
+    private var sharedBytes = 0L
+
+    private fun retainedBytes(): Long = byteCount + frozenBytes - sharedBytes
     val sizeBytes: Long get() = synchronized(this) { byteCount }
     val byteLimitBytes: Long get() = synchronized(this) { byteLimit }
     val frameCount: Int get() = synchronized(this) { frames.size }
@@ -33,7 +49,7 @@ class ReplayFrameBuffer(
     @Synchronized fun stats(): ReplayWindowStats = ReplayWindowStats(
         frames.size,
         if (frames.size < 2) 0L else frames.last.ptsUs - frames.first.ptsUs,
-        byteCount, byteLimit
+        byteCount, byteLimit, frozenBytes, retainedBytes()
     )
 
     @Synchronized fun add(frame: ReplayFrame): Boolean {
@@ -42,8 +58,15 @@ class ReplayFrameBuffer(
         if (frames.isEmpty() && !frame.keyFrame) return false
         if (frames.isNotEmpty() && frame.ptsUs <= frames.last.ptsUs) return false
 
+        // If a frozen export alone leaves no space for this sample, do not keep
+        // a GOP with a missing access unit. Resume only from a new sync frame.
+        if (!frozenFrames.containsKey(frame) && frozenBytes + frame.bytes.size > byteLimit) {
+            clear()
+            return false
+        }
         frames.addLast(frame)
         byteCount += frame.bytes.size
+        if (frozenFrames.containsKey(frame)) sharedBytes += frame.bytes.size
         if (frame.keyFrame) keyFrameCount++
         trim(frame.ptsUs)
         return true
@@ -60,11 +83,11 @@ class ReplayFrameBuffer(
     private fun trim(latestPtsUs: Long) {
         val threshold = latestPtsUs - windowSeconds.toLong() * 1_000_000L
         while (frames.isNotEmpty() &&
-            (byteCount > byteLimit || frames.first.ptsUs < threshold) && hasSecondKey()) {
+            (retainedBytes() > byteLimit || frames.first.ptsUs < threshold) && hasSecondKey()) {
             evictThroughNextKey()
         }
         // A single GOP larger than the budget is not safe to keep or export.
-        if (byteCount > byteLimit) clear()
+        if (retainedBytes() > byteLimit) clear()
     }
 
     private fun hasSecondKey(): Boolean = keyFrameCount > 1
@@ -78,6 +101,7 @@ class ReplayFrameBuffer(
     private fun removeFirst() {
         val removed = frames.removeFirst()
         byteCount -= removed.bytes.size
+        if (frozenFrames.containsKey(removed)) sharedBytes -= removed.bytes.size
         if (removed.keyFrame) keyFrameCount--
     }
 
@@ -110,9 +134,34 @@ class ReplayFrameBuffer(
         return emptyList()
     }
 
+    /**
+     * Atomically reserve a SAVE window. Count shared references once; evicted
+     * frozen samples remain charged until the single exporter releases them.
+     */
+    @Synchronized internal fun freezeAt(videoNowUs: Long): ReplayVideoLease? {
+        if (exportLease != null) return null
+        val samples = snapshotAt(videoNowUs)
+        if (samples.isEmpty()) return null
+        val lease = ReplayVideoLease(samples, ::releaseFrozen)
+        for (frame in samples) frozenFrames[frame] = true
+        frozenBytes = samples.sumOf { it.bytes.size.toLong() }
+        sharedBytes = frozenBytes
+        exportLease = lease
+        return lease
+    }
+
+    @Synchronized private fun releaseFrozen(lease: ReplayVideoLease) {
+        if (exportLease !== lease) return
+        exportLease = null
+        frozenFrames.clear()
+        frozenBytes = 0L
+        sharedBytes = 0L
+    }
+
     @Synchronized fun clear() {
         frames.clear()
         byteCount = 0L
         keyFrameCount = 0
+        sharedBytes = 0L
     }
 }

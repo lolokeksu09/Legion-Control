@@ -139,6 +139,50 @@ class ReplayFrameBufferTest {
         assertEquals(ReplayWindowStats(0, 0L, 0L, 100L), buffer.stats())
     }
 
+    @Test fun frozenExportAndLiveWindowShareOneByteBudget() {
+        val buffer = ReplayFrameBuffer(30, 100L)
+        for (s in 0..3) buffer.add(frame(s, s % 2 == 0))
+        val lease = requireNotNull(buffer.freezeAt(3_000_000L))
+        assertEquals(80L, buffer.stats().retainedBytes)
+        assertEquals(80L, buffer.stats().exportBytes)
+        assertNull(buffer.freezeAt(3_000_000L))
+        for (s in 4..20) {
+            buffer.add(frame(s, s % 2 == 0))
+            assertTrue(buffer.stats().retainedBytes <= 100L)
+        }
+        assertEquals(0L, lease.samples.first().ptsUs)
+        assertEquals(3_000_000L, lease.samples.last().ptsUs)
+        lease.close()
+        assertEquals(buffer.sizeBytes, buffer.stats().retainedBytes)
+        assertEquals(0L, buffer.stats().exportBytes)
+        buffer.clear()
+        buffer.add(frame(21, true))
+        buffer.add(frame(22, false))
+        val next = requireNotNull(buffer.freezeAt(22_000_000L))
+        lease.close() // duplicate release must not unlock a later exporter
+        assertTrue(buffer.stats().exportBytes > 0)
+        next.close()
+    }
+
+    @Test fun pressureKeepsFrozenBytesButStopsGrowingUntilRelease() {
+        val buffer = ReplayFrameBuffer(30, 100L)
+        for (s in 0..3) buffer.add(frame(s, s % 2 == 0))
+        val lease = requireNotNull(buffer.freezeAt(3_000_000L))
+        buffer.reduceByteLimit(40L)
+        assertEquals(80L, buffer.stats().retainedBytes)
+        assertFalse(buffer.add(frame(4, true)))
+        assertEquals(80L, buffer.stats().retainedBytes)
+        buffer.clear()
+        assertEquals(80L, buffer.stats().retainedBytes)
+        lease.close()
+        assertEquals(0L, buffer.stats().retainedBytes)
+        assertFalse(buffer.add(frame(5, false)))
+        assertTrue(buffer.add(frame(6, true)))
+        assertTrue(buffer.add(frame(7, false)))
+        assertEquals(40L, buffer.stats().retainedBytes)
+        assertTrue(buffer.snapshot().first().keyFrame)
+    }
+
     @Test fun resetDropsOnlyInMemoryFrames() {
         val buffer = ReplayFrameBuffer(60)
         buffer.add(frame(0, true))

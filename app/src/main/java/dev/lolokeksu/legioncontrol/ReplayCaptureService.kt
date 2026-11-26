@@ -79,8 +79,11 @@ class ReplayCaptureService : Service() {
             val mib = 1024L * 1024L
             return last + "\nВидео в буфере (последняя выборка): " +
                 stats.retainedDurationUs / 1_000_000L + " с · " + stats.frameCount +
-                " кадр. · " + stats.encodedBytes / mib + "/" + stats.byteLimit / mib +
-                " МиБ сжатого видео. Это не PSS и не гарантия длительности экспорта."
+                " кадр. · " + stats.encodedBytes / mib + " МиБ в живом окне. Всего уникального сжатого видео: " +
+                stats.retainedBytes / mib + "/" + stats.byteLimit / mib + " МиБ" +
+                (if (stats.exportBytes > 0) " (экспорт удерживает " + stats.exportBytes / mib + " МиБ)." else ".") +
+                (if (stats.retainedBytes > stats.byteLimit) " Экспорт завершится до освобождения его данных." else "") +
+                " Это не PSS и не гарантия длительности экспорта."
         }
     }
 
@@ -92,7 +95,7 @@ class ReplayCaptureService : Service() {
     private var codec: MediaCodec? = null
     private var surface: Surface? = null
     private var codecThread: Thread? = null
-    private var playbackAudio: ReplayAudioCapture? = null
+    @Volatile private var playbackAudio: ReplayAudioCapture? = null
     private var selectedGameUid: Int? = null
     private var audioRequested = false
     private var audioProblem: String? = null
@@ -397,11 +400,12 @@ class ReplayCaptureService : Service() {
                     nextSaveProbeAt = now + 100L
                     val nowVideoUs = ReplayAudioTimeline.videoPts(
                         System.nanoTime() / 1000L, videoMinusNanoClockUs ?: 0L)
-                    val snapshot = if (nowVideoUs != null) buffer.snapshotAt(nowVideoUs)
-                        else emptyList()
-                    if (snapshot.isNotEmpty() && saveRequested.compareAndSet(true, false)) {
-                        exportSnapshot(requireNotNull(videoFormat), snapshot,
-                            videoMinusNanoClockUs ?: 0L)
+                    val lease = if (nowVideoUs != null) buffer.freezeAt(nowVideoUs) else null
+                    if (lease != null) {
+                        if (saveRequested.compareAndSet(true, false)) {
+                            exportSnapshot(requireNotNull(videoFormat), lease,
+                                videoMinusNanoClockUs ?: 0L)
+                        } else lease.close()
                     } else if (SystemClock.elapsedRealtime() - saveRequestedAtMs > 5_000L &&
                         saveRequested.compareAndSet(true, false)) {
                         writeStatus("Replay: нет достаточного свежего видео для сохранения.")
@@ -430,38 +434,58 @@ class ReplayCaptureService : Service() {
         }
     }
 
-    private fun exportSnapshot(format: MediaFormat, frozen: List<ReplayFrame>,
+    private fun exportSnapshot(format: MediaFormat, lease: ReplayVideoLease,
                                clockOffsetUs: Long) {
         if (!exporting.compareAndSet(false, true)) {
+            lease.close()
             writeStatus("Replay: предыдущий клип ещё сохраняется.")
             return
         }
-        val audioSnapshot = playbackAudio?.snapshot(
-            frozen.first().ptsUs, frozen.last().ptsUs, clockOffsetUs)
-        Thread({
-            val durationMs = (frozen.last().ptsUs - frozen.first().ptsUs) / 1000L
-            var audioSaved = false
-            val result = runCatching {
-                if (audioSnapshot != null) {
-                    runCatching {
-                        ReplayExporter.save(applicationContext, format, frozen,
-                            audioSnapshot, clockOffsetUs)
-                    }.fold(
-                        { audioSaved = true; it },
-                        { ReplayExporter.save(applicationContext, format, frozen) }
-                    )
-                } else ReplayExporter.save(applicationContext, format, frozen)
-            }
-            writeStatus(result.fold(
-                { "Replay MP4 сохранён в Movies/LegionControl/. Длительность: " +
-                    durationMs / 1000L + " с. " +
-                    (if (audioSaved) "Видео и AAC-звук игры." else "Видео без звука.") +
-                    " Захват продолжается, если не остановлен." },
-                { "Replay MP4 не сохранён: " + it.javaClass.simpleName }
-            ))
-            exporting.set(false)
-            handler.post { finishIfReady() }
-        }, "legion-replay-export").start()
+        try {
+            val frozen = lease.samples
+            val audioSnapshot = runCatching {
+                playbackAudio?.snapshot(frozen.first().ptsUs, frozen.last().ptsUs, clockOffsetUs)
+            }.getOrNull()
+            Thread({
+                try {
+                    val durationMs = (frozen.last().ptsUs - frozen.first().ptsUs) / 1000L
+                    var audioSaved = false
+                    val result = runCatching {
+                        if (audioSnapshot != null) {
+                            runCatching {
+                                ReplayExporter.save(applicationContext, format, frozen,
+                                    audioSnapshot, clockOffsetUs)
+                            }.fold(
+                                { audioSaved = true; it },
+                                { ReplayExporter.save(applicationContext, format, frozen) }
+                            )
+                        } else ReplayExporter.save(applicationContext, format, frozen)
+                    }
+                    writeStatus(result.fold(
+                        { "Replay MP4 сохранён в Movies/LegionControl/. Длительность: " +
+                            durationMs / 1000L + " с. " +
+                            (if (audioSaved) "Видео и AAC-звук игры." else "Видео без звука.") +
+                            " Захват продолжается, если не остановлен." },
+                        { "Replay MP4 не сохранён: " + it.javaClass.simpleName }
+                    ))
+                } finally {
+                    finishExport(lease)
+                }
+            }, "legion-replay-export").start()
+        } catch (failure: Exception) {
+            // Thread creation/start or preparation failed; do not strand the lease.
+            finishExport(lease)
+            writeStatus("Replay: не удалось начать экспорт — " + failure.javaClass.simpleName)
+        } catch (fatal: Error) {
+            finishExport(lease)
+            throw fatal
+        }
+    }
+
+    private fun finishExport(lease: ReplayVideoLease) {
+        lease.close()
+        exporting.set(false)
+        handler.post { finishIfReady() }
     }
 
     private fun writeStatus(message: String) {

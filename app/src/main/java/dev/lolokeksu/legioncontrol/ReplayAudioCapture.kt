@@ -107,11 +107,7 @@ class ReplayAudioCapture(
         val format = outputFormat ?: return null
         // Both samples use monotonic clocks. Audio PTS is anchored at PCM read,
         // video PTS is from Android's surface timestamps; adjust by measured delta.
-        val shifted = buffer.snapshot(0L, Long.MAX_VALUE)
-            .filter { packet ->
-                val pts = ReplayAudioTimeline.videoPts(packet.ptsUs, videoMinusNanoClockUs)
-                pts != null && pts >= videoStartUs && pts < videoEndUs
-            }
+        val shifted = buffer.snapshotForVideo(videoStartUs, videoEndUs, videoMinusNanoClockUs)
         return if (shifted.isEmpty()) null else ReplayAudioSnapshot(format, shifted)
     }
 

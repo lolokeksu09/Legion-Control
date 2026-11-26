@@ -23,6 +23,14 @@ assert "val available = snapshot()" not in video
 assert "nextSaveProbeAt = now + 100L" in service
 assert "liveWindow = buffer.stats()" in service and "nextStatsAt = now + 1_000L" in service
 assert "statsReflectRetainedFramesAndReducedLimit" in video_tests
+assert "byteCount + frozenBytes - sharedBytes" in video
+assert "buffer.freezeAt(nowVideoUs)" in service and "finishExport(lease)" in service
+assert "lease.close()" in service and "exporting.set(false)" in service
+assert "frozenExportAndLiveWindowShareOneByteBudget" in video_tests
+assert "pressureKeepsFrozenBytesButStopsGrowingUntilRelease" in video_tests
+assert "snapshotForVideo(" in audio_capture
+assert "buffer.snapshot(0L, Long.MAX_VALUE)" not in audio_capture
+assert "videoClockSnapshotSelectsOnlyMatchingPackets" in audio_tests
 assert "reduceByteLimit" in audio and "packets.removeFirst()" in audio
 assert "ReplayMemoryPolicy.afterAudioTrim" in audio_capture
 assert "ReplayFrameBuffer(windowSeconds, videoLimit)" in service

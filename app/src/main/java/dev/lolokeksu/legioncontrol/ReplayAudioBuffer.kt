@@ -55,6 +55,16 @@ class ReplayAudioBuffer(
         return packets.filter { it.ptsUs in startUs until endUs }
     }
 
+    /** Filter against the video clock directly, without materializing the entire AAC window. */
+    @Synchronized internal fun snapshotForVideo(startUs: Long, endUs: Long,
+                                               offsetUs: Long): List<ReplayAudioPacket> {
+        if (startUs < 0 || endUs <= startUs) return emptyList()
+        return packets.filter { packet ->
+            val pts = ReplayAudioTimeline.videoPts(packet.ptsUs, offsetUs)
+            pts != null && pts >= startUs && pts < endUs
+        }
+    }
+
     @Synchronized fun clear() {
         packets.clear()
         size = 0L

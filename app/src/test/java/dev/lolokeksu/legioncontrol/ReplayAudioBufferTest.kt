@@ -66,4 +66,17 @@ class ReplayAudioBufferTest {
         buffer.append(packet(1))
         assertTrue(buffer.snapshot(2_000_000, 1_000_000).isEmpty())
     }
+
+    @Test fun videoClockSnapshotSelectsOnlyMatchingPackets() {
+        val buffer = ReplayAudioBuffer(30, 100L)
+        val first = ReplayAudioPacket(byteArrayOf(1), 100L)
+        val selected = ReplayAudioPacket(byteArrayOf(2), 200L)
+        val last = ReplayAudioPacket(byteArrayOf(3), 300L)
+        listOf(first, selected, last).forEach { assertTrue(buffer.append(it)) }
+        val result = buffer.snapshotForVideo(250L, 350L, 100L)
+        assertEquals(listOf(selected), result)
+        assertSame(selected, result.single())
+        assertTrue(buffer.snapshotForVideo(350L, 250L, 100L).isEmpty())
+    }
+
 }
