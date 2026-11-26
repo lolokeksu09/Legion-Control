@@ -1,6 +1,8 @@
 package dev.lolokeksu.legioncontrol
 
-import androidx.activity.ComponentActivity
+import androidx.fragment.app.FragmentActivity
+import androidx.fragment.app.Fragment
+import androidx.fragment.app.FragmentContainerView
 import androidx.lifecycle.ViewModelProvider
 import android.os.Bundle
 import android.os.BatteryManager
@@ -32,7 +34,7 @@ import java.util.concurrent.Executors
  * Read-only Android snapshots -> real Rust JNI -> private SQLite.
  * No background sampling, privileged APIs or automatic network transmission.
  */
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
     private lateinit var sampleController: RustSampleController
     private lateinit var historyModel: DiagnosticsHistoryViewModel
     private val history get() = sampleController.history
@@ -46,6 +48,9 @@ class MainActivity : ComponentActivity() {
     private lateinit var pagePanels: Map<DiagnosticsPage, LinearLayout>
     private lateinit var monitorPanel: LiveMonitorPanel
     private lateinit var centerScroll: ScrollView
+    private lateinit var labHost: FragmentContainerView
+    private lateinit var visiblePages: List<DiagnosticsPage>
+    private var initialLabFeature: String? = null
     private var currentPage = DiagnosticsPage.OVERVIEW
     private var foreground = false
     private var latestReport: String? = null
@@ -65,25 +70,29 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val initial = DiagnosticsPage.initial(savedInstanceState?.getString(STATE_PAGE),
+            intent.getStringExtra(EXTRA_PAGE), intent.getStringExtra(FeatureFinder.EXTRA_FEATURE_ID))
+        val peripheral = initial.isPeripheral
+        visiblePages = DiagnosticsPage.entries.filter { it.isPeripheral == peripheral }
+        initialLabFeature = intent.getStringExtra(FeatureFinder.EXTRA_FEATURE_ID)
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(18.dp, 20.dp, 18.dp, 28.dp)
             setBackgroundColor(Color.BLACK)
         }
         root.addView(TextView(this).apply {
-            text = "Диагностика устройства"
+            text = if(peripheral) "Периферия" else "Устройство"
             textSize = 23f
             setTextColor(Color.WHITE)
             setTypeface(typeface, Typeface.BOLD)
         })
         root.addView(TextView(this).apply {
-            text = "Kotlin + Rust · " + LegionUiSupport.versionLabel(this@MainActivity) +
-                " · диагностика"
+            text = if(peripheral) "Звук, вибрация, экран и управление" else "Ресурсы, датчики, сеть и аппаратные тесты"
             textSize = 13f
             setTextColor(0xFFA5A5A5.toInt())
             setPadding(0, 8.dp, 0, 12.dp)
         })
-        val selector = LegionUiSupport.spinner(this, DiagnosticsPage.entries.map { it.label }).apply {
+        val selector = LegionUiSupport.spinner(this, visiblePages.map { it.label }).apply {
             contentDescription = "Раздел диагностического центра"
         }
         root.addView(selector)
@@ -91,6 +100,8 @@ class MainActivity : ComponentActivity() {
             LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         }
         pagePanels.values.forEach { root.addView(it) }
+        labHost=FragmentContainerView(this).apply { id=R.id.device_lab_container }
+        root.addView(labHost,LinearLayout.LayoutParams(-1,-2))
         var layout = pagePanels.getValue(DiagnosticsPage.OVERVIEW)
         fun sectionHeader(label: String) {
             layout.addView(TextView(this).apply {
@@ -357,11 +368,23 @@ class MainActivity : ComponentActivity() {
         })
         monitorPanel = LiveMonitorPanel(this, ViewModelProvider(this)[LiveMonitorViewModel::class.java], savedInstanceState)
         pagePanels.getValue(DiagnosticsPage.MONITOR).addView(monitorPanel.root)
+        pagePanels.getValue(DiagnosticsPage.DISPLAY).apply {
+            addView(LegionUiSupport.actionTile(this@MainActivity,"Параметры экрана",
+                "Яркость, тайм-аут, DND и громкость") { SystemControlPanel.show(this@MainActivity) })
+            addView(LegionUiSupport.actionTile(this@MainActivity,"Проверка дисплея",
+                "Полноэкранные цветовые и графические паттерны") {
+                startActivity(Intent(this@MainActivity,DisplayPatternActivity::class.java))
+            })
+            addView(LegionUiSupport.actionTile(this@MainActivity,"Геймпад",
+                "Кнопки и стики подключённого контроллера") {
+                startActivity(Intent(this@MainActivity,GamepadLiveActivity::class.java))
+            })
+        }
         centerScroll = ScrollView(this).apply {
             isFillViewport = true
             addView(root)
         }
-        LegionUiSupport.setModuleActivityContent(this, centerScroll, "ДИАГНОСТИКА УСТРОЙСТВА")
+        LegionUiSupport.setModuleActivityContent(this, centerScroll, if(peripheral) "ПЕРИФЕРИЯ" else "УСТРОЙСТВО")
         // The real Rust writer survives recreation and never retains Android UI objects.
         sampleController = ViewModelProvider(this)[RustSampleController::class.java]
         sampleController.uiState.observe(this) { state ->
@@ -372,21 +395,16 @@ class MainActivity : ComponentActivity() {
         historyModel = ViewModelProvider(this)[DiagnosticsHistoryViewModel::class.java]
         historyModel.latestReports().forEach(::renderHistory)
         historyModel.report.observe(this) { reading -> renderHistory(reading) }
-        val initial = DiagnosticsPage.initial(
-            savedInstanceState?.getString(STATE_PAGE),
-            intent.getStringExtra(EXTRA_PAGE),
-            intent.getStringExtra(FeatureFinder.EXTRA_FEATURE_ID)
-        )
         selectPage(initial)
-        selector.setSelection(initial.ordinal)
+        selector.setSelection(visiblePages.indexOf(initial).coerceAtLeast(0))
         selector.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onNothingSelected(parent: AdapterView<*>?) = Unit
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                DiagnosticsPage.entries.getOrNull(position)?.let(::selectPage)
+                visiblePages.getOrNull(position)?.let(::selectPage)
             }
         }
         if (initial == DiagnosticsPage.MONITOR) monitorPanel.revealFeature()
-        else FeatureReveal.fromActivity(this, root, FeatureModule.DIAGNOSTICS)
+        else if(!initial.isEmbeddedLab) FeatureReveal.fromActivity(this, root, FeatureModule.DIAGNOSTICS)
         // Persisted history is visible after a restart without generating a new sample.
         showSavedHistory()
     }
@@ -411,12 +429,46 @@ class MainActivity : ComponentActivity() {
             if (currentPage == DiagnosticsPage.SENSORS) cancelSensorCapture()
         }
         currentPage = next
+        // Stop the previous laboratory before any new foreground probe can run.
+        mountLab(next)
         pagePanels.forEach { (page, panel) ->
             panel.visibility = if (page == next) View.VISIBLE else View.GONE
         }
         timedVisible = foreground && next == DiagnosticsPage.OVERVIEW
         monitorPanel.setVisible(foreground && next == DiagnosticsPage.MONITOR)
         if (changed && foreground) centerScroll.scrollTo(0, 0)
+    }
+
+    private fun mountLab(page:DiagnosticsPage) {
+        val manager=supportFragmentManager
+        if(manager.isStateSaved)return
+        val old=manager.findFragmentById(R.id.device_lab_container)
+        val tag="device-center:"+page.name
+        labHost.visibility=if(page.isEmbeddedLab) View.VISIBLE else View.GONE
+        if(old?.tag==tag && page.isEmbeddedLab) return
+        val fragment:Fragment?=when(page) {
+            DiagnosticsPage.GAMING -> GamingDiagnosticsFragment()
+            DiagnosticsPage.HARDWARE -> HardwareLabFragment()
+            DiagnosticsPage.NETWORK -> ConnectivityLabFragment()
+            DiagnosticsPage.COMPAT -> CompatibilityLabFragment()
+            DiagnosticsPage.AUDIO -> AudioLabFragment()
+            DiagnosticsPage.HAPTIC -> HapticLabFragment()
+            else -> null
+        }
+        val transaction=manager.beginTransaction().setReorderingAllowed(true)
+        if(fragment!=null) {
+            fragment.arguments=Bundle().apply {
+                putBoolean("embedded_center",true)
+                val feature=initialLabFeature
+                if(feature!=null && page.module?.let { FeatureFinder.resolve(feature,it) }!=null) {
+                    putString(FeatureFinder.EXTRA_FEATURE_ID,feature)
+                    initialLabFeature=null
+                    intent.removeExtra(FeatureFinder.EXTRA_FEATURE_ID)
+                }
+            }
+            transaction.replace(R.id.device_lab_container,fragment,tag)
+        } else if(old!=null) transaction.remove(old) else return
+        transaction.commitNow()
     }
 
     override fun onStart() {

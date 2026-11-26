@@ -131,6 +131,10 @@ class AudioLabFragment:Fragment() {
         }
         LegionUiSupport.reportSurface(result)
         root.addView(result)
+        if(arguments?.getBoolean("embedded_center")==true) {
+            root.setPadding(0,0,0,0)
+            return root
+        }
         return ScrollView(requireContext()).apply { addView(root) }
     }
 

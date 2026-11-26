@@ -91,6 +91,10 @@ class CompatibilityLabFragment : Fragment() {
             val controller=runCatching { NavHostFragment.findNavController(this) }.getOrNull()
             if(controller!=null) controller.navigateUp() else requireActivity().finish()
         }
+        if(arguments?.getBoolean("embedded_center")==true) {
+            root.setPadding(0,0,0,0)
+            return root
+        }
         return ScrollView(requireContext()).apply {
             isFillViewport=true
             addView(root)

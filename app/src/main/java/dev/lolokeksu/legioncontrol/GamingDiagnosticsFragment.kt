@@ -139,6 +139,10 @@ class GamingDiagnosticsFragment : Fragment() {
             val nav=runCatching { NavHostFragment.findNavController(this) }.getOrNull()
             if(nav!=null) nav.navigateUp() else requireActivity().finish()
         }
+        if(arguments?.getBoolean("embedded_center")==true) {
+            root.setPadding(0,0,0,0)
+            return root
+        }
         return ScrollView(requireContext()).apply {
             isFillViewport=true
             addView(root)

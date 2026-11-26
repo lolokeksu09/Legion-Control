@@ -11,7 +11,8 @@ catalog = read("HubToolCatalog.kt")
 history = read("DiagnosticsHistoryViewModel.kt")
 page = read("DiagnosticsPage.kt")
 assert "pagePanels.getValue(DiagnosticsPage.MONITOR).addView(monitorPanel.root)" in host
-assert "LegionUiSupport.spinner(this, DiagnosticsPage.entries.map { it.label })" in host
+assert "LegionUiSupport.spinner(this, visiblePages.map { it.label })" in host
+assert "DiagnosticsPage.entries.filter { it.isPeripheral == peripheral }" in host
 assert "monitorPanel.setVisible(foreground && next == DiagnosticsPage.MONITOR)" in host
 assert "monitorPanel.setVisible(false)" in host[host.index("override fun onStop()"):]
 assert "timedTest?.stop(TimedBatteryStopReason.APP_BACKGROUND)" in host[host.index("private fun selectPage"):host.index("override fun onStart()")]
@@ -60,4 +61,10 @@ expected_actions = {
 }
 actions = re.findall(r'layout\.addView\(Button\(this\)\.apply \{[\s\S]*?text = "([^"]+)"', host)
 assert len(actions) == len(set(actions)) and set(actions) == expected_actions, actions
-print("PASS: one diagnostics center, stable navigation, isolated history reports, and bounded foreground-only telemetry")
+assert "mountLab(next)" in host and "transaction.commitNow()" in host
+assert "transaction.remove(old)" in host and "transaction.replace(R.id.device_lab_container,fragment,tag)" in host
+for name in ("GamingDiagnostics","HardwareLab","ConnectivityLab","CompatibilityLab","AudioLab","HapticLab"):
+    assert name+"Fragment()" in host
+    code=read(name+"Fragment.kt")
+    assert 'arguments?.getBoolean("embedded_center")==true' in code and "override fun onStop()" in code
+print("PASS: one device/peripheral host, embedded labs, stable navigation, and bounded foreground-only telemetry")

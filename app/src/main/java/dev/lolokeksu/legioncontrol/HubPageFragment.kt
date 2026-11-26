@@ -361,7 +361,7 @@ class HubPageFragment : Fragment() {
             HubCenter.DEVICE -> openStandaloneFeature(MainActivity::class.java, Bundle())
             HubCenter.MEDIA -> openStandaloneFeature(CaptureStudioActivity::class.java, Bundle())
             HubCenter.PERIPHERALS -> openStandaloneFeature(MainActivity::class.java, Bundle().apply {
-                putString(MainActivity.EXTRA_PAGE, "AUDIO")
+                putString(MainActivity.EXTRA_PAGE, DiagnosticsPage.DISPLAY.name)
             })
             HubCenter.ANALYTICS -> openStandaloneFeature(SessionLibraryActivity::class.java, Bundle())
         }
@@ -639,16 +639,16 @@ class HubPageFragment : Fragment() {
         val args = Bundle().apply { putString(FeatureFinder.EXTRA_FEATURE_ID, entry.id) }
         when (entry.module) {
             FeatureModule.CAPTURE -> openStandaloneFeature(CaptureStudioActivity::class.java, args)
-            FeatureModule.AUDIO -> open(AudioLabActivity::class.java, args)
-            FeatureModule.HAPTIC -> open(HapticLabActivity::class.java, args)
-            FeatureModule.NETWORK -> open(ConnectivityLabActivity::class.java, args)
+            FeatureModule.AUDIO -> openStandaloneFeature(MainActivity::class.java, args)
+            FeatureModule.HAPTIC -> openStandaloneFeature(MainActivity::class.java, args)
+            FeatureModule.NETWORK -> openStandaloneFeature(MainActivity::class.java, args)
             FeatureModule.PROFILE -> open(SmartProfilesActivity::class.java, args)
             FeatureModule.APPS -> open(ApplicationCenterActivity::class.java, args)
             FeatureModule.SESSION -> open(GameSessionActivity::class.java, args)
             FeatureModule.TOOLBOX -> open(GameToolboxActivity::class.java, args)
-            FeatureModule.GAMING -> open(GamingDiagnosticsActivity::class.java, args)
-            FeatureModule.HARDWARE -> open(HardwareLabActivity::class.java, args)
-            FeatureModule.COMPAT -> open(CompatibilityLabActivity::class.java, args)
+            FeatureModule.GAMING -> openStandaloneFeature(MainActivity::class.java, args)
+            FeatureModule.HARDWARE -> openStandaloneFeature(MainActivity::class.java, args)
+            FeatureModule.COMPAT -> openStandaloneFeature(MainActivity::class.java, args)
             FeatureModule.EXPERIMENT -> open(ExperimentLabActivity::class.java, args)
             FeatureModule.SIGNALS -> openStandaloneFeature(SessionLibraryActivity::class.java, args)
             FeatureModule.INCIDENTS -> openStandaloneFeature(SessionLibraryActivity::class.java, args)

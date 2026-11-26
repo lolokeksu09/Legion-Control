@@ -127,6 +127,10 @@ class ConnectivityLabFragment : Fragment() {
         description("История и сравнения остаются локальными. CSV сохраняется только "+
             "через системный выбор документа. DNS/TCP/TLS-результаты не доказывают "+
             "качество подключения к конкретной игре. Новые Android разрешения не нужны.")
+        if(arguments?.getBoolean("embedded_center")==true) {
+            root.setPadding(0,0,0,0)
+            return root
+        }
         return ScrollView(requireContext()).apply { addView(root) }
     }
 

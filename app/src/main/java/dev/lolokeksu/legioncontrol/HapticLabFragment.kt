@@ -124,6 +124,10 @@ class HapticLabFragment:Fragment() {
         }
         LegionUiSupport.reportSurface(output)
         root.addView(output)
+        if(arguments?.getBoolean("embedded_center")==true) {
+            root.setPadding(0,0,0,0)
+            return root
+        }
         return ScrollView(requireContext()).apply { addView(root) }
     }
 

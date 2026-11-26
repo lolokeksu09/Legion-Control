@@ -27,7 +27,7 @@ assert "HapticLabSchema.VERSION" in read("LocalHistoryStore.kt")
 assert "private external fun recordBatterySample(" in read("RustEngine.kt")
 assert "HISTORY_LIMIT: usize = 64" in (root/"rust-core/src/lib.rs").read_text()
 
-assert "class MainActivity : ComponentActivity()" in main
+assert "class MainActivity : FragmentActivity()" in main and "supportFragmentManager" in main
 assert "ViewModelProvider(this)[DiagnosticsHistoryViewModel::class.java]" in main
 assert "historyModel.report.observe(this)" in main
 assert "diagnosticsExecutor.execute { historyModel.request(DiagnosticsReadKind.HISTORY) }" in main

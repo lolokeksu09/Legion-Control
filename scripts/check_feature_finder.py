@@ -49,6 +49,10 @@ for key, module, title, anchor, _ in entries:
     else:
         assert f'FeatureModule.{module}' in source, (key, module)
     assert f'FeatureModule.{module} ->' in (src / "HubPageFragment.kt").read_text()
+    if module in {"GAMING","HARDWARE","NETWORK","COMPAT","AUDIO","HAPTIC"}:
+        assert f'FeatureModule.{module} -> openStandaloneFeature(MainActivity::class.java, args)' in (src / "HubPageFragment.kt").read_text()
+        assert f'FeatureModule.{module}' in (src / "DiagnosticsPage.kt").read_text()
+        assert 'putString(FeatureFinder.EXTRA_FEATURE_ID,feature)' in (src / "MainActivity.kt").read_text()
 capture = (src / files["CAPTURE"]).read_text()
 assert "control(value, featureId, onClick).also { root.addView(it) }" in capture
 assert "root.addView(CompactActionRow(this, recordStart, replayStart))" in capture
