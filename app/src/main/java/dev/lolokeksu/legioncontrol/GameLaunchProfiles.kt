@@ -306,8 +306,6 @@ object GameLaunchProfiles {
             "$summary " + if (remaining.pending) "Есть незавершённые действия, повторите возврат."
             else "Возврат завершён.")
     }
-    private data class AppDndRuleSnapshot(val exists: Boolean, val state: Int)
-
     @RequiresApi(35)
     private fun readAppDndRuleSnapshot(nm: NotificationManager): AppDndRuleSnapshot {
         val implicitRules = nm.automaticZenRules.filterValues { rule ->
