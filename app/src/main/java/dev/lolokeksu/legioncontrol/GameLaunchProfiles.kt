@@ -1,6 +1,8 @@
 package dev.lolokeksu.legioncontrol
 
 import android.app.NotificationManager
+import android.os.Build
+import android.service.notification.Condition
 import android.content.Context
 import android.media.AudioManager
 import android.provider.Settings
@@ -117,20 +119,31 @@ object GameLaunchProfiles {
                 val after = Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL
                 if (before == after) null else LaunchSettingChange(before, after)
             } else null
+            val focusScope = if (Build.VERSION.SDK_INT >= 35)
+                FocusUndoScope.APP_RULE else FocusUndoScope.GLOBAL_FILTER
+            val appDnd = if (nm != null && Build.VERSION.SDK_INT >= 35)
+                readAppDndRuleSnapshot(nm) else null
             val focus = if (nm != null) {
-                val before = nm.currentInterruptionFilter
-                require(before in setOf(
-                    NotificationManager.INTERRUPTION_FILTER_ALL,
-                    NotificationManager.INTERRUPTION_FILTER_PRIORITY,
-                    NotificationManager.INTERRUPTION_FILTER_NONE,
-                    NotificationManager.INTERRUPTION_FILTER_ALARMS
-                )) { "Android не предоставил достоверный текущий режим DND" }
-                val after = if (p.focusEnabled == true)
-                    NotificationManager.INTERRUPTION_FILTER_NONE
-                else NotificationManager.INTERRUPTION_FILTER_ALL
+                val before: Int
+                val after: Int
+                if (Build.VERSION.SDK_INT >= 35) {
+                    before = requireNotNull(appDnd).state
+                    after = if (p.focusEnabled == true) APP_DND_ACTIVE else APP_DND_INACTIVE
+                } else {
+                    before = nm.currentInterruptionFilter
+                    require(before in setOf(
+                        NotificationManager.INTERRUPTION_FILTER_ALL,
+                        NotificationManager.INTERRUPTION_FILTER_PRIORITY,
+                        NotificationManager.INTERRUPTION_FILTER_NONE,
+                        NotificationManager.INTERRUPTION_FILTER_ALARMS
+                    )) { "Android не предоставил достоверный текущий режим DND" }
+                    after = if (p.focusEnabled == true)
+                        NotificationManager.INTERRUPTION_FILTER_NONE
+                    else NotificationManager.INTERRUPTION_FILTER_ALL
+                }
                 if (before == after) null else LaunchSettingChange(before, after)
             } else null
-            GameLaunchUndo(pkg, media, screen, mode, focus)
+            GameLaunchUndo(pkg, media, screen, mode, focus, focusScope, appDnd?.exists ?: true)
         }.getOrElse {
             return@synchronized GameLaunchResult(false,
                 "Настройки не изменены: " + (it.message ?: it.javaClass.simpleName))
@@ -244,22 +257,105 @@ object GameLaunchProfiles {
                 check(Settings.System.canWrite(context))
                 check(Settings.System.putInt(resolver, Settings.System.SCREEN_BRIGHTNESS_MODE, it))
             })
-        val focus = restoreField(ticket.focus,
-            { requireNotNull(nm).currentInterruptionFilter },
-            {
-                check(requireNotNull(nm).isNotificationPolicyAccessGranted)
-                requireNotNull(nm).setInterruptionFilter(it)
-            })
+        var legacyFocusSkipped = false
+        val focus = when {
+            ticket.focus == null -> null
+            Build.VERSION.SDK_INT >= 35 && ticket.focusScope == FocusUndoScope.GLOBAL_FILTER -> {
+                // A v1 ticket captured the aggregate filter, not Legion's implicit rule state.
+                // Restoring it could override another app's or the user's active Zen rule.
+                legacyFocusSkipped = true
+                conflicts++
+                null
+            }
+            Build.VERSION.SDK_INT >= 35 -> restoreAppDndRule(ticket.focus, ticket.focusRuleExisted, nm,
+                onRestored = { restored++ }, onConflict = { conflicts++ }, onFailure = { failures++ })
+            ticket.focusScope == FocusUndoScope.APP_RULE -> {
+                legacyFocusSkipped = true
+                conflicts++
+                null
+            }
+            else -> restoreField(ticket.focus,
+                { requireNotNull(nm).currentInterruptionFilter },
+                {
+                    check(requireNotNull(nm).isNotificationPolicyAccessGranted)
+                    requireNotNull(nm).setInterruptionFilter(it)
+                })
+        }
         val remaining = ticket.copy(media = media, brightness = brightness,
             brightnessMode = mode, focus = focus)
         val saved = if (remaining.pending) {
             prefs(context).edit().putString(ACTIVE, remaining.encode()).commit()
         } else prefs(context).edit().remove(ACTIVE).remove(OWNER).commit()
         val summary = "Восстановлено: $restored; изменения пользователя не тронуты: $conflicts; " +
-            "ошибок Android: $failures."
+            "ошибок Android: $failures." +
+            if (legacyFocusSkipped) " Старую запись DND нельзя безопасно сопоставить с правилом Android 15+; режим оставлен без изменений." else ""
         return if (!saved) GameLaunchResult(false, "$summary Не удалось сохранить результат возврата.")
         else GameLaunchResult(!remaining.pending,
             "$summary " + if (remaining.pending) "Есть незавершённые действия, повторите возврат."
             else "Возврат завершён.")
     }
+    private data class AppDndRuleSnapshot(val exists: Boolean, val state: Int)
+
+    private fun readAppDndRuleSnapshot(nm: NotificationManager): AppDndRuleSnapshot {
+        val implicitRules = nm.automaticZenRules.filterValues { rule ->
+            rule.owner == null && rule.configurationActivity == null
+        }
+        require(implicitRules.size <= 1) {
+            "Невозможно однозначно определить неявное правило DND Legion Control"
+        }
+        val id = implicitRules.keys.singleOrNull()
+            ?: return AppDndRuleSnapshot(false, APP_DND_INACTIVE)
+        val state = when (nm.getAutomaticZenRuleState(id)) {
+            Condition.STATE_TRUE -> APP_DND_ACTIVE
+            Condition.STATE_FALSE -> APP_DND_INACTIVE
+            else -> error("Android не предоставил достоверное состояние правила DND")
+        }
+        return AppDndRuleSnapshot(true, state)
+    }
+
+    private fun restoreAppDndRule(
+        change: LaunchSettingChange,
+        originalRuleExisted: Boolean,
+        nm: NotificationManager?,
+        onRestored: () -> Unit,
+        onConflict: () -> Unit,
+        onFailure: () -> Unit
+    ): LaunchSettingChange? {
+        return try {
+            val manager = requireNotNull(nm)
+            check(manager.isNotificationPolicyAccessGranted)
+            val current = readAppDndRuleSnapshot(manager)
+            if (!current.exists) {
+                if (originalRuleExisted && change.original == APP_DND_ACTIVE) onConflict()
+                return null
+            }
+            when (GameLaunchProfilePolicy.restoreChoice(current.state, change)) {
+                RestoreChoice.ALREADY_ORIGINAL -> null
+                RestoreChoice.CHANGED_BY_USER -> {
+                    onConflict()
+                    null
+                }
+                RestoreChoice.RESTORE -> {
+                    manager.setInterruptionFilter(
+                        if (change.original == APP_DND_ACTIVE)
+                            NotificationManager.INTERRUPTION_FILTER_NONE
+                        else NotificationManager.INTERRUPTION_FILTER_ALL
+                    )
+                    val restored = readAppDndRuleSnapshot(manager)
+                    check(restored.exists && restored.state == change.original) {
+                        "Android не подтвердил восстановление правила DND Legion Control"
+                    }
+                    onRestored()
+                    null
+                }
+            }
+        } catch (_: Exception) {
+            onFailure()
+            change
+        }
+    }
+
+    private const val APP_DND_INACTIVE = 0
+    private const val APP_DND_ACTIVE = 1
+
 }
