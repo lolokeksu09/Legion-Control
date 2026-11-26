@@ -88,14 +88,17 @@
         <activity android:name=".GamepadLiveActivity" android:exported="false" />
         <activity android:name=".LiveMonitorActivity" android:exported="false" />
         <activity android:name=".GamePreflightActivity" android:exported="false" />
-        <activity android:name=".SessionCompareActivity" android:exported="false" />
         <activity android:name=".SessionLibraryActivity" android:exported="false" />
         <activity android:name=".HardwareLabActivity" android:exported="false" />
         <activity android:name=".DisplayPatternActivity" android:exported="false" />
         <activity android:name=".GamingDiagnosticsActivity" android:exported="false" />
         <!-- One public launcher. Every existing Activity and its Kotlin/Rust backend remain. -->
         <activity android:name=".MainActivity" android:exported="false" />
-        <activity android:name=".NavigationHostActivity" android:exported="true">
+        <activity android:name=".LegionHubActivity" android:exported="false" />
+        <activity
+            android:name=".NavigationHostActivity"
+            android:exported="true"
+            android:theme="@android:style/Theme.NoDisplay">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

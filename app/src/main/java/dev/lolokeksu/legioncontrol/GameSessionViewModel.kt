@@ -43,7 +43,7 @@ class GameSessionViewModel(application: Application) : AndroidViewModel(applicat
                 val text = buildString {
                     append("ПОСЛЕДНИЕ СЕССИИ · ").append(rows.size).append('\n')
                     for (row in rows) {
-                        val points = repo.points(row.id)
+                        val points = if (row.id == rows[0].id) series else repo.points(row.id)
                         val summary = GameSessionAnalysis.summarize(row, points)
                         append("\n").append(date(row.startedAtMs)).append(" · ")
                             .append(GameSessionAnalysis.render(summary)).append('\n')

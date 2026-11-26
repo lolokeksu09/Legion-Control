@@ -444,7 +444,7 @@ object LegionUiSupport {
         val selectedIndex = when (activity) {
             is GameToolboxActivity, is GameSessionActivity,
             is SmartProfilesActivity, is ApplicationCenterActivity, is GamePreflightActivity -> 1
-            is SessionCompareActivity, is SessionLibraryActivity -> 3
+            is SessionLibraryActivity -> 3
             else -> 2
         }
         for (index in labels.indices) {
@@ -459,7 +459,7 @@ object LegionUiSupport {
                 isSelected = selected
                 stateDescription = if (selected) "Выбрано" else "Не выбрано"
                 setOnClickListener {
-                    activity.startActivity(Intent(activity, NavigationHostActivity::class.java).apply {
+                    activity.startActivity(Intent(activity, LegionHubActivity::class.java).apply {
                         addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
                         putExtra("open_hub_tab", index)
                     })

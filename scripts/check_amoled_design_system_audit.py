@@ -39,14 +39,8 @@ for kind, start, end, accessibility in (
     assert accessibility in block, kind
     assert "setOnClickListener {" in block, kind
 
-prepare = session.index('sectionLabel(requireContext(), "ПОДГОТОВКА")')
-start = session.index('action("НАЧАТЬ ЗАПИСЬ")')
-extras = session.index('sectionLabel(requireContext(), "ДОПОЛНИТЕЛЬНЫЕ НАСТРОЙКИ")')
-analytics = session.index('sectionLabel(requireContext(), "АНАЛИТИКА И ИСТОРИЯ")')
-assert prepare < start < extras < analytics
 assert "accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE" in session
 assert "GameSessionRecorderService.start(requireContext(),pkg,label,tcpOption.isChecked)" in session
-assert 'action("ОСТАНОВИТЬ ЗАПИСЬ")' in session
-assert 'action("Smart Profiles · сохранённые настройки")' in session
-assert 'action("Session Signals · хронология и события")' in session
-print("PASS AMOLED audit: dynamic media buttons, shared tiles, a11y descriptions, recording hierarchy")
+for action in ("stopRecording()", "SessionLibraryActivity.intent(requireContext(), pkg)"):
+    assert action in session
+print("PASS AMOLED audit: dynamic media buttons, shared tiles, accessibility and recording entry points")

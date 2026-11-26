@@ -7,7 +7,7 @@ src=root/"app/src/main/java/dev/lolokeksu/legioncontrol"
 read=lambda n:(src/n).read_text()
 hub=read("HubPageFragment.kt")
 tabs=read("HubNavigationRules.kt")
-host=read("NavigationHostActivity.kt")
+host=read("LegionHubActivity.kt")
 skin=read("LegionUiSupport.kt")
 assert 'TOOLS("tools", "Система", "Система")' in tabs
 assert 'HISTORY("history", "Аналитика", "Аналитика")' in tabs
@@ -22,5 +22,5 @@ assert "HubCenterIcons.tabs()" in host and "HubCenterIcons.tabs()" in skin
 for name in ("home","games","device","media","peripherals","analytics","settings"):
     assert ET.parse(root/f"app/src/main/res/drawable/ic_hub_{name}.xml").getroot().tag=="vector"
 assert "Готов к запуску" not in hub
-assert "putString(SessionLibraryActivity.EXTRA_SESSION,session.id)" in hub
+assert "SessionLibraryActivity.intent(requireContext(), session.packageName, session.id)" in hub
 print("PASS: approved five-center dashboard, stable navigation keys, real icon fallback and searchable legacy tools")

@@ -68,21 +68,22 @@ class SessionLibraryViewModel(app:Application):AndroidViewModel(app) {
                 val row=repo.header(sessionId)
                 if(row==null || (filter.packageName!=null && row.packageName!=filter.packageName))
                     s.copy(message="Запись недоступна для выбранной игры.")
-                else if(row.endedAtMs==null)
-                    s.copy(message="Запись не завершена. Анализ доступен после остановки.")
                 else loaded(s,row,repo)
             }
         }
     }
 
     private fun loaded(s:LibraryState,row:GameSessionHeader,repo:GameSessionRepository):LibraryState {
-        val detail=repo.libraryDetail(row.id)
+        val detail=repo.analyticsDetail(row.id)
         require(detail.header.id==row.id && detail.header.packageName==row.packageName)
         val snapshot=UnifiedGameSessionSnapshot.from(detail)
-        val candidates=repo.recentForPackage(row.packageName,25)
-            .filter { it.endedAtMs!=null && it.id!=row.id }
+        val candidates = if (detail.header.endedAtMs == null) emptyList()
+            else repo.recentForPackage(row.packageName, 25)
+                .filter { it.endedAtMs != null && it.id != row.id }
         return s.copy(detail=detail,analytics=snapshot,comparisonRows=candidates,pair=null,
-            baseline=null,selecting=false,message="Выбрана запись ${detail.header.id.take(8)}.")
+            baseline=null,selecting=false,message=if (detail.header.endedAtMs == null)
+                "Запись без отметки завершения. Показаны данные на момент чтения."
+            else "Выбрана запись ${detail.header.id.take(8)}.")
     }
     fun refresh(filter:LibraryFilter=current().filter) {
         submit {
@@ -123,10 +124,6 @@ class SessionLibraryViewModel(app:Application):AndroidViewModel(app) {
         val token=selectionGeneration.incrementAndGet()
         val clean=s.copy(detail=null,analytics=null,comparisonRows=emptyList(),pair=null,baseline=null,
             selecting=false,busy=false)
-        if(row.endedAtMs==null) {
-            update(clean.copy(message="Нет записи завершения. Обновите историю после остановки записи."))
-            return
-        }
         update(clean.copy(selecting=true,busy=true,message="Читаю выбранную сессию…"))
         worker.execute {
             if(selectionGeneration.get()!=token)return@execute
@@ -203,7 +200,7 @@ class SessionLibraryViewModel(app:Application):AndroidViewModel(app) {
 
     fun export(uri:Uri,detail:LibraryDetail) {
         val s=current()
-        if(s.busy || s.detail!==detail)return
+        if(s.busy || s.detail!==detail || detail.header.endedAtMs==null)return
         submit {
             val stream=getApplication<Application>().contentResolver.openOutputStream(uri,"wt")
                 ?: error("Document unavailable")

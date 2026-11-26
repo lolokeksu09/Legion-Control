@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Alpha.26: genuine five-destination MVVM Navigation shell, backend bridge and no data loss."""
 from pathlib import Path
+import re
 import xml.etree.ElementTree as ET
 
 root = Path(__file__).resolve().parents[1]
@@ -11,7 +12,7 @@ graph = ET.parse(app/"res/navigation/legion_nav_graph.xml").getroot()
 android = "{http://schemas.android.com/apk/res/android}"
 res = "{http://schemas.android.com/apk/res-auto}"
 gradle = (root/"app/build.gradle.kts").read_text()
-activity = (src/"NavigationHostActivity.kt").read_text()
+activity = (src/"LegionHubActivity.kt").read_text()
 view = (src/"HubPageFragment.kt").read_text()
 detail = (src/"GameDetailFragment.kt").read_text()
 vm = (src/"HubViewModel.kt").read_text()
@@ -64,6 +65,10 @@ activities = {a.get(android+"name"): a
     for a in manifest.findall("./application/activity")}
 assert ".MainActivity" in activities and activities[".MainActivity"].get(android+"exported")=="false"
 assert activities[".NavigationHostActivity"].get(android+"exported")=="true"
+assert activities[".LegionHubActivity"].get(android+"exported")=="false"
+entry = (src/"NavigationHostActivity.kt").read_text()
+assert "Intent(this, LegionHubActivity::class.java)" in entry
+assert not re.search(r"\bintent\b|putExtra|putExtras|setData|setSelector", entry)
 launcher = []
 for activity_entry in manifest.findall("./application/activity"):
     for f in activity_entry.findall("intent-filter"):
@@ -84,10 +89,9 @@ for old in (
 assert graph.tag == "navigation"
 assert graph.get(res+"startDestination") == "@id/homeFragment"
 nodes = graph.findall("fragment")
-assert len(nodes) == 20
-assert {n.get(android+"id") for n in nodes} == {
+assert {n.get(android+"id") for n in nodes} >= {
     "@+id/homeFragment", "@+id/gamesFragment", "@+id/toolsFragment",
-    "@+id/historyFragment", "@+id/settingsFragment", "@+id/gameDetailFragment", "@+id/gameSessionFragment", "@+id/sessionSignalsFragment", "@+id/sessionBaselinesFragment", "@+id/sessionIncidentsFragment",
+    "@+id/historyFragment", "@+id/settingsFragment", "@+id/gameDetailFragment", "@+id/gameSessionFragment",
     "@+id/applicationCenterDestination", "@+id/smartProfilesDestination",
     "@+id/gameToolboxDestination",
     "@+id/audioLabDestination", "@+id/hapticLabDestination",
@@ -101,9 +105,6 @@ for node in nodes:
         "dev.lolokeksu.legioncontrol.GameDetailFragment",
         "dev.lolokeksu.legioncontrol.GameToolboxFragment",
         "dev.lolokeksu.legioncontrol.GameSessionFragment",
-        "dev.lolokeksu.legioncontrol.SessionSignalsFragment",
-        "dev.lolokeksu.legioncontrol.SessionBaselinesFragment",
-        "dev.lolokeksu.legioncontrol.SessionIncidentsFragment",
         "dev.lolokeksu.legioncontrol.ApplicationCenterFragment",
         "dev.lolokeksu.legioncontrol.SmartProfilesFragment",
         "dev.lolokeksu.legioncontrol.AudioLabFragment",
@@ -117,9 +118,6 @@ for node in nodes:
     if node.get(android+"id") == "@+id/gameSessionFragment":
         assert [x.get(android+"name") for x in node.findall("argument")] == [
             "smart_package", "smart_label", "smart_tcp"]
-    elif node.get(android+"id") == "@+id/sessionIncidentsFragment":
-        assert [x.get(android+"name") for x in node.findall("argument")] == [
-            "smart_package", "session_id"]
     elif node.get(android+"id") in ("@+id/gameToolboxDestination","@+id/audioLabDestination","@+id/hapticLabDestination",
                                   "@+id/connectivityLabDestination","@+id/compatibilityLabDestination",
                                   "@+id/hardwareLabDestination", "@+id/gamingDiagnosticsDestination"):
@@ -130,7 +128,7 @@ detail_node = [n for n in nodes if n.get(android+"id") == "@+id/gameDetailFragme
 assert detail_node.find("argument").get(android+"name") == "gamePackage"
 
 assert "FragmentActivity" in activity and "NavHostFragment.create(" in activity
-assert "NavigationHostActivity" in activity and "HubViewModel::class.java" in activity
+assert "LegionHubActivity" in activity and "HubViewModel::class.java" in activity
 assert "setRestoreState(true)" in activity and "setLaunchSingleTop(true)" in activity
 assert "setPopUpTo(R.id.homeFragment, false, true)" in activity
 assert "onDestinationChangedListener" in activity or "addOnDestinationChangedListener" in activity

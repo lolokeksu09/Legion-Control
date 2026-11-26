@@ -95,5 +95,5 @@ assert all(block not in service for block in (
     "queryEvents(", "Socket(", "HttpURLConnection", "takeScreenshot",
 ))
 assert all(block not in activity + ui for block in ("QUERY_ALL_PACKAGES", "READ_EXTERNAL_STORAGE"))
-assert 'putExtra("open_game_toolbox", true)' in activity
+assert 'ModuleNavigation.forwardLegacyEntry(this)' in activity
 print("PASS alpha24: exact permission allowlist, opt-in overlay, non-focusable UI, manual controls, FGS stop and no SQLite migration")

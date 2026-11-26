@@ -25,13 +25,13 @@ assert "putExtra(EXTRA_MODULE_ROUTE, route)" in module
 assert "putExtra(EXTRA_MODULE_ARGS, Bundle(it))" in module
 assert "activity.finish()" in module
 
-host = read("NavigationHostActivity.kt")
+host = read("LegionHubActivity.kt")
 assert "private fun openRequestedModule(request: Intent)" in host
 assert "request.removeExtra(ModuleNavigation.EXTRA_MODULE_ROUTE)" in host
 assert "request.removeExtra(ModuleNavigation.EXTRA_MODULE_ARGS)" in host
 assert "if (!permitted) return" in host
 assert "nav.navigate(route, args" in host
-assert "openRequestedModule(intent)" in host
+assert "openRequestedNavigation(intent)" in host
 for name in (
     "gameSessionFragment", "smartProfilesDestination", "applicationCenterDestination",
     "audioLabDestination", "hapticLabDestination", "gamingDiagnosticsDestination",
@@ -41,9 +41,7 @@ for name in (
     assert "R.id." + name in host, name
 
 fragments = (
-    "GamingDiagnosticsFragment", "GameSessionFragment", "SessionSignalsFragment",
-    "SessionIncidentsFragment", "SessionBaselinesFragment",
-    "ApplicationCenterFragment", "SmartProfilesFragment", "AudioLabFragment",
+    "GamingDiagnosticsFragment", "GameSessionFragment", "ApplicationCenterFragment", "SmartProfilesFragment", "AudioLabFragment",
     "HapticLabFragment", "ConnectivityLabFragment", "ExperimentLabFragment",
     "CompatibilityLabFragment", "HardwareLabFragment"
 )
@@ -64,4 +62,4 @@ manifest = (root / "app/src/main/AndroidManifest.xml").read_text()
 assert "android.permission.QUERY_ALL_PACKAGES" not in manifest
 assert "android.permission.WRITE_SECURE_SETTINGS" not in manifest
 assert "android.permission.MANAGE_EXTERNAL_STORAGE" not in manifest
-print("PASS alpha44: ten legacy entrypoints use Game Hub; 13 modules independently themed")
+print("PASS alpha44: ten legacy entrypoints use Game Hub; independently themed modules")

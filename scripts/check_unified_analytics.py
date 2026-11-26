@@ -25,8 +25,13 @@ assert "SessionCompareChart(this)" in ui
 for module in ("SIGNALS","INCIDENTS","BASELINES","COMPARE","LIBRARY"):
     assert f"FeatureModule.{module} -> openStandaloneFeature(SessionLibraryActivity::class.java, args)" in hub
 assert "SessionCompareActivity::class.java" not in catalog
-assert "putString(SessionLibraryActivity.EXTRA_SESSION,session.id)" in hub
-assert "if(session.endedAtMs==null)" in hub
+assert "SessionLibraryActivity.intent(requireContext(), session.packageName, session.id)" in hub
+assert "SessionLibraryActivity.intent(requireContext(), pkg)" in read("GameSessionFragment.kt")
+assert "analyticsDetail(row.id)" in vm
+assert "detail.header.endedAtMs==null" in vm
+assert "Only ended records can be archived" in read("SessionLibraryExport.kt")
+assert "accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE" in ui
+assert "returnToReport ?: AnalyticsPage.OVERVIEW" in ui
 assert "experiment_package" in ui
 assert "FeatureReveal.fromActivity(this,root,featureModule)" in ui
 print("PASS: shared session analytics, bounded comparisons, exact snapshot CSV and stable search routes")

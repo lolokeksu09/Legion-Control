@@ -84,9 +84,9 @@ for f in ("GameSessionRepository.kt", "ApplicationAuditRules.kt",
           "ExperimentRepository.kt", "SessionIncidents.kt", "DiagnosticArchive.kt"):
     assert "CsvEscaper.cell(" in read(f), f
 
-assert "versionLabel()" in read("NavigationHostActivity.kt")
-assert "GAME HUB  ·  alpha.26" not in read("NavigationHostActivity.kt")
-assert "contentDescription = \"Назад\"" in read("NavigationHostActivity.kt")
+assert "versionLabel()" in read("LegionHubActivity.kt")
+assert "GAME HUB  ·  alpha.26" not in read("LegionHubActivity.kt")
+assert "contentDescription = \"Назад\"" in read("LegionHubActivity.kt")
 assert "WindowInsets.Type.ime()" in read("LegionUiSupport.kt")
 assert "LegionUiSupport.setModuleActivityContent(this" in read("CaptureStudioActivity.kt")
 assert "Не удалось" in read("ConnectivityLabViewModel.kt")

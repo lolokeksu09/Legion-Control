@@ -5,7 +5,7 @@ root = Path(__file__).resolve().parents[1]
 src = root / "app/src/main/java/dev/lolokeksu/legioncontrol"
 app = (src / "LegionApplication.kt").read_text(encoding="utf-8")
 coordinator = (src / "StartupRecoveryCoordinator.kt").read_text(encoding="utf-8")
-launcher = (src / "NavigationHostActivity.kt").read_text(encoding="utf-8")
+launcher = (src / "LegionHubActivity.kt").read_text(encoding="utf-8")
 tile = (src / "LegionQuickTileService.kt").read_text(encoding="utf-8")
 tests = (root / "app/src/test/java/dev/lolokeksu/legioncontrol/StartupRecoveryCoordinatorTest.kt").read_text(encoding="utf-8")
 
@@ -19,9 +19,9 @@ assert "StartupRecoveryState.Failed" in coordinator
 assert "ContinuedWithWarning" in coordinator
 assert "AtomicBoolean(false)" in coordinator
 assert "coordinator.observe(::onStartupRecoveryState)" in launcher
-assert "initializeNavigation(pendingSavedState)" in launcher
+assert "initializeNavigation()" in launcher
 assert "continueAfterFailure()" in launcher
-assert "Intent(this,NavigationHostActivity::class.java)" in tile
+assert "Intent(this,LegionHubActivity::class.java)" in tile
 assert "SmartProfilesActivity::class.java" not in tile
 for service_name in ("GameSessionRecorderService.kt", "CaptureScreenshotService.kt",
                      "CaptureRecordingService.kt", "ReplayCaptureService.kt", "GameToolboxService.kt"):

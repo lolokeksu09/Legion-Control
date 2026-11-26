@@ -1,6 +1,6 @@
 package dev.lolokeksu.legioncontrol
 
-/** One bounded, completed session supplies all compatible offline reports. */
+/** One bounded session supplies all compatible offline reports. */
 data class UnifiedGameSessionSnapshot(
     val detail: LibraryDetail,
     val summary: GameSessionSummary,
@@ -9,7 +9,6 @@ data class UnifiedGameSessionSnapshot(
 ) {
     companion object {
         fun from(detail: LibraryDetail): UnifiedGameSessionSnapshot {
-            require(detail.header.endedAtMs != null)
             return UnifiedGameSessionSnapshot(
                 detail, GameSessionAnalysis.summarize(detail.header, detail.points),
                 SessionSignals.analyze(detail.header, detail.points, detail.events,
@@ -20,10 +19,11 @@ data class UnifiedGameSessionSnapshot(
         }
     }
 
-    fun compareWindow(minutes: Int): CompareWindow = SessionCompareAnalysis.analyze(
-        detail.header, detail.points, minutes,
-        detail.sampleLimited || detail.points.size > SessionCompareAnalysis.MAX_POINTS
-    )
+    fun compareWindow(minutes: Int): CompareWindow {
+        require(detail.header.endedAtMs != null)
+        return SessionCompareAnalysis.analyze(detail.header, detail.points, minutes,
+            detail.sampleLimited || detail.points.size > SessionCompareAnalysis.MAX_POINTS)
+    }
 
     fun baselineCapture(): BaselineCapture = BaselineCapture(
         detail.header, detail.points.take(SessionBaselines.MAX_POINTS_PER_SESSION),

@@ -15,7 +15,7 @@ activity = manifest.find("./application/activity[@"+a+"name='.SessionLibraryActi
 assert activity is not None and activity.get(a+"exported") == "false"
 assert "PAGE_SIZE=20" in model and "package_name=?" in model and "session_id<?" in model
 assert "ORDER BY started_at_ms DESC,session_id DESC LIMIT ?" in repo
-assert "query.args+" in repo and "require(h.endedAtMs!=null)" in repo
+assert "query.args+" in repo and "require(allowOpen || h.endedAtMs != null)" in repo
 assert "s.detail!==detail" in vm and "detail.header.id==row.id" in vm
 assert "ActivityResultContracts.CreateDocument" in ui
 assert "CsvEscaper.cell" in export

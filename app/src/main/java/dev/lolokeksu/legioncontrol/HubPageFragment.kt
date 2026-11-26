@@ -470,17 +470,8 @@ class HubPageFragment : Fragment() {
         tile("Запись сессии", "Ручной запуск телеметрии") { open(GameSessionActivity::class.java) }
     }
 
-    private fun openRecentSession(session:GameSessionHeader) {
-        if(session.endedAtMs==null) {
-            NavHostFragment.findNavController(this).navigate(R.id.sessionIncidentsFragment,
-                Bundle().apply {
-                    putString("session_id",session.id)
-                    putString("smart_package",session.packageName)
-                })
-        } else openStandaloneFeature(SessionLibraryActivity::class.java,Bundle().apply {
-            putString(SessionLibraryActivity.EXTRA_PACKAGE,session.packageName)
-            putString(SessionLibraryActivity.EXTRA_SESSION,session.id)
-        })
+    private fun openRecentSession(session: GameSessionHeader) {
+        startActivity(SessionLibraryActivity.intent(requireContext(), session.packageName, session.id))
     }
 
     private fun openGameCard(app: HubApp) {

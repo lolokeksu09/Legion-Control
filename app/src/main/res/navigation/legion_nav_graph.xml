@@ -47,25 +47,6 @@
         <argument android:name="smart_label" app:argType="string" android:defaultValue=""/>
         <argument android:name="smart_tcp" app:argType="boolean" android:defaultValue="false"/>
     </fragment>
-    <fragment
-        android:id="@+id/sessionSignalsFragment"
-        android:name="dev.lolokeksu.legioncontrol.SessionSignalsFragment"
-        android:label="Session Signals">
-        <argument android:name="smart_package" app:argType="string" android:defaultValue=""/>
-    </fragment>
-    <fragment
-        android:id="@+id/sessionIncidentsFragment"
-        android:name="dev.lolokeksu.legioncontrol.SessionIncidentsFragment"
-        android:label="Session Incidents">
-        <argument android:name="smart_package" app:argType="string" android:defaultValue=""/>
-        <argument android:name="session_id" app:argType="string" android:defaultValue=""/>
-    </fragment>
-    <fragment
-        android:id="@+id/sessionBaselinesFragment"
-        android:name="dev.lolokeksu.legioncontrol.SessionBaselinesFragment"
-        android:label="Session Baselines">
-        <argument android:name="smart_package" app:argType="string" android:defaultValue=""/>
-    </fragment>
     <activity
         android:id="@+id/diagnosticsDestination"
         android:name="dev.lolokeksu.legioncontrol.MainActivity" />

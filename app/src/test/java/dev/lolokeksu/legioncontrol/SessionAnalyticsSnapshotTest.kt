@@ -17,7 +17,12 @@ class UnifiedGameSessionSnapshotTest {
     }
     @Test fun incompleteSessionIsNotAnArchive() {
         val detail=LibraryDetail(header.copy(endedAtMs=null),emptyList(),emptyList(),false,false)
-        assertTrue(runCatching { UnifiedGameSessionSnapshot.from(detail) }.isFailure)
+        val snapshot = UnifiedGameSessionSnapshot.from(detail)
+        assertSame(detail, snapshot.detail)
+        assertTrue(runCatching { snapshot.compareWindow(5) }.isFailure)
+        val output = java.io.ByteArrayOutputStream()
+        assertTrue(runCatching { SessionLibraryExport.write(detail, output) }.isFailure)
+        assertEquals(0, output.size())
     }
     @Test fun allMovedFeatureIdsResolveToTheirSection() {
         val expected=mapOf("signals.timeline" to AnalyticsPage.SIGNALS,"signals.csv" to AnalyticsPage.SIGNALS,

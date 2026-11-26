@@ -1,5 +1,6 @@
 package dev.lolokeksu.legioncontrol
 
+import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
@@ -21,6 +22,12 @@ class SessionLibraryActivity:FragmentActivity() {
     companion object {
         const val EXTRA_PACKAGE="library_package"
         const val EXTRA_SESSION="analytics_session"
+
+        fun intent(context: Context, packageName: String?, sessionId: String? = null): Intent =
+            Intent(context, SessionLibraryActivity::class.java).apply {
+                packageName?.let { putExtra(EXTRA_PACKAGE, it) }
+                sessionId?.let { putExtra(EXTRA_SESSION, it) }
+            }
     }
     private lateinit var vm:SessionLibraryViewModel
     private lateinit var status:TextView
@@ -38,6 +45,8 @@ class SessionLibraryActivity:FragmentActivity() {
     private lateinit var selector:Spinner
     private lateinit var panels:Map<AnalyticsPage,LinearLayout>
     private lateinit var selected:TextView
+    private lateinit var selectSession:Button
+    private var returnToReport:AnalyticsPage? = null
     private lateinit var signals:TextView
     private lateinit var incidents:TextView
     private lateinit var comparison:TextView
@@ -53,6 +62,7 @@ class SessionLibraryActivity:FragmentActivity() {
     private lateinit var csvBaseline:Button
     private lateinit var compareRun:Button
     private lateinit var shareCompare:Button
+    private lateinit var shareBaseline:Button
     private var compareId:String?=null
     private var minutes=10
     private var incidentKind:SessionIncidents.Kind?=null
@@ -96,10 +106,17 @@ class SessionLibraryActivity:FragmentActivity() {
             text=title;if(featureId!=null)FeatureReveal.bind(this,featureId);LegionUiSupport.styleAction(this);setOnClickListener { action() };target.addView(this)
         }
         label("Игровая аналитика",22f).apply { setTypeface(Typeface.DEFAULT,Typeface.BOLD);isAccessibilityHeading=true }
-        label("Выберите игру и запись один раз. Отчёты используют общую локальную телеметрию.",13f,LegionUiSupport.MUTED)
-        status=label("Загрузка истории…",14f,LegionUiSupport.ACCENT)
+        status=label("Загрузка истории…",14f,LegionUiSupport.ACCENT).apply {
+            accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+        }
         selected=label("Сессия не выбрана.").apply { LegionUiSupport.reportSurface(this) }
-        selector=LegionUiSupport.spinner(this,AnalyticsPage.entries.map { it.label })
+        selectSession=button("Выбрать сессию") {
+            returnToReport = page
+            showPage(AnalyticsPage.LIBRARY)
+        }
+        selector=LegionUiSupport.spinner(this,AnalyticsPage.entries.map { it.label }).apply {
+            contentDescription = "Отчёт по сессии"
+        }
         root.addView(selector)
         panels=AnalyticsPage.entries.associateWith {
             LinearLayout(this).apply { orientation=LinearLayout.VERTICAL }
@@ -133,7 +150,7 @@ class SessionLibraryActivity:FragmentActivity() {
         target.addView(LegionUiSupport.sectionLabel(this,"ВЫБРАННАЯ ЗАПИСЬ"))
         detail=label("Выберите завершённую запись.").apply { setTextIsSelectable(true); LegionUiSupport.reportSurface(this) }
         export=button("ЭКСПОРТ ВЫБРАННОЙ СЕССИИ ZIP", "library.zip") {
-            val selected=vm.state.value?.detail ?: return@button
+            val selected=vm.state.value?.detail?.takeIf { it.header.endedAtMs != null } ?: return@button
             if(!vm.pendingDocument.begin(selected)) return@button
             export.isEnabled=false
             runCatching { document.launch("legion-session-${selected.header.id.take(8)}.zip") }
@@ -143,9 +160,8 @@ class SessionLibraryActivity:FragmentActivity() {
                     status.text="Не удалось открыть выбор документа."
                 }
         }
-        button("Выбрать другую сессию") { showPage(AnalyticsPage.LIBRARY) }
         target=panels.getValue(AnalyticsPage.SIGNALS)
-        signals=label("Выберите завершённую сессию в библиотеке.").apply {
+        signals=label("Выберите сессию в библиотеке.").apply {
             setTextIsSelectable(true);LegionUiSupport.reportSurface(this)
         }
         reportActions += button("Обновить хронологию", "signals.timeline") {
@@ -157,8 +173,12 @@ class SessionLibraryActivity:FragmentActivity() {
             vm.state.value?.analytics?.let { exportCsv("signals",SessionSignals.csv(it.signals)) }
         }
 
+        reportActions += button("Поделиться хронологией") {
+            vm.state.value?.analytics?.let { shareText(SessionSignals.render(it.signals)) }
+        }
+
         target=panels.getValue(AnalyticsPage.INCIDENTS)
-        incidents=label("Выберите завершённую сессию в библиотеке.").apply {
+        incidents=label("Выберите сессию в библиотеке.").apply {
             setTextIsSelectable(true);LegionUiSupport.reportSurface(this)
         }
         reportActions += button("Фильтр категорий", "incidents.filter") {
@@ -171,6 +191,13 @@ class SessionLibraryActivity:FragmentActivity() {
         }
         csvIncidents=button("Сохранить эпизоды CSV", "incidents.csv") {
             vm.state.value?.analytics?.let { exportCsv("incidents",SessionIncidents.csv(it.incidents,incidentKind)) }
+        }
+
+        reportActions += button("Обновить эпизоды") {
+            vm.state.value?.detail?.header?.id?.let(vm::refreshSelected)
+        }
+        reportActions += button("Поделиться эпизодами") {
+            vm.state.value?.analytics?.let { shareText(SessionIncidents.render(it.incidents, incidentKind)) }
         }
 
         target=panels.getValue(AnalyticsPage.COMPARE)
@@ -203,11 +230,7 @@ class SessionLibraryActivity:FragmentActivity() {
             vm.state.value?.pair?.let { exportCsv("compare",SessionCompareAnalysis.csv(it)) }
         }
         shareCompare=button("Поделиться сравнением сессий") {
-            vm.state.value?.pair?.let { pair ->
-                runCatching { startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
-                    type="text/plain";putExtra(Intent.EXTRA_TEXT,SessionCompareAnalysis.report(pair))
-                },"Поделиться сравнением")) }.onFailure { status.text="Нет приложения для отправки." }
-            }
+            vm.state.value?.pair?.let { shareText(SessionCompareAnalysis.report(it)) }
         }
 
         target=panels.getValue(AnalyticsPage.BASELINES)
@@ -220,6 +243,9 @@ class SessionLibraryActivity:FragmentActivity() {
         csvBaseline=button("Экспортировать сравнение CSV", "baselines.csv") {
             vm.state.value?.baseline?.let { exportCsv("baseline",SessionBaselines.csv(it)) }
         }
+        button("Поделиться базовыми показателями") {
+            vm.state.value?.baseline?.let { shareText(SessionBaselines.render(it)) }
+        }.also { shareBaseline = it }
         target=panels.getValue(AnalyticsPage.OVERVIEW)
         button("Эксперименты A/B и заметки") {
             val pkg=vm.state.value?.detail?.header?.packageName ?: vm.state.value?.filter?.packageName
@@ -236,6 +262,9 @@ class SessionLibraryActivity:FragmentActivity() {
         incidentKind=SessionIncidents.Kind.entries.firstOrNull { it.name==savedInstanceState?.getString("analytics_incident") }
         val initial=AnalyticsPage.entries.firstOrNull { it.name==savedInstanceState?.getString("analytics_page") }
             ?: AnalyticsPage.forFeature(featureId) ?: AnalyticsPage.LIBRARY
+        returnToReport = AnalyticsPage.entries.firstOrNull {
+            it.name == savedInstanceState?.getString("analytics_return_page")
+        }
         showPage(initial)
         selector.onItemSelectedListener=object:AdapterView.OnItemSelectedListener {
             override fun onNothingSelected(parent:AdapterView<*>?)=Unit
@@ -258,7 +287,8 @@ class SessionLibraryActivity:FragmentActivity() {
         previous.isEnabled=available && s.previous.isNotEmpty()
         next.isEnabled=available && s.next!=null && s.previous.size<499
         if(s.next!=null && s.previous.size>=499) filters.append("\nЛимит 500 страниц. Уточните фильтр.")
-        export.isEnabled=available && s.detail!=null
+        export.isEnabled=available && s.detail?.header?.endedAtMs!=null
+        selectSession.isEnabled = available
         list.removeAllViews()
         if(s.rows.isEmpty())list.addView(LegionUiSupport.noticeView(this,
             if(s.busy) "Читаю локальные записи…" else "Записей нет.",
@@ -286,11 +316,16 @@ class SessionLibraryActivity:FragmentActivity() {
         selected.text=d?.header?.let { "${it.appLabel} · ${it.id.take(8)}\n${date.format(Date(it.startedAtMs))}" }
             ?: "Сессия не выбрана."
         renderReports(s)
-        if(newlySelected && page==AnalyticsPage.LIBRARY)showPage(AnalyticsPage.OVERVIEW)
+        selectSession.text = if (d == null) "Выбрать сессию" else "Сменить сессию"
+        if (newlySelected && page == AnalyticsPage.LIBRARY) {
+            showPage(returnToReport ?: AnalyticsPage.OVERVIEW)
+            returnToReport = null
+        }
     }
 
     private fun showPage(next:AnalyticsPage) {
         page=next
+        selectSession.visibility = if (next == AnalyticsPage.LIBRARY) View.GONE else View.VISIBLE
         panels.forEach { (key,panel) -> panel.visibility=if(key==next)View.VISIBLE else View.GONE }
         if(selector.selectedItemPosition!=next.ordinal)selector.setSelection(next.ordinal)
     }
@@ -320,8 +355,8 @@ class SessionLibraryActivity:FragmentActivity() {
         val snapshot=s.analytics
         val enabled=!s.busy && !vm.pendingCsv.hasPending && !vm.pendingDocument.hasPending
         if(s.comparisonRows.none { it.id==compareId })compareId=null
-        signals.text=snapshot?.let { SessionSignals.render(it.signals) } ?: "Выберите завершённую сессию."
-        incidents.text=snapshot?.let { SessionIncidents.render(it.incidents,incidentKind) } ?: "Выберите завершённую сессию."
+        signals.text=snapshot?.let { SessionSignals.render(it.signals) } ?: "Выберите сессию."
+        incidents.text=snapshot?.let { SessionIncidents.render(it.incidents,incidentKind) } ?: "Выберите сессию."
         comparison.text=s.pair?.let(SessionCompareAnalysis::report) ?: "Выберите вторую сессию и окно: $minutes мин."
         baseline.text=s.baseline?.let(SessionBaselines::render) ?: "Выберите период для анализа истории игры."
         comparisonChoice.text="Вторая сессия: ${compareId?.take(8) ?: "выбрать"}"
@@ -332,7 +367,7 @@ class SessionLibraryActivity:FragmentActivity() {
         chart.visibility=if(s.pair!=null)View.VISIBLE else View.GONE
         reportActions.forEach { it.isEnabled=enabled && snapshot!=null }
         comparisonChoice.isEnabled=enabled && s.comparisonRows.isNotEmpty()
-        windowButton.isEnabled=enabled && snapshot!=null
+        windowButton.isEnabled=enabled && snapshot?.detail?.header?.endedAtMs!=null
         chartButton.isEnabled=enabled && s.pair!=null
         compareRun.isEnabled=enabled && snapshot!=null && compareId!=null
         csvSignals.isEnabled=enabled && snapshot!=null
@@ -340,6 +375,16 @@ class SessionLibraryActivity:FragmentActivity() {
         csvCompare.isEnabled=enabled && s.pair!=null
         shareCompare.isEnabled=enabled && s.pair!=null
         csvBaseline.isEnabled=enabled && s.baseline!=null
+        shareBaseline.isEnabled = csvBaseline.isEnabled
+    }
+
+    private fun shareText(content: String) {
+        runCatching {
+            startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_TEXT, content)
+            }, "Поделиться отчётом"))
+        }.onFailure { status.text = "Нет приложения для отправки." }
     }
 
     private fun exportCsv(kind:String,content:String) {
@@ -356,6 +401,7 @@ class SessionLibraryActivity:FragmentActivity() {
 
     override fun onSaveInstanceState(outState:Bundle) {
         outState.putString("analytics_page",page.name)
+        outState.putString("analytics_return_page", returnToReport?.name)
         outState.putString("analytics_compare_id",compareId)
         outState.putInt("analytics_minutes",minutes)
         outState.putString("analytics_graph",graph.name)
