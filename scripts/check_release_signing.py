@@ -21,11 +21,19 @@ for name in names[1:]:
 assert 'System.getenv("LEGION_RELEASE_STORE_FILE")' in gradle
 assert 'hasReleaseSigning' in gradle and 'throw GradleException(' in gradle
 assert 'signingConfig = signingConfigs.getByName("legionRelease")' in gradle
-assert 'versionCode = 49' in gradle
-assert 'versionName = "0.1.0-alpha.49"' in gradle
+assert 'versionCode = 59' in gradle
+assert 'versionName = "0.1.0-alpha.59"' in gradle
 assert "workflow_dispatch:" in workflow
-assert "tag=v0.1.0-alpha.49" in workflow
-assert "Legion-Control-v0.1.0-alpha.49-signed.apk" in workflow
+assert re.search(r"^  push:\n    branches: \[main\]", workflow, re.MULTILINE)
+assert "github.event_name == 'push' && contains(github.event.head_commit.message, '[signed-apk]')" in workflow
+assert workflow.index("Wait for exact main commit Android CI before permanent signing") < workflow.index("Restore private release keystore outside the repository")
+assert "type: boolean" in workflow and "default: false" in workflow
+assert workflow.count("if: github.event_name == 'workflow_dispatch' && inputs.publish == true") == 1
+assert workflow.index("if: github.event_name == 'workflow_dispatch' && inputs.publish == true") > workflow.index("Publish pre-release with permanent certificate")
+assert "refusing to replace binaries" in workflow
+assert "cancel-in-progress: false" in workflow
+assert "tag=v0.1.0-alpha.59" in workflow
+assert "Legion-Control-v0.1.0-alpha.59-signed.apk" in workflow
 assert "--event push --branch main" in workflow
 assert "--json headSha,headBranch,event,status,conclusion" in workflow
 assert "github.ref == 'refs/heads/main'" in workflow

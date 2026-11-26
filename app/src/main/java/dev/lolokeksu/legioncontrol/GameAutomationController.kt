@@ -1,6 +1,5 @@
 package dev.lolokeksu.legioncontrol
 
-import android.app.NotificationManager
 import android.app.KeyguardManager
 import android.app.usage.UsageEvents
 import android.app.usage.UsageStatsManager
@@ -12,7 +11,6 @@ import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
 import android.os.SystemClock
-import android.provider.Settings
 import java.util.UUID
 import java.util.concurrent.Executors
 
@@ -54,11 +52,9 @@ internal class GameAutomationController(
     }
     private data class Observation(val events:List<AutomationEvent>,val temp:Int?,val thermal:Int?)
     private fun available():Boolean {
-        val nm=context.getSystemService(NotificationManager::class.java)
         val power=context.getSystemService(PowerManager::class.java)
         val keyguard=context.getSystemService(KeyguardManager::class.java)
-        return GameUsageDiagnostics.hasUsageAccess(context) && Settings.canDrawOverlays(context) &&
-            nm?.areNotificationsEnabled()==true && nm.getNotificationChannel("game-toolbox")?.importance?.let{it>NotificationManager.IMPORTANCE_NONE}==true &&
+        return CapabilityAccessBackend.automationAccess(context, "game-toolbox") == AccessState.READY &&
             power?.isInteractive==true && keyguard?.isKeyguardLocked==false
     }
     fun start() {

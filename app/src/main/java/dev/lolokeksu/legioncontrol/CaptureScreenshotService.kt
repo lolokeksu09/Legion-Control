@@ -67,6 +67,11 @@ class CaptureScreenshotService : Service() {
             end("Захват отменён пользователем.")
             return START_NOT_STICKY
         }
+        if (intent?.action == ACTION_START && !startupRecoveryAllowsServiceStart()) {
+            CaptureCoordinator.releasePending(CaptureMode.SCREENSHOT)
+            stopSelfResult(startId)
+            return START_NOT_STICKY
+        }
         if (intent?.action != ACTION_START || active || finished.get()) {
             if (!active) stopSelfResult(startId)
             return START_NOT_STICKY

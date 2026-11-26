@@ -180,13 +180,12 @@ class GameToolboxFragment : Fragment() {
         tile("Настроить профиль", "Выбрать громкость, яркость и режим DND", "toolbox.profile") {
             configureGameLaunchProfile()
         }
-        tile("Применить профиль", "Без запуска игры") { applyGameLaunchProfile(false) }
-        tile("Применить профиль и запустить игру", "Сохранить возможность отката") {
-            applyGameLaunchProfile(true)
+        tile("Применить профиль", "После подтверждения; без запуска игры") { confirmApplyGameLaunchProfile(false) }
+        tile("Применить профиль и запустить игру", "Покажет все общесистемные изменения перед запуском") {
+            confirmApplyGameLaunchProfile(true)
         }
-        tile("Восстановить прежние настройки", "Вернуть сохранённое состояние Android", "toolbox.undo") {
-            status.text = GameLaunchProfiles.restore(requireContext()).message
-            renderStatus()
+        tile("Восстановить прежние настройки", "Сравнить текущие значения и вернуть только неизменённые пользователем", "toolbox.undo") {
+            confirmRestoreGameLaunchProfile()
         }
 
         group("Game Automation")
@@ -231,6 +230,15 @@ class GameToolboxFragment : Fragment() {
         }
 
         group("Системные разрешения и возврат")
+        tile("Уведомления Game Toolbox", "Включить уведомления приложения или канала") {
+            val ctx=requireContext()
+            val manager=ctx.getSystemService(android.app.NotificationManager::class.java)
+            val intent=if(manager?.getNotificationChannel("game-toolbox")!=null)
+                CapabilityAccessBackend.notificationChannelIntent(ctx,"game-toolbox")
+                else CapabilityAccessBackend.settingsIntent(ctx,CapabilityAccess.NOTIFICATIONS)
+            if(intent!=null) runCatching { startActivity(intent) }
+                .onFailure { status.text="Не удалось открыть настройки уведомлений." }
+        }
         tile("Доступ к режиму «Не беспокоить»", "Управляется настройками Android") {
             runCatching { startActivity(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)) }
                 .onFailure { status.text = "Не удалось открыть настройки: ${it.javaClass.simpleName}" }
@@ -258,19 +266,18 @@ class GameToolboxFragment : Fragment() {
     }
 
     private fun renderStatus() {
-        val enabled = Settings.canDrawOverlays(requireContext())
+        val access = CapabilityAccessBackend.read(requireContext())
         if(::automationStatus.isInitialized) {
-            val usage=GameUsageDiagnostics.hasUsageAccess(requireContext())
-            val notifications=requireContext().getSystemService(android.app.NotificationManager::class.java)?.areNotificationsEnabled()==true
-            automationStatus.text="Usage Access: "+(if(usage)"выдан" else "нет доступа")+
-                " · уведомления: "+(if(notifications)"включены" else "выключены")+
+            automationStatus.text="Usage Access: "+access[CapabilityAccess.USAGE].label+
+                " · уведомления: "+access[CapabilityAccess.NOTIFICATIONS].label+
+                " · канал: "+CapabilityAccessBackend.notificationChannelState(requireContext(), "game-toolbox").label+
                 "\nОдноразовый авто-профиль · возврат при наблюдаемом выходе"
         }
         val pkg = prefs.getString(ToolboxPreferences.GAME, null)
         val label = prefs.getString(ToolboxPreferences.LABEL, null)
         summary.text = buildString {
             append("Показ поверх окон: ")
-            append(if (enabled) "РАЗРЕШЁН" else "НЕТ ДОСТУПА")
+            append(access[CapabilityAccess.OVERLAY].label)
             append("\nВыбрано: ").append(label ?: "не выбрано")
             if (pkg != null) append(" (").append(pkg).append(")")
             append("\nПрозрачность: ")
@@ -288,6 +295,7 @@ class GameToolboxFragment : Fragment() {
                         append(" · DND ").append(when (it.focusEnabled) {
                             true -> "вкл"; false -> "выкл"; null -> "не менять"
                         })
+                        append(" · доступы ").append(CapabilityAccessBackend.profileAccess(requireContext(), it).label)
                     }
                 } ?: "не настроен")
             }
@@ -325,60 +333,137 @@ class GameToolboxFragment : Fragment() {
     }
 
     private fun configureGameLaunchProfile() {
+        val ctx = requireContext()
         val pkg = prefs.getString(ToolboxPreferences.GAME, null)
         if (pkg == null || !GameLaunchProfilePolicy.validPackage(pkg)) {
             status.text = "Сначала выберите игру."
             return
         }
-        val volumes: List<Int?> = listOf(null, 0, 20, 40, 60, 80, 100)
-        val brightness: List<Int?> = listOf(null, 20, 40, 60, 80, 100)
+        val current = GameLaunchProfiles.profile(ctx, pkg)
+        val volumes = GameLaunchProfilePolicy.editorPercentOptions(
+            listOf(0, 20, 40, 60, 80, 100), current?.mediaPercent)
+        val brightness = GameLaunchProfilePolicy.editorPercentOptions(
+            listOf(10, 20, 40, 60, 80, 100), current?.brightnessPercent)
         val focus: List<Boolean?> = listOf(null, true, false)
-        LegionDialogs.builder(requireContext())
-            .setTitle("Громкость мультимедиа")
-            .setItems(volumes.map { it?.let { v -> "$v%" } ?: "Не менять" }.toTypedArray()) { _, vi ->
-                LegionDialogs.builder(requireContext())
-                    .setTitle("Яркость")
-                    .setItems(brightness.map { it?.let { v -> "$v%" } ?: "Не менять" }.toTypedArray()) { _, bi ->
-                        LegionDialogs.builder(requireContext())
-                            .setTitle("Режим «Не беспокоить»")
-                            .setItems(arrayOf("Не менять", "Включить", "Выключить")) { _, fi ->
-                                val profile = GameLaunchProfile(volumes[vi], brightness[bi], focus[fi])
-                                status.text = if (GameLaunchProfiles.save(requireContext(), pkg, profile)) {
-                                    if (profile.actionable) "Профиль игры сохранён." else "Профиль игры удалён."
-                                } else "Android не смог сохранить профиль."
-                                // Refresh the summary without replacing the separate actionable feedback.
-                                renderStatus()
-                            }
-                            .setNegativeButton("Отмена", null).show()
-                    }
-                    .setNegativeButton("Отмена", null).show()
+        val content = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(20.dp, 8.dp, 20.dp, 8.dp)
+        }
+        fun selector(title: String, options: List<String>, selected: Int): android.widget.Spinner {
+            val label = text(title, 13f, fg, true).apply {
+                setPadding(0, 12.dp, 0, 4.dp)
+            }
+            content.addView(label)
+            return LegionUiSupport.spinner(ctx, options).also {
+                it.id = View.generateViewId()
+                label.labelFor = it.id
+                it.setSelection(selected.coerceIn(options.indices))
+                content.addView(it, LinearLayout.LayoutParams(-1, -2))
+            }
+        }
+        content.addView(text(
+            "Изменения затрагивают настройки Android целиком, а не только игру. " +
+                "Исходные значения сохраняются для ручного возврата.",
+            12f, muted
+        ).apply { setPadding(0, 4.dp, 0, 8.dp) })
+        val volume = selector("Громкость мультимедиа",
+            volumes.map { it?.let { value -> "$value%" } ?: "Не менять" },
+            volumes.indexOf(current?.mediaPercent).coerceAtLeast(0))
+        val light = selector("Яркость",
+            brightness.map { it?.let { value -> "$value%" } ?: "Не менять" },
+            brightness.indexOf(current?.brightnessPercent).coerceAtLeast(0))
+        val dnd = selector("Режим «Не беспокоить»",
+            listOf("Не менять", "Включить", "Выключить"),
+            focus.indexOf(current?.focusEnabled).coerceAtLeast(0))
+        val scroll = ScrollView(ctx).apply { addView(content) }
+        LegionDialogs.builder(ctx).setTitle("Профиль запуска · $pkg")
+            .setView(scroll)
+            .setPositiveButton("Сохранить") { _, _ ->
+                val profile = GameLaunchProfile(
+                    volumes[volume.selectedItemPosition],
+                    brightness[light.selectedItemPosition],
+                    focus[dnd.selectedItemPosition]
+                )
+                status.text = if (GameLaunchProfiles.save(ctx, pkg, profile)) {
+                    if (profile.actionable) "Профиль запуска сохранён." else "Профиль запуска удалён."
+                } else "Не удалось сохранить профиль. Проверьте, не выполняется ли восстановление ZIP."
+                renderStatus()
             }
             .setNegativeButton("Отмена", null).show()
     }
 
-    private fun applyGameLaunchProfile(withGame: Boolean) {
+    private fun confirmApplyGameLaunchProfile(withGame: Boolean) {
+        val ctx = requireContext()
         val pkg = prefs.getString(ToolboxPreferences.GAME, null)
-        if (pkg == null) {
+        if (pkg == null || !GameLaunchProfilePolicy.validPackage(pkg)) {
             status.text = "Сначала выберите игру."
             return
         }
-        val launchIntent = if (withGame) requireContext().packageManager.getLaunchIntentForPackage(pkg) else null
-        if (withGame && launchIntent == null) {
+        val profile = GameLaunchProfiles.profile(ctx, pkg)
+        if (profile == null || !profile.actionable) {
+            status.text = "Сначала сохраните профиль запуска."
+            return
+        }
+        val pending = GameLaunchProfiles.pendingPackage(ctx)
+        if (pending != null) {
+            status.text = "Сначала восстановите предыдущие настройки: $pending"
+            return
+        }
+        val access = CapabilityAccessBackend.profileAccess(ctx, profile)
+        if (access != AccessState.READY) {
+            status.text = "Необходимые доступы: " + access.label
+            return
+        }
+        val launch = if (withGame) ctx.packageManager.getLaunchIntentForPackage(pkg) else null
+        if (withGame && launch == null) {
             status.text = "Android не разрешает запустить выбранную игру."
             return
         }
-        val result = GameLaunchProfiles.apply(requireContext(), pkg)
+        val description = "Приложение: $pkg\n" +
+            "Громкость: " + (profile.mediaPercent?.let { "$it%" } ?: "не менять") + "\n" +
+            "Яркость: " + (profile.brightnessPercent?.let { "$it%" } ?: "не менять") + "\n" +
+            "DND: " + (profile.focusEnabled?.let { if (it) "включить" else "выключить" } ?: "не менять") +
+            "\n\nНастройки системные, не игровые. Legion Control сохранит исходные значения. " +
+            "Возврат выполняется отдельно вручную; значения, изменённые пользователем после применения, не перезаписываются."
+        LegionDialogs.builder(ctx).setTitle(
+            if (withGame) "Применить профиль и открыть игру?" else "Применить профиль?"
+        ).setMessage(description)
+            .setPositiveButton(if (withGame) "Применить и открыть" else "Применить") { _, _ ->
+                applyGameLaunchProfile(pkg, profile, launch)
+            }
+            .setNegativeButton("Отмена", null).show()
+    }
+
+    private fun applyGameLaunchProfile(pkg: String, approved: GameLaunchProfile, launchIntent: Intent?) {
+        val result = GameLaunchProfiles.applyConfirmed(requireContext(), pkg, approved)
         status.text = result.message
+        renderStatus()
         if (result.success && launchIntent != null) {
             runCatching { startActivity(launchIntent) }
                 .onFailure { failure ->
-                    // System settings are global, so a failed activity launch
-                    // must attempt the safe compare-before-restore immediately.
                     val rollback = GameLaunchProfiles.restore(requireContext())
                     status.text = "Игра не запущена: " + failure.javaClass.simpleName +
                         ". Возврат системных настроек: " + rollback.message
+                    renderStatus()
                 }
         }
+    }
+
+    private fun confirmRestoreGameLaunchProfile() {
+        val ctx = requireContext()
+        val pending = GameLaunchProfiles.pendingConfirmation(ctx)
+        if (pending == null) {
+            status.text = "Нет ожидающих возврата настроек."
+            return
+        }
+        LegionDialogs.builder(ctx).setTitle("Восстановить системные настройки?")
+            .setMessage("Запись возврата: ${pending.packageName}\nLegion Control сравнит текущие значения с исходными и запрошенными. " +
+                "Поля, которые пользователь или другая программа изменили после применения, останутся нетронутыми. " +
+                "Ошибки Android останутся в записи для повторной попытки.")
+            .setPositiveButton("Восстановить") { _, _ ->
+                status.text = GameLaunchProfiles.restoreConfirmed(ctx, pending).message
+                renderStatus()
+            }.setNegativeButton("Отмена", null).show()
     }
 
     private fun startAutomation() {
@@ -390,10 +475,18 @@ class GameToolboxFragment : Fragment() {
         val profile=GameLaunchProfiles.profile(ctx,pkg)
         if(profile==null || !profile.actionable){status.text="Сначала сохраните профиль.";return}
         if(GameLaunchProfiles.pendingPackage(ctx)!=null){status.text="Сначала восстановите предыдущий профиль.";return}
-        if(!Settings.canDrawOverlays(ctx)){status.text="Разрешите показ поверх окон.";overlaySettings();return}
-        if(!GameUsageDiagnostics.hasUsageAccess(ctx)){status.text="Выдайте Usage Access вручную.";return}
-        val nm=ctx.getSystemService(android.app.NotificationManager::class.java)
-        if(nm?.areNotificationsEnabled()!=true){status.text="Разрешите уведомления для явного контроля авто-сессии.";return}
+        val overlay=CapabilityAccessBackend.overlayState(ctx)
+        if(overlay!=AccessState.READY){status.text="Поверх окон: "+overlay.label;overlaySettings();return}
+        val usage=CapabilityAccessBackend.usageState(ctx)
+        if(usage!=AccessState.READY){status.text="Usage Access: "+usage.label;return}
+        val notifications=CapabilityAccessBackend.notificationState(ctx)
+        if(notifications!=AccessState.READY){status.text="Уведомления: "+notifications.label;return}
+        // Channel may not exist yet; service creates it. A known disabled channel blocks start.
+        if(CapabilityAccessBackend.notificationChannelState(ctx,"game-toolbox")==AccessState.DISABLED){
+            status.text="Канал Game Toolbox отключён. Включите его в системных настройках.";return
+        }
+        val profileAccess=CapabilityAccessBackend.profileAccess(ctx,profile)
+        if(profileAccess!=AccessState.READY){status.text="Настройки профиля: "+profileAccess.label;return}
         val launch=ctx.packageManager.getLaunchIntentForPackage(pkg)
         if(launch==null){status.text="Игра недоступна для запуска.";return}
         LegionDialogs.builder(ctx).setTitle("Включить одноразовую автоматизацию?")

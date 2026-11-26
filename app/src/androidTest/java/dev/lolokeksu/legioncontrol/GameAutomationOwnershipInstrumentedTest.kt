@@ -13,16 +13,42 @@ class GameAutomationOwnershipInstrumentedTest {
         val context=InstrumentationRegistry.getInstrumentation().targetContext
         val prefs=context.getSharedPreferences("legion-launch-profiles-v1",Context.MODE_PRIVATE)
         val pkg="dev.legion.automation.test"
-        val keys=listOf("pending_global_undo","pending_auto_owner","profile_"+pkg)
+        val keys=listOf("pending_global_undo","pending_auto_owner","profile_"+pkg,"pending_undo_generation")
         val previous=keys.associateWith{prefs.getString(it,null)}
         val ticket=GameLaunchUndo(pkg,LaunchSettingChange(1,2),null,null,null).encode()
         try {
             assertTrue(prefs.edit().putString(keys[0],ticket).putString(keys[1],"owner-a")
-                .putString(keys[2],GameLaunchProfile(mediaPercent=20).encode()).commit())
+                .putString(keys[2],GameLaunchProfile(mediaPercent=20).encode())
+                .putString(keys[3],"generation-a").commit())
+            val approval = requireNotNull(GameLaunchProfiles.pendingConfirmation(context))
+            // Identical values/package/owner, but a different ticket instance: no Android writes.
+            assertTrue(prefs.edit().putString(keys[3],"generation-b").commit())
+            val staleUndo = GameLaunchProfiles.restoreConfirmed(context, approval)
+            assertFalse(staleUndo.success)
+            assertTrue(staleUndo.message.contains("Запись возврата изменилась"))
+            assertEquals(ticket,prefs.getString(keys[0],null))
+            assertEquals("generation-b",prefs.getString(keys[3],null))
+            var manualExecuted = false
+            val blocked = SmartSystemControls.withManualMutation(context) {
+                manualExecuted = true
+                "unexpected"
+            }
+            assertFalse(manualExecuted)
+            assertTrue(blocked.contains("возврат игрового профиля"))
+            assertEquals(ticket,prefs.getString(keys[0],null))
             assertTrue(GameLaunchProfiles.ownsAutomatic(context,"owner-a"))
             assertFalse(GameLaunchProfiles.ownsAutomatic(context,"owner-b"))
             assertTrue(GameLaunchProfiles.restoreAutomatic(context,"owner-b").success)
             assertEquals(ticket,prefs.getString(keys[0],null))
+            // A stale confirmation must be rejected before the existing-ticket gate.
+            // Synthetic ticket makes this test non-mutating even if that check regresses.
+            val staleManual = GameLaunchProfiles.applyConfirmed(context, pkg, GameLaunchProfile(mediaPercent=80))
+            assertFalse(staleManual.success)
+            assertTrue(staleManual.message.contains("Профиль изменился после подтверждения"))
+            val currentManual = GameLaunchProfiles.applyConfirmed(context, pkg, GameLaunchProfile(mediaPercent=20))
+            assertFalse(currentManual.success)
+            assertTrue(currentManual.message.contains("Сначала верните предыдущие"))
+            assertEquals(ticket, prefs.getString(keys[0], null))
             assertFalse(GameLaunchProfiles.applyAutomatic(context,pkg,"owner-b",GameLaunchProfile(mediaPercent=80)).success)
             assertFalse(GameLaunchProfiles.applyAutomatic(context,pkg,"owner-b",GameLaunchProfile(mediaPercent=20)).success)
             assertEquals("owner-a",prefs.getString(keys[1],null))

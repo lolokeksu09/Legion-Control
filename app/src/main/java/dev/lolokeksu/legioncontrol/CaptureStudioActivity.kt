@@ -191,6 +191,12 @@ class CaptureStudioActivity : ComponentActivity() {
             "minutes", intArrayOf(1, 5, 15), arrayOf("1 минута", "5 минут", "15 минут")
         ) }
 
+        action("Проверить доступ к игровому звуку") {
+            val access=CapabilityAccessBackend.playbackAudioState(this)
+            status.text="RECORD_AUDIO: "+access.label+
+                ". Разрешение не гарантирует, что выбранная игра допускает захват звука."
+        }
+
         heading("Профили записи по играм")
         note("Выберите игру в Game Toolbox. До сохранения её профиля применяются общие настройки. " +
             "После сохранения разрешение, FPS, битрейт, лимит и звук изменяются отдельно для этой игры.")

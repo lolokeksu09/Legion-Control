@@ -22,8 +22,9 @@ class LegionQuickTileService : TileService() {
     @SuppressLint("StartActivityAndCollapseDeprecated")
     override fun onClick() {
         super.onClick()
-        val intent=Intent(this,SmartProfilesActivity::class.java).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        val intent=Intent(this,NavigationHostActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            putExtra(ModuleNavigation.EXTRA_MODULE_ROUTE,R.id.smartProfilesDestination)
         }
         if(Build.VERSION.SDK_INT>=34) {
             val pending=PendingIntent.getActivity(this,0,intent,

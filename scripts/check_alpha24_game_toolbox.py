@@ -16,7 +16,7 @@ tuning = (src / "ToolboxTuning.kt").read_text(encoding="utf-8")
 system = (src / "SmartSystemControls.kt").read_text(encoding="utf-8")
 store = (src / "LocalHistoryStore.kt").read_text(encoding="utf-8")
 tests = (root / "app/src/test/java/dev/lolokeksu/legioncontrol/ToolboxTuningTest.kt").read_text(encoding="utf-8")
-assert "versionCode = 49" in gradle and 'versionName = "0.1.0-alpha.49"' in gradle
+assert "versionCode = 59" in gradle and 'versionName = "0.1.0-alpha.59"' in gradle
 assert "applicationId = \"dev.lolokeksu.legioncontrol\"" in gradle
 assert "HapticLabSchema.VERSION" in store, "Do not change SQLite v12 for an overlay"
 assert "GAME TOOLBOX" in main and "GameToolboxActivity::class.java" in main
@@ -64,6 +64,14 @@ assert "Settings.canDrawOverlays(this)" in service
 assert "START_NOT_STICKY" in service and "startForeground(" in service
 assert "stopSelf()" in service and "removeView(" in service
 assert "handler.removeCallbacks(clock)" in service and "onDestroy()" in service
+clock = service[service.index("private val clock"):service.index("override fun onBind")]
+toggle = service[service.index("private fun togglePanel"):service.index("private fun applyPreferences")]
+start = service[service.index("override fun onStartCommand"):service.index("private fun updateAutomationNotification")]
+assert "if (!expanded || overlay == null) return" in clock
+assert "if (expanded && overlay != null) handler.postDelayed(this, 1000)" in clock
+assert "handler.post(clock)" not in start
+assert toggle.index("handler.removeCallbacks(clock)") < toggle.index("if (expanded) clock.run()")
+assert "SystemClock.elapsedRealtime() - startedAt" in clock
 assert "ACTION_STOP" in service and ".addAction(" in service
 assert "setOnTouchListener(DragHandler())" in service
 assert "ToolboxTuning.position(" in service and "ToolboxTuning.sizeDp(" in service

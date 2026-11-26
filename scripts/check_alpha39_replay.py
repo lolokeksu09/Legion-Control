@@ -47,7 +47,7 @@ AUDIO_TEST = (TEST / "ReplayAudioBufferTest.kt").read_text()
 assert "AudioPlaybackCaptureConfiguration.Builder(projection)" in AUDIO
 assert ".addMatchingUid(selectedGameUid)" in AUDIO
 assert "setAudioPlaybackCaptureConfig(playback)" in AUDIO
-assert "ReplayAudioBuffer(seconds)" in AUDIO
+assert "ReplayAudioBuffer(seconds, maxBufferBytes)" in AUDIO
 assert "RECORD_AUDIO" in STUDIO and "REQUEST_REPLAY_AUDIO_PERMISSION" in STUDIO
 assert "EXTRA_PLAYBACK_AUDIO" in REPLAY and "ReplayAudioCapture" in REPLAY
 assert "ReplayAudioSnapshot" in EXPORT and "writer.addTrack(it.format)" in EXPORT
@@ -57,7 +57,7 @@ assert "audio capture is optional" in (
     ROOT / "docs/ALPHA39-REPLAY-ENGINE.md").read_text().lower()
 assert "android.permission.QUERY_ALL_PACKAGES" not in MANIFEST
 assert "android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" in MANIFEST
-for forbidden in ("Runtime.getRuntime()", "Shizuku", "MediaRecorder(",
+for forbidden in ("Runtime.getRuntime().exec(", "Shizuku", "MediaRecorder(",
                   "MediaProjection.createScreenCaptureIntent"):
     assert forbidden not in REPLAY, forbidden
 print("alpha.39 Replay + opt-in UID-filtered AAC wiring: PASS")

@@ -1,5 +1,7 @@
 # Legion Control
 
+**Актуальный аудит (26.11.2026):** [реестр LC-01–13 и Roadmap Beta](docs/AUDIT-2026-11-26.md) · [Stability & Safety](docs/STABILITY-SAFETY-2026-11-26.md). Подписанный workflow запускается вручную; публикация только при явном publish=true, точном main CI и новом теге. Alpha 49 остаётся последним опубликованным релизом.
+
 Карта разделов и всех основных функций: [информационная архитектура Legion Control](docs/FEATURE-INFORMATION-ARCHITECTURE.md). Навигация сохраняет 5 вкладок: Главная / Игры / Инструменты / История / Настройки.
 
 Самостоятельное Android-приложение для Lenovo Legion Y70 и других Android 13+ устройств. Сочетает ручные проверки, системные инструменты и Game Toolbox поверх игр — без Root/Shizuku.

@@ -272,6 +272,58 @@ object LegionUiSupport {
         return row
     }
 
+    /** Status rows retain text semantics, even with color disabled or a screen reader. */
+    internal fun permissionRow(context: Context, item: PermissionItem,
+                               onClick: () -> Unit): LinearLayout {
+        val row = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            background = if (item.canOpenSettings)
+                RippleDrawable(ColorStateList.valueOf(0x4486B7FF), shape(this, PANEL, BORDER), null)
+            else shape(this, PANEL, BORDER)
+            setPadding(dp(this, 14), dp(this, 11), dp(this, 14), dp(this, 11))
+            minimumHeight = dp(this, 48)
+            if (item.canOpenSettings) {
+                isClickable = true
+                isFocusable = true
+                contentDescription = item.title + ". " + item.state.label + ". " + item.purpose +
+                    " Открыть настройки Android."
+                setOnClickListener { onClick() }
+            }
+        }
+        fun line(value: String, size: Float, color: Int, bold: Boolean = false) =
+            TextView(context).apply {
+                text = value
+                textSize = size
+                setTextColor(color)
+                setLineSpacing(3f, 1f)
+                if (bold) setTypeface(Typeface.DEFAULT, Typeface.BOLD)
+                if (item.canOpenSettings) importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+            }
+        val header = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        header.addView(line(item.title, 15f, Color.WHITE, true), LinearLayout.LayoutParams(0, -2, 1f))
+        val color = when (item.state) {
+            AccessState.READY -> SUCCESS
+            AccessState.PERMISSION_REQUIRED, AccessState.DISABLED -> WARNING
+            AccessState.UNKNOWN, AccessState.UNSUPPORTED -> MUTED
+        }
+        header.addView(line(item.state.label, 12f, color, true).apply {
+            maxWidth = dp(this, 140)
+            gravity = Gravity.END
+            setPadding(dp(this, 8), 0, 0, 0)
+        })
+        row.addView(header)
+        row.addView(line(item.purpose, 12f, MUTED).apply {
+            setPadding(0, dp(this, 5), 0, 0)
+        })
+        if (item.canOpenSettings) row.addView(line("Открыть настройки Android ›", 12f, ACCENT).apply {
+            setPadding(0, dp(this, 6), 0, 0)
+        })
+        return row
+    }
+
     enum class Notice { INFO, LOADING, EMPTY, ERROR, WARNING }
 
     /** Apply to real status or result views without replacing text or listeners. */

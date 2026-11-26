@@ -1,23 +1,28 @@
 name: Legion Control permanently signed APK
 
 on:
-  # Only trusted main-branch changes can access protected signing secrets.
+  # Only an explicitly marked main merge builds a signed artifact; never publishes.
   push:
     branches: [main]
-    paths:
-      - 'app/**'
-      - 'rust-core/**'
-      - 'scripts/**'
-      - '.github/workflows/release-apk.yml'
   workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Publish an approved new version after exact main CI'
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: write
   actions: read
 
+concurrency:
+  group: legion-signed-release
+  cancel-in-progress: false
+
 jobs:
   signed-release:
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[signed-apk]')))
     runs-on: ubuntu-latest
     timeout-minutes: 50
     steps:
@@ -90,6 +95,34 @@ jobs:
           name: Legion-Control-runtime-osv
           path: runtime-sbom/osv-report.json
           if-no-files-found: ignore
+      - name: Wait for exact main commit Android CI before permanent signing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          verified=0
+          for attempt in $(seq 1 120); do
+            result=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow android.yml \
+              --event push --branch main --commit "$GITHUB_SHA" --limit 10 --json headSha,headBranch,event,status,conclusion)
+            if jq -e --arg sha "$GITHUB_SHA" \
+                 '[.[] | select(.headSha == $sha and .headBranch == "main" and .event == "push" and .status == "completed" and .conclusion == "success")] | length > 0' \
+                 <<< "$result" >/dev/null; then
+              verified=1
+              break
+            fi
+            if jq -e --arg sha "$GITHUB_SHA" \
+                 '[.[] | select(.headSha == $sha and .headBranch == "main" and .event == "push" and .status == "completed" and .conclusion == "failure")] | length > 0' \
+                 <<< "$result" >/dev/null; then
+              echo '::error::Android CI failed for signed commit; refusing to sign'
+              exit 1
+            fi
+            sleep 10
+          done
+          if [ "$verified" -ne 1 ]; then
+            echo '::error::Exact-commit emulator CI did not finish successfully'
+            exit 1
+          fi
       - name: Restore private release keystore outside the repository
         env:
           LEGION_RELEASE_KEYSTORE_B64: ${{ secrets.LEGION_RELEASE_KEYSTORE_B64 }}
@@ -113,57 +146,28 @@ jobs:
           python3 scripts/verify_release_apk.py app/build/outputs/apk/release/app-release.apk "$ANDROID_HOME/build-tools/36.0.0/apksigner"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: Legion-Control-v0.1.0-alpha.49-permanent-release-apk
+          name: Legion-Control-v0.1.0-alpha.59-permanent-release-apk
           path: app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
-      - name: Wait for exact main commit Android CI before publication
-        if: github.event_name == 'push'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          verified=0
-          for attempt in $(seq 1 120); do
-            result=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow android.yml \
-              --event push --branch main --commit "$GITHUB_SHA" --limit 10 --json headSha,headBranch,event,status,conclusion)
-            if jq -e --arg sha "$GITHUB_SHA" \
-                 '[.[] | select(.headSha == $sha and .headBranch == "main" and .event == "push" and .status == "completed" and .conclusion == "success")] | length > 0' \
-                 <<< "$result" >/dev/null; then
-              verified=1
-              break
-            fi
-            if jq -e --arg sha "$GITHUB_SHA" \
-                 '[.[] | select(.headSha == $sha and .headBranch == "main" and .event == "push" and .status == "completed" and .conclusion == "failure")] | length > 0' \
-                 <<< "$result" >/dev/null; then
-              echo '::error::Android CI failed for signed commit; refusing to publish'
-              exit 1
-            fi
-            sleep 10
-          done
-          if [ "$verified" -ne 1 ]; then
-            echo '::error::Exact-commit emulator CI did not finish successfully'
-            exit 1
-          fi
       - name: Publish pre-release with permanent certificate
-        if: github.event_name == 'push'
+        if: github.event_name == 'workflow_dispatch' && inputs.publish == true
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          tag=v0.1.0-alpha.49
+          tag=v0.1.0-alpha.59
           apk=app/build/outputs/apk/release/app-release.apk
           if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "::error::Release $tag already exists; refusing to replace binaries"
             exit 1
           fi
           test -s "$apk"
-          asset=Legion-Control-v0.1.0-alpha.49-signed.apk
+          asset=Legion-Control-v0.1.0-alpha.59-signed.apk
           cp "$apk" "$asset"
           gh release create "$tag" "$asset" runtime-sbom/releaseRuntimeClasspath.cdx.json --repo "$GITHUB_REPOSITORY" \
-            --title 'Legion Control v0.1.0-alpha.49' \
-            --notes-file docs/ALPHA49-RELEASE-NOTES.md \
+            --title 'Legion Control v0.1.0-alpha.59' \
+            --notes-file docs/ALPHA59-RELEASE-NOTES.md \
             --prerelease --target "$GITHUB_SHA"
 
       - name: Remove temporary permanent signing keystore

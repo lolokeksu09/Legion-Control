@@ -1,5 +1,7 @@
 # Особенности проекта — Legion Control
 
+Актуальный реестр работ: [аудит 26.11.2026](docs/AUDIT-2026-11-26.md), [Stability & Safety](docs/STABILITY-SAFETY-2026-11-26.md). Эти документы уточняют исторические сведения о релизах и проверках ниже.
+
 Статус: адаптировано по фактическому состоянию репозитория `lolokeksu09/Legion-Control` на 2026-11-21. Идентификатор Android-пакета: `dev.lolokeksu.legioncontrol` (см. [app Gradle](app/build.gradle.kts)). Владелец утвердил отдельное Android-приложение, Kotlin + Rust и приоритет работающего backend перед дизайном. Этот документ не заменяет актуальный код, манифест и CI.
 
 ## Карточка проекта и решения владельца
@@ -122,3 +124,10 @@ User authorized continuing the full architecture refactor from alpha.26. This st
 ## Alpha.49 — unified application presentation and release (2026-11-24)
 
 Version `0.1.0-alpha.49` (`versionCode=49`) is the approved follow-up to Alpha.48. It consolidates 66 app-owned dialog call sites across 19 screens, chart axes/empty states, compact report cards and semantic loading/error/empty notices. The five-tab navigation retains full accessible names; the visible Tools label is shortened to prevent line wrapping. The public-API telemetry, Java/Kotlin/Rust boundaries, SQLite schema v12, installed-data continuity, package `dev.lolokeksu.legioncontrol`, permission manifest and permanent pinned signing certificate remain unchanged. See [UI changes](docs/ALPHA49-UNIFIED-UI.md) and [release notes](docs/ALPHA49-RELEASE-NOTES.md). Publish only on successful exact-main Android + signed workflow. Emulator checks do not substitute for physical-device L5 testing.
+
+
+## 2026-11-26 — approved Shizuku and fast integration policy (supersedes older restrictions)
+
+Owner explicitly authorizes optional Shizuku, large autonomous improvements, merge to main and signed APK assembly without repeated approvals. Earlier blanket prohibition on Shizuku is superseded ONLY for the optional official SDK boundary; ordinary Android functionality remains usable with no service or permission. No root operations, arbitrary privileged shell, hidden OEM controls or unsolicited permission grants. Initial integration: user-requested permission, binder lifecycle, ADB UID detection and fixed read-only remote permission probes. Additional privileged mutations require an explicit in-app user action and a defined bounded API/rollback, not a generic command interface. Never change app ID, pinned signer, SQLite v12 or stored user data without separate migration authorization.
+
+Owner requests skipping large tests: full Android 35 emulator job remains available via manual workflow_dispatch full_emulator=true; automatic merge/build uses source/SQLite checks, JVM unit tests, Rust, compile/lint, native APK and certificate/dependency gates. Mark emulator NOT RUN when skipped; do not claim L4 full device acceptance. Main integration and build-only artifact are authorized; public release publication remains a separate explicit choice. See [consolidation audit](docs/AUDIT-SHIZUKU-CONSOLIDATION-2026-11-26.md).

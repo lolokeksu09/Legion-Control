@@ -19,9 +19,18 @@ assert required.issubset(actual)
 assert "android.permission.QUERY_ALL_PACKAGES" not in actual
 assert "android.permission.WRITE_SECURE_SETTINGS" not in actual
 assert "android.permission.BIND_ACCESSIBILITY_SERVICE" not in actual
-assert "GameLaunchProfiles.apply(requireContext(), pkg)" in ui and "GameLaunchProfiles.restore(requireContext())" in ui
+assert "GameLaunchProfiles.applyConfirmed(requireContext(), pkg, approved)" in ui and "GameLaunchProfiles.restore(requireContext())" in ui
+assert "applyGameLaunchProfile(pkg, profile, launch)" in ui
+assert "GameLaunchProfiles.restoreConfirmed(ctx, pending)" in ui
+assert "pendingConfirmation(context) != approved" in engine
+assert ".putString(GENERATION, UUID.randomUUID().toString())" in engine
+assert ".remove(OWNER).remove(GENERATION).commit()" in engine
+assert "(owner != null || approved != null) && p != approved" in engine
+assert engine.index("p != approved") < engine.index("val snapshot = runCatching")
 assert "GameLaunchProfiles.apply(this, pkg)" in overlay and "GameLaunchProfiles.restore(this)" in overlay
-assert "GameLaunchProfiles.save(requireContext(), pkg, profile)" in ui
+assert "GameLaunchProfiles.save(ctx, pkg, profile)" in ui
+assert "setView(scroll)" in ui and "confirmApplyGameLaunchProfile" in ui
+assert "confirmRestoreGameLaunchProfile" in ui
 assert "getLaunchIntentForPackage(pkg)" in ui
 assert 'edit().putString(ACTIVE, snapshot.encode())' in engine
 assert engine.index('journal.commit()') < engine.index('audio.setStreamVolume(')
@@ -31,6 +40,18 @@ assert "nm.isNotificationPolicyAccessGranted" in engine
 assert "GameLaunchProfilePolicy.restoreChoice(read(), change)" in engine
 assert "CHANGED_BY_USER" in engine
 assert "GameLaunchUndo.decode(raw)" in engine
+assert "Build.VERSION.SDK_INT >= 35" in engine
+assert "getAutomaticZenRuleState" in engine
+assert "rule.owner == null && rule.configurationActivity == null" in engine
+assert "ticket.focusScope == FocusUndoScope.GLOBAL_FILTER" in engine
+assert "legacyFocusSkipped" in engine
+assert "FocusUndoScope.APP_RULE" in policy
+assert "AppDndRuleSnapshot" in policy
+assert "rule.interruptionFilter" in engine
+assert "AutomaticZenRule.Builder(rule)" in engine
+assert "updateAutomaticZenRule" in engine
+assert "current.encoded != requested.encoded" in engine
+assert tests.count("@Test") >= 10
 # Every launch-profile mutation and ZIP replay follows one lock order:
 # maintenance gate first, then the profile ticket monitor. In particular,
 # automatic rollback must not acquire the monitor before waiting for the gate.
@@ -47,6 +68,8 @@ export = backup[backup.index("@Synchronized fun export"):backup.index("fun previ
 assert "ProfileMaintenanceGate.tryRun" in export
 assert export.index("ProfileMaintenanceGate.tryRun") < export.index("checkArchiveWritesAllowed")
 assert "pending_global_undo" in export
+assert 'key == "pending_undo_generation"' in backup
+assert 'key != "pending_undo_generation"' in backup
 
 
 

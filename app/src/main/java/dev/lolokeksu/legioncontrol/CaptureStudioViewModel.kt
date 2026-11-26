@@ -285,8 +285,12 @@ class CaptureStudioViewModel(application: Application) : AndroidViewModel(applic
 
     fun restoreFullBackup(uri: android.net.Uri, confirmed: BackupArchiveIdentity) {
         worker.execute {
+            val app = getApplication<Application>()
             val result = runCatching {
-                LegionDataBackup.restoreOnEmptyDatabase(getApplication(), uri, confirmed)
+                LegionDataBackup.restoreOnEmptyDatabase(app, uri, confirmed)
+            }
+            if (result.isSuccess && !LegionDataBackup.hasPendingRestore(app)) {
+                (app as? LegionApplication)?.startupRecovery?.markRecovered()
             }
             messageMutable.postValue(result.fold(
                 { "Восстановлено: таблиц ${it.tables}, записей ${it.rows}, параметров ${it.settings}." },
@@ -305,8 +309,13 @@ class CaptureStudioViewModel(application: Application) : AndroidViewModel(applic
                 check(CaptureCoordinator.reserveConsent(CaptureMode.MAINTENANCE)) {
                     "Остановите захват MP4/Replay и повторите."
                 }
-                try { LegionDataBackup.recoverPendingRestore(getApplication()) }
-                finally { CaptureCoordinator.release(CaptureMode.MAINTENANCE) }
+                val app = getApplication<Application>()
+                val recovered = try { LegionDataBackup.recoverPendingRestore(app) }
+                    finally { CaptureCoordinator.release(CaptureMode.MAINTENANCE) }
+                if (!LegionDataBackup.hasPendingRestore(app)) {
+                    (app as? LegionApplication)?.startupRecovery?.markRecovered()
+                }
+                recovered
             }
             messageMutable.postValue(result.fold(
                 { if(it) "Прерванное восстановление настроек завершено. Перечитайте экраны." else

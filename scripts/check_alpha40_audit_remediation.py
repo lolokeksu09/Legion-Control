@@ -10,7 +10,7 @@ test = lambda f: (tests / f).read_text(encoding="utf-8")
 
 gradle = (root / "app/build.gradle.kts").read_text()
 assert 'applicationId = "dev.lolokeksu.legioncontrol"' in gradle
-assert 'versionCode = 49' in gradle and 'versionName = "0.1.0-alpha.49"' in gradle
+assert 'versionCode = 59' in gradle and 'versionName = "0.1.0-alpha.59"' in gradle
 assert '"arm64-v8a", "x86_64"' in gradle
 
 coord = read("CaptureCoordinator.kt")
@@ -69,7 +69,8 @@ assert backup.index("savePending(context, marker, staged.preferenceBytes, staged
 assert "private fun restoreCore" in backup and "restoreInterruptedForTest" in backup
 assert "readBounded(it, MAX_PREFS * 2 + MAX_META)" in backup
 assert backup.index("check(identity(staged.manifest) == confirmed)") < backup.index("target.beginTransaction()")
-assert "restoreOnEmptyDatabase(getApplication(), uri, confirmed)" in vm
+assert "restoreOnEmptyDatabase(app, uri, confirmed)" in vm
+assert "startupRecovery?.markRecovered()" in vm
 assert "refusesAnyExistingUserRows" in test("BackupRestorePolicyTest.kt")
 assert "viewModel.exportFullBackup(" in ui and "viewModel.inspectFullBackup(" in ui
 assert "viewModel.restoreFullBackup(" in ui and "setPositiveButton(\"Восстановить\")" in ui
