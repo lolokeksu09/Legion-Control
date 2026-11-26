@@ -30,9 +30,22 @@ internal object SmartInsightsPresentation {
             "Доля среди точек с известным Network Validation")
     )
 
-    fun report(result: SmartInsightsResult): String =
-        "АНАЛИТИКА · ${result.packageName} · ${result.days} дн.\n" +
-            "Показаны только сохранённые данные. Отсутствующие значения не считаются нулём. " +
-            "Температура батареи не равна температуре CPU/GPU; частота дисплея не FPS игры; " +
-            "Network Validation не является игровым ping."
+    fun report(result: SmartInsightsResult): String = buildString {
+        append("АНАЛИТИКА · ").append(result.packageName).append(" · ").append(result.days).append(" дн.\\n")
+        append("Сессий: ").append(result.sessions)
+            .append(" · вручную завершено: ").append(result.completedSessions)
+            .append(" · прервано: ").append(result.interruptedSessions)
+            .append(" · открыто: ").append((result.sessions - result.completedSessions -
+                result.interruptedSessions).coerceAtLeast(0)).append('\\n')
+        append("Время завершённых сессий: ").append(result.totalCompletedMinutes).append(" мин\\n")
+        append("Пик температуры батареи: ")
+            .append(result.peakBatteryTempDeciC?.let { String.format(Locale.US, "%.1f °C", it / 10.0) } ?: "н/д")
+            .append('\\n')
+        append("Thermal ≥ SEVERE: ").append(ratio(result.severeReadings, result.thermalSampleCount)).append('\\n')
+        append("Сеть не подтверждена: ").append(ratio(result.unvalidatedReadings, result.networkSampleCount)).append('\\n')
+        append("Показаны только сохранённые данные. Отсутствующие значения не считаются нулём. ")
+        append("Температура батареи не равна температуре CPU/GPU; частота дисплея не FPS игры; ")
+        append("Network Validation не является игровым ping.")
+    }
+
 }
