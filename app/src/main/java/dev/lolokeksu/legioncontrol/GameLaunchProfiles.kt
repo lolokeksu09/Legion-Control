@@ -87,7 +87,7 @@ object GameLaunchProfiles {
         }
         if (prefs(context).contains(ACTIVE)) {
             return@synchronized GameLaunchResult(false,
-                "Сначала верните предыдущие глобальные настройки кнопкой «Восстановить».")
+                "Сначала верните предыдущие системные настройки кнопкой «Восстановить».")
         }
         val snapshot = runCatching {
             val audio = if (p.mediaPercent != null)
