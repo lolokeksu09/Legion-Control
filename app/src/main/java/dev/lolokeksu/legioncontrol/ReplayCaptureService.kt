@@ -56,6 +56,7 @@ class ReplayCaptureService : Service() {
         @Volatile var active: Boolean = false
             private set
         @Volatile private var liveWindow: ReplayWindowStats? = null
+        @Volatile private var liveAudioWindow: ReplayAudioWindowStats? = null
         @Volatile var seconds: Int = 60
             private set
 
@@ -83,6 +84,9 @@ class ReplayCaptureService : Service() {
                 stats.retainedBytes / mib + "/" + stats.byteLimit / mib + " МиБ" +
                 (if (stats.exportBytes > 0) " (экспорт удерживает " + stats.exportBytes / mib + " МиБ)." else ".") +
                 (if (stats.retainedBytes > stats.byteLimit) " Экспорт завершится до освобождения его данных." else "") +
+                (liveAudioWindow?.let { "\nAAC: " + it.retainedBytes / 1024L + "/" +
+                    it.byteLimit / 1024L + " КиБ уникальных пакетов; экспорт удерживает " +
+                    it.exportBytes / 1024L + " КиБ." } ?: "") +
                 " Это не PSS и не гарантия длительности экспорта."
         }
     }
@@ -289,6 +293,7 @@ class ReplayCaptureService : Service() {
         val audioLimit = ReplayMemoryPolicy.audioByteLimit(maxHeapBytes, activityManager.isLowRamDevice)
         trimRequested.set(false)
         liveWindow = null
+        liveAudioWindow = null
         running.set(true)
         active = true
         drainComplete = false
@@ -338,6 +343,7 @@ class ReplayCaptureService : Service() {
                 val now = SystemClock.elapsedRealtime()
                 if (running.get() && now >= nextStatsAt) {
                     liveWindow = buffer.stats()
+                    liveAudioWindow = playbackAudio?.stats()
                     nextStatsAt = now + 1_000L
                 }
                 if (running.get() && now >= nextSafetyAt) {
@@ -421,6 +427,7 @@ class ReplayCaptureService : Service() {
         } finally {
             active = false
             liveWindow = null
+            liveAudioWindow = null
             running.set(false)
             saveRequested.set(false)
             buffer.clear()
@@ -431,6 +438,12 @@ class ReplayCaptureService : Service() {
                 drainComplete = true
                 if (stopping.compareAndSet(false, true)) {
                     CaptureCoordinator.markStopping(CaptureMode.REPLAY)
+                    handler.removeCallbacks(safetyStop)
+                    // Stop the audio producer and display immediately on video failure,
+                    // even if an independent export still owns frozen packets.
+                    playbackAudio?.stop()
+                    runCatching { virtualDisplay?.release() }
+                    virtualDisplay = null
                     writeStatus("Replay остановлен: кодек завершил работу.")
                 }
                 finishIfReady()
@@ -445,11 +458,14 @@ class ReplayCaptureService : Service() {
             writeStatus("Replay: предыдущий клип ещё сохраняется.")
             return
         }
+        var acquiredAudio: ReplayAudioExport? = null
         try {
             val frozen = lease.samples
-            val audioSnapshot = runCatching {
-                playbackAudio?.snapshot(frozen.first().ptsUs, frozen.last().ptsUs, clockOffsetUs)
-            }.getOrNull()
+            val audioExport = try {
+                playbackAudio?.freezeSnapshot(frozen.first().ptsUs, frozen.last().ptsUs, clockOffsetUs)
+            } catch (_: Exception) { null }
+            acquiredAudio = audioExport
+            val audioSnapshot = audioExport?.snapshot
             Thread({
                 try {
                     val durationMs = (frozen.last().ptsUs - frozen.first().ptsUs) / 1000L
@@ -473,23 +489,30 @@ class ReplayCaptureService : Service() {
                         { "Replay MP4 не сохранён: " + it.javaClass.simpleName }
                     ))
                 } finally {
-                    finishExport(lease)
+                    finishExport(lease, audioExport)
                 }
             }, "legion-replay-export").start()
         } catch (failure: Exception) {
             // Thread creation/start or preparation failed; do not strand the lease.
-            finishExport(lease)
+            finishExport(lease, acquiredAudio)
             writeStatus("Replay: не удалось начать экспорт — " + failure.javaClass.simpleName)
         } catch (fatal: Error) {
-            finishExport(lease)
+            finishExport(lease, acquiredAudio)
             throw fatal
         }
     }
 
-    private fun finishExport(lease: ReplayVideoLease) {
-        lease.close()
-        exporting.set(false)
-        handler.post { finishIfReady() }
+    private fun finishExport(lease: ReplayVideoLease, audioExport: ReplayAudioExport?) {
+        try {
+            audioExport?.close()
+        } finally {
+            try {
+                lease.close()
+            } finally {
+                exporting.set(false)
+                handler.post { finishIfReady() }
+            }
+        }
     }
 
     private fun writeStatus(message: String) {

@@ -79,4 +79,58 @@ class ReplayAudioBufferTest {
         assertTrue(buffer.snapshotForVideo(350L, 250L, 100L).isEmpty())
     }
 
+
+    @Test fun liveAndFrozenAudioShareOneBudget() {
+        val buffer = ReplayAudioBuffer(30, 6000L)
+        for (s in 1L..2L) assertTrue(buffer.append(packet(s)))
+        val lease = requireNotNull(buffer.freezeForVideo(0L, 3_000_000L, 0L))
+        assertEquals(ReplayAudioWindowStats(4000L, 4000L, 4000L, 6000L), buffer.stats())
+        assertNull(buffer.freezeForVideo(0L, 3_000_000L, 0L))
+        for (s in 3L..50L) {
+            assertTrue(buffer.append(packet(s)))
+            assertTrue(buffer.stats().retainedBytes <= 6000L)
+        }
+        assertEquals(listOf(1_000_000L, 2_000_000L), lease.packets.map { it.ptsUs })
+        lease.close()
+        assertEquals(buffer.sizeBytes, buffer.stats().retainedBytes)
+        val next = requireNotNull(buffer.freezeForVideo(0L, 51_000_000L, 0L))
+        lease.close()
+        assertTrue(buffer.stats().exportBytes > 0)
+        next.close()
+        assertEquals(0L, buffer.stats().exportBytes)
+    }
+
+    @Test fun trimmingAndProducerShutdownKeepOnlyOwnedAudioUntilRelease() {
+        val buffer = ReplayAudioBuffer(30, 6000L)
+        for (s in 1L..3L) buffer.append(packet(s))
+        val lease = requireNotNull(buffer.freezeForVideo(0L, 4_000_000L, 0L))
+        buffer.reduceByteLimit(2000L)
+        assertEquals(0L, buffer.sizeBytes)
+        assertEquals(6000L, buffer.stats().retainedBytes)
+        assertFalse(buffer.appendEncoded(2000, 4_000_000L) { error("must not allocate") })
+        buffer.clear()
+        assertEquals(3, lease.packets.size)
+        assertEquals(6000L, buffer.stats().retainedBytes)
+        lease.close()
+        assertEquals(0L, buffer.stats().retainedBytes)
+        assertTrue(buffer.append(packet(5)))
+        assertEquals(2000L, buffer.stats().retainedBytes)
+    }
+
+    @Test fun rejectedAacPacketsDoNotInvokeCopyAndPtsStayOriginal() {
+        val buffer = ReplayAudioBuffer(30, 4000L)
+        buffer.append(packet(1))
+        buffer.append(packet(2))
+        val lease = requireNotNull(buffer.freezeForVideo(0L, 3_000_000L, 0L))
+        var copies = 0
+        fun copy(): ByteArray { copies++; return ByteArray(2000) }
+        assertFalse(buffer.appendEncoded(2000, 3_000_000L, ::copy))
+        assertEquals(0, copies)
+        lease.close()
+        assertTrue(buffer.appendEncoded(2000, 4_000_000L, ::copy))
+        assertFalse(buffer.appendEncoded(2000, 4_000_000L, ::copy))
+        assertEquals(1, copies)
+        assertEquals(4_000_000L, buffer.snapshot(0L, 5_000_000L).last().ptsUs)
+    }
+
 }

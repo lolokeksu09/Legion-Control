@@ -19,6 +19,11 @@ data class ReplayAudioSnapshot(
     val packets: List<ReplayAudioPacket>
 )
 
+internal class ReplayAudioExport(val snapshot: ReplayAudioSnapshot,
+                                 private val lease: ReplayAudioLease) : AutoCloseable {
+    override fun close() = lease.close()
+}
+
 /**
  * Explicit opt-in Android AudioPlaybackCapture for one selected game's UID.
  * One AAC encoder produces compressed packets into a bounded window while
@@ -102,14 +107,20 @@ class ReplayAudioCapture(
         }
     }
 
-    fun snapshot(videoStartUs: Long, videoEndUs: Long,
-                 videoMinusNanoClockUs: Long): ReplayAudioSnapshot? {
+    internal fun freezeSnapshot(videoStartUs: Long, videoEndUs: Long,
+                                videoMinusNanoClockUs: Long): ReplayAudioExport? {
         val format = outputFormat ?: return null
-        // Both samples use monotonic clocks. Audio PTS is anchored at PCM read,
-        // video PTS is from Android's surface timestamps; adjust by measured delta.
-        val shifted = buffer.snapshotForVideo(videoStartUs, videoEndUs, videoMinusNanoClockUs)
-        return if (shifted.isEmpty()) null else ReplayAudioSnapshot(format, shifted)
+        val lease = buffer.freezeForVideo(videoStartUs, videoEndUs, videoMinusNanoClockUs)
+            ?: return null
+        return try {
+            ReplayAudioExport(ReplayAudioSnapshot(format, lease.packets), lease)
+        } catch (failure: Throwable) {
+            lease.close()
+            throw failure
+        }
     }
+
+    internal fun stats(): ReplayAudioWindowStats = buffer.stats()
 
     fun reduceMemoryLimit() {
         buffer.reduceByteLimit(ReplayMemoryPolicy.afterAudioTrim(buffer.byteLimitBytes))
@@ -188,13 +199,12 @@ class ReplayAudioCapture(
                         if (info.size > 0 &&
                             info.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG == 0) {
                             require(info.size <= 256 * 1024)
-                            val encoded = requireNotNull(aac.getOutputBuffer(outputIndex))
-                                .duplicate()
-                            encoded.position(info.offset)
-                            encoded.limit(info.offset + info.size)
-                            val bytes = ByteArray(info.size)
-                            encoded.get(bytes)
-                            buffer.append(ReplayAudioPacket(bytes, info.presentationTimeUs))
+                            buffer.appendEncoded(info.size, info.presentationTimeUs) {
+                                val encoded = requireNotNull(aac.getOutputBuffer(outputIndex)).duplicate()
+                                encoded.position(info.offset)
+                                encoded.limit(info.offset + info.size)
+                                ByteArray(info.size).also { encoded.get(it) }
+                            }
                         }
                         eosSeen = info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0
                     } finally {

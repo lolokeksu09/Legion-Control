@@ -146,3 +146,15 @@ LC-05d-05: codec access units проверяются по размеру, timest
 ## LC-10a — невидимый таймер Toolbox
 
 При свёрнутой панели не планируется обновление TextView и секундный UI callback. Открытие немедленно показывает реальное elapsedRealtime с момента старта сервиса; повторные открытия сначала удаляют старый callback, закрытие/уничтожение отменяет таймер. Game Automation и его watchdog не меняются. Source guard проверяет start/toggle/clock/destroy. Это устранение конкретной лишней периодической работы (один callback/с при свёрнутой панели), не измерение общей загрузки CPU/энергии. Проверка нового CI и физического устройства необходима.
+
+
+## LC-05e — единый AAC-бюджет и остановка producer
+
+| Требование | Проверка |
+|---|---|
+| LC-05e-01: AAC live + frozen учитываются один раз | freezeForVideo и один lease; shared identity accounting, eviction, stale close, повторный export. JVM liveAndFrozenAudioShareOneBudget. |
+| LC-05e-02: trim/остановка сохраняют только данные владельца | frozen AAC остаётся неизменным, новый packet не увеличивает превышенный cap; clear не освобождает чужой lease; JVM trimmingAndProducerShutdownKeepOnlyOwnedAudioUntilRelease. |
+| LC-05e-03: отказ не копирует AAC | appendEncoded проверяет budget/PTS до ByteArray; JVM rejectedAacPacketsDoNotInvokeCopyAndPtsStayOriginal. |
+| LC-05e-04: оба leases освобождаются при успешном/неуспешном mux и thread start | nested finally + source guard; при video drain failure audio stop и VirtualDisplay release не ждут mux. |
+
+AAC и H.264 имеют независимые heap-relative budgets (до 8 и 80 МиБ); общий максимум уникальных compressed payloads при исходном cap — 88 МиБ, не PSS и не гарантия процесса. При trim уже frozen payload может временно превышать уменьшенный cap, новый payload не накапливается сверх него. Во время экспорта возможно укорочение/разрыв истории AAC; оригинальные PTS не пересчитываются, video-only fallback сохраняется. Native codec/PCM/muxer не измерены. Реальный AVC/AAC capture на устройстве, PSS/CPU и температурный профиль не подтверждены. CI exact SHA требуется; нет новых permission/версии/SQLite миграции.
