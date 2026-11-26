@@ -140,7 +140,8 @@ assert "onResume()" in activity and "refresh()" in activity
 assert "ViewModelProvider(requireActivity())[HubViewModel::class.java]" in view
 assert "state.observe(viewLifecycleOwner)" in view
 assert "HubTab.parse(arguments?.getString(" in view
-assert "HubSearch.matches(" in view
+assert "HubLibraryPolicy.select(" in view
+assert "HubSearch.matches(" in (src/"HubLibraryPolicy.kt").read_text()
 assert "R.id.gameDetailFragment" in view and "gamePackage" in view
 assert "ApplicationCenterActivity::class.java" in view
 assert "MainActivity::class.java" in view and "CaptureStudioActivity::class.java" in view

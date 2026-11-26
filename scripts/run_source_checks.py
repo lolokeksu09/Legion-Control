@@ -12,6 +12,7 @@ CHECKS = (
     "check_stability_safety.py",
     "check_capability_access.py",
     "check_permission_center.py",
+    "check_hub_library.py",
     "check_startup_recovery.py",
     "check_backup_recovery.py",
     "check_replay_memory_policy.py",

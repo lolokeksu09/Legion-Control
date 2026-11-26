@@ -15,6 +15,8 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.LayoutInflater
 import android.widget.EditText
+import android.widget.Button
+import android.widget.AdapterView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -36,8 +38,11 @@ class HubPageFragment : Fragment() {
     private lateinit var viewModel: HubViewModel
     private lateinit var column: LinearLayout
     private var query = ""
-    private var showAllApps = false
+    private var libraryFilter = LibraryFilter.GAMES
+    private var librarySort = LibrarySort.PRIORITY
+    private var libraryPage = 0
     private var toolQuery = ""
+    private var toolCategory = 0
     private val searchHandler=Handler(Looper.getMainLooper())
     private var pendingSearch:Runnable?=null
     private var observedSnapshot:HubLoadState?=null
@@ -47,6 +52,27 @@ class HubPageFragment : Fragment() {
         val launch: () -> Unit
     )
     private val Int.dp get() = (this * resources.displayMetrics.density).toInt()
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        val saved = savedInstanceState ?: return
+        query = saved.getString("libraryQuery").orEmpty()
+        libraryFilter = HubLibraryPolicy.restore(LibraryFilter.entries, saved.getString("libraryFilter"), LibraryFilter.GAMES)
+        librarySort = HubLibraryPolicy.restore(LibrarySort.entries, saved.getString("librarySort"), LibrarySort.PRIORITY)
+        libraryPage = saved.getInt("libraryPage", 0).coerceAtLeast(0)
+        toolQuery = saved.getString("toolQuery").orEmpty()
+        toolCategory = saved.getInt("toolCategory", 0).coerceAtLeast(0)
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putString("libraryQuery", query)
+        outState.putString("libraryFilter", libraryFilter.name)
+        outState.putString("librarySort", librarySort.name)
+        outState.putInt("libraryPage", libraryPage)
+        outState.putString("toolQuery", toolQuery)
+        outState.putInt("toolCategory", toolCategory)
+    }
 
     override fun onCreateView(inflater: LayoutInflater, parent: ViewGroup?, saved: Bundle?): View {
         val root = ScrollView(requireContext()).apply {
@@ -226,7 +252,22 @@ class HubPageFragment : Fragment() {
     }
 
     private fun showHome(s: HubSnapshot) {
-        section("Готов к запуску", "Игры, инструменты и локальная история — в одном месте.")
+        section("Game Hub", "Подготовка игры, запись и состояние устройства.")
+        group("Избранные игры")
+        val favorites = HubLibraryPolicy.homeFavorites(s.apps)
+        if (favorites.isEmpty()) {
+            info("Добавьте игру в избранное через её карточку — она появится здесь.")
+        } else {
+            favorites.forEach { app ->
+                tile(app.label, if (app.visible) "Открыть карточку игры" else "Не видно через Launcher · карточка сохранена") {
+                    openGameCard(app)
+                }
+            }
+        }
+        tile("Мои игры", "${s.apps.count { it.isGame || it.favorite }} игровых и избранных записей") {
+            NavHostFragment.findNavController(this).navigate(R.id.gamesFragment)
+        }
+        group("Локальная библиотека")
         val stats = LinearLayout(requireContext()).apply {
             orientation = LinearLayout.HORIZONTAL
         }
@@ -250,9 +291,6 @@ class HubPageFragment : Fragment() {
         column.addView(stats)
         info("* Быстрая сводка: не более 40 последних MP4. Все записи — в Capture Studio.")
         group("Быстрый доступ")
-        tile("Мои игры", "${s.apps.count { it.isGame || it.favorite }} игровых и избранных записей") {
-            NavHostFragment.findNavController(this).navigate(R.id.gamesFragment)
-        }
         tile("GAME TOOLBOX", "Плавающая игровая панель по запросу") {
             open(GameToolboxActivity::class.java)
         }
@@ -280,9 +318,132 @@ class HubPageFragment : Fragment() {
         }
     }
 
+    private fun openGameCard(app: HubApp) {
+        NavHostFragment.findNavController(this).navigate(R.id.gameDetailFragment, Bundle().apply {
+            putString("gamePackage", app.packageName)
+        })
+    }
+
     private fun showGames(s: HubSnapshot) {
         section("Игровая библиотека",
             "Настоящие Android-приложения из Launcher и избранное Application Center.")
+        group("Библиотека")
+        val filter = LegionUiSupport.spinner(requireContext(), LibraryFilter.entries.map { it.label })
+        val sort = LegionUiSupport.spinner(requireContext(), LibrarySort.entries.map { it.label })
+        filter.contentDescription = "Фильтр библиотеки"
+        sort.contentDescription = "Сортировка библиотеки"
+        filter.setSelection(libraryFilter.ordinal)
+        sort.setSelection(librarySort.ordinal)
+        column.addView(filter, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 6.dp })
+        column.addView(sort, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 8.dp })
+        val input = EditText(requireContext()).apply {
+            hint = "Поиск игры или имени пакета"
+            setTextColor(fg)
+            setHintTextColor(muted)
+            textSize = 14f
+            isSingleLine = true
+            setPadding(15.dp, 14.dp, 15.dp, 14.dp)
+            background = outline()
+            setText(query)
+            contentDescription = "Поиск игр и приложений"
+        }
+        column.addView(input, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 13.dp })
+        val count = text("", 13f, muted).apply {
+            accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+            setPadding(0, 0, 0, 8.dp)
+        }
+        column.addView(count)
+        val list = LinearLayout(requireContext()).apply { orientation = LinearLayout.VERTICAL }
+        column.addView(list)
+        val previous = Button(requireContext()).apply { text = "Назад"; contentDescription = "Предыдущая страница" }
+        val next = Button(requireContext()).apply { text = "Далее"; contentDescription = "Следующая страница" }
+        column.addView(CompactActionRow(requireContext(), previous, next))
+        LegionUiSupport.styleButtonSurface(previous)
+        LegionUiSupport.styleButtonSurface(next)
+        fun redraw() {
+            list.removeAllViews()
+            val result = HubLibraryPolicy.select(s.apps, libraryFilter, librarySort, query, libraryPage)
+            libraryPage = result.page
+            count.text = "Найдено: ${result.total} · страница ${result.page + 1} из ${result.pageCount}"
+            previous.isEnabled = result.page > 0
+            next.isEnabled = result.page + 1 < result.pageCount
+            if (result.items.isEmpty()) {
+                list.addView(LegionUiSupport.noticeView(requireContext(),
+                    "Совпадений нет. Измените фильтр или запрос.", LegionUiSupport.Notice.EMPTY))
+                return
+            }
+            result.items.forEach { app ->
+                val row = LinearLayout(requireContext()).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER_VERTICAL
+                    background = outline()
+                    setPadding(15.dp, 11.dp, 13.dp, 11.dp)
+                    isClickable = true
+                    isFocusable = true
+                    minimumHeight = 48.dp
+                    contentDescription = "Открыть карточку " + app.label +
+                        (if (app.favorite) ". Избранное." else "") +
+                        (if (!app.visible) " Не видно через Launcher." else "")
+                    setOnClickListener {
+                        openGameCard(app)
+                    }
+                }
+                val monogram = text(app.label.firstOrNull()?.uppercaseChar()?.toString() ?: "•",
+                    20f, accent, true).apply {
+                    gravity = Gravity.CENTER
+                    importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+                }
+                row.addView(monogram, LinearLayout.LayoutParams(37.dp, 49.dp))
+                val labels = LinearLayout(requireContext()).apply {
+                    orientation = LinearLayout.VERTICAL
+                    importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+                }
+                labels.addView(text((if (app.favorite) "★  " else "") + app.label, 14f, fg, true))
+                labels.addView(text(if (app.visible) app.packageName else "Не видно через Launcher · ${app.packageName}",
+                    11f, muted))
+                row.addView(labels, LinearLayout.LayoutParams(0, -2, 1f))
+                row.addView(text("›", 22f, accent).apply {
+                    importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+                })
+                list.addView(row, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 9.dp })
+            }
+        }
+        input.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                query = s?.toString().orEmpty()
+                libraryPage = 0
+                cancelSearch()
+                val task=Runnable { if(isAdded && view!=null && list.isAttachedToWindow) redraw() }
+                pendingSearch=task
+                searchHandler.postDelayed(task,HubRefreshGate.SEARCH_DELAY_MS)
+            }
+            override fun afterTextChanged(s: Editable?) {}
+        })
+        previous.setOnClickListener { libraryPage--; redraw() }
+        next.setOnClickListener { libraryPage++; redraw() }
+        filter.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onNothingSelected(parent: AdapterView<*>?) = Unit
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                val value = LibraryFilter.entries.getOrNull(position) ?: return
+                if (value != libraryFilter) {
+                    libraryFilter = value; libraryPage = 0; cancelSearch(); redraw()
+                }
+            }
+        }
+        sort.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onNothingSelected(parent: AdapterView<*>?) = Unit
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                val value = LibrarySort.entries.getOrNull(position) ?: return
+                if (value != librarySort) {
+                    librarySort = value; libraryPage = 0; cancelSearch(); redraw()
+                }
+            }
+        }
+        redraw()
+        tile("Управление библиотекой", "Категории, заметки, сохранённые приложения") {
+            open(ApplicationCenterActivity::class.java)
+        }
         group("Игровые функции")
         tile("Game Preflight", "Проверка требований выбранной игры перед запуском") {
             open(GamePreflightActivity::class.java)
@@ -296,81 +457,6 @@ class HubPageFragment : Fragment() {
         tile("Smart Profiles", "Профили и правила для приложений") {
             open(SmartProfilesActivity::class.java)
         }
-        group("Библиотека")
-        tile("Управление библиотекой", "Категории, заметки, сохранённые приложения") {
-            open(ApplicationCenterActivity::class.java)
-        }
-        tile(if (showAllApps) "Показываются все приложения · изменить" else "Игры и избранное · показать все",
-            "Видимость определяется Android, не скрытым поиском") {
-            showAllApps = !showAllApps
-            render(viewModel.state.value ?: HubLoadState.Loading)
-        }
-        val input = EditText(requireContext()).apply {
-            hint = "Поиск игры или имени пакета"
-            setTextColor(fg)
-            setHintTextColor(muted)
-            textSize = 14f
-            isSingleLine = true
-            setPadding(15.dp, 14.dp, 15.dp, 14.dp)
-            background = outline()
-            setText(query)
-            contentDescription = "Поиск игр и приложений"
-        }
-        column.addView(input, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 13.dp })
-        val list = LinearLayout(requireContext()).apply { orientation = LinearLayout.VERTICAL }
-        column.addView(list)
-        fun redraw() {
-            list.removeAllViews()
-            val filtered = s.apps.filter {
-                (showAllApps || it.isGame || it.favorite) &&
-                    HubSearch.matches(it.label, it.packageName, query)
-            }
-            if (filtered.isEmpty()) {
-                list.addView(text("Совпадений нет. Нажмите «Показать все» или добавьте игру в Application Center.", 13f, muted))
-                return
-            }
-            if (filtered.size > 60) list.addView(text(
-                "Показаны первые 60 из ${filtered.size}. Уточните поиск.", 12f, muted))
-            filtered.take(60).forEach { app ->
-                val row = LinearLayout(requireContext()).apply {
-                    orientation = LinearLayout.HORIZONTAL
-                    gravity = Gravity.CENTER_VERTICAL
-                    background = outline()
-                    setPadding(15.dp, 11.dp, 13.dp, 11.dp)
-                    isClickable = true
-                    isFocusable = true
-                    contentDescription = "Открыть карточку " + app.label
-                    setOnClickListener {
-                        NavHostFragment.findNavController(this@HubPageFragment).navigate(
-                            R.id.gameDetailFragment, Bundle().apply {
-                                putString("gamePackage", app.packageName)
-                            })
-                    }
-                }
-                val monogram = text(app.label.firstOrNull()?.uppercaseChar()?.toString() ?: "•",
-                    20f, accent, true).apply { gravity = Gravity.CENTER }
-                row.addView(monogram, LinearLayout.LayoutParams(37.dp, 49.dp))
-                val labels = LinearLayout(requireContext()).apply { orientation = LinearLayout.VERTICAL }
-                labels.addView(text((if (app.favorite) "★  " else "") + app.label, 14f, fg, true))
-                labels.addView(text(if (app.visible) app.packageName else "Не видно через Launcher · ${app.packageName}",
-                    11f, muted))
-                row.addView(labels, LinearLayout.LayoutParams(0, -2, 1f))
-                row.addView(text("›", 22f, accent))
-                list.addView(row, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 9.dp })
-            }
-        }
-        input.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                query = s?.toString().orEmpty()
-                cancelSearch()
-                val task=Runnable { if(isAdded && view!=null && list.isAttachedToWindow) redraw() }
-                pendingSearch=task
-                searchHandler.postDelayed(task,HubRefreshGate.SEARCH_DELAY_MS)
-            }
-            override fun afterTextChanged(s: Editable?) {}
-        })
-        redraw()
     }
 
     private fun cancelSearch() {
@@ -461,6 +547,15 @@ class HubPageFragment : Fragment() {
             setText(toolQuery)
         }
         column.addView(input, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 12.dp })
+        val categorySelector = LegionUiSupport.spinner(requireContext(), listOf("Все категории") + catalog.map { it.first })
+        toolCategory = toolCategory.coerceIn(0, catalog.size)
+        categorySelector.setSelection(toolCategory)
+        categorySelector.contentDescription = "Категория инструментов"
+        column.addView(categorySelector, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 8.dp })
+        val resultCount = text("", 13f, muted).apply {
+            accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+        }
+        column.addView(resultCount)
         val results = LinearLayout(requireContext()).apply { orientation = LinearLayout.VERTICAL }
         column.addView(results)
 
@@ -468,7 +563,11 @@ class HubPageFragment : Fragment() {
             results.removeAllViews()
             val filter = toolQuery.trim().lowercase(Locale.ROOT)
             var shown = 0
-            for ((category, entries) in catalog) {
+            // Search always covers the entire catalog; category is a browse-only filter.
+            categorySelector.isEnabled = filter.isEmpty()
+            for ((index, pair) in catalog.withIndex()) {
+                val (category, entries) = pair
+                if (filter.isEmpty() && toolCategory != 0 && toolCategory != index + 1) continue
                 val matching = entries.filter { entry ->
                     filter.isEmpty() || (category + " " + entry.title + " " + entry.description)
                         .lowercase(Locale.ROOT).contains(filter)
@@ -501,6 +600,7 @@ class HubPageFragment : Fragment() {
                     shown += functions.size
                 }
             }
+            resultCount.text = "Найдено: $shown" + if (filter.isNotEmpty()) " · поиск по всем категориям" else ""
             if (shown == 0) {
                 results.addView(text("Инструменты не найдены. Попробуйте другое название.", 13f, muted))
                 results.addView(
@@ -521,6 +621,16 @@ class HubPageFragment : Fragment() {
             }
             override fun afterTextChanged(s: Editable?) {}
         })
+        categorySelector.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onNothingSelected(parent: AdapterView<*>?) = Unit
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                if (toolCategory != position) {
+                    toolCategory = position
+                    cancelSearch()
+                    redraw()
+                }
+            }
+        }
         redraw()
     }
 
