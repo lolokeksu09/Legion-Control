@@ -285,8 +285,12 @@ class CaptureStudioViewModel(application: Application) : AndroidViewModel(applic
 
     fun restoreFullBackup(uri: android.net.Uri, confirmed: BackupArchiveIdentity) {
         worker.execute {
+            val app = getApplication<Application>()
             val result = runCatching {
-                LegionDataBackup.restoreOnEmptyDatabase(getApplication(), uri, confirmed)
+                LegionDataBackup.restoreOnEmptyDatabase(app, uri, confirmed)
+            }
+            if (result.isSuccess && !LegionDataBackup.hasPendingRestore(app)) {
+                (app as? LegionApplication)?.startupRecovery?.markRecovered()
             }
             messageMutable.postValue(result.fold(
                 { "Восстановлено: таблиц ${it.tables}, записей ${it.rows}, параметров ${it.settings}." },
