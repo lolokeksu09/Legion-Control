@@ -23,6 +23,7 @@ assert "initializeNavigation(pendingSavedState)" in launcher
 assert "continueAfterFailure()" in launcher
 assert "Intent(this,NavigationHostActivity::class.java)" in tile
 assert "SmartProfilesActivity::class.java" not in tile
+assert "Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP" in tile
 for token in ("recoveryIsQueuedAndRunsOnlyOnce", "failureIsVisibleUntilUserAcknowledgesIt",
               "laterSuccessfulManualRetryClearsWarningForActivityRecreation",
               "cleanInstallDoesNotScheduleRecoveryWork"):

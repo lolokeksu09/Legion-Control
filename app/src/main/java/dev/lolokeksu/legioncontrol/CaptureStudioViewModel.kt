@@ -305,8 +305,13 @@ class CaptureStudioViewModel(application: Application) : AndroidViewModel(applic
                 check(CaptureCoordinator.reserveConsent(CaptureMode.MAINTENANCE)) {
                     "Остановите захват MP4/Replay и повторите."
                 }
-                try { LegionDataBackup.recoverPendingRestore(getApplication()) }
-                finally { CaptureCoordinator.release(CaptureMode.MAINTENANCE) }
+                val app = getApplication<Application>()
+                val recovered = try { LegionDataBackup.recoverPendingRestore(app) }
+                    finally { CaptureCoordinator.release(CaptureMode.MAINTENANCE) }
+                if (!LegionDataBackup.hasPendingRestore(app)) {
+                    (app as? LegionApplication)?.startupRecovery?.markRecovered()
+                }
+                recovered
             }
             messageMutable.postValue(result.fold(
                 { if(it) "Прерванное восстановление настроек завершено. Перечитайте экраны." else
