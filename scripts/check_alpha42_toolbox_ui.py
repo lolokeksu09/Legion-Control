@@ -36,7 +36,9 @@ for token in (
     "GameToolboxService.stop(requireContext())",
     "GameLaunchProfiles.apply(requireContext(), pkg)",
     "GameLaunchProfiles.restore(requireContext())",
-    "GameLaunchProfiles.save(ctx, pkg, profile)",\n    "confirmApplyGameLaunchProfile",\n    "confirmRestoreGameLaunchProfile",
+    "GameLaunchProfiles.save(ctx, pkg, profile)",
+    "confirmApplyGameLaunchProfile",
+    "confirmRestoreGameLaunchProfile",
     "SmartSystemControls.restoreScreenSettings(requireContext())",
 ):
     assert token in ui, token
