@@ -13,8 +13,8 @@ data class GameLaunchResult(val success: Boolean, val message: String)
 
 /**
  * Explicit per-package launch actions, including separately approved one-shot automation.
- * No privileged OEM APIs. All writes are global
- * Android settings, so an undo ticket is committed BEFORE the first write.
+ * No privileged OEM APIs. Writes use public Android APIs; DND is app-rule scoped on API 35+.
+ * An undo ticket is committed BEFORE the first write.
  */
 object GameLaunchProfiles {
     private const val NAME = "legion-launch-profiles-v1"

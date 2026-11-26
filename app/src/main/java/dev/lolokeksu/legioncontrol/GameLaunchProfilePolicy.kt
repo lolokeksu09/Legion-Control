@@ -1,6 +1,6 @@
 package dev.lolokeksu.legioncontrol
 
-/** User-defined values. Null means: never touch that global Android setting. */
+/** User-defined values. Null means: never touch that system setting. */
 data class GameLaunchProfile(
     val mediaPercent: Int? = null,
     val brightnessPercent: Int? = null,
