@@ -174,9 +174,16 @@ object GameLaunchProfiles {
                 check(Settings.System.putInt(context.contentResolver,
                     Settings.System.SCREEN_BRIGHTNESS, it.requested))
             }
-            snapshot.focus?.let {
+            snapshot.focus?.let { change ->
                 val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-                nm.setInterruptionFilter(it.requested)
+                if (Build.VERSION.SDK_INT >= 35) {
+                    val requested = AppDndRuleSnapshot.decode(change.requested)
+                    nm.setInterruptionFilter(if (requested.state == APP_DND_ACTIVE)
+                        requested.filter else NotificationManager.INTERRUPTION_FILTER_ALL)
+                    check(readAppDndRuleSnapshot(nm).encoded == change.requested) {
+                        "Android не подтвердил применение правила DND Legion Control"
+                    }
+                } else nm.setInterruptionFilter(change.requested)
             }
             GameLaunchResult(true,
                 if(owner==null) "Изменения запрошены у Android. Исходные значения сохранены; возврат вручную."
