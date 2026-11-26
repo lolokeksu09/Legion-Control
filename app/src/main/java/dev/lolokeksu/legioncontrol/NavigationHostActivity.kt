@@ -159,13 +159,27 @@ class NavigationHostActivity : FragmentActivity() {
             setTypeface(Typeface.DEFAULT, Typeface.BOLD)
         })
         subtitle = TextView(this).apply {
-            text = "GAME HUB · " + versionLabel()
+            text = "UNIFIED · " + versionLabel()
             textSize = 11.5f
             setTextColor(muted)
             setPadding(0, 4.dp, 0, 0)
         }
         titles.addView(subtitle)
         header.addView(titles, LinearLayout.LayoutParams(0, -2, 1f))
+        val settingsShortcut=ImageView(this).apply {
+            setImageResource(R.drawable.ic_hub_settings)
+            imageTintList=ColorStateList.valueOf(muted)
+            setPadding(12.dp,12.dp,12.dp,12.dp)
+            contentDescription="Настройки"
+            isClickable=true;isFocusable=true
+            setOnClickListener {
+                if(nav.currentDestination?.id!=R.id.settingsFragment)
+                    nav.navigate(R.id.settingsFragment,null,NavOptions.Builder()
+                        .setLaunchSingleTop(true).setRestoreState(true)
+                        .setPopUpTo(R.id.homeFragment,false,true).build())
+            }
+        }
+        header.addView(settingsShortcut,LinearLayout.LayoutParams(48.dp,48.dp))
         root.addView(header)
 
         val separator = View(this).apply { setBackgroundColor(0xFF22262B.toInt()) }
@@ -193,9 +207,7 @@ class NavigationHostActivity : FragmentActivity() {
 
         val ids = intArrayOf(R.id.homeFragment, R.id.gamesFragment,
             R.id.toolsFragment, R.id.historyFragment, R.id.settingsFragment)
-        val icons = intArrayOf(android.R.drawable.ic_menu_view, android.R.drawable.ic_media_play,
-            android.R.drawable.ic_menu_manage, android.R.drawable.ic_menu_recent_history,
-            android.R.drawable.ic_menu_preferences)
+        val icons = HubCenterIcons.tabs()
         val tabs = HubTab.entries
         for (index in ids.indices) {
             val id = ids[index]
@@ -244,9 +256,9 @@ class NavigationHostActivity : FragmentActivity() {
                 R.id.applicationCenterDestination, R.id.gameToolboxDestination,
                 R.id.smartProfilesDestination -> R.id.gamesFragment
                 R.id.sessionSignalsFragment, R.id.sessionIncidentsFragment,
-                R.id.sessionBaselinesFragment -> R.id.historyFragment
+                R.id.sessionBaselinesFragment, R.id.experimentLabDestination -> R.id.historyFragment
                 R.id.audioLabDestination, R.id.hapticLabDestination,
-                R.id.connectivityLabDestination, R.id.experimentLabDestination,
+                R.id.connectivityLabDestination,
                 R.id.compatibilityLabDestination, R.id.hardwareLabDestination,
                 R.id.gamingDiagnosticsDestination -> R.id.toolsFragment
                 else -> actual
@@ -277,10 +289,10 @@ class NavigationHostActivity : FragmentActivity() {
                 actual == R.id.hardwareLabDestination ||
                 actual == R.id.gamingDiagnosticsDestination) View.VISIBLE else View.GONE
             subtitle.text = when (actual) {
-                R.id.homeFragment -> "GAME HUB · " + versionLabel()
-                R.id.gamesFragment -> "ИГРОВАЯ БИБЛИОТЕКА"
-                R.id.toolsFragment -> "ВСЕ СИСТЕМНЫЕ ИНСТРУМЕНТЫ"
-                R.id.historyFragment -> "ИСТОРИЯ И ДИАГНОСТИКА"
+                R.id.homeFragment -> "UNIFIED · " + versionLabel()
+                R.id.gamesFragment -> "ИГРОВОЙ ЦЕНТР"
+                R.id.toolsFragment -> "СИСТЕМА"
+                R.id.historyFragment -> "АНАЛИТИКА"
                 R.id.settingsFragment -> "НАСТРОЙКИ И КОНТРОЛЬ"
                 R.id.gameDetailFragment -> "НАСТРОЙКИ ИГРЫ"
                 R.id.gameSessionFragment -> "ЗАПИСЬ ИГРОВОЙ СЕССИИ"

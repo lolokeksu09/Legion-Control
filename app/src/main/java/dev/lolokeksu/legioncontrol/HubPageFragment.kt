@@ -1,6 +1,9 @@
 package dev.lolokeksu.legioncontrol
 
 import android.content.Intent
+import android.content.res.ColorStateList
+import android.graphics.drawable.RippleDrawable
+import android.widget.ImageView
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
@@ -44,6 +47,8 @@ class HubPageFragment : Fragment() {
     private var libraryPage = 0
     private var toolQuery = ""
     private var toolCategory = 0
+    private var catalogExpanded = false
+    private var permissionsExpanded = false
     private val searchHandler=Handler(Looper.getMainLooper())
     private var pendingSearch:Runnable?=null
     private var observedSnapshot:HubLoadState?=null
@@ -68,6 +73,8 @@ class HubPageFragment : Fragment() {
         libraryPage = saved.getInt("libraryPage", 0).coerceAtLeast(0)
         toolQuery = saved.getString("toolQuery").orEmpty()
         toolCategory = saved.getInt("toolCategory", 0).coerceAtLeast(0)
+        catalogExpanded = saved.getBoolean("catalogExpanded")
+        permissionsExpanded = saved.getBoolean("permissionsExpanded")
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -78,6 +85,8 @@ class HubPageFragment : Fragment() {
         outState.putInt("libraryPage", libraryPage)
         outState.putString("toolQuery", toolQuery)
         outState.putInt("toolCategory", toolCategory)
+        outState.putBoolean("catalogExpanded", catalogExpanded)
+        outState.putBoolean("permissionsExpanded", permissionsExpanded)
     }
 
     override fun onCreateView(inflater: LayoutInflater, parent: ViewGroup?, saved: Bundle?): View {
@@ -345,69 +354,117 @@ class HubPageFragment : Fragment() {
         }
     }
 
-    private fun showHome(s: HubSnapshot) {
-        section("Готов к запуску", "Подготовка игры, запись и состояние устройства.")
-        group("Избранные игры")
-        val favorites = HubLibraryPolicy.homeFavorites(s.apps)
-        if (favorites.isEmpty()) {
-            info("Добавьте игру в избранное через её карточку — она появится здесь.")
-        } else {
-            favorites.forEach { app ->
-                tile(app.label, if (app.visible) "Открыть карточку игры" else "Не видно через Launcher · карточка сохранена") {
-                    openGameCard(app)
-                }
-            }
-        }
-        tile("Мои игры", "${s.apps.count { it.isGame || it.favorite }} игровых и избранных записей") {
-            NavHostFragment.findNavController(this).navigate(R.id.gamesFragment)
-        }
-        group("Локальная библиотека")
-        val stats = LinearLayout(requireContext()).apply {
-            orientation = LinearLayout.HORIZONTAL
-            background = outline()
-            setPadding(5.dp, 3.dp, 5.dp, 3.dp)
-        }
-        fun stat(value: String, label: String) {
-            val box = LinearLayout(requireContext()).apply {
-                orientation = LinearLayout.VERTICAL
-                gravity = Gravity.CENTER
-                setPadding(8.dp, 14.dp, 8.dp, 14.dp)
-            }
-            box.addView(text(value, 22f, accent, true))
-            box.addView(text(label, 11f, muted))
-            stats.addView(box, LinearLayout.LayoutParams(0, -2, 1f).apply {
-                leftMargin = 3.dp
-                rightMargin = 3.dp
+    /** Five primary destinations from the approved 0.2.0 wireframe. */
+    private fun openCenter(center: HubCenter) {
+        when (center) {
+            HubCenter.GAMES -> NavHostFragment.findNavController(this).navigate(R.id.gamesFragment)
+            HubCenter.DEVICE -> openStandaloneFeature(MainActivity::class.java, Bundle())
+            HubCenter.MEDIA -> openStandaloneFeature(CaptureStudioActivity::class.java, Bundle())
+            HubCenter.PERIPHERALS -> openStandaloneFeature(MainActivity::class.java, Bundle().apply {
+                putString(MainActivity.EXTRA_PAGE, "AUDIO")
             })
+            HubCenter.ANALYTICS -> openStandaloneFeature(SessionLibraryActivity::class.java, Bundle())
         }
-        stat(s.favoriteCount.toString(), "Избранное")
-        stat(s.profileCount.toString(), "Профили")
-        stat(s.clipPreviewCount.toString(), "Клипы*")
-        column.addView(stats)
-        info("* Быстрая сводка: не более 40 последних MP4. Все записи — в Capture Studio.")
-        group("Быстрый доступ")
-        tile("GAME TOOLBOX", "Плавающая игровая панель по запросу") {
-            open(GameToolboxActivity::class.java)
+    }
+
+    private fun centerCard(center: HubCenter): LinearLayout = LinearLayout(requireContext()).apply {
+        orientation = LinearLayout.VERTICAL
+        gravity = Gravity.TOP
+        setPadding(16.dp, 16.dp, 16.dp, 15.dp)
+        minimumHeight = 112.dp
+        background = RippleDrawable(ColorStateList.valueOf(0x2986B7FF),
+            LegionUiSupport.cardSurface(this), null)
+        isClickable = true
+        isFocusable = true
+        contentDescription = "${center.title}. ${center.description}"
+        addView(ImageView(requireContext()).apply {
+            setImageResource(HubCenterIcons.center(center))
+            imageTintList = ColorStateList.valueOf(accent)
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        }, LinearLayout.LayoutParams(26.dp,26.dp).apply { bottomMargin = 10.dp })
+        addView(text(center.title, 16f, fg, true).apply {
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        })
+        addView(text(center.description, 12f, muted).apply {
+            setPadding(0,5.dp,0,0)
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        })
+        setOnClickListener { openCenter(center) }
+    }
+
+    private fun centerGrid(centers: List<HubCenter>) {
+        val twoColumns = resources.configuration.screenWidthDp >= 340 &&
+            resources.configuration.fontScale < 1.35f
+        val rows = if (twoColumns) centers.chunked(2) else centers.chunked(1)
+        for (pair in rows) {
+            val row = LinearLayout(requireContext()).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.TOP
+            }
+            pair.forEachIndexed { index, center ->
+                row.addView(centerCard(center), LinearLayout.LayoutParams(0,-2,1f).apply {
+                    if(index>0) leftMargin=10.dp
+                })
+            }
+            column.addView(row,LinearLayout.LayoutParams(-1,-2).apply { bottomMargin=10.dp })
         }
-        tile("CAPTURE STUDIO", "Записать MP4 после согласия Android") {
-            open(CaptureStudioActivity::class.java)
+    }
+
+    private fun deviceSummary(s: HubSnapshot?) {
+        val stats=LinearLayout(requireContext()).apply {
+            orientation=LinearLayout.HORIZONTAL
+            background=outline()
+            setPadding(10.dp,14.dp,10.dp,14.dp)
         }
-        tile("Игровая сессия", "Ручная запись телеметрии без FPS-имитации") {
-            open(GameSessionActivity::class.java)
+        fun metric(value:String, label:String) {
+            val block=LinearLayout(requireContext()).apply {
+                orientation=LinearLayout.VERTICAL
+                gravity=Gravity.CENTER
+            }
+            block.addView(text(value,22f,accent,true).apply { gravity=Gravity.CENTER })
+            block.addView(text(label,12f,muted).apply { gravity=Gravity.CENTER;setPadding(0,4.dp,0,0) })
+            stats.addView(block,LinearLayout.LayoutParams(0,-2,1f))
         }
-        group("Состояние Android")
-        tile("Диагностический центр · ${s.batteryPercent?.let { "$it%" } ?: "нет данных"}",
-            "Live Monitor, история, датчики · дисплей: ${s.refreshHz?.let { String.format(Locale.US, "%.1f Гц", it) } ?: "нет данных"}") {
-            open(MainActivity::class.java)
-        }
-        if (s.recentSessions.isNotEmpty()) {
-            group("Последняя игровая сессия")
-            val last = s.recentSessions.first()
-            tile(last.appLabel, "Начало: " + DateFormat.getDateTimeInstance(
-                DateFormat.SHORT, DateFormat.SHORT).format(Date(last.startedAtMs))) {
-                open(GameSessionActivity::class.java)
+        metric(s?.batteryPercent?.let { "$it%" } ?: "—","Заряд")
+        metric(s?.refreshHz?.let { String.format(Locale.US,"%.0f",it) } ?: "—","Дисплей · Гц")
+        column.addView(stats,LinearLayout.LayoutParams(-1,-2).apply { bottomMargin=8.dp })
+    }
+
+    private fun showHome(s: HubSnapshot) {
+        // Primary layout matches the approved 2 + 2 + 1 center grid.
+        centerGrid(HubCenter.entries.toList())
+        group("Состояние устройства")
+        deviceSummary(s)
+        val favorites=HubLibraryPolicy.homeFavorites(s.apps)
+        if(favorites.isNotEmpty()) {
+            group("Избранное")
+            favorites.forEach { app ->
+                tile(app.label, if(app.visible) "Карточка игры" else "Не видно через Launcher") { openGameCard(app) }
             }
         }
+        s.recentSessions.firstOrNull()?.let { last ->
+            group("Последняя запись")
+            tile(last.appLabel, DateFormat.getDateTimeInstance(DateFormat.SHORT,DateFormat.SHORT)
+                .format(Date(last.startedAtMs))) {
+                openRecentSession(last)
+            }
+        }
+        group("Быстрые действия")
+        tile("Игровая панель", "Управление поверх игры") { open(GameToolboxActivity::class.java) }
+        tile("Запись сессии", "Ручной запуск телеметрии") { open(GameSessionActivity::class.java) }
+    }
+
+    private fun openRecentSession(session:GameSessionHeader) {
+        if(session.endedAtMs==null) {
+            NavHostFragment.findNavController(this).navigate(R.id.sessionIncidentsFragment,
+                Bundle().apply {
+                    putString("session_id",session.id)
+                    putString("smart_package",session.packageName)
+                })
+        } else openStandaloneFeature(SessionLibraryActivity::class.java,Bundle().apply {
+            putString(SessionLibraryActivity.EXTRA_PACKAGE,session.packageName)
+            putString(SessionLibraryActivity.EXTRA_SESSION,session.id)
+        })
     }
 
     private fun openGameCard(app: HubApp) {
@@ -417,17 +474,22 @@ class HubPageFragment : Fragment() {
     }
 
     private fun showGames(s: HubSnapshot) {
-        section("Игровая библиотека",
-            "Настоящие Android-приложения из Launcher и избранное Application Center.")
-        group("Библиотека")
+        section("Игры", "Выберите игру для запуска, профиля и анализа.")
         val filter = LegionUiSupport.spinner(requireContext(), HubGameFilter.entries.map { it.label })
         val sort = LegionUiSupport.spinner(requireContext(), HubGameSort.entries.map { it.label })
         filter.contentDescription = "Фильтр библиотеки"
         sort.contentDescription = "Сортировка библиотеки"
         filter.setSelection(libraryFilter.ordinal)
         sort.setSelection(librarySort.ordinal)
-        column.addView(filter, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 6.dp })
-        column.addView(sort, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 8.dp })
+        val filters=LinearLayout(requireContext()).apply {
+            orientation=if(resources.configuration.screenWidthDp>=360 &&
+                resources.configuration.fontScale<1.3f) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL
+        }
+        listOf(filter,sort).forEach {
+            filters.addView(it,if(filters.orientation==LinearLayout.HORIZONTAL)
+                LinearLayout.LayoutParams(0,-2,1f) else LinearLayout.LayoutParams(-1,-2))
+        }
+        column.addView(filters,LinearLayout.LayoutParams(-1,-2).apply { bottomMargin=8.dp })
         val input = EditText(requireContext()).apply {
             hint = "Поиск игры или имени пакета"
             setTextColor(fg)
@@ -449,14 +511,17 @@ class HubPageFragment : Fragment() {
         column.addView(list)
         val previous = Button(requireContext()).apply { text = "Назад"; contentDescription = "Предыдущая страница" }
         val next = Button(requireContext()).apply { text = "Далее"; contentDescription = "Следующая страница" }
-        column.addView(CompactActionRow(requireContext(), previous, next))
+        val pagination=CompactActionRow(requireContext(), previous, next)
+        column.addView(pagination)
         fun redraw() {
             list.removeAllViews()
             val result = HubLibraryPolicy.select(s.apps, libraryFilter, librarySort, query, libraryPage)
             libraryPage = result.page
-            count.text = "Найдено: ${result.total} · страница ${result.page + 1} из ${result.pageCount}"
+            count.text = if(result.pageCount>1) "Найдено: ${result.total} · ${result.page + 1}/${result.pageCount}"
+                else "Найдено: ${result.total}"
             previous.isEnabled = result.page > 0
             next.isEnabled = result.page + 1 < result.pageCount
+            pagination.visibility = if(result.pageCount > 1) View.VISIBLE else View.GONE
             if (result.items.isEmpty()) {
                 list.addView(LegionUiSupport.noticeView(requireContext(),
                     "Совпадений нет. Измените фильтр или запрос.", LegionUiSupport.Notice.EMPTY))
@@ -483,7 +548,15 @@ class HubPageFragment : Fragment() {
                     gravity = Gravity.CENTER
                     importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
                 }
-                row.addView(monogram, LinearLayout.LayoutParams(37.dp, 49.dp))
+                val icon = if(app.visible) runCatching {
+                    requireContext().packageManager.getApplicationIcon(app.packageName)
+                }.getOrNull() else null
+                val artwork:View = if(icon==null) monogram else ImageView(requireContext()).apply {
+                    setImageDrawable(icon)
+                    scaleType=ImageView.ScaleType.FIT_CENTER
+                    importantForAccessibility=View.IMPORTANT_FOR_ACCESSIBILITY_NO
+                }
+                row.addView(artwork, LinearLayout.LayoutParams(42.dp,42.dp).apply { rightMargin=10.dp })
                 val labels = LinearLayout(requireContext()).apply {
                     orientation = LinearLayout.VERTICAL
                     importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
@@ -539,9 +612,7 @@ class HubPageFragment : Fragment() {
         tile("Управление библиотекой", "Категории, заметки, сохранённые приложения") {
             open(ApplicationCenterActivity::class.java)
         }
-        tile("Игровые инструменты", "Все модули в едином каталоге") {
-            NavHostFragment.findNavController(this).navigate(R.id.toolsFragment)
-        }
+        tile("Игровая панель", "Настройки Game Toolbox") { open(GameToolboxActivity::class.java) }
     }
 
     private fun cancelSearch() {
@@ -593,7 +664,13 @@ class HubPageFragment : Fragment() {
 
     /** Searchable feature catalog; launches the existing real modules without migrating their data. */
     private fun showTools() {
-        section("Инструменты", "Найдите модуль или конкретную функцию: Replay, ZIP, стерео, DNS.")
+        section("Система", "Ресурсы, аппаратные возможности и настройки Android.")
+        deviceSummary((viewModel.state.value as? HubLoadState.Ready)?.snapshot)
+        centerGrid(listOf(HubCenter.DEVICE,HubCenter.PERIPHERALS,HubCenter.MEDIA))
+        tile("Параметры Android", "Громкость, яркость, DND и тайм-аут") {
+            SystemControlPanel.show(requireContext())
+        }
+        group("Поиск функций")
         val catalog = HubToolCatalog.groups
         val input = EditText(requireContext()).apply {
             hint = "Поиск функций и инструментов"
@@ -611,6 +688,8 @@ class HubPageFragment : Fragment() {
         toolCategory = toolCategory.coerceIn(0, catalog.size)
         categorySelector.setSelection(toolCategory)
         categorySelector.contentDescription = "Категория инструментов"
+        val expand=Button(requireContext()).apply { LegionUiSupport.styleAction(this) }
+        column.addView(expand)
         column.addView(categorySelector, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 8.dp })
         val resultCount = text("", 13f, muted).apply {
             accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
@@ -625,6 +704,13 @@ class HubPageFragment : Fragment() {
             var shown = 0
             // Search always covers the entire catalog; category is a browse-only filter.
             categorySelector.isEnabled = filter.isEmpty()
+            val show=filter.isNotEmpty() || catalogExpanded
+            expand.text=if(catalogExpanded) "Скрыть полный каталог" else "Все инструменты"
+            expand.visibility=if(filter.isEmpty())View.VISIBLE else View.GONE
+            categorySelector.visibility=if(show && filter.isEmpty())View.VISIBLE else View.GONE
+            resultCount.visibility=if(show)View.VISIBLE else View.GONE
+            results.visibility=if(show)View.VISIBLE else View.GONE
+            if(!show)return
             for ((index, moduleGroup) in catalog.withIndex()) {
                 val category = moduleGroup.title
                 if (filter.isEmpty() && toolCategory != 0 && toolCategory != index + 1) continue
@@ -681,6 +767,7 @@ class HubPageFragment : Fragment() {
             }
             override fun afterTextChanged(s: Editable?) {}
         })
+        expand.setOnClickListener { catalogExpanded=!catalogExpanded;redraw() }
         categorySelector.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onNothingSelected(parent: AdapterView<*>?) = Unit
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
@@ -695,11 +782,8 @@ class HubPageFragment : Fragment() {
     }
 
     private fun showHistory(s: HubSnapshot) {
-        section("История", "Записи, события и результаты ручных проверок.")
-        group("Игровая аналитика")
-        tile("Центр игровой аналитики", "Сессии, события, проблемы, сравнения и экспорт") {
-            open(SessionLibraryActivity::class.java)
-        }
+        section("Аналитика", "История игр и измерений.")
+        column.addView(centerCard(HubCenter.ANALYTICS),LinearLayout.LayoutParams(-1,-2).apply { bottomMargin=10.dp })
         tile("Текущая игровая сессия", "Управление записью и анализ незавершённых сессий") { open(GameSessionActivity::class.java) }
         tile("Эксперименты A/B", "Создание экспериментов, группы и заметки") { open(ExperimentLabActivity::class.java) }
         tile("Медиатека", "Локальные MP4 и PNG") { open(CaptureStudioActivity::class.java) }
@@ -710,7 +794,7 @@ class HubPageFragment : Fragment() {
             })
         }
         tile("История приложений", "Отслеживаемые версии и события") { open(ApplicationCenterActivity::class.java) }
-        group("Последние восемь игровых сессий")
+        group("Последние записи")
         if (s.recentSessions.isEmpty()) {
             info("Пока нет игровых сессий. Начните запись вручную через Game Session.")
         } else s.recentSessions.forEach { session ->
@@ -719,16 +803,7 @@ class HubPageFragment : Fragment() {
             val state = if (session.endedAtMs == null) "Нет записи завершения"
                 else "Завершена: " + (session.endReason ?: "нет причины")
             tile(session.appLabel, "${whenRecorded} · ${state}") {
-                if(session.endedAtMs==null) {
-                    NavHostFragment.findNavController(this).navigate(R.id.sessionIncidentsFragment,
-                        Bundle().apply {
-                            putString("session_id",session.id)
-                            putString("smart_package",session.packageName)
-                        })
-                } else openStandaloneFeature(SessionLibraryActivity::class.java,Bundle().apply {
-                    putString(SessionLibraryActivity.EXTRA_PACKAGE,session.packageName)
-                    putString(SessionLibraryActivity.EXTRA_SESSION,session.id)
-                })
+                openRecentSession(session)
             }
         }
     }
@@ -771,11 +846,21 @@ class HubPageFragment : Fragment() {
         val permissions = PermissionCenterModel.permissions(access)
         info(PermissionCenterModel.summary(permissions) + ". Доступы выдаются только в Android; " +
             "не все нужны для каждой функции.")
+        val permissionPanel=LinearLayout(requireContext()).apply { orientation=LinearLayout.VERTICAL }
+        val permissionToggle=Button(requireContext()).apply { LegionUiSupport.styleAction(this) }
+        fun refreshPermissionPanel() {
+            permissionPanel.visibility=if(permissionsExpanded)View.VISIBLE else View.GONE
+            permissionToggle.text=if(permissionsExpanded)"Скрыть список разрешений" else "Управление разрешениями"
+        }
+        permissionToggle.setOnClickListener { permissionsExpanded=!permissionsExpanded;refreshPermissionPanel() }
+        column.addView(permissionToggle)
         for (item in permissions) {
-            column.addView(LegionUiSupport.permissionRow(requireContext(), item) {
+            permissionPanel.addView(LegionUiSupport.permissionRow(requireContext(), item) {
                 openCapabilitySettings(item.capability)
             }, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 6.dp })
         }
+        column.addView(permissionPanel)
+        refreshPermissionPanel()
         group("Системное управление")
         tile("Параметры Android", "Громкость, яркость, DND, тайм-аут и возврат") {
             SystemControlPanel.show(requireContext())

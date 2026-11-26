@@ -12,9 +12,18 @@ class HubNavigationRulesTest {
             HubTab.entries.map { it.key })
         assertEquals(5, HubTab.entries.map { it.key }.toSet().size)
         assertEquals("Главная", HubTab.HOME.shortTitle)
-        assertEquals("Инструменты", HubTab.TOOLS.title)
-        assertEquals("Инстр.", HubTab.TOOLS.shortTitle)
+        assertEquals("Система", HubTab.TOOLS.title)
+        assertEquals("Система", HubTab.TOOLS.shortTitle)
+        assertEquals("Аналитика", HubTab.HISTORY.shortTitle)
+        assertEquals(HubTab.TOOLS, HubTab.parse("system"))
+        assertEquals(HubTab.HISTORY, HubTab.parse("analytics"))
         assertEquals(HubTab.TOOLS, HubTab.parse("tools"))
+    }
+
+    @Test fun approvedHomeCentersHaveStableOrder() {
+        assertEquals(listOf("Игровой центр","Устройство","Медиацентр","Периферия","Аналитика"),
+            HubCenter.entries.map { it.title })
+        assertEquals(5, HubCenter.entries.map { it.name }.toSet().size)
     }
 
     @Test fun deepLinkSelectionIsBoundedToExplicitTabs() {

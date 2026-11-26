@@ -50,8 +50,8 @@ tabs = read("HubNavigationRules.kt")
 assert "val labels = HubTab.entries.map { it.shortTitle }.toTypedArray()" in skin
 assert "val tabs = HubTab.entries" in host
 for name, title in (
-    ("HOME", "Главная"), ("GAMES", "Игры"), ("TOOLS", "Инструменты"),
-    ("HISTORY", "История"), ("SETTINGS", "Настройки")
+    ("HOME", "Главная"), ("GAMES", "Игры"), ("TOOLS", "Система"),
+    ("HISTORY", "Аналитика"), ("SETTINGS", "Настройки")
 ):
     assert f'{name}(' in tabs and f'"{title}"' in tabs
 assert "val selected = index == selectedIndex" in skin
