@@ -137,3 +137,29 @@ object GameLaunchProfilePolicy {
         else -> RestoreChoice.CHANGED_BY_USER
     }
 }
+
+/** Encoded state of Legion's implicit DND rule; ruleId is runtime-only. */
+internal data class AppDndRuleSnapshot(
+    val exists: Boolean,
+    val state: Int,
+    val filter: Int,
+    val ruleId: String? = null
+) {
+    val encoded: Int
+        get() {
+            if (!exists) return 0
+            require(state in 0..1 && filter in 1..4)
+            return 100 + state * 10 + filter
+        }
+
+    companion object {
+        fun decode(encoded: Int): AppDndRuleSnapshot {
+            if (encoded == 0) return AppDndRuleSnapshot(false, 0, 1)
+            require(encoded in 101..114) { "Invalid app DND snapshot" }
+            val state = (encoded / 10) % 10
+            val filter = encoded % 10
+            require(state in 0..1 && filter in 1..4) { "Invalid app DND snapshot" }
+            return AppDndRuleSnapshot(true, state, filter)
+        }
+    }
+}

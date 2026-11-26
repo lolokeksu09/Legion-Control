@@ -1,5 +1,6 @@
 package dev.lolokeksu.legioncontrol
 
+import android.app.AutomaticZenRule
 import android.app.NotificationManager
 import android.os.Build
 import android.service.notification.Condition
@@ -127,8 +128,8 @@ object GameLaunchProfiles {
                 val before: Int
                 val after: Int
                 if (Build.VERSION.SDK_INT >= 35) {
-                    before = requireNotNull(appDnd).state
-                    after = if (p.focusEnabled == true) APP_DND_ACTIVE else APP_DND_INACTIVE
+                    before = requireNotNull(appDnd).encoded
+                    after = if (p.focusEnabled == true) AppDndRuleSnapshot(true, APP_DND_ACTIVE,\n                        NotificationManager.INTERRUPTION_FILTER_NONE).encoded\n                    else if (appDnd.exists) AppDndRuleSnapshot(true, APP_DND_INACTIVE, appDnd.filter).encoded\n                    else appDnd.encoded
                 } else {
                     before = nm.currentInterruptionFilter
                     require(before in setOf(
@@ -304,13 +305,14 @@ object GameLaunchProfiles {
             "Невозможно однозначно определить неявное правило DND Legion Control"
         }
         val id = implicitRules.keys.singleOrNull()
-            ?: return AppDndRuleSnapshot(false, APP_DND_INACTIVE)
+            ?: return AppDndRuleSnapshot(false, APP_DND_INACTIVE, NotificationManager.INTERRUPTION_FILTER_ALL)
+        val rule = requireNotNull(implicitRules[id])
         val state = when (nm.getAutomaticZenRuleState(id)) {
             Condition.STATE_TRUE -> APP_DND_ACTIVE
             Condition.STATE_FALSE -> APP_DND_INACTIVE
             else -> error("Android не предоставил достоверное состояние правила DND")
         }
-        return AppDndRuleSnapshot(true, state)
+        return AppDndRuleSnapshot(true, state, rule.interruptionFilter, id)
     }
 
     private fun restoreAppDndRule(
@@ -324,37 +326,49 @@ object GameLaunchProfiles {
         return try {
             val manager = requireNotNull(nm)
             check(manager.isNotificationPolicyAccessGranted)
+            val original = AppDndRuleSnapshot.decode(change.original)
+            val requested = AppDndRuleSnapshot.decode(change.requested)
+            check(original.exists == originalRuleExisted) { "DND undo scope is inconsistent" }
             val current = readAppDndRuleSnapshot(manager)
+            if (current.encoded == original.encoded ||
+                (!original.exists && current.exists && current.state == APP_DND_INACTIVE)) return null
             if (!current.exists) {
-                if (originalRuleExisted && change.original == APP_DND_ACTIVE) onConflict()
+                if (original.exists && original.state == APP_DND_ACTIVE) onConflict()
                 return null
             }
-            when (GameLaunchProfilePolicy.restoreChoice(current.state, change)) {
-                RestoreChoice.ALREADY_ORIGINAL -> null
-                RestoreChoice.CHANGED_BY_USER -> {
-                    onConflict()
-                    null
+            if (current.encoded != requested.encoded) {
+                onConflict()
+                return null
+            }
+            if (original.exists) {
+                val ruleId = requireNotNull(current.ruleId)
+                val rule = requireNotNull(manager.automaticZenRules[ruleId])
+                val updated = AutomaticZenRule.Builder(rule)
+                    .setInterruptionFilter(original.filter)
+                    .setEnabled(original.state == APP_DND_ACTIVE)
+                    .build()
+                check(manager.updateAutomaticZenRule(ruleId, updated)) {
+                    "Android отклонил восстановление правила DND"
                 }
-                RestoreChoice.RESTORE -> {
-                    manager.setInterruptionFilter(
-                        if (change.original == APP_DND_ACTIVE)
-                            NotificationManager.INTERRUPTION_FILTER_NONE
-                        else NotificationManager.INTERRUPTION_FILTER_ALL
-                    )
-                    val restored = readAppDndRuleSnapshot(manager)
-                    check(restored.exists && restored.state == change.original) {
-                        "Android не подтвердил восстановление правила DND Legion Control"
-                    }
-                    onRestored()
-                    null
+                val restored = readAppDndRuleSnapshot(manager)
+                check(restored.exists && restored.state == original.state && restored.filter == original.filter) {
+                    "Android не подтвердил восстановление правила DND Legion Control"
+                }
+            } else {
+                // The implicit rule did not exist before this profile; deactivate it, never touch other apps.
+                manager.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_ALL)
+                val restored = readAppDndRuleSnapshot(manager)
+                check(!restored.exists || restored.state == APP_DND_INACTIVE) {
+                    "Android не подтвердил отключение правила DND Legion Control"
                 }
             }
+            onRestored()
+            null
         } catch (_: Exception) {
             onFailure()
             change
         }
     }
-
     private const val APP_DND_INACTIVE = 0
     private const val APP_DND_ACTIVE = 1
 
