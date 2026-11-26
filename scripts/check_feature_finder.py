@@ -16,14 +16,14 @@ files = {
     "HARDWARE": "HardwareLabFragment.kt",
     "COMPAT": "CompatibilityLabFragment.kt",
     "EXPERIMENT": "ExperimentLabFragment.kt",
-    "SIGNALS": "SessionSignalsFragment.kt",
-    "INCIDENTS": "SessionIncidentsFragment.kt",
-    "BASELINES": "SessionBaselinesFragment.kt",
+    "SIGNALS": "SessionLibraryActivity.kt",
+    "INCIDENTS": "SessionLibraryActivity.kt",
+    "BASELINES": "SessionLibraryActivity.kt",
     "DIAGNOSTICS": "MainActivity.kt",
     "GAMEPAD": "GamepadLiveActivity.kt",
     "MONITOR": "LiveMonitorActivity.kt",
     "PREFLIGHT": "GamePreflightActivity.kt",
-    "COMPARE": "SessionCompareActivity.kt",
+    "COMPARE": "SessionLibraryActivity.kt",
     "LIBRARY": "SessionLibraryActivity.kt",
 }
 entries = re.findall(r'FeatureEntry\("([^"]+)", FeatureModule\.(\w+), "([^"]+)", "([^"]+)", "([^"]+)"\)', registry)
@@ -44,7 +44,10 @@ for key, module, title, anchor, _ in entries:
         factory = r'(?:action|control)' if module == "CAPTURE" else r'(?:action|button|addButton)'
         assert re.search(factory + r'\((?:root, )?"' + re.escape(anchor) + r'", "' + re.escape(key) + r'"\)', source), key
         assert re.search(r'FeatureReveal.bind\(this,\s*featureId\)', source), module
-    assert f'FeatureModule.{module}' in source, (key, module)
+    if module in {"SIGNALS", "INCIDENTS", "BASELINES", "COMPARE"}:
+        assert f'FeatureModule.{module}' in (src / "SessionAnalyticsSnapshot.kt").read_text(), (key, module)
+    else:
+        assert f'FeatureModule.{module}' in source, (key, module)
     assert f'FeatureModule.{module} ->' in (src / "HubPageFragment.kt").read_text()
 capture = (src / files["CAPTURE"]).read_text()
 assert "control(value, featureId, onClick).also { root.addView(it) }" in capture

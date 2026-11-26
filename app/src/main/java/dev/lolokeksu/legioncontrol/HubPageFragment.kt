@@ -579,14 +579,14 @@ class HubPageFragment : Fragment() {
             FeatureModule.HARDWARE -> open(HardwareLabActivity::class.java, args)
             FeatureModule.COMPAT -> open(CompatibilityLabActivity::class.java, args)
             FeatureModule.EXPERIMENT -> open(ExperimentLabActivity::class.java, args)
-            FeatureModule.SIGNALS -> NavHostFragment.findNavController(this).navigate(R.id.sessionSignalsFragment, args)
-            FeatureModule.INCIDENTS -> NavHostFragment.findNavController(this).navigate(R.id.sessionIncidentsFragment, args)
-            FeatureModule.BASELINES -> NavHostFragment.findNavController(this).navigate(R.id.sessionBaselinesFragment, args)
+            FeatureModule.SIGNALS -> openStandaloneFeature(SessionLibraryActivity::class.java, args)
+            FeatureModule.INCIDENTS -> openStandaloneFeature(SessionLibraryActivity::class.java, args)
+            FeatureModule.BASELINES -> openStandaloneFeature(SessionLibraryActivity::class.java, args)
             FeatureModule.DIAGNOSTICS -> openStandaloneFeature(MainActivity::class.java, args)
             FeatureModule.GAMEPAD -> openStandaloneFeature(GamepadLiveActivity::class.java, args)
             FeatureModule.MONITOR -> openStandaloneFeature(MainActivity::class.java, args)
             FeatureModule.PREFLIGHT -> openStandaloneFeature(GamePreflightActivity::class.java, args)
-            FeatureModule.COMPARE -> openStandaloneFeature(SessionCompareActivity::class.java, args)
+            FeatureModule.COMPARE -> openStandaloneFeature(SessionLibraryActivity::class.java, args)
             FeatureModule.LIBRARY -> openStandaloneFeature(SessionLibraryActivity::class.java, args)
         }
     }
@@ -696,24 +696,13 @@ class HubPageFragment : Fragment() {
 
     private fun showHistory(s: HubSnapshot) {
         section("История", "Записи, события и результаты ручных проверок.")
-        group("Записи")
-        tile("Игровые сессии", "Просмотр сохранённых Game Session") { open(GameSessionActivity::class.java) }
-        tile("Клипы MP4", "Movies/LegionControl/ · локальная библиотека") { open(CaptureStudioActivity::class.java) }
-        tile("Session Library", "Фильтры, страницы и архив отдельной записи") { open(SessionLibraryActivity::class.java) }
-        group("Анализ игровых сеансов")
-        tile("Session Compare", "Две выбранные записи одной игры · сравнение одинаковых интервалов") {
-            open(SessionCompareActivity::class.java)
+        group("Игровая аналитика")
+        tile("Центр игровой аналитики", "Сессии, события, проблемы, сравнения и экспорт") {
+            open(SessionLibraryActivity::class.java)
         }
-        tile("Session Signals", "Хронология событий, метки, разрывы телеметрии и экспорт") {
-            NavHostFragment.findNavController(this).navigate(R.id.sessionSignalsFragment)
-        }
-        tile("Session Baselines", "Медиана прошлых сессий, исключения и экспорт") {
-            NavHostFragment.findNavController(this).navigate(R.id.sessionBaselinesFragment)
-        }
-        tile("Session Incidents", "Длительность проблемных состояний, ручные метки и CSV") {
-            NavHostFragment.findNavController(this).navigate(R.id.sessionIncidentsFragment)
-        }
-        tile("Эксперименты", "Сравнения и заметки") { open(ExperimentLabActivity::class.java) }
+        tile("Текущая игровая сессия", "Управление записью и анализ незавершённых сессий") { open(GameSessionActivity::class.java) }
+        tile("Эксперименты A/B", "Создание экспериментов, группы и заметки") { open(ExperimentLabActivity::class.java) }
+        tile("Медиатека", "Локальные MP4 и PNG") { open(CaptureStudioActivity::class.java) }
         group("Данные устройства и приложений")
         tile("Измерения устройства", "История Kotlin + Rust, тесты батареи, тепло и CSV/ZIP") {
             openStandaloneFeature(MainActivity::class.java, Bundle().apply {
@@ -730,13 +719,16 @@ class HubPageFragment : Fragment() {
             val state = if (session.endedAtMs == null) "Нет записи завершения"
                 else "Завершена: " + (session.endReason ?: "нет причины")
             tile(session.appLabel, "${whenRecorded} · ${state}") {
-                NavHostFragment.findNavController(this).navigate(
-                    R.id.sessionIncidentsFragment,
-                    Bundle().apply {
-                        putString("session_id", session.id)
-                        putString("smart_package", session.packageName)
-                    }
-                )
+                if(session.endedAtMs==null) {
+                    NavHostFragment.findNavController(this).navigate(R.id.sessionIncidentsFragment,
+                        Bundle().apply {
+                            putString("session_id",session.id)
+                            putString("smart_package",session.packageName)
+                        })
+                } else openStandaloneFeature(SessionLibraryActivity::class.java,Bundle().apply {
+                    putString(SessionLibraryActivity.EXTRA_PACKAGE,session.packageName)
+                    putString(SessionLibraryActivity.EXTRA_SESSION,session.id)
+                })
             }
         }
     }

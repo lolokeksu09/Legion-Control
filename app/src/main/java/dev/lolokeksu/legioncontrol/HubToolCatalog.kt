@@ -38,8 +38,7 @@ internal object HubToolCatalog {
         )),
         HubToolGroup("История и сравнение", listOf(
             item("Experiment Lab", "A/B-сравнения и заметки", ExperimentLabActivity::class.java),
-            item("Session Compare", "Две выбранные сессии и совмещённые графики", SessionCompareActivity::class.java),
-            item("Session Library", "Фильтры истории и ZIP одной записи", SessionLibraryActivity::class.java)
+            item("Игровая аналитика", "Session Library, Compare, Signals, Incidents, Baselines, графики и CSV/ZIP", SessionLibraryActivity::class.java)
         ))
     )
 

@@ -207,11 +207,8 @@ class GameDetailFragment : Fragment() {
             }
         }
         section("ИСТОРИЯ И АНАЛИТИКА")
-        addAction("Session Library", "Открыть историю записей этой игры") {
+        addAction("Игровая аналитика", "История, события, проблемы, графики и сравнения этой игры") {
             open(SessionLibraryActivity::class.java) { it.putExtra(SessionLibraryActivity.EXTRA_PACKAGE,pkg) }
-        }
-        addAction("Session Compare", "Сравнить одинаковые интервалы двух записей этой игры") {
-            open(SessionCompareActivity::class.java) { it.putExtra(SessionCompareActivity.EXTRA_PACKAGE,pkg) }
         }
         addAction("Experiment Lab", "Сравнения и заметки для выбранного пакета") {
             open(ExperimentLabActivity::class.java) {

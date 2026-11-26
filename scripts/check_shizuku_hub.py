@@ -45,7 +45,6 @@ expected = {
     "MainActivity",
     "ConnectivityLabActivity",
     "ExperimentLabActivity",
-    "SessionCompareActivity",
     "SessionLibraryActivity",
 }
 assert len(activities) == len(set(activities)) and set(activities) == expected, activities
@@ -55,7 +54,7 @@ assert 'R.id.toolsFragment' in hub
 ci = (root / ".github/workflows/android.yml").read_text()
 assert "inputs.full_emulator == true" in ci and "default: false" in ci
 assert "testDebugUnitTest" in ci and "scripts/verify_apk.py" in ci
-print("PASS: optional Shizuku, shell-only diagnostics, unified 18-module catalog and opt-in emulator")
+print("PASS: optional Shizuku, shell-only diagnostics, unified 17-module catalog and opt-in emulator")
 
 # Scoped read-only Shizuku UserService, no general command API.
 audit = (src / "ShizukuSystemAudit.kt").read_text()
