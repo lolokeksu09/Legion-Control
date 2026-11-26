@@ -41,10 +41,14 @@ for key, module, title, anchor, _ in entries:
         assert re.search(r'tile\("' + re.escape(anchor) + r'", "[^"]+", "' + re.escape(key) + r'"\)', source), key
         assert "FeatureReveal.bind(this,featureId)" in source
     else:
-        assert re.search(r'(?:action|button|addButton)\((?:root, )?"' + re.escape(anchor) + r'", "' + re.escape(key) + r'"\)', source), key
+        factory = r'(?:action|control)' if module == "CAPTURE" else r'(?:action|button|addButton)'
+        assert re.search(factory + r'\((?:root, )?"' + re.escape(anchor) + r'", "' + re.escape(key) + r'"\)', source), key
         assert re.search(r'FeatureReveal.bind\(this,\s*featureId\)', source), module
     assert f'FeatureModule.{module}' in source, (key, module)
     assert f'FeatureModule.{module} ->' in (src / "HubPageFragment.kt").read_text()
+capture = (src / files["CAPTURE"]).read_text()
+assert "control(value, featureId, onClick).also { root.addView(it) }" in capture
+assert "root.addView(CompactActionRow(this, recordStart, replayStart))" in capture
 assert "requestRectangleOnScreen" in helper
 assert "bound.singleOrNull()" in helper
 assert "feature.anchor" not in helper

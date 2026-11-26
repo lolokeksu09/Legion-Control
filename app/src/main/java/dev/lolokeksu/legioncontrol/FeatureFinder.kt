@@ -43,7 +43,7 @@ object FeatureFinder {
         FeatureEntry("capture.screenshot", FeatureModule.CAPTURE, "Скриншот экрана", "СДЕЛАТЬ СКРИНШОТ ЭКРАНА", "png screenshot снимок"),
         FeatureEntry("capture.quality", FeatureModule.CAPTURE, "Разрешение записи", "Разрешение · 720p / 1080p", "качество 720p 1080p"),
         FeatureEntry("capture.audio", FeatureModule.CAPTURE, "Звук игры в записи", "Звук игры · включить / выключить", "aac playback audio внутренний звук"),
-        FeatureEntry("capture.clips", FeatureModule.CAPTURE, "Библиотека клипов MP4", "ОТКРЫТЬ БИБЛИОТЕКУ КЛИПОВ", "clip workshop видео"),
+        FeatureEntry("capture.clips", FeatureModule.CAPTURE, "Медиатека MP4 и PNG", "ОБНОВИТЬ МЕДИАТЕКУ", "clip workshop видео библиотека клипов снимков скриншоты галерея"),
         FeatureEntry("capture.backup", FeatureModule.CAPTURE, "Резервная копия ZIP", "ЭКСПОРТ ИСТОРИИ И НАСТРОЕК", "backup экспорт sqlite архив"),
         FeatureEntry("capture.restore", FeatureModule.CAPTURE, "Восстановление из ZIP", "ПРОВЕРИТЬ И ВОССТАНОВИТЬ ИЗ ZIP", "restore импорт backup sqlite"),
         FeatureEntry("capture.resume", FeatureModule.CAPTURE, "Завершить прерванный импорт", "ЗАВЕРШИТЬ ПРЕРВАННОЕ ВОССТАНОВЛЕНИЕ", "restore журнал восстановление zip"),

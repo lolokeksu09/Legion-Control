@@ -16,6 +16,12 @@ class FeatureFinderTest {
         assertTrue(FeatureFinder.search("unlikelysearch999").isEmpty())
         assertTrue(FeatureFinder.search("   ").isEmpty())
     }
+    @Test fun mediaLibrarySearchRetainsOldKeywordsAndFindsNewAnchor() {
+        for (query in listOf("библиотека клипов mp4", "медиатека png", "галерея", "clip workshop")) {
+            assertTrue(query, FeatureFinder.search(query).any { it.id == "capture.clips" })
+        }
+        assertEquals("ОБНОВИТЬ МЕДИАТЕКУ", FeatureFinder.resolve("capture.clips", FeatureModule.CAPTURE)?.anchor)
+    }
     @Test fun onlyKnownIdsForTheOwningModuleResolve() {
         assertNotNull(FeatureFinder.resolve("capture.backup", FeatureModule.CAPTURE))
         assertNull(FeatureFinder.resolve("capture.backup", FeatureModule.AUDIO))
