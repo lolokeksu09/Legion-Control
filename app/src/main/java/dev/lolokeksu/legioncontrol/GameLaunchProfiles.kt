@@ -4,6 +4,7 @@ import android.app.AutomaticZenRule
 import android.app.NotificationManager
 import android.os.Build
 import android.service.notification.Condition
+import androidx.annotation.RequiresApi
 import android.content.Context
 import android.media.AudioManager
 import android.provider.Settings
@@ -307,6 +308,7 @@ object GameLaunchProfiles {
     }
     private data class AppDndRuleSnapshot(val exists: Boolean, val state: Int)
 
+    @RequiresApi(35)
     private fun readAppDndRuleSnapshot(nm: NotificationManager): AppDndRuleSnapshot {
         val implicitRules = nm.automaticZenRules.filterValues { rule ->
             rule.owner == null && rule.configurationActivity == null
@@ -325,6 +327,7 @@ object GameLaunchProfiles {
         return AppDndRuleSnapshot(true, state, rule.interruptionFilter, id)
     }
 
+    @RequiresApi(35)
     private fun restoreAppDndRule(
         change: LaunchSettingChange,
         originalRuleExisted: Boolean,
