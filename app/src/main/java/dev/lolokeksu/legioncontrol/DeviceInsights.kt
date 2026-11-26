@@ -1,6 +1,5 @@
 package dev.lolokeksu.legioncontrol
 
-import android.app.ActivityManager
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -9,49 +8,37 @@ import android.net.NetworkCapabilities
 import android.net.wifi.WifiInfo
 import android.os.BatteryManager
 import android.os.Debug
-import android.os.Environment
 import android.os.PowerManager
-import android.os.StatFs
 import android.view.Display
 import java.util.Locale
 
 object DeviceInsights {
-    fun battery(context: Context): String {
-        val manager = context.getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
-        fun int(id: Int): Int? = runCatching { manager?.getIntProperty(id) }
-            .getOrNull()?.takeUnless { it == Int.MIN_VALUE || it < 0 }
-        fun long(id: Int): Long? = runCatching { manager?.getLongProperty(id) }
-            .getOrNull()?.takeUnless { it == Long.MIN_VALUE || it < 0 }
-        val charge = int(BatteryManager.BATTERY_PROPERTY_CHARGE_COUNTER)
-        val energy = long(BatteryManager.BATTERY_PROPERTY_ENERGY_COUNTER)
-        return buildString {
-            append("BATTERY INTELLIGENCE · Android BatteryManager\n")
-            append("Остаточный заряд: ")
-                .append(charge?.let { String.format(Locale.US, "%.1f мА·ч", it/1000.0) }
-                    ?: "нет данных").append("\n")
-            append("Счётчик энергии: ")
-                .append(energy?.let { String.format(Locale.US, "%.2f мВт·ч", it/1_000_000.0) }
-                    ?: "нет данных").append("\n")
-            append("Показания предоставляются прошивкой; не означают исходную ёмкость или износ.")
-        }
+    fun battery(context: Context): String = ResourceTelemetryBackend.readBatteryCounters(context).let {
+        DeviceOverviewPresentation.battery(it.charge, it.energy, it.currentNow, it.currentAverage)
     }
 
-    fun thermal(context: Context): String {
-        val power = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
-        val status = runCatching { power?.currentThermalStatus }.getOrNull()
-        // Rate-limited by Android; invoked only on user's direct request.
-        val headroom = runCatching { power?.getThermalHeadroom(0) }
-            .getOrNull()?.takeIf { it.isFinite() && it >= 0f }
+    fun thermal(context: Context): String = DeviceOverviewPresentation.thermal(
+        thermalStatus(context), ResourceTelemetryBackend.readThermalHeadroom(context))
+
+    private fun thermalStatus(context: Context): Int? =
+        runCatching { context.getSystemService(PowerManager::class.java)?.currentThermalStatus }.getOrNull()
+
+    private fun powerSaving(context: Context): Boolean? =
+        runCatching { context.getSystemService(PowerManager::class.java)?.isPowerSaveMode }.getOrNull()
+
+    /** Single user-requested snapshot; no network traffic, listeners or benchmark. */
+    fun overview(context: Context, display: Display?): String {
+        val data = ResourceTelemetryBackend.read(context)
         return buildString {
-            append("THERMAL GUARD · текущий Android status\n")
-            append("Статус: ").append(ThermalSeverity.describe(status)).append("\n")
-            append("Thermal Headroom: ").append(headroom?.let {
-                String.format(Locale.US, "%.2f", it)
-            } ?: "недоступен / ограничен Android").append("\n")
-            if (status != null && status >= 3) {
-                append("ВНИМАНИЕ: серьёзное тепловое ограничение, не запускайте нагрузочный тест.\n")
-            }
-            append("Это системная оценка теплового состояния, не температура CPU/GPU.")
+            append("СОСТОЯНИЕ УСТРОЙСТВА · локальный снимок\n\n")
+            append(DeviceOverviewPresentation.battery(data.batteryChargeCounterMicroAh,
+                data.batteryEnergyCounterNanoWh, data.batteryCurrentNowMicroAmps,
+                data.batteryCurrentAverageMicroAmps)).append("\n\n")
+            append(DeviceOverviewPresentation.thermal(thermalStatus(context), data.thermalHeadroom))
+                .append("\n\n")
+            append(DeviceOverviewPresentation.system(data.systemMemory, data.appFilesystem,
+                ownPssMiB(), displayHz(display), powerSaving(context))).append("\n\n")
+            append(network(context))
         }
     }
 
@@ -96,31 +83,16 @@ object DeviceInsights {
         }
     }
 
-    fun system(context: Context, display: Display?): String {
-        val activity = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
-        val info = ActivityManager.MemoryInfo()
-        runCatching { activity?.getMemoryInfo(info) }
-        val stat = runCatching { StatFs(Environment.getDataDirectory().absolutePath) }.getOrNull()
-        fun gib(bytes: Long) = String.format(Locale.US, "%.2f ГиБ", bytes/1073741824.0)
-        return buildString {
-            append("SYSTEM HEALTH · RAM и хранилище\n")
-            append("RAM доступно/всего: ")
-                .append(if (info.totalMem > 0L) gib(info.availMem)+" / "+gib(info.totalMem)
-                        else "недоступно").append("\n")
-            append("Android lowMemory: ").append(info.lowMemory).append("\n")
-            append("Хранилище доступно/всего: ")
-                .append(stat?.let { gib(it.availableBytes)+" / "+gib(it.totalBytes) }
-                    ?: "недоступно").append("\n")
-            append("PSS собственного процесса: ")
-                .append(runCatching { Debug.getPss()/1024 }.getOrNull()?.let { "$it МиБ" }
-                    ?: "нет данных").append("\n")
-            append("Текущий режим дисплея: ")
-                .append(display?.mode?.refreshRate?.let {
-                    String.format(Locale.US, "%.1f Гц", it)
-                } ?: "недоступен").append("\n")
-            append("Не измеряет чужие процессы, реальные частоты CPU/GPU или FPS игр.")
-        }
-    }
+    private fun ownPssMiB(): Long? =
+        runCatching { Debug.getPss() }.getOrNull()?.takeIf { it > 0L }?.div(1024L)
+
+    private fun displayHz(display: Display?): Float? =
+        runCatching { display?.mode?.refreshRate }.getOrNull()?.takeIf { it.isFinite() && it > 0f }
+
+    fun system(context: Context, display: Display?): String = DeviceOverviewPresentation.system(
+        ResourceTelemetryBackend.readSystemMemory(context),
+        ResourceTelemetryBackend.readAppFilesystem(context), ownPssMiB(), displayHz(display), powerSaving(context))
+
 }
 
 /** Real battery-terminal current/voltage; not the charger adapter output. */
@@ -140,8 +112,8 @@ object ChargingDiagnostics {
         val status = intent?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
         val current = runCatching {
             manager?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW)
-        }.getOrNull()?.takeUnless { it == Int.MIN_VALUE }
-        val temp = intent?.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, -1)?.takeIf { it >= 0 }
+        }.getOrNull().let(TelemetryValidation::currentMicroAmps)
+        val temp = intent?.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, Int.MIN_VALUE)?.takeIf { it in -400..1200 }
         val voltage = intent?.getIntExtra(BatteryManager.EXTRA_VOLTAGE, -1)?.takeIf { it > 0 }
         val level = intent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)?.takeIf { it in 0..100 }
         val state = when (status) {

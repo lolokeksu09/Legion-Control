@@ -9,13 +9,14 @@ import android.os.Looper
 
 /** Connected output device types: not the selected route, and not an acoustic test. */
 object AudioRouteInspector {
-    fun outputTypes(context:Context):List<Int> {
-        val manager=context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-        return runCatching {
-            manager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
-                .map { it.type }.distinct().sorted()
-        }.getOrDefault(emptyList())
-    }
+    internal fun readOutputs(context: Context): ProbeResult<List<AudioDeviceInfo>> = try {
+        val manager = context.getSystemService(AudioManager::class.java)
+        if (manager == null) ProbeResult.unavailable()
+        else ProbeResult.available(manager.getDevices(AudioManager.GET_DEVICES_OUTPUTS).toList())
+    } catch (_: Exception) { ProbeResult.failure() }
+
+    fun outputTypes(context:Context):List<Int> =
+        readOutputs(context).value.orEmpty().map { it.type }.distinct().sorted()
 
     fun label(type:Int):String=when(type) {
         AudioDeviceInfo.TYPE_BUILTIN_SPEAKER -> "Встроенный динамик"
@@ -34,12 +35,14 @@ object AudioRouteInspector {
 
     fun snapshot(context:Context):String {
         val manager=context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-        val types=outputTypes(context)
+        val reading = readOutputs(context)
+        val types = reading.value.orEmpty().map { it.type }.distinct().sorted()
         val current=manager.getStreamVolume(AudioManager.STREAM_MUSIC)
         val max=manager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
         return buildString {
             append("AUDIO ROUTING · подключённые устройства\n")
-            if(types.isEmpty()) append("Android не вернул список выходов.\n")
+            if (reading.state != ProbeState.AVAILABLE) append(DeviceOverviewPresentation.display(reading) { "н/д" }).append("\n")
+            else if(types.isEmpty()) append("Android не вернул список выходов.\n")
             else types.forEach { append("• ").append(label(it)).append(" (type=").append(it).append(")\n") }
             append("Системная громкость MEDIA: ").append(current).append("/").append(max).append("\n")
             append("Выходы выше — ДОСТУПНЫЕ устройства, не доказательство текущего маршрута.\n")

@@ -47,7 +47,7 @@ class GamingDiagnosticsFragment : Fragment() {
             setTypeface(null, Typeface.BOLD)
         })
         root.addView(TextView(requireContext()).apply {
-            text = "10 инструментов · Android API · запуск только по нажатию. " +
+            text = "Локальная диагностика · запуск только по нажатию. " +
                 "Ни один модуль не даёт Root, Bypass, FPS чужой игры или частоту CPU/GPU."
             textSize = 13f
             setTextColor(Color.LTGRAY)
@@ -65,6 +65,13 @@ class GamingDiagnosticsFragment : Fragment() {
         root.addView(resultView)
 
         root.addView(LegionUiSupport.sectionLabel(requireContext(), "ПРОВЕРКИ УСТРОЙСТВА"))
+        addButton(root, "Сводка устройства") {
+            viewModel.run(GamingProbe.OVERVIEW, refreshHzDisplay = requireActivity().display)
+        }
+        addButton(root, "Остановить текущую проверку") {
+            viewModel.cancelAll()
+            report("Проверка остановлена. Можно выбрать следующий инструмент.")
+        }
         root.addView(LegionUiSupport.sectionLabel(requireContext(), "СЕТЬ И СОЕДИНЕНИЕ"))
         addButton(root, "1 · Network Analyzer — TCP/DNS", "gaming.network") {
             viewModel.run(GamingProbe.NETWORK)

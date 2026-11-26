@@ -59,23 +59,14 @@ object AudioOutputInspector {
     fun inspect(context: Context): String {
         val manager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
             ?: return "AUDIO OUTPUT · AudioManager недоступен"
-        val outputs = runCatching { manager.getDevices(AudioManager.GET_DEVICES_OUTPUTS) }
-            .getOrDefault(emptyArray())
+        val reading = AudioRouteInspector.readOutputs(context)
+        val outputs = reading.value ?: return "AUDIO OUTPUT · " +
+            DeviceOverviewPresentation.display(reading) { "н/д" }
         return buildString {
             append("AUDIO OUTPUT · доступные выходы Android\n")
             append("Выходов: ").append(outputs.size).append('\n')
             for (out in outputs.take(16)) {
-                val type = when(out.type) {
-                    AudioDeviceInfo.TYPE_BUILTIN_SPEAKER -> "Встроенный динамик"
-                    AudioDeviceInfo.TYPE_BUILTIN_EARPIECE -> "Разговорный динамик"
-                    AudioDeviceInfo.TYPE_WIRED_HEADPHONES -> "Проводные наушники"
-                    AudioDeviceInfo.TYPE_WIRED_HEADSET -> "Гарнитура"
-                    AudioDeviceInfo.TYPE_BLUETOOTH_A2DP -> "Bluetooth A2DP"
-                    AudioDeviceInfo.TYPE_BLUETOOTH_SCO -> "Bluetooth SCO"
-                    AudioDeviceInfo.TYPE_USB_DEVICE, AudioDeviceInfo.TYPE_USB_HEADSET -> "USB-аудио"
-                    AudioDeviceInfo.TYPE_HDMI -> "HDMI"
-                    else -> "Android тип " + out.type
-                }
+                val type = AudioRouteInspector.label(out.type)
                 append("· ").append(type).append(" · ")
                     .append(out.productName.toString().take(70)).append('\n')
                 if (out.sampleRates.isNotEmpty()) append("  PCM частоты: ")
@@ -167,16 +158,12 @@ object GamingReadinessSnapshot {
             context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
         }.getOrNull()
         val level = battery?.getIntExtra(BatteryManager.EXTRA_LEVEL,-1)?.takeIf { it in 0..100 }
-        val temp = battery?.getIntExtra(BatteryManager.EXTRA_TEMPERATURE,-1)
+        val temp = battery?.getIntExtra(BatteryManager.EXTRA_TEMPERATURE,Int.MIN_VALUE)
             ?.takeIf { it in -400..1200 }
         val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
         val active = runCatching { cm?.activeNetwork }.getOrNull()
         val caps = runCatching { active?.let { cm?.getNetworkCapabilities(it) } }.getOrNull()
-        val am = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
-        val info = ActivityManager.MemoryInfo()
-        val lowMem = runCatching {
-            if (am == null) null else { am.getMemoryInfo(info); info.lowMemory }
-        }.getOrNull()
+        val lowMem = ResourceTelemetryBackend.readSystemMemory(context).value?.lowMemory
         return GamingReadinessInput(
             level, temp, thermal, saving,
             runCatching { display?.mode?.refreshRate }.getOrNull(),

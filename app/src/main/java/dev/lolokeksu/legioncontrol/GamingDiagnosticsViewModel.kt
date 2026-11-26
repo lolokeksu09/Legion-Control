@@ -14,7 +14,7 @@ import java.util.concurrent.Future
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
-enum class GamingProbe { NETWORK,BATTERY,WIFI,USAGE,CHARGING,SESSION,SYSTEM,THERMAL }
+enum class GamingProbe { NETWORK,BATTERY,WIFI,USAGE,CHARGING,SESSION,SYSTEM,THERMAL,OVERVIEW }
 
 /** One-off public API inspections, real local SQLite comparisons and user-managed listeners. */
 class GamingDiagnosticsViewModel(app:Application):AndroidViewModel(app) {
@@ -35,7 +35,7 @@ class GamingDiagnosticsViewModel(app:Application):AndroidViewModel(app) {
 
     fun run(kind:GamingProbe,pkg:String="",refreshHzDisplay:Display?=null) {
         if(closed.get() || !visible.get())return
-        if(task?.isDone==false) {
+        if(task?.isDone==false || frameCapture != null || thermalListener != null) {
             mutableReport.value="Другая проверка ещё выполняется. Заверши её перед следующей."
             return
         }
@@ -68,6 +68,7 @@ class GamingDiagnosticsViewModel(app:Application):AndroidViewModel(app) {
                     }
                     GamingProbe.SYSTEM -> DeviceInsights.system(app,refreshHzDisplay)
                     GamingProbe.THERMAL -> DeviceInsights.thermal(app)
+                    GamingProbe.OVERVIEW -> DeviceInsights.overview(app,refreshHzDisplay)
                 }
             }.getOrElse { "Ошибка диагностики: "+it.javaClass.simpleName }
             main.post {
@@ -84,6 +85,10 @@ class GamingDiagnosticsViewModel(app:Application):AndroidViewModel(app) {
             mutableReport.value="Thermal Guard остановлен; событий за сеанс: $thermalEvents"
             return
         }
+        if (task?.isDone == false || frameCapture != null) {
+            mutableReport.value = "Сначала завершите текущую диагностику."
+            return
+        }
         val app=getApplication<Application>()
         val manager=app.getSystemService(Context.POWER_SERVICE) as? PowerManager
         if(manager==null) {
@@ -91,9 +96,10 @@ class GamingDiagnosticsViewModel(app:Application):AndroidViewModel(app) {
             return
         }
         thermalEvents=0
+        val token = generation.incrementAndGet()
         val listener=PowerManager.OnThermalStatusChangedListener { status ->
             main.post {
-                if(visible.get() && !closed.get() && thermalListener!=null) {
+                if(visible.get() && !closed.get() && thermalListener!=null && generation.get() == token) {
                     thermalEvents++
                     mutableReport.value="THERMAL GUARD · событие $thermalEvents\n"+
                         "Android Thermal Status: "+ThermalSeverity.describe(status)+
@@ -109,20 +115,21 @@ class GamingDiagnosticsViewModel(app:Application):AndroidViewModel(app) {
             return
         }
         thermalListener=listener
-        run(GamingProbe.THERMAL) // Preserve original thermal baseline when user enables the guard.
+        mutableReport.value = "THERMAL GUARD · подписка активна. События появятся здесь. Нажмите повторно для остановки."
     }
 
     fun stopThermalGuard() {
         val listener=thermalListener ?: return
         thermalListener=null
+        generation.incrementAndGet()
         val power=getApplication<Application>().getSystemService(Context.POWER_SERVICE) as? PowerManager
         runCatching { power?.removeThermalStatusListener(listener) }
     }
 
     fun startFramePacing(hz:Float) {
         if(!visible.get() || closed.get())return
-        if(frameCapture!=null) {
-            mutableReport.value="Frame Pacing уже выполняется"
+        if(frameCapture!=null || task?.isDone==false || thermalListener != null) {
+            mutableReport.value="Сначала завершите текущую диагностику"
             return
         }
         val token=generation.incrementAndGet()
@@ -136,7 +143,11 @@ class GamingDiagnosticsViewModel(app:Application):AndroidViewModel(app) {
             }
         }
         frameCapture=capture
-        capture.start()
+        runCatching { capture.start() }.onFailure {
+            frameCapture = null
+            capture.stop(false)
+            mutableReport.value = "Frame Pacing недоступен: " + it.javaClass.simpleName
+        }
     }
 
     fun cancelAll() {

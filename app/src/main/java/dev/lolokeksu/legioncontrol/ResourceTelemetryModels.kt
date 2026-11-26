@@ -79,6 +79,13 @@ data class MonitorResourceSnapshot(
     val thermalHeadroom: ProbeResult<Float>
 )
 
+internal data class BatteryCounterSnapshot(
+    val charge: ProbeResult<Int>,
+    val currentNow: ProbeResult<Int>,
+    val currentAverage: ProbeResult<Int>,
+    val energy: ProbeResult<Long>
+)
+
 data class ResourceTelemetrySnapshot(
     val elapsedRealtimeMs: Long,
     val systemMemory: ProbeResult<MemoryMetrics>,

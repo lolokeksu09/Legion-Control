@@ -35,7 +35,7 @@ class HardwareLabViewModel(app:Application):AndroidViewModel(app) {
 
     fun run(which:HardwareProbe) {
         if(!visible.get() || closed.get())return
-        if(runningJob?.isDone==false) {
+        if(runningJob?.isDone==false || motion != null || networkEvents != null) {
             mutableReport.value="Сначала дождитесь завершения текущего теста."
             return
         }
@@ -70,6 +70,10 @@ class HardwareLabViewModel(app:Application):AndroidViewModel(app) {
             return
         }
         if(!visible.get() || closed.get())return
+        if (runningJob?.isDone == false || networkEvents != null) {
+            mutableReport.value = "Сначала завершите текущую диагностику."
+            return
+        }
         val token=generation.incrementAndGet()
         val capture=MotionStabilityCapture(getApplication<Application>()) { measured ->
             main.post {
@@ -96,6 +100,10 @@ class HardwareLabViewModel(app:Application):AndroidViewModel(app) {
             return
         }
         if(!visible.get() || closed.get())return
+        if (runningJob?.isDone == false || motion != null) {
+            mutableReport.value = "Сначала завершите текущую диагностику."
+            return
+        }
         val token=generation.incrementAndGet()
         val capture=ForegroundNetworkEvents(
             getApplication<Application>(),

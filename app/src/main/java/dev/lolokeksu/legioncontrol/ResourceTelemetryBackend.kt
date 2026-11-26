@@ -17,13 +17,7 @@ object ResourceTelemetryBackend {
 
     fun read(context: Context): ResourceTelemetrySnapshot {
         val elapsed = SystemClock.elapsedRealtime()
-        val battery: ProbeResult<BatteryManager> = try {
-            val service = context.getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
-            if (service == null) ProbeResult.unavailable() else ProbeResult.available(service)
-        } catch (_: Exception) {
-            ProbeResult.failure()
-        }
-
+        val counters = readBatteryCounters(context)
         return ResourceTelemetrySnapshot(
             elapsedRealtimeMs = elapsed,
             systemMemory = readSystemMemory(context),
@@ -32,25 +26,33 @@ object ResourceTelemetryBackend {
                 { Runtime.getRuntime().availableProcessors() },
                 TelemetryValidation::onlineProcessors
             ),
-            batteryChargeCounterMicroAh = batteryProperty(
-                battery, BatteryManager.BATTERY_PROPERTY_CHARGE_COUNTER,
-                TelemetryValidation::chargeCounterMicroAh
-            ),
-            batteryCurrentNowMicroAmps = batteryProperty(
-                battery, BatteryManager.BATTERY_PROPERTY_CURRENT_NOW,
-                TelemetryValidation::currentMicroAmps
-            ),
-            batteryCurrentAverageMicroAmps = batteryProperty(
-                battery, BatteryManager.BATTERY_PROPERTY_CURRENT_AVERAGE,
-                TelemetryValidation::currentMicroAmps
-            ),
-            batteryEnergyCounterNanoWh = battery.flatMap { service ->
-                ProbeResult.read(
-                    { service.getLongProperty(BatteryManager.BATTERY_PROPERTY_ENERGY_COUNTER) },
-                    TelemetryValidation::energyCounterNanoWh
-                )
-            },
+            batteryChargeCounterMicroAh = counters.charge,
+            batteryCurrentNowMicroAmps = counters.currentNow,
+            batteryCurrentAverageMicroAmps = counters.currentAverage,
+            batteryEnergyCounterNanoWh = counters.energy,
             thermalHeadroom = readThermalHeadroom(context, elapsed)
+        )
+    }
+
+    /** Reused by manual battery screens without probing unrelated services. */
+    internal fun readBatteryCounters(context: Context): BatteryCounterSnapshot {
+        val battery: ProbeResult<BatteryManager> = try {
+            val service = context.getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
+            if (service == null) ProbeResult.unavailable() else ProbeResult.available(service)
+        } catch (_: Exception) {
+            ProbeResult.failure()
+        }
+        return BatteryCounterSnapshot(
+            batteryProperty(battery, BatteryManager.BATTERY_PROPERTY_CHARGE_COUNTER,
+                TelemetryValidation::chargeCounterMicroAh),
+            batteryProperty(battery, BatteryManager.BATTERY_PROPERTY_CURRENT_NOW,
+                TelemetryValidation::currentMicroAmps),
+            batteryProperty(battery, BatteryManager.BATTERY_PROPERTY_CURRENT_AVERAGE,
+                TelemetryValidation::currentMicroAmps),
+            battery.flatMap { service ->
+                ProbeResult.read({ service.getLongProperty(BatteryManager.BATTERY_PROPERTY_ENERGY_COUNTER) },
+                    TelemetryValidation::energyCounterNanoWh)
+            }
         )
     }
 
@@ -59,7 +61,7 @@ object ResourceTelemetryBackend {
         MonitorResourceSnapshot(readSystemMemory(context),
             readThermalHeadroom(context, SystemClock.elapsedRealtime()))
 
-    private fun readSystemMemory(context: Context): ProbeResult<MemoryMetrics> {
+    internal fun readSystemMemory(context: Context): ProbeResult<MemoryMetrics> {
         return try {
             val manager = context.getSystemService(Context.ACTIVITY_SERVICE)
                 as? ActivityManager ?: return ProbeResult.unavailable()
@@ -78,7 +80,7 @@ object ResourceTelemetryBackend {
         }
     }
 
-    private fun readAppFilesystem(context: Context): ProbeResult<StorageMetrics> {
+    internal fun readAppFilesystem(context: Context): ProbeResult<StorageMetrics> {
         return try {
             val stats = StatFs(context.filesDir.absolutePath)
             val validated = TelemetryValidation.storage(stats.totalBytes, stats.availableBytes)
@@ -89,8 +91,8 @@ object ResourceTelemetryBackend {
         }
     }
 
-    private fun readThermalHeadroom(
-        context: Context, nowElapsedMs: Long
+    internal fun readThermalHeadroom(
+        context: Context, nowElapsedMs: Long = SystemClock.elapsedRealtime()
     ): ProbeResult<Float> {
         return try {
             val power = context.getSystemService(Context.POWER_SERVICE)
