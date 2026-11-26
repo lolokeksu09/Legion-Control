@@ -51,7 +51,7 @@ class StartupRecoveryCoordinatorTest {
 
     @Test fun serviceStartsRequireCompletedOrAcknowledgedRecovery() {
         assertTrue(StartupRecoveryAccessPolicy.allowsUserStartedServices(StartupRecoveryState.Ready))
-        assertTrue(StartupRecoveryAccessPolicy.allowsUserStartedServices(
+        assertFalse(StartupRecoveryAccessPolicy.allowsUserStartedServices(
             StartupRecoveryState.ContinuedWithWarning("IOException")))
         assertFalse(StartupRecoveryAccessPolicy.allowsUserStartedServices(StartupRecoveryState.Running))
         assertFalse(StartupRecoveryAccessPolicy.allowsUserStartedServices(

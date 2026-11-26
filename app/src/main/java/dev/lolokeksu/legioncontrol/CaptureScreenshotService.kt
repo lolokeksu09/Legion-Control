@@ -69,7 +69,6 @@ class CaptureScreenshotService : Service() {
         }
         if (intent?.action == ACTION_START && !startupRecoveryAllowsServiceStart()) {
             CaptureCoordinator.releasePending(CaptureMode.SCREENSHOT)
-            status("Снимок не запущен: завершается восстановление локальных данных.")
             stopSelfResult(startId)
             return START_NOT_STICKY
         }

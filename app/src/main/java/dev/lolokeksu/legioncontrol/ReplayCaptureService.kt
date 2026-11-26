@@ -127,7 +127,6 @@ class ReplayCaptureService : Service() {
             ACTION_START -> {
                 if (!startupRecoveryAllowsServiceStart()) {
                     CaptureCoordinator.releasePending(CaptureMode.REPLAY)
-                    writeStatus("Replay не запущен: завершается восстановление локальных данных.")
                     stopSelfResult(startId)
                     return START_NOT_STICKY
                 }

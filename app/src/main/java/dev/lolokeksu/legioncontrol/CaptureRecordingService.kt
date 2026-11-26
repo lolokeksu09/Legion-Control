@@ -106,7 +106,6 @@ class CaptureRecordingService : Service() {
         }
         if (intent?.action == ACTION_START && !startupRecoveryAllowsServiceStart()) {
             CaptureCoordinator.releasePending(CaptureMode.RECORDING)
-            writeStatus("Запись не запущена: завершается восстановление локальных данных.")
             stopSelfResult(startId)
             return START_NOT_STICKY
         }
