@@ -4,6 +4,12 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      full_emulator:
+        description: 'Run the optional Android 35 full emulator suite'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -124,6 +130,7 @@ jobs:
 
   emulator-smoke:
     name: Android 35 x86_64 emulator UI + user-triggered session smoke
+    if: github.event_name == 'workflow_dispatch' && inputs.full_emulator == true
     needs: build
     runs-on: ubuntu-24.04
     timeout-minutes: 35

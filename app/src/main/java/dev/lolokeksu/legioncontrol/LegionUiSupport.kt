@@ -299,15 +299,22 @@ object LegionUiSupport {
                 if (bold) setTypeface(Typeface.DEFAULT, Typeface.BOLD)
                 if (item.canOpenSettings) importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
             }
-        row.addView(line(item.title, 15f, Color.WHITE, true))
+        val header = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        header.addView(line(item.title, 15f, Color.WHITE, true), LinearLayout.LayoutParams(0, -2, 1f))
         val color = when (item.state) {
             AccessState.READY -> SUCCESS
             AccessState.PERMISSION_REQUIRED, AccessState.DISABLED -> WARNING
             AccessState.UNKNOWN, AccessState.UNSUPPORTED -> MUTED
         }
-        row.addView(line(item.state.label, 13f, color, true).apply {
-            setPadding(0, dp(this, 4), 0, 0)
+        header.addView(line(item.state.label, 12f, color, true).apply {
+            maxWidth = dp(this, 140)
+            gravity = Gravity.END
+            setPadding(dp(this, 8), 0, 0, 0)
         })
+        row.addView(header)
         row.addView(line(item.purpose, 12f, MUTED).apply {
             setPadding(0, dp(this, 5), 0, 0)
         })

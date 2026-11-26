@@ -26,6 +26,7 @@ import androidx.navigation.fragment.NavHostFragment
 import java.text.DateFormat
 import java.util.Date
 import java.util.Locale
+import rikka.shizuku.Shizuku
 
 /** Five real Navigation Component destinations, all backed by one Activity-scoped ViewModel. */
 class HubPageFragment : Fragment() {
@@ -46,11 +47,15 @@ class HubPageFragment : Fragment() {
     private val searchHandler=Handler(Looper.getMainLooper())
     private var pendingSearch:Runnable?=null
     private var observedSnapshot:HubLoadState?=null
-    private data class CatalogAction(
-        val title: String,
-        val description: String,
-        val launch: () -> Unit
-    )
+    private var shizukuStatusView: TextView? = null
+    private var shizukuProbeEpoch = 0
+    private var shizukuProbeRunning = false
+    private var shizukuListening = false
+    private val binderReceived = Shizuku.OnBinderReceivedListener { invalidateShizuku() }
+    private val binderDead = Shizuku.OnBinderDeadListener { invalidateShizuku() }
+    private val permissionResult = Shizuku.OnRequestPermissionResultListener { code, _ ->
+        if (code == ShizukuAccessBackend.REQUEST_CODE) invalidateShizuku()
+    }
     private val Int.dp get() = (this * resources.displayMetrics.density).toInt()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -104,6 +109,74 @@ class HubPageFragment : Fragment() {
             }
         }
         viewModel.refresh()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        if (page() == HubTab.SETTINGS) {
+            Shizuku.addBinderReceivedListener(binderReceived)
+            Shizuku.addBinderDeadListener(binderDead)
+            Shizuku.addRequestPermissionResultListener(permissionResult)
+            shizukuListening = true
+            refreshShizuku()
+        }
+    }
+
+    override fun onStop() {
+        if (shizukuListening) {
+            Shizuku.removeBinderReceivedListener(binderReceived)
+            Shizuku.removeBinderDeadListener(binderDead)
+            Shizuku.removeRequestPermissionResultListener(permissionResult)
+            shizukuListening = false
+        }
+        shizukuProbeEpoch++
+        shizukuProbeRunning = false
+        super.onStop()
+    }
+
+    private fun refreshShizuku() {
+        val ctx = context ?: return
+        shizukuStatusView?.text = ShizukuAccessBackend.snapshot(ctx).report()
+    }
+
+    private fun invalidateShizuku() {
+        shizukuProbeEpoch++
+        shizukuProbeRunning = false
+        refreshShizuku()
+    }
+
+    private fun configureShizuku() {
+        val ctx = requireContext()
+        val state = ShizukuAccessBackend.snapshot(ctx)
+        if (state.connection == ShizukuConnection.SHELL_READY) {
+            refreshShizuku()
+            return
+        }
+        runCatching {
+            if (!ShizukuAccessBackend.requestAccess(ctx)) {
+                val intent = ShizukuAccessBackend.managerIntent(ctx)
+                if (intent != null) startActivity(intent)
+                else shizukuStatusView?.text = state.report() +
+                    "\nУстановите и запустите Shizuku, затем вернитесь в Legion Control."
+            }
+        }.onFailure { shizukuStatusView?.text = state.report() + "\nНе удалось запросить доступ." }
+    }
+
+    private fun inspectShizuku() {
+        if (shizukuProbeRunning) return
+        val ctx = requireContext().applicationContext
+        val epoch = ++shizukuProbeEpoch
+        shizukuProbeRunning = true
+        shizukuStatusView?.text = "Проверка прав ADB shell…"
+        Thread({
+            val report = ShizukuAccessBackend.inspectShell(ctx)
+            searchHandler.post {
+                if (epoch == shizukuProbeEpoch && shizukuListening) {
+                    shizukuProbeRunning = false
+                    shizukuStatusView?.text = report
+                }
+            }
+        }, "legion-shizuku-inspect").start()
     }
 
     override fun onResume() {
@@ -198,6 +271,7 @@ class HubPageFragment : Fragment() {
         if (!isAdded || !::column.isInitialized) return
         cancelSearch()
         column.removeAllViews()
+        shizukuStatusView = null
         if (page() == HubTab.SETTINGS) {
             showSettings((state as? HubLoadState.Ready)?.snapshot)
             LegionDataBackup.recoveryWarning()?.let(::info)
@@ -270,13 +344,14 @@ class HubPageFragment : Fragment() {
         group("Локальная библиотека")
         val stats = LinearLayout(requireContext()).apply {
             orientation = LinearLayout.HORIZONTAL
+            background = outline()
+            setPadding(5.dp, 3.dp, 5.dp, 3.dp)
         }
         fun stat(value: String, label: String) {
             val box = LinearLayout(requireContext()).apply {
                 orientation = LinearLayout.VERTICAL
                 gravity = Gravity.CENTER
-                background = outline()
-                setPadding(8.dp, 17.dp, 8.dp, 17.dp)
+                setPadding(8.dp, 14.dp, 8.dp, 14.dp)
             }
             box.addView(text(value, 22f, accent, true))
             box.addView(text(label, 11f, muted))
@@ -506,33 +581,7 @@ class HubPageFragment : Fragment() {
     /** Searchable feature catalog; launches the existing real modules without migrating their data. */
     private fun showTools() {
         section("Инструменты", "Найдите модуль или конкретную функцию: Replay, ZIP, стерео, DNS.")
-        val catalog = listOf(
-            "Запись и медиа" to listOf(
-                CatalogAction("Capture Studio", "Запись экрана и библиотека MP4") { open(CaptureStudioActivity::class.java) },
-                CatalogAction("Audio Lab", "Стерео, частоты и аудиомаршруты") { open(AudioLabActivity::class.java) }
-            ),
-            "Экран и управление" to listOf(
-                CatalogAction("Display Patterns", "Проверка дисплея") { open(DisplayPatternActivity::class.java) },
-                CatalogAction("Haptic Lab", "Вибрация и тактильная отдача") { open(HapticLabActivity::class.java) },
-                CatalogAction("Gamepad Live", "Кнопки и стики контроллера") { open(GamepadLiveActivity::class.java) }
-            ),
-            "Система и производительность" to listOf(
-                CatalogAction("Game Preflight", "Предпусковая проверка выбранной игры") { open(GamePreflightActivity::class.java) },
-                CatalogAction("Live Monitor", "Живые замеры, график и сравнение") { open(LiveMonitorActivity::class.java) },
-                CatalogAction("Gaming Lab", "Батарея, сеть, сенсоры и производительность") { open(GamingDiagnosticsActivity::class.java) },
-                CatalogAction("Hardware Lab", "Аппаратные измерения и тесты") { open(HardwareLabActivity::class.java) },
-                CatalogAction("Compatibility Lab", "Совместимость функций Android") { open(CompatibilityLabActivity::class.java) },
-                CatalogAction("Диагностика Kotlin + Rust", "Батарея, датчики и отчёты CSV/ZIP") { open(MainActivity::class.java) }
-            ),
-            "Сеть" to listOf(
-                CatalogAction("Connectivity Observatory", "DNS, IPv4/IPv6, TCP и TLS") { open(ConnectivityLabActivity::class.java) }
-            ),
-            "Эксперименты" to listOf(
-                CatalogAction("Experiment Lab", "A/B-сравнения и заметки") { open(ExperimentLabActivity::class.java) },
-                CatalogAction("Session Compare", "Две выбранные сессии и совмещённые графики") { open(SessionCompareActivity::class.java) },
-                CatalogAction("Session Library", "Фильтры истории и ZIP одной записи") { open(SessionLibraryActivity::class.java) }
-            )
-        )
+        val catalog = HubToolCatalog.groups
         val input = EditText(requireContext()).apply {
             hint = "Поиск функций и инструментов"
             setTextColor(fg)
@@ -545,7 +594,7 @@ class HubPageFragment : Fragment() {
             setText(toolQuery)
         }
         column.addView(input, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 12.dp })
-        val categorySelector = LegionUiSupport.spinner(requireContext(), listOf("Все категории") + catalog.map { it.first })
+        val categorySelector = LegionUiSupport.spinner(requireContext(), listOf("Все категории") + catalog.map { it.title })
         toolCategory = toolCategory.coerceIn(0, catalog.size)
         categorySelector.setSelection(toolCategory)
         categorySelector.contentDescription = "Категория инструментов"
@@ -563,21 +612,21 @@ class HubPageFragment : Fragment() {
             var shown = 0
             // Search always covers the entire catalog; category is a browse-only filter.
             categorySelector.isEnabled = filter.isEmpty()
-            for ((index, pair) in catalog.withIndex()) {
-                val (category, entries) = pair
+            for ((index, moduleGroup) in catalog.withIndex()) {
+                val category = moduleGroup.title
                 if (filter.isEmpty() && toolCategory != 0 && toolCategory != index + 1) continue
-                val matching = entries.filter { entry ->
-                    filter.isEmpty() || (category + " " + entry.title + " " + entry.description)
-                        .lowercase(Locale.ROOT).contains(filter)
+                val matching = moduleGroup.entries.filter { entry ->
+                    HubToolCatalog.matches(moduleGroup, entry, filter)
                 }
                 if (matching.isEmpty()) continue
                 results.addView(text(category.uppercase(Locale.ROOT), 12f, accent, true).apply {
                     setPadding(0, 19.dp, 0, 11.dp)
                     letterSpacing = 0.08f
+                    isAccessibilityHeading = true
                 })
                 for (entry in matching) {
                     results.addView(
-                        LegionUiSupport.actionTile(requireContext(), entry.title, entry.description, entry.launch),
+                        LegionUiSupport.actionTile(requireContext(), entry.title, entry.description) { open(entry.activity) },
                         LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 10.dp }
                     )
                 }
@@ -718,32 +767,29 @@ class HubPageFragment : Fragment() {
                 openCapabilitySettings(item.capability)
             }, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 6.dp })
         }
+        group("Расширенный доступ")
+        shizukuStatusView = LegionUiSupport.noticeView(requireContext(),
+            ShizukuAccessBackend.snapshot(requireContext()).report(), LegionUiSupport.Notice.INFO)
+        column.addView(requireNotNull(shizukuStatusView))
+        tile("Настроить Shizuku", "Подключить ADB shell или открыть менеджер Shizuku") { configureShizuku() }
+        tile("Проверить права ADB shell", "Только чтение · доступ к системным возможностям") { inspectShizuku() }
         group("Возможности и ограничения")
         for (item in PermissionCenterModel.limitations(access)) {
             column.addView(LegionUiSupport.permissionRow(requireContext(), item) {},
                 LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 6.dp })
         }
         group("Резервное копирование и файлы")
-        for (id in listOf("capture.backup", "capture.restore", "capture.resume", "capture.clips")) {
+        for (id in listOf("capture.backup", "capture.restore", "capture.resume")) {
             val entry = FeatureFinder.resolve(id, FeatureModule.CAPTURE) ?: continue
             tile(entry.title, "Capture Studio · локальные данные") { openFeature(entry) }
         }
-        group("Параметры модулей")
-        tile("Application Center", s?.let { "${it.trackedCount} записей в библиотеке · избранное и заметки" } ?: "Избранное и заметки") {
-            open(ApplicationCenterActivity::class.java)
-        }
-        tile("Smart Profiles", s?.let { "${it.profileCount} профилей · импорт и экспорт JSON" } ?: "Импорт и экспорт JSON") {
-            open(SmartProfilesActivity::class.java)
-        }
-        tile("Game Toolbox", "Размер, прозрачность, выбранная игра") {
-            open(GameToolboxActivity::class.java)
-        }
-        tile("Capture Studio", "Качество, звук, длительность и профили записи") {
-            open(CaptureStudioActivity::class.java)
+        group("Модули")
+        tile("Каталог инструментов", "Все модули и поиск конкретных функций") {
+            NavHostFragment.findNavController(this).navigate(R.id.toolsFragment)
         }
         group("О проекте")
         info("Legion Control ${LegionUiSupport.versionLabel(requireContext())} · Android 13+ · Kotlin + Rust. " +
-            "Нет Root/Shizuku; 30/60 FPS записи — запрос кодеку, не реальные FPS игры. " +
+            "Shizuku опционален; обычные функции без Root. 30/60 FPS записи — запрос кодеку, не FPS игры. " +
             "SQLite и существующая релизная подпись сохранены.")
     }
 

@@ -16,7 +16,8 @@ object SmartCompatibilityBackend {
             append("Quick Settings: плитку добавляет пользователь.\n")
             append("Запись в другой игре: только после явного запуска FGS; ")
             append("работа на конкретной прошивке НЕ ПРОВЕРЕНА\n")
-            append("Root, Shizuku, геолокация: не требуются")
+            append("Обычные функции не требуют Root, Shizuku и геолокации.\n")
+            append("Shizuku (опционально): ").append(ShizukuAccessBackend.snapshot(context).connection.label)
         }
     }
 }
