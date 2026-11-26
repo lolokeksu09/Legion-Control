@@ -1,7 +1,7 @@
 package dev.lolokeksu.legioncontrol
 
 /** Truthful, Android-free summary of a saved one-shot launch profile and its restore ticket. */
-object GameProfilePresentation {
+internal object GameProfilePresentation {
     fun report(profile: GameLaunchProfile?, access: AccessState?,
                pendingPackage: String?, selectedPackage: String): String = buildString {
         if (profile == null || !profile.actionable) {
