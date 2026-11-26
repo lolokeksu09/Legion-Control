@@ -327,8 +327,6 @@ class NavigationHostActivity : FragmentActivity() {
         ViewModelProvider(this)[HubViewModel::class.java].refresh()
     }
 
-    }
-
     private fun openRequestedModule(request: Intent) {
         val route = request.getIntExtra(ModuleNavigation.EXTRA_MODULE_ROUTE, -1)
         // Never navigate to arbitrary resources supplied by external Intents.

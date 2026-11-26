@@ -17,7 +17,7 @@ class LegionApplication : Application() {
         }, "legion-startup-recovery")
     }
 
-    lateinit var startupRecovery: StartupRecoveryCoordinator
+    internal lateinit var startupRecovery: StartupRecoveryCoordinator
         private set
 
     override fun onCreate() {
