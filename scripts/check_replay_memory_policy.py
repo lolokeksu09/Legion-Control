@@ -21,6 +21,8 @@ assert "reduceByteLimit" in video and "hasSecondKey()" in video
 assert "keyFrameCount > 1" in video and "keyFrameCount--" in video and "keyFrameCount = 0" in video
 assert "val available = snapshot()" not in video
 assert "nextSaveProbeAt = now + 100L" in service
+assert "liveWindow = buffer.stats()" in service and "nextStatsAt = now + 1_000L" in service
+assert "statsReflectRetainedFramesAndReducedLimit" in video_tests
 assert "reduceByteLimit" in audio and "packets.removeFirst()" in audio
 assert "ReplayMemoryPolicy.afterAudioTrim" in audio_capture
 assert "ReplayFrameBuffer(windowSeconds, videoLimit)" in service

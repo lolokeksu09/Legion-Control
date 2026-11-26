@@ -1,6 +1,5 @@
 package dev.lolokeksu.legioncontrol
 
-import android.app.NotificationManager
 import android.app.KeyguardManager
 import android.app.usage.UsageEvents
 import android.app.usage.UsageStatsManager
@@ -12,7 +11,6 @@ import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
 import android.os.SystemClock
-import android.provider.Settings
 import java.util.UUID
 import java.util.concurrent.Executors
 

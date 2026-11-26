@@ -55,6 +55,7 @@ class ReplayCaptureService : Service() {
         private const val REPLAY_STATUS = "replay_status"
         @Volatile var active: Boolean = false
             private set
+        @Volatile private var liveWindow: ReplayWindowStats? = null
         @Volatile var seconds: Int = 60
             private set
 
@@ -70,9 +71,17 @@ class ReplayCaptureService : Service() {
                 .setAction(ACTION_STOP))
         }
 
-        fun status(context: Context): String =
-            context.getSharedPreferences(CaptureRecordingService.PREFS, MODE_PRIVATE)
+        fun status(context: Context): String {
+            val last = context.getSharedPreferences(CaptureRecordingService.PREFS, MODE_PRIVATE)
                 .getString(REPLAY_STATUS, "Replay не запускался.") ?: "Replay не запускался."
+            val stats = liveWindow
+            if (!active || stats == null) return last
+            val mib = 1024L * 1024L
+            return last + "\nВидео в буфере (последняя выборка): " +
+                stats.retainedDurationUs / 1_000_000L + " с · " + stats.frameCount +
+                " кадр. · " + stats.encodedBytes / mib + "/" + stats.byteLimit / mib +
+                " МиБ сжатого видео. Это не PSS и не гарантия длительности экспорта."
+        }
     }
 
     private val handler = Handler(Looper.getMainLooper())
@@ -276,6 +285,7 @@ class ReplayCaptureService : Service() {
         val videoLimit = ReplayMemoryPolicy.videoByteLimit(maxHeapBytes, activityManager.isLowRamDevice)
         val audioLimit = ReplayMemoryPolicy.audioByteLimit(maxHeapBytes, activityManager.isLowRamDevice)
         trimRequested.set(false)
+        liveWindow = null
         running.set(true)
         active = true
         drainComplete = false
@@ -310,6 +320,7 @@ class ReplayCaptureService : Service() {
         var deadline = Long.MAX_VALUE
         var nextSafetyAt = SystemClock.elapsedRealtime() + 2_000L
         var nextSaveProbeAt = 0L
+        var nextStatsAt = 0L
         try {
             while (running.get() || SystemClock.elapsedRealtime() < deadline) {
                 if (trimRequested.compareAndSet(true, false)) {
@@ -322,6 +333,10 @@ class ReplayCaptureService : Service() {
                     deadline = SystemClock.elapsedRealtime() + 2500L
                 }
                 val now = SystemClock.elapsedRealtime()
+                if (running.get() && now >= nextStatsAt) {
+                    liveWindow = buffer.stats()
+                    nextStatsAt = now + 1_000L
+                }
                 if (running.get() && now >= nextSafetyAt) {
                     nextSafetyAt = now + 2_000L
                     val thermal = runCatching {
@@ -397,6 +412,7 @@ class ReplayCaptureService : Service() {
             writeStatus("Replay: ошибка кодирования — " + error.javaClass.simpleName)
         } finally {
             active = false
+            liveWindow = null
             running.set(false)
             saveRequested.set(false)
             buffer.clear()

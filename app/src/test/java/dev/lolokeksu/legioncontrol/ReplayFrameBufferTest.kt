@@ -128,6 +128,17 @@ class ReplayFrameBufferTest {
         assertTrue(buffer.snapshotAt(60_000_000L).isEmpty())
     }
 
+    @Test fun statsReflectRetainedFramesAndReducedLimit() {
+        val buffer = ReplayFrameBuffer(30, 200L)
+        assertEquals(ReplayWindowStats(0, 0L, 0L, 200L), buffer.stats())
+        for (s in 0..3) buffer.add(frame(s, s % 2 == 0, 50))
+        assertEquals(ReplayWindowStats(4, 3_000_000L, 200L, 200L), buffer.stats())
+        buffer.reduceByteLimit(100L)
+        assertEquals(ReplayWindowStats(2, 1_000_000L, 100L, 100L), buffer.stats())
+        buffer.clear()
+        assertEquals(ReplayWindowStats(0, 0L, 0L, 100L), buffer.stats())
+    }
+
     @Test fun resetDropsOnlyInMemoryFrames() {
         val buffer = ReplayFrameBuffer(60)
         buffer.add(frame(0, true))

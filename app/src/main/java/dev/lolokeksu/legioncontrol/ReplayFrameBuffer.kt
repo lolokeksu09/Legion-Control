@@ -9,6 +9,10 @@ import java.util.ArrayDeque
  */
 data class ReplayFrame(val bytes: ByteArray, val ptsUs: Long, val keyFrame: Boolean)
 
+/** Consistent, read-only accounting of retained compressed video, not process RAM. */
+data class ReplayWindowStats(val frameCount: Int, val retainedDurationUs: Long,
+                             val encodedBytes: Long, val byteLimit: Long)
+
 class ReplayFrameBuffer(
     private val windowSeconds: Int,
     byteLimit: Long = ReplayMemoryPolicy.MAX_VIDEO_BYTES
@@ -25,6 +29,12 @@ class ReplayFrameBuffer(
     val sizeBytes: Long get() = synchronized(this) { byteCount }
     val byteLimitBytes: Long get() = synchronized(this) { byteLimit }
     val frameCount: Int get() = synchronized(this) { frames.size }
+
+    @Synchronized fun stats(): ReplayWindowStats = ReplayWindowStats(
+        frames.size,
+        if (frames.size < 2) 0L else frames.last.ptsUs - frames.first.ptsUs,
+        byteCount, byteLimit
+    )
 
     @Synchronized fun add(frame: ReplayFrame): Boolean {
         if (frame.bytes.isEmpty() || frame.ptsUs < 0 ||
