@@ -59,17 +59,6 @@ class GameSessionViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
-    fun compare() = submit {
-        GameSessionRepository(getApplication()).use { repo ->
-            val latest = repo.recent(2)
-            if (latest.size < 2) GameSessionUiState("Для сравнения нужны две сессии.")
-            else GameSessionUiState(GameSessionAnalysis.compare(
-                GameSessionAnalysis.summarize(latest[0], repo.points(latest[0].id)),
-                GameSessionAnalysis.summarize(latest[1], repo.points(latest[1].id))
-            ))
-        }
-    }
-
     /** A Uri is received only from the user's ACTION_CREATE_DOCUMENT result. */
     fun export(uri: Uri, zip: Boolean) = submit {
         GameSessionRepository(getApplication()).use { repo ->

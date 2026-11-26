@@ -166,20 +166,6 @@ class LegionHubActivity : FragmentActivity() {
         }
         titles.addView(subtitle)
         header.addView(titles, LinearLayout.LayoutParams(0, -2, 1f))
-        val settingsShortcut=ImageView(this).apply {
-            setImageResource(R.drawable.ic_hub_settings)
-            imageTintList=ColorStateList.valueOf(muted)
-            setPadding(12.dp,12.dp,12.dp,12.dp)
-            contentDescription="Настройки"
-            isClickable=true;isFocusable=true
-            setOnClickListener {
-                if(nav.currentDestination?.id!=R.id.settingsFragment)
-                    nav.navigate(R.id.settingsFragment,null,NavOptions.Builder()
-                        .setLaunchSingleTop(true).setRestoreState(true)
-                        .setPopUpTo(R.id.homeFragment,false,true).build())
-            }
-        }
-        header.addView(settingsShortcut,LinearLayout.LayoutParams(48.dp,48.dp))
         root.addView(header)
 
         val separator = View(this).apply { setBackgroundColor(0xFF22262B.toInt()) }
@@ -207,16 +193,19 @@ class LegionHubActivity : FragmentActivity() {
 
         val ids = intArrayOf(R.id.homeFragment, R.id.gamesFragment,
             R.id.toolsFragment, R.id.historyFragment, R.id.settingsFragment)
+        val tabIds = intArrayOf(R.id.hub_tab_home, R.id.hub_tab_games,
+            R.id.hub_tab_tools, R.id.hub_tab_history, R.id.hub_tab_settings)
         val icons = HubCenterIcons.tabs()
         val tabs = HubTab.entries
         for (index in ids.indices) {
-            val id = ids[index]
+            val destination = ids[index]
             val column = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
                 gravity = Gravity.CENTER
                 isClickable = true
                 isFocusable = true
-                contentDescription = "Открыть раздел " + tabs[index].title
+                id = tabIds[index]
+                contentDescription = tabs[index].title
             }
             val icon = ImageView(this).apply {
                 setImageResource(icons[index])
@@ -235,11 +224,11 @@ class LegionHubActivity : FragmentActivity() {
             column.minimumHeight = 48.dp
             column.addView(text, LinearLayout.LayoutParams(-1, -2))
             bottom.addView(column, LinearLayout.LayoutParams(0, -2, 1f))
-            buttons[id] = icon to text
-            tabSurfaces[id] = column
+            buttons[destination] = icon to text
+            tabSurfaces[destination] = column
             column.setOnClickListener {
-                if (nav.currentDestination?.id != id) {
-                    nav.navigate(id, null, NavOptions.Builder()
+                if (nav.currentDestination?.id != destination) {
+                    nav.navigate(destination, null, NavOptions.Builder()
                         .setLaunchSingleTop(true)
                         .setRestoreState(true)
                         .setPopUpTo(R.id.homeFragment, false, true)

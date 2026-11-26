@@ -413,8 +413,6 @@ class MainActivity : FragmentActivity() {
         }
         if (initial == DiagnosticsPage.MONITOR) monitorPanel.revealFeature()
         else if(!initial.isEmbeddedLab) FeatureReveal.fromActivity(this, root, FeatureModule.DIAGNOSTICS)
-        // Persisted history is visible after a restart without generating a new sample.
-        showSavedHistory()
     }
 
     private fun renderHistory(reading: DiagnosticsReadResult) {
@@ -453,6 +451,7 @@ class MainActivity : FragmentActivity() {
         }
         timedVisible = foreground && next == DiagnosticsPage.OVERVIEW
         monitorPanel.setVisible(foreground && next == DiagnosticsPage.MONITOR)
+        if (changed && next == DiagnosticsPage.HISTORY) showSavedHistory()
         if (changed && foreground) centerScroll.scrollTo(0, 0)
     }
 

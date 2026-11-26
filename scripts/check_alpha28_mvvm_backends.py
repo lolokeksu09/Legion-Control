@@ -68,7 +68,8 @@ assert "ModuleNavigation.forwardLegacyEntry(this)" in gameActivity
 assert "GameSessionRecorderService.stop(requireContext())" in game
 assert "Intent.ACTION_CREATE_DOCUMENT" in game
 assert "GameSessionRepository(getApplication())" in gamevm
-assert "GameSessionAnalysis.compare(" in gamevm
+assert "SessionLibraryActivity.intent(requireContext(), pkg)" in read("GameSessionFragment.kt")
+assert "SessionCompareAnalysis.compare(" in read("SessionLibraryViewModel.kt")
 assert "worker.execute {" in gamevm
 assert "latest.get() == request" in gamevm
 assert "GameSessionRepository(" not in game

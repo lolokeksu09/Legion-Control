@@ -123,7 +123,7 @@ for term in ("ACTION_MAIN","CATEGORY_LAUNCHER","startRecording()","stopRecording
  "Intent.ACTION_CREATE_DOCUMENT","ViewModelProvider(this)[GameSessionViewModel::class.java]",
  "GameSessionRecorderService.start","GameSessionRecorderService.stop"):
     assert term in fragment,term
-for term in ("GameSessionAnalysis.render","GameSessionAnalysis.compare",
+for term in ("GameSessionAnalysis.render",
              "exportZip","writeCsv(writer", "GameSessionRepository(getApplication())",
              "onCleared()", "LiveData", "latest.get() == request"):
     assert term in viewmodel,term

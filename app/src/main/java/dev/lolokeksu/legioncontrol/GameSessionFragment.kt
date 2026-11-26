@@ -139,7 +139,6 @@ class GameSessionFragment : Fragment() {
             else reportView.text="Уведомления уже разрешены."
         }
         action("Обновить и показать последние сессии") { refresh() }
-        action("Сравнить две последние сессии") { compare() }
         root.addView(LegionUiSupport.sectionLabel(requireContext(), "ЭКСПОРТ"))
         action("Сохранить историю замеров CSV", "session.csv") { createFile(REQUEST_CSV) }
         action("Сохранить полный архив сессий ZIP") { createFile(REQUEST_ZIP) }
@@ -271,8 +270,6 @@ class GameSessionFragment : Fragment() {
     }
 
     private fun refresh() = viewModel.refresh()
-
-    private fun compare() = viewModel.compare()
 
     private fun createFile(requestCode: Int) {
         val isZip=requestCode==REQUEST_ZIP
