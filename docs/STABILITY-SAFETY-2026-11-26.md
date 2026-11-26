@@ -14,6 +14,12 @@ SmartSystemControls сохраняет исходные значения чер�
 
 API 35+ сообщает о запросе изменения правила Legion Control, а не о гарантированном глобальном DND. [Документация Android](https://developer.android.com/about/versions/15/behavior-changes-15#dnd). GameLaunchProfiles пока не переработан.
 
+## LC-03a — восстановление при запуске
+
+`LegionApplication.onCreate()` больше не открывает SQLite и не воспроизводит ZIP-журнал на UI-потоке. При отсутствии pending journal запуск не планируется. При наличии журнал обрабатывается отдельным background executor с пониженным приоритетом. `NavigationHostActivity` ждёт результат; ошибка явно показана, журнал сохраняется, пользователь может продолжить с предупреждением и воспользоваться существующим ручным повтором в Capture Studio. Quick Tile направлен через тот же launcher gate. Добавлены четыре JVM-теста координатора и source gate.
+
+Граница: физическое измерение cold-start/ANR и проверка восстановления на Motorola/OEM пока не выполнены. Новые прямые entry points должны соблюдать тот же gate.
+
 ## Проверка и границы
 
 - Проверка конфигурации: scripts/check_release_signing.py, scripts/run_source_checks.py.
