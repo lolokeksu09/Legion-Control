@@ -344,77 +344,18 @@ class GameToolboxFragment : Fragment() {
     }
 
     private fun confirmApplyGameLaunchProfile(withGame: Boolean) {
-        val ctx = requireContext()
         val pkg = prefs.getString(ToolboxPreferences.GAME, null)
-        if (pkg == null || !GameLaunchProfilePolicy.validPackage(pkg)) {
-            status.text = "Сначала выберите игру."
-            return
-        }
-        val profile = GameLaunchProfiles.profile(ctx, pkg)
-        if (profile == null || !profile.actionable) {
-            status.text = "Сначала сохраните профиль запуска."
-            return
-        }
-        val pending = GameLaunchProfiles.pendingPackage(ctx)
-        if (pending != null) {
-            status.text = "Сначала восстановите предыдущие настройки: $pending"
-            return
-        }
-        val access = CapabilityAccessBackend.profileAccess(ctx, profile)
-        if (access != AccessState.READY) {
-            status.text = "Необходимые доступы: " + access.label
-            return
-        }
-        val launch = if (withGame) ctx.packageManager.getLaunchIntentForPackage(pkg) else null
-        if (withGame && launch == null) {
-            status.text = "Android не разрешает запустить выбранную игру."
-            return
-        }
-        val description = "Приложение: $pkg\n" +
-            "Громкость: " + (profile.mediaPercent?.let { "$it%" } ?: "не менять") + "\n" +
-            "Яркость: " + (profile.brightnessPercent?.let { "$it%" } ?: "не менять") + "\n" +
-            "DND: " + (profile.focusEnabled?.let { if (it) "включить" else "выключить" } ?: "не менять") +
-            "\n\nНастройки системные, не игровые. Legion Control сохранит исходные значения. " +
-            "Возврат выполняется отдельно вручную; значения, изменённые пользователем после применения, не перезаписываются."
-        LegionDialogs.builder(ctx).setTitle(
-            if (withGame) "Применить профиль и открыть игру?" else "Применить профиль?"
-        ).setMessage(description)
-            .setPositiveButton(if (withGame) "Применить и открыть" else "Применить") { _, _ ->
-                applyGameLaunchProfile(pkg, profile, launch)
-            }
-            .setNegativeButton("Отмена", null).show()
-    }
-
-    private fun applyGameLaunchProfile(pkg: String, approved: GameLaunchProfile, launchIntent: Intent?) {
-        val result = GameLaunchProfiles.applyConfirmed(requireContext(), pkg, approved)
-        status.text = result.message
-        renderStatus()
-        if (result.success && launchIntent != null) {
-            runCatching { startActivity(launchIntent) }
-                .onFailure { failure ->
-                    val rollback = GameLaunchProfiles.restore(requireContext())
-                    status.text = "Игра не запущена: " + failure.javaClass.simpleName +
-                        ". Возврат системных настроек: " + rollback.message
-                    renderStatus()
-                }
-        }
+        GameLaunchProfileActions.confirmApply(requireContext(), pkg, withGame, ::showProfileResult)
     }
 
     private fun confirmRestoreGameLaunchProfile() {
-        val ctx = requireContext()
-        val pending = GameLaunchProfiles.pendingConfirmation(ctx)
-        if (pending == null) {
-            status.text = "Нет ожидающих возврата настроек."
-            return
-        }
-        LegionDialogs.builder(ctx).setTitle("Восстановить системные настройки?")
-            .setMessage("Запись возврата: ${pending.packageName}\nLegion Control сравнит текущие значения с исходными и запрошенными. " +
-                "Поля, которые пользователь или другая программа изменили после применения, останутся нетронутыми. " +
-                "Ошибки Android останутся в записи для повторной попытки.")
-            .setPositiveButton("Восстановить") { _, _ ->
-                status.text = GameLaunchProfiles.restoreConfirmed(ctx, pending).message
-                renderStatus()
-            }.setNegativeButton("Отмена", null).show()
+        GameLaunchProfileActions.confirmRestore(requireContext(), ::showProfileResult)
+    }
+
+    private fun showProfileResult(message: String) {
+        if (view == null) return
+        status.text = message
+        renderStatus()
     }
 
     private fun startAutomation() {

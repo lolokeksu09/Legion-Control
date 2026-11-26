@@ -27,6 +27,8 @@ class GameDetailFragment : Fragment() {
     private lateinit var vm: HubViewModel
     private lateinit var column: LinearLayout
     private lateinit var status: TextView
+    private var profileInfo: TextView? = null
+    private var restoreAction: View? = null
     private val Int.dp get() = (this * resources.displayMetrics.density).toInt()
 
     override fun onCreateView(inflater: LayoutInflater, parent: ViewGroup?, state: Bundle?): View {
@@ -55,6 +57,7 @@ class GameDetailFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         if (::vm.isInitialized) vm.refresh()
+        refreshLaunchProfile()
     }
 
     private fun text(value: String, size: Float, color: Int, bold: Boolean = false) =
@@ -65,9 +68,34 @@ class GameDetailFragment : Fragment() {
             if (bold) setTypeface(Typeface.DEFAULT, Typeface.BOLD)
         }
 
-    private fun addAction(title: String, desc: String, callback: () -> Unit) {
-        column.addView(LegionUiSupport.actionTile(requireContext(), title, desc, callback),
-            LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 6.dp })
+    override fun onDestroyView() {
+        profileInfo = null
+        restoreAction = null
+        super.onDestroyView()
+    }
+
+    private fun addAction(title: String, desc: String, callback: () -> Unit): View =
+        LegionUiSupport.actionTile(requireContext(), title, desc, callback).also {
+            column.addView(it, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 6.dp })
+        }
+
+    private fun refreshLaunchProfile() {
+        val info = profileInfo ?: return
+        val ctx = context ?: return
+        val pkg = arguments?.getString("gamePackage") ?: return
+        val profile = GameLaunchProfiles.profile(ctx, pkg)
+        val access = profile?.takeIf { it.actionable }?.let { CapabilityAccessBackend.profileAccess(ctx, it) }
+        val pending = GameLaunchProfiles.pendingPackage(ctx)
+        val report = GameProfilePresentation.report(profile, access, pending, pkg)
+        info.text = report
+        info.contentDescription = report
+        restoreAction?.visibility = if (pending == null) View.GONE else View.VISIBLE
+    }
+
+    private fun showProfileResult(message: String) {
+        if (view == null || !isAdded) return
+        status.text = message
+        refreshLaunchProfile()
     }
 
     private fun section(title: String) {
@@ -85,6 +113,8 @@ class GameDetailFragment : Fragment() {
 
     private fun render(state: HubLoadState) {
         if (!isAdded || !::column.isInitialized) return
+        profileInfo = null
+        restoreAction = null
         column.removeAllViews()
         val pkg = arguments?.getString("gamePackage")
         if (pkg == null || !ApplicationInventory.isPackageName(pkg)) {
@@ -136,22 +166,11 @@ class GameDetailFragment : Fragment() {
             (if (app.favorite) "★ Избранное" else "Не в избранном") + " · " +
                 (if (app.visible) "Доступна для запуска" else "Не видна через Android Launcher"),
             13f, accent).apply { setPadding(0, 0, 0, 17.dp) })
-        val launchProfile = GameLaunchProfiles.profile(requireContext(), pkg)
-        val pendingRestore = GameLaunchProfiles.pendingPackage(requireContext())
         column.addView(LegionUiSupport.sectionLabel(requireContext(), "ПРОФИЛЬ ЗАПУСКА"))
-        val profileAccess = launchProfile?.takeIf { it.actionable }?.let {
-            CapabilityAccessBackend.profileAccess(requireContext(), it)
+        profileInfo = text("", 13f, Color.WHITE).also { info ->
+            LegionUiSupport.reportSurface(info)
+            column.addView(info, ViewGroup.LayoutParams(-1, -2))
         }
-        val profileReport = GameProfilePresentation.report(
-            launchProfile, profileAccess, pendingRestore, pkg
-        )
-        val profileInfo = text(profileReport, 13f, Color.WHITE).apply {
-            setPadding(14.dp, 12.dp, 14.dp, 12.dp)
-            background = LegionUiSupport.cardSurface(this)
-            contentDescription = profileReport
-        }
-        LegionUiSupport.reportSurface(profileInfo)
-        column.addView(profileInfo, ViewGroup.LayoutParams(-1, -2))
         status = text("Действия выполняются только по нажатию.", 12f, muted)
         column.addView(status.apply {
             setPadding(0, 8.dp, 0, 12.dp)
@@ -159,18 +178,12 @@ class GameDetailFragment : Fragment() {
         })
 
         addAction("Редактировать профиль запуска", "Громкость, яркость и DND для этой игры") {
-            GameLaunchProfileEditor.show(requireContext(), pkg) { message ->
-                if (view != null && isAdded) {
-                    status.text = message
-                    val saved = GameLaunchProfiles.profile(requireContext(), pkg)
-                    profileInfo.text = GameProfilePresentation.report(saved,
-                        saved?.takeIf { it.actionable }?.let {
-                            CapabilityAccessBackend.profileAccess(requireContext(), it)
-                        }, GameLaunchProfiles.pendingPackage(requireContext()), pkg)
-                    profileInfo.contentDescription = profileInfo.text
-                }
-            }
+            GameLaunchProfileEditor.show(requireContext(), pkg, ::showProfileResult)
         }
+        restoreAction = addAction("Вернуть системные настройки", "Восстановить значения после применения профиля") {
+            GameLaunchProfileActions.confirmRestore(requireContext(), ::showProfileResult)
+        }
+        refreshLaunchProfile()
 
         section("ЗАПУСК И ПОДГОТОВКА")
         if (app.visible) {
@@ -179,6 +192,9 @@ class GameDetailFragment : Fragment() {
                 if (launch == null) status.text = "Android не предоставляет запуск этого пакета."
                 else runCatching { startActivity(launch) }
                     .onFailure { status.text = "Запуск отклонён: " + it.javaClass.simpleName }
+            }
+            addAction("Запустить с профилем", "Применить сохранённые настройки после подтверждения") {
+                GameLaunchProfileActions.confirmApply(requireContext(), pkg, true, ::showProfileResult)
             }
             addAction("Открыть Game Toolbox", "Выбрать именно эту игру и управлять панелью") {
                 val sourceView = view

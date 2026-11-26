@@ -8,6 +8,7 @@ src = root / "app/src/main/java/dev/lolokeksu/legioncontrol"
 policy = (src / "GameLaunchProfilePolicy.kt").read_text(encoding="utf-8")
 engine = (src / "GameLaunchProfiles.kt").read_text(encoding="utf-8")
 ui = (src / "GameToolboxFragment.kt").read_text(encoding="utf-8")
+actions = (src / "GameLaunchProfileActions.kt").read_text(encoding="utf-8")
 overlay = (src / "GameToolboxService.kt").read_text(encoding="utf-8")
 tests = (root / "app/src/test/java/dev/lolokeksu/legioncontrol/GameLaunchProfilePolicyTest.kt").read_text(encoding="utf-8")
 manifest = ET.parse(root / "app/src/main/AndroidManifest.xml").getroot()
@@ -19,9 +20,12 @@ assert required.issubset(actual)
 assert "android.permission.QUERY_ALL_PACKAGES" not in actual
 assert "android.permission.WRITE_SECURE_SETTINGS" not in actual
 assert "android.permission.BIND_ACCESSIBILITY_SERVICE" not in actual
-assert "GameLaunchProfiles.applyConfirmed(requireContext(), pkg, approved)" in ui and "GameLaunchProfiles.restore(requireContext())" in ui
-assert "applyGameLaunchProfile(pkg, profile, launch)" in ui
-assert "GameLaunchProfiles.restoreConfirmed(ctx, pending)" in ui
+assert "GameLaunchProfileActions.confirmApply(" in ui
+assert "GameLaunchProfiles.applyConfirmed(context, pkg, profile)" in actions
+assert "GameLaunchProfiles.launchConfirmed(context, pkg, profile)" in actions
+assert "GameLaunchProfiles.restoreConfirmed(context, pending)" in actions
+launch = engine[engine.index("internal fun launchConfirmed"):engine.index("internal fun applyAutomatic")]
+assert launch.index("ProfileMaintenanceGate.tryRun") < launch.index("applyConfirmed") < launch.index("openGame()") < launch.index("restore(context)")
 assert "pendingConfirmation(context) != approved" in engine
 assert ".putString(GENERATION, UUID.randomUUID().toString())" in engine
 assert ".remove(OWNER).remove(GENERATION).commit()" in engine
@@ -33,7 +37,7 @@ assert "GameLaunchProfiles.save(ctx, pkg, profile)" in editor
 assert "GameLaunchProfileEditor.show(ctx, pkg)" in ui
 assert "setView(scroll)" in editor and "confirmApplyGameLaunchProfile" in ui
 assert "confirmRestoreGameLaunchProfile" in ui
-assert "getLaunchIntentForPackage(pkg)" in ui
+assert "ApplicationInventory.launchIntent(context, pkg)" in actions
 assert 'edit().putString(ACTIVE, snapshot.encode())' in engine
 assert engine.index('journal.commit()') < engine.index('audio.setStreamVolume(')
 assert 'journal.putString(OWNER,owner)' in engine and 'restoreAutomatic' in engine

@@ -1,9 +1,13 @@
 package dev.lolokeksu.legioncontrol
 
+import android.content.ActivityNotFoundException
 import android.content.Context
+import android.media.AudioManager
+import android.os.Build
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.*
+import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -49,6 +53,13 @@ class GameAutomationOwnershipInstrumentedTest {
             assertFalse(currentManual.success)
             assertTrue(currentManual.message.contains("Сначала верните предыдущие"))
             assertEquals(ticket, prefs.getString(keys[0], null))
+            var launchCalled = false
+            val blockedLaunch = GameLaunchProfiles.launchConfirmed(context, pkg, GameLaunchProfile(mediaPercent=20)) {
+                launchCalled = true
+            }
+            assertFalse(blockedLaunch.success)
+            assertFalse(launchCalled)
+            assertEquals(ticket, prefs.getString(keys[0], null))
             assertFalse(GameLaunchProfiles.applyAutomatic(context,pkg,"owner-b",GameLaunchProfile(mediaPercent=80)).success)
             assertFalse(GameLaunchProfiles.applyAutomatic(context,pkg,"owner-b",GameLaunchProfile(mediaPercent=20)).success)
             assertEquals("owner-a",prefs.getString(keys[1],null))
@@ -57,6 +68,43 @@ class GameAutomationOwnershipInstrumentedTest {
             val edit=prefs.edit()
             previous.forEach{(key,value)->if(value==null)edit.remove(key)else edit.putString(key,value)}
             check(edit.commit())
+        }
+    }
+
+    @Test fun failedLaunchRestoresTheVolumeAppliedForThatAttempt() {
+        assumeTrue("Run volume mutation on the emulator", Build.HARDWARE in setOf("ranchu", "goldfish"))
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val pkg = "dev.legion.launch.rollback.test"
+        val audio = context.getSystemService(AudioManager::class.java)
+        assumeTrue(audio != null && !audio.isVolumeFixed)
+        requireNotNull(audio)
+        val stream = AudioManager.STREAM_MUSIC
+        val before = audio.getStreamVolume(stream)
+        val maximum = audio.getStreamMaxVolume(stream)
+        val minimum = audio.getStreamMinVolume(stream)
+        assumeTrue(maximum > minimum && GameLaunchProfiles.pendingPackage(context) == null)
+        val percent = (0..100).first {
+            val index = GameLaunchProfilePolicy.mediaIndex(it, maximum)
+            index >= minimum && index != before
+        }
+        val profile = GameLaunchProfile(mediaPercent = percent)
+        val expectedDuringLaunch = GameLaunchProfilePolicy.mediaIndex(percent, maximum)
+        val originalProfile = GameLaunchProfiles.profile(context, pkg)
+        try {
+            assertTrue(GameLaunchProfiles.save(context, pkg, profile))
+            var volumeDuringLaunch: Int? = null
+            val result = GameLaunchProfiles.launchConfirmed(context, pkg, profile) {
+                volumeDuringLaunch = audio.getStreamVolume(stream)
+                throw ActivityNotFoundException("Test launcher failure")
+            }
+            assertFalse(result.success)
+            assertEquals(expectedDuringLaunch, volumeDuringLaunch)
+            assertEquals(before, audio.getStreamVolume(stream))
+            assertNull(GameLaunchProfiles.pendingPackage(context))
+        } finally {
+            if (GameLaunchProfiles.pendingPackage(context) == pkg) GameLaunchProfiles.restore(context)
+            if (audio.getStreamVolume(stream) != before) audio.setStreamVolume(stream, before, 0)
+            GameLaunchProfiles.save(context, pkg, originalProfile ?: GameLaunchProfile())
         }
     }
 }
