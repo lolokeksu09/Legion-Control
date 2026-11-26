@@ -10,6 +10,9 @@ import android.graphics.Typeface
 import android.media.projection.MediaProjectionManager
 import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.view.View
 import android.provider.Settings
 import android.text.InputType
 import android.widget.EditText
@@ -43,6 +46,24 @@ class CaptureStudioActivity : ComponentActivity() {
     private lateinit var shotsContainer: LinearLayout
     private lateinit var status: TextView
     private lateinit var choices: TextView
+    private lateinit var captureState: TextView
+    private lateinit var clipState: TextView
+    private lateinit var shotState: TextView
+    private lateinit var recordStart: Button
+    private lateinit var replayStart: Button
+    private lateinit var shotStart: Button
+    private lateinit var recordToggle: Button
+    private lateinit var recordStop: Button
+    private lateinit var replaySave: Button
+    private lateinit var replayStop: Button
+    private lateinit var shotCancel: Button
+    private val uiHandler = Handler(Looper.getMainLooper())
+    private val stateTick = object : Runnable {
+        override fun run() {
+            renderCaptureControls()
+            uiHandler.postDelayed(this, 1000L)
+        }
+    }
     private val Int.dp: Int get() = (this * resources.displayMetrics.density).toInt()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -73,13 +94,19 @@ class CaptureStudioActivity : ComponentActivity() {
                 setPadding(0, 0, 0, 16.dp)
             })
         }
-        fun action(value: String, featureId: String? = null, onClick: () -> Unit) {
-            root.addView(Button(this).apply {
+        fun control(value: String, featureId: String? = null, onClick: () -> Unit): Button =
+            Button(this).apply {
                 text = value
                 if(featureId != null) FeatureReveal.bind(this, featureId)
                 LegionUiSupport.styleAction(this)
-                setOnClickListener { onClick() }
-            })
+                setOnClickListener { onClick(); renderCaptureControls() }
+            }
+        fun action(value: String, featureId: String? = null, onClick: () -> Unit): Button =
+            control(value, featureId, onClick).also { root.addView(it) }
+        fun stateLabel(): TextView = TextView(this).apply {
+            textSize = 13f
+            setTextColor(LegionUiSupport.MUTED)
+            setPadding(0, 4.dp, 0, 10.dp)
         }
         heading("CAPTURE STUDIO")
         note("Записывает экран в MP4 по разовому системному разрешению Android. " +
@@ -95,71 +122,59 @@ class CaptureStudioActivity : ComponentActivity() {
         LegionUiSupport.notice(status, LegionUiSupport.Notice.INFO)
         root.addView(status)
 
-        heading("Запись")
-        action("НАЧАТЬ ЗАПИСЬ ЭКРАНА", "capture.record") { askConsent() }
-        action("ПОСТАВИТЬ ЗАПИСЬ НА ПАУЗУ") {
-            if (CaptureRecordingService.recording && !CaptureRecordingService.paused) {
-                runCatching { CaptureRecordingService.pause(this) }
-                    .onSuccess { status.text = "Пауза запрошена. Состояние обновится в уведомлении." }
-                    .onFailure { status.text = "Пауза недоступна: " + it.javaClass.simpleName }
-            } else {
-                status.text = if (CaptureRecordingService.paused) "Запись уже на паузе."
-                    else "Активной записи нет."
-            }
-        }
-        action("ВОЗОБНОВИТЬ ЗАПИСЬ") {
-            if (CaptureRecordingService.recording && CaptureRecordingService.paused) {
-                runCatching { CaptureRecordingService.resume(this) }
-                    .onSuccess { status.text = "Возобновление запрошено. Проверьте уведомление." }
-                    .onFailure { status.text = "Возобновление недоступно: " + it.javaClass.simpleName }
-            } else {
-                status.text = if (CaptureRecordingService.recording) "Запись уже идёт."
-                    else "Активной записи нет."
-            }
-        }
-        action("ОСТАНОВИТЬ ЗАПИСЬ") {
-            if (CaptureRecordingService.recording) {
-                CaptureRecordingService.stop(this)
-                status.text = "Остановка запрошена; результат появится после завершения кодирования."
-            } else status.text = "Активной записи нет."
-        }
-
-        heading("INSTANT REPLAY")
-        note("Сохраняет последние 30/60/120 секунд игры без остановки захвата. " +
-            "Работает только после разового системного согласия Android. " +
-            "Внутренний звук выбранной игры записывается при согласии Android и " +
-            "если игра допускает AudioPlaybackCapture; иначе сохраняется видео без звука. " +
-            "Сохраняется только реально накопленный фрагмент.")
-        action("ЗАПУСТИТЬ REPLAY-БУФЕР", "capture.replay") {
+        heading("Управление захватом")
+        captureState = stateLabel()
+        root.addView(captureState)
+        recordStart = control("НАЧАТЬ ЗАПИСЬ ЭКРАНА", "capture.record") { askConsent() }
+        replayStart = control("ЗАПУСТИТЬ REPLAY-БУФЕР", "capture.replay") {
             LegionDialogs.builder(this)
                 .setTitle("Длительность Replay")
                 .setItems(arrayOf("30 секунд", "60 секунд", "120 секунд")) { _, chosen ->
                     askReplayConsent(intArrayOf(30, 60, 120)[chosen])
                 }.setNegativeButton("Отмена", null).show()
         }
-        action("СОХРАНИТЬ ПОСЛЕДНИЕ СЕКУНДЫ") {
-            status.text = if (ReplayCaptureService.save(this))
-                "Сохранение MP4 запрошено. Захват продолжается."
-            else "Replay не активен. Сначала запустите буфер."
+        root.addView(CompactActionRow(this, recordStart, replayStart))
+        shotStart = action("СДЕЛАТЬ СКРИНШОТ ЭКРАНА", "capture.screenshot") { askScreenshotConsent() }
+        recordToggle = control("ПАУЗА") {
+            if (CaptureRecordingService.recording) {
+                val paused = CaptureRecordingService.paused
+                runCatching {
+                    if (paused) CaptureRecordingService.resume(this)
+                    else CaptureRecordingService.pause(this)
+                }.onSuccess {
+                    status.text = if (paused) "Возобновление запрошено." else "Пауза запрошена."
+                }.onFailure { status.text = "Команда записи недоступна: " + it.javaClass.simpleName }
+            }
         }
-        action("ОСТАНОВИТЬ REPLAY") {
-            if (ReplayCaptureService.active) {
-                ReplayCaptureService.stop(this)
-                status.text = "Остановка Replay запрошена."
-            } else status.text = "Replay не активен."
+        recordStop = control("ОСТАНОВИТЬ ЗАПИСЬ") {
+            runCatching { CaptureRecordingService.stop(this) }
+                .onSuccess { status.text = "Остановка запрошена; дождитесь завершения кодирования." }
+                .onFailure { status.text = "Не удалось остановить запись: " + it.javaClass.simpleName }
         }
-        action("ПРОВЕРИТЬ REPLAY") { status.text = ReplayCaptureService.status(this) }
-
-        heading("Скриншот")
-        note("Один PNG после отдельного согласия Android. Через 5 секунд после согласия " +
-            "будет захвачен текущий экран — переключитесь на нужную игру. " +
-            "Защищённые окна могут скрываться.")
-        action("СДЕЛАТЬ СКРИНШОТ ЭКРАНА", "capture.screenshot") { askScreenshotConsent() }
-        action("ОТМЕНИТЬ СКРИНШОТ") {
-            CaptureScreenshotService.cancel(this)
-            status.text = "Отмена снимка запрошена."
+        root.addView(CompactActionRow(this, recordToggle, recordStop))
+        replaySave = control("СОХРАНИТЬ МОМЕНТ") {
+            runCatching { ReplayCaptureService.save(this) }
+                .onSuccess { status.text = if (it) "Сохранение MP4 запрошено. Захват продолжается."
+                    else "Replay не активен." }
+                .onFailure { status.text = "Не удалось сохранить момент: " + it.javaClass.simpleName }
         }
+        replayStop = control("ОСТАНОВИТЬ REPLAY") {
+            runCatching { ReplayCaptureService.stop(this) }
+                .onSuccess { status.text = "Остановка Replay запрошена." }
+                .onFailure { status.text = "Не удалось остановить Replay: " + it.javaClass.simpleName }
+        }
+        root.addView(CompactActionRow(this, replaySave, replayStop))
+        shotCancel = action("ОТМЕНИТЬ СКРИНШОТ") {
+            runCatching { CaptureScreenshotService.cancel(this) }
+                .onSuccess { status.text = "Отмена снимка запрошена." }
+                .onFailure { status.text = "Не удалось отменить снимок: " + it.javaClass.simpleName }
+        }
+        action("Обновить состояние записи") { refreshStatus() }
         action("Открыть выбранную игру Game Toolbox") { openSelectedGame() }
+        note("Replay сохраняет реально накопленные 30/60/120 секунд без остановки захвата. " +
+            "PNG снимается через 5 секунд после отдельного согласия Android. " +
+            "Запись, Replay и снимок не могут работать одновременно. " +
+            "Внутренний звук зависит от политики выбранной игры.")
 
         heading("Качество и лимиты")
         choices = TextView(this).apply {
@@ -214,27 +229,33 @@ class CaptureStudioActivity : ComponentActivity() {
         note("Резервная копия создаётся только по вашему запросу. " +
             "При импорте заменяются игровые профили, но не общие настройки и не записи видео.")
 
-        action("Обновить состояние записи") { refreshStatus() }
-
-        heading("Место для записей")
+        heading("Медиатека")
         note("Показывает объём только собственных опубликованных MP4/PNG. " +
             "Автоматическое удаление отключено.")
         action("ПОСМОТРЕТЬ ОБЪЁМ ЗАПИСЕЙ") { viewModel.showCaptureStorageUsage() }
 
-        heading("Мои клипы")
+        action("ОБНОВИТЬ МЕДИАТЕКУ", "capture.clips") {
+            browseClips()
+            viewModel.refreshScreenshots()
+        }
+        heading("Видео · MP4")
         note("Готовые MP4 — в системной папке Movies/LegionControl/. " +
             "Здесь показываются только клипы, сохранённые самим Legion Control. " +
             "Никакие чужие видео приложение не читает.")
-        action("ОТКРЫТЬ БИБЛИОТЕКУ КЛИПОВ", "capture.clips") { browseClips() }
+        clipState = stateLabel()
+        clipState.text = "Нажмите «Обновить медиатеку»."
+        root.addView(clipState)
         note("CLIP WORKSHOP · Выделяйте фрагменты MP4 без потери качества и " +
             "сохраняйте отдельные PNG-кадры. Начало MP4 округляется к предыдущему " +
             "ключевому кадру; исходный файл сохраняется.")
         action("ОТМЕНИТЬ ОБРАБОТКУ КЛИПА") { viewModel.cancelClipEdit() }
         clipsContainer = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         root.addView(clipsContainer)
-        heading("Мои снимки")
+        heading("Снимки · PNG")
         note("PNG сохраняются в Pictures/LegionControl/ · только снимки этого приложения.")
-        action("ОТКРЫТЬ БИБЛИОТЕКУ СНИМКОВ") { viewModel.refreshScreenshots() }
+        shotState = stateLabel()
+        shotState.text = "Нажмите «Обновить медиатеку»."
+        root.addView(shotState)
         shotsContainer = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         root.addView(shotsContainer)
         heading("Полная локальная резервная копия")
@@ -315,32 +336,25 @@ class CaptureStudioActivity : ComponentActivity() {
             when (state) {
                 CaptureLibraryState.Idle -> Unit
                 CaptureLibraryState.Loading -> {
-                    status.text = "Читаю список собственных MP4 из MediaStore…"
-                    LegionUiSupport.notice(status, LegionUiSupport.Notice.LOADING)
+                    clipState.text = "Загрузка MP4…"
                 }
                 is CaptureLibraryState.Ready -> showClipList(state.clips)
-                is CaptureLibraryState.Error -> {
-                    status.text = state.message
-                    LegionUiSupport.notice(status, LegionUiSupport.Notice.ERROR)
-                }
+                is CaptureLibraryState.Error -> { clipState.text = state.message }
             }
         }
         viewModel.screenshots.observe(this) { state ->
             when (state) {
                 CaptureScreenshotsState.Idle -> Unit
                 CaptureScreenshotsState.Loading -> {
-                    status.text = "Читаю собственные PNG из MediaStore…"
-                    LegionUiSupport.notice(status, LegionUiSupport.Notice.LOADING)
+                    shotState.text = "Загрузка PNG…"
                 }
                 is CaptureScreenshotsState.Ready -> showScreenshotList(state.shots)
-                is CaptureScreenshotsState.Error -> {
-                    status.text = state.message
-                    LegionUiSupport.notice(status, LegionUiSupport.Notice.ERROR)
-                }
+                is CaptureScreenshotsState.Error -> { shotState.text = state.message }
             }
         }
         refreshChoices()
         refreshStatus()
+        renderCaptureControls()
         FeatureReveal.fromActivity(this, root, FeatureModule.CAPTURE)
     }
 
@@ -362,7 +376,52 @@ class CaptureStudioActivity : ComponentActivity() {
             viewModel.refreshSelectedGameSettings()
             refreshStatus()
             refreshChoices()
+            uiHandler.removeCallbacks(stateTick)
+            stateTick.run()
         }
+    }
+
+    override fun onPause() {
+        uiHandler.removeCallbacks(stateTick)
+        super.onPause()
+    }
+
+    private fun renderCaptureControls() {
+        if (!::captureState.isInitialized || !::shotCancel.isInitialized) return
+        val (mode, phase) = CaptureCoordinator.state()
+        val recording = CaptureRecordingService.recording
+        val replay = ReplayCaptureService.active
+        val screenshot = CaptureScreenshotService.active
+        val idle = mode == null && !recording && !replay && !screenshot
+        val actionable = phase != CapturePhase.STOPPING
+        val name = when (mode) {
+            CaptureMode.RECORDING -> "Запись"
+            CaptureMode.REPLAY -> "Replay"
+            CaptureMode.SCREENSHOT -> "Скриншот"
+            CaptureMode.MAINTENANCE -> "Обслуживание"
+            null -> when {
+                recording -> "Запись"
+                replay -> "Replay"
+                screenshot -> "Скриншот"
+                else -> "Нет активного захвата"
+            }
+        }
+        val state = when (phase) {
+            CapturePhase.CONSENT_PENDING -> "ожидание согласия Android"
+            CapturePhase.STARTING -> "запуск"
+            CapturePhase.STOPPING -> "завершение"
+            CapturePhase.ACTIVE -> if (recording && CaptureRecordingService.paused) "пауза" else "активен"
+            CapturePhase.IDLE -> if (idle) "готов к запуску" else "активен"
+        }
+        captureState.text = "$name · $state"
+        listOf(recordStart, replayStart, shotStart).forEach { it.isEnabled = idle }
+        recordToggle.text = if (CaptureRecordingService.paused) "ПРОДОЛЖИТЬ" else "ПАУЗА"
+        recordToggle.visibility = if (recording && actionable) View.VISIBLE else View.GONE
+        recordStop.visibility = recordToggle.visibility
+        replaySave.visibility = if (replay && actionable) View.VISIBLE else View.GONE
+        replayStop.visibility = replaySave.visibility
+        shotCancel.visibility = if (screenshot && actionable) View.VISIBLE else View.GONE
+        if (replay && actionable) captureState.text = "$name · $state\n" + ReplayCaptureService.status(this)
     }
 
     private fun selectedAudioGame(): String? =
@@ -677,9 +736,8 @@ class CaptureStudioActivity : ComponentActivity() {
     /** Inline screen state, not a popup re-triggered by Activity recreation. */
     private fun showClipList(clips: List<CaptureClip>) {
         clipsContainer.removeAllViews()
-        status.text = if (clips.isEmpty()) "На этой странице нет готовых MP4."
+        clipState.text = if (clips.isEmpty()) "На этой странице нет готовых MP4."
             else "MP4 · страница ${viewModel.clipsPageNumber()} · файлов: ${clips.size}"
-        LegionUiSupport.notice(status, if(clips.isEmpty()) LegionUiSupport.Notice.EMPTY else LegionUiSupport.Notice.INFO)
         if (viewModel.clipsPageNumber() > 1) {
             clipsContainer.addView(Button(this).apply {
                 text = "ПРЕДЫДУЩАЯ СТРАНИЦА MP4"
@@ -818,9 +876,8 @@ class CaptureStudioActivity : ComponentActivity() {
 
     private fun showScreenshotList(shots: List<CaptureScreenshot>) {
         shotsContainer.removeAllViews()
-        status.text = if (shots.isEmpty()) "На этой странице нет PNG."
+        shotState.text = if (shots.isEmpty()) "На этой странице нет PNG."
             else "PNG · страница ${viewModel.screenshotsPageNumber()} · файлов: ${shots.size}"
-        LegionUiSupport.notice(status, if(shots.isEmpty()) LegionUiSupport.Notice.EMPTY else LegionUiSupport.Notice.INFO)
         if (viewModel.screenshotsPageNumber() > 1) {
             shotsContainer.addView(Button(this).apply {
                 text = "ПРЕДЫДУЩАЯ СТРАНИЦА PNG"

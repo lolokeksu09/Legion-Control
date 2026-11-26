@@ -122,7 +122,9 @@ class CaptureStudioRepository(context: Context) {
         val header = when {
             running && CaptureRecordingService.paused -> "ЗАПИСЬ НА ПАУЗЕ\n"
             running -> "ЗАПИСЬ АКТИВНА\n"
-            else -> "Запись не активна\n"
+            ReplayCaptureService.active -> "REPLAY АКТИВЕН\n"
+            CaptureScreenshotService.active -> "СНИМОК ВЫПОЛНЯЕТСЯ\n"
+            else -> "Нет активного захвата\n"
         }
         return header + last
     }

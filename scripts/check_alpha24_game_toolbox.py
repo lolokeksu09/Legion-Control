@@ -53,8 +53,15 @@ activities = [x for x in manifest.findall("./application/activity")
 assert len(activities) == 1 and activities[0].get(ns + "exported") == "false"
 assert "Settings.canDrawOverlays(requireContext())" in ui
 assert "ACTION_MANAGE_OVERLAY_PERMISSION" in ui
-assert "ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS" in ui
-assert "SmartSystemControls.writeSettingsIntent(requireContext())" in ui
+panel = (src / "SystemControlPanel.kt").read_text(encoding="utf-8")
+access = (src / "CapabilityAccessBackend.kt").read_text(encoding="utf-8")
+assert "SystemControlPanel.show(requireContext())" in ui
+assert 'permission("Доступ к управлению DND", CapabilityAccess.DND)' in panel
+assert 'permission("Разрешение менять экран", CapabilityAccess.WRITE_SETTINGS)' in panel
+assert "CapabilityAccessBackend.settingsIntent(ctx, capability)" in panel
+assert "ctx.startActivity(intent)" in panel
+assert "CapabilityAccess.DND -> Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)" in access
+assert "CapabilityAccess.WRITE_SETTINGS -> Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS" in access
 assert "getLaunchIntentForPackage" in ui and "CATEGORY_LAUNCHER" in ui
 assert "PackageManager.ResolveInfoFlags" in ui
 assert "GameToolboxService.start(requireContext())" in ui and "GameToolboxService.stop(requireContext())" in ui

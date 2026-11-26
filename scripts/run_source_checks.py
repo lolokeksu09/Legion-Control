@@ -44,6 +44,7 @@ CHECKS = (
     "check_alpha23_haptic_lab.py",
     "check_alpha24_game_toolbox.py",
     "check_alpha25_capture_studio.py",
+    "check_capture_center.py",
     "check_alpha26_mvvm_navigation.py",
     "check_alpha27_mvvm_backend.py",
     "check_alpha28_mvvm_backends.py",

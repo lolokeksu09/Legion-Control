@@ -214,6 +214,11 @@ class GameToolboxFragment : Fragment() {
         column.addView(CompactActionRow(requireContext(),autoStart,autoStop))
         column.addView(CompactActionRow(requireContext(),usage,report))
 
+        group("Запись и медиа")
+        tile("Capture Studio", "Запись, Replay, скриншоты и общая медиатека") {
+            startActivity(Intent(requireContext(), CaptureStudioActivity::class.java))
+        }
+
         group("Внешний вид")
         choices("Прозрачность плавающей кнопки",
             listOf(60 to "60%", 80 to "80%", 85 to "85%", 100 to "100%"),

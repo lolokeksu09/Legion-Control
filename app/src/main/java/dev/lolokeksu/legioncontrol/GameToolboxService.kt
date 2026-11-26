@@ -345,7 +345,7 @@ class GameToolboxService : Service() {
                     "Replay сохранение запрошено. Захват продолжается."
                 else "Replay выключен. Включите его в Capture Studio."
             }.getOrElse { "Не удалось сохранить Replay: " + it.javaClass.simpleName })
-        }, "Replay настройки", {
+        }, "Запись и медиа", {
             showFeedback(runCatching {
                 startActivity(Intent(this, CaptureStudioActivity::class.java)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
