@@ -158,3 +158,8 @@ LC-05d-05: codec access units проверяются по размеру, timest
 | LC-05e-04: оба leases освобождаются при успешном/неуспешном mux и thread start | nested finally + source guard; при video drain failure audio stop и VirtualDisplay release не ждут mux. |
 
 AAC и H.264 имеют независимые heap-relative budgets (до 8 и 80 МиБ); общий максимум уникальных compressed payloads при исходном cap — 88 МиБ, не PSS и не гарантия процесса. При trim уже frozen payload может временно превышать уменьшенный cap, новый payload не накапливается сверх него. Во время экспорта возможно укорочение/разрыв истории AAC; оригинальные PTS не пересчитываются, video-only fallback сохраняется. Native codec/PCM/muxer не измерены. Реальный AVC/AAC capture на устройстве, PSS/CPU и температурный профиль не подтверждены. CI exact SHA требуется; нет новых permission/версии/SQLite миграции.
+
+
+## LC-01b — Alpha.59 build-only delivery
+
+The owner authorized integration and APK assembly. Candidate versionCode=59 / versionName=0.1.0-alpha.59 advances the previously published alpha.49. Exact version checks and workflow artifact labels updated without changing package, ABI, database or pinned certificate. Trusted main merge with [signed-apk] explicitly requests signed artifact; regular main pushes skip signing. Exact main CI gates permanent key use; publication requires separate workflow_dispatch publish=true. Older release remains untouched. CI evidence is required for the exact merged SHA; no physical-device claim.
