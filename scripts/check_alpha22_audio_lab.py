@@ -39,7 +39,9 @@ assert "android.permission.RECORD_AUDIO" in permissions
 assert "android.permission.QUERY_ALL_PACKAGES" not in permissions
 assert any(a.get(ns+"name")==".AudioLabActivity" and a.get(ns+"exported")=="false"
            for a in manifest.findall("./application/activity"))
-assert 'AudioLabActivity::class.java' in (src/"MainActivity.kt").read_text(encoding="utf-8")
+center_host = (src / "MainActivity.kt").read_text(encoding="utf-8")
+assert "DiagnosticsPage.AUDIO -> AudioLabFragment()" in center_host
+assert "putExtra(EXTRA_PAGE,DiagnosticsPage.AUDIO.name)" in center_host
 
 # Build an ACTUAL v10 SQLite database with legacy rows, not just a schema-name assertion.
 def ddl(source,expected):

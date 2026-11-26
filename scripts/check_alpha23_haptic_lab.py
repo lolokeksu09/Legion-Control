@@ -43,7 +43,9 @@ assert "android.permission.QUERY_ALL_PACKAGES" not in perms
 assert "android.permission.ACCESS_FINE_LOCATION" not in perms
 assert any(a.get(ns+"name")==".HapticLabActivity" and a.get(ns+"exported")=="false"
            for a in manifest.findall("./application/activity"))
-assert 'HapticLabActivity::class.java' in (src/"MainActivity.kt").read_text(encoding="utf-8")
+center_host = (src / "MainActivity.kt").read_text(encoding="utf-8")
+assert "DiagnosticsPage.HAPTIC -> HapticLabFragment()" in center_host
+assert "putExtra(EXTRA_PAGE,DiagnosticsPage.HAPTIC.name)" in center_host
 
 # Reuse the previous release's ACTUAL SQLite v11 fixture, then plant audio + app rows
 # before additive migration. This catches loss of audio history or app library.

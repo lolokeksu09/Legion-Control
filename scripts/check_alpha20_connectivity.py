@@ -43,7 +43,9 @@ assert all(p not in perms for p in (
     "android.permission.WRITE_SECURE_SETTINGS"))
 assert any(a.get(ns+"name")==".ConnectivityLabActivity" and
            a.get(ns+"exported")=="false" for a in manifest.findall("./application/activity"))
-assert "ConnectivityLabActivity::class.java" in (src/"MainActivity.kt").read_text(encoding="utf-8")
+center_host = (src / "MainActivity.kt").read_text(encoding="utf-8")
+assert "DiagnosticsPage.NETWORK -> ConnectivityLabFragment()" in center_host
+assert "putExtra(EXTRA_PAGE,DiagnosticsPage.NETWORK.name)" in center_host
 assert "ConnectivityLabActivity::class.java" in (src/"SmartProfilesFragment.kt").read_text(encoding="utf-8")
 
 def ddl(source,n):
