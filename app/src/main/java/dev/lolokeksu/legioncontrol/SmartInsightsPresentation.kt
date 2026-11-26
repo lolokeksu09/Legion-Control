@@ -15,6 +15,9 @@ internal object SmartInsightsPresentation {
         SmartInsightMetric("Завершено вручную", result.completedSessions.toString(), "end_reason = USER_STOP"),
         SmartInsightMetric("Прервано / завершено иначе", result.interruptedSessions.toString(),
             "Не считается штатным завершением пользователя"),
+        SmartInsightMetric("Без завершения", (result.sessions - result.completedSessions -
+            result.interruptedSessions).coerceAtLeast(0).toString(),
+            "Сессии без ended_at_ms"),
         SmartInsightMetric("Время завершённых сессий", "${result.totalCompletedMinutes} мин",
             "Только записи, остановленные пользователем"),
         SmartInsightMetric("Измерения", result.sampleCount.toString(), "Фактически сохранённые точки SQLite"),

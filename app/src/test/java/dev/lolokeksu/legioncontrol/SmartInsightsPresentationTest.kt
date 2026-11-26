@@ -28,6 +28,7 @@ class SmartInsightsPresentationTest {
         val rows = SmartInsightsPresentation.metrics(result(5, 4))
         assertEquals("2", rows.single { it.title == "Завершено вручную" }.value)
         assertEquals("1", rows.single { it.title == "Прервано / завершено иначе" }.value)
+        assertEquals("1", rows.single { it.title == "Без завершения" }.value)
         assertEquals("90 мин", rows.single { it.title == "Время завершённых сессий" }.value)
     }
 }

@@ -7,8 +7,8 @@ data class SmartInsightsResult(
     val completedSessions:Int, val totalCompletedMinutes:Long,
     val sampleCount:Long, val peakBatteryTempDeciC:Int?,
     val severeReadings:Long, val unvalidatedReadings:Long,
-    val thermalSampleCount:Long = sampleCount,
-    val networkSampleCount:Long = sampleCount,
+    val thermalSampleCount:Long = 0L,
+    val networkSampleCount:Long = 0L,
     val interruptedSessions:Int = 0
 ) {
     fun textReport(): String = SmartInsightsPresentation.report(this)

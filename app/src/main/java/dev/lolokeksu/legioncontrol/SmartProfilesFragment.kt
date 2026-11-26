@@ -248,6 +248,8 @@ class SmartProfilesFragment : Fragment() {
             val row = LinearLayout(requireContext()).apply {
                 orientation = LinearLayout.VERTICAL
                 minimumHeight = 48.dp
+                isFocusable = true
+                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
                 setPadding(0, 9.dp, 0, 9.dp)
                 contentDescription = "${metric.title}: ${metric.value}. ${metric.detail}"
             }
@@ -258,12 +260,14 @@ class SmartProfilesFragment : Fragment() {
             top.addView(TextView(requireContext()).apply {
                 text = metric.title
                 textSize = 13f
+                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
                 setTextColor(Color.WHITE)
                 setTypeface(null, Typeface.BOLD)
             }, LinearLayout.LayoutParams(0, -2, 1f))
             top.addView(TextView(requireContext()).apply {
                 text = metric.value
                 textSize = 14f
+                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
                 setTextColor(LegionUiSupport.ACCENT)
                 setTypeface(null, Typeface.BOLD)
                 gravity = android.view.Gravity.END
@@ -272,6 +276,7 @@ class SmartProfilesFragment : Fragment() {
             row.addView(TextView(requireContext()).apply {
                 text = metric.detail
                 textSize = 11f
+                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
                 setTextColor(LegionUiSupport.MUTED)
                 setPadding(0, 4.dp, 0, 0)
             })

@@ -348,11 +348,13 @@ class GameToolboxFragment : Fragment() {
             setPadding(20.dp, 8.dp, 20.dp, 8.dp)
         }
         fun selector(title: String, options: List<String>, selected: Int): android.widget.Spinner {
-            content.addView(text(title, 13f, fg, true).apply {
+            val label = text(title, 13f, fg, true).apply {
                 setPadding(0, 12.dp, 0, 4.dp)
-            })
+            }
+            content.addView(label)
             return LegionUiSupport.spinner(ctx, options).also {
                 it.id = View.generateViewId()
+                label.labelFor = it.id
                 it.setSelection(selected.coerceIn(options.indices))
                 content.addView(it, LinearLayout.LayoutParams(-1, -2))
             }
