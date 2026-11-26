@@ -258,9 +258,15 @@ object LegionDataBackup {
                                           interrupt: () -> Unit): LegionBackupPreview =
         restoreCore(context, uri, requireNotNull(preview(context, uri).identity), interrupt)
 
+    /** Test seam: interruption after durable intent but before the SQLite transaction commits. */
+    internal fun restoreInterruptedBeforeDbCommitForTest(context: Context, uri: Uri,
+                                                        interrupt: () -> Unit): LegionBackupPreview =
+        restoreCore(context, uri, requireNotNull(preview(context, uri).identity), null, interrupt)
+
     @Synchronized private fun restoreCore(context: Context, uri: Uri,
                                           confirmed: BackupArchiveIdentity,
-                                          afterDbCommit: (() -> Unit)?): LegionBackupPreview =
+                                          afterDbCommit: (() -> Unit)?,
+                                          afterJournalWrite: (() -> Unit)? = null): LegionBackupPreview =
         ProfileMaintenanceGate.tryRun({error("Завершите изменение игрового профиля и повторите восстановление.")}) {
         check(!GameToolboxService.isPanelActive()) { "Остановите Game Toolbox перед восстановлением." }
         recoverPendingRestore(context) // complete or discard a prior interrupted attempt
@@ -310,6 +316,7 @@ object LegionDataBackup {
                                 "База содержит пользовательские данные. Импорт разрешён только в пустую базу."
                             }
                             savePending(context, marker, staged.preferenceBytes, staged.manifest.getInt("version"))
+                            afterJournalWrite?.invoke()
                             for (table in tables) {
                                 source.rawQuery("SELECT * FROM " + sqlName(table), null)
                                     .use { cursor ->

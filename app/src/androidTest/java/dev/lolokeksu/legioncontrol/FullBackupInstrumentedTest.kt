@@ -261,9 +261,31 @@ class FullBackupInstrumentedTest {
                 assertEquals(id, requireNotNull(repo.header(sessionId)).packageName)
             }
             assertEquals("restored", prefs.getString("ci_restore_sentinel", null))
-            // Simulate interruption AFTER the SQLite transaction is committed
-            // but BEFORE any SharedPreferences files are modified.
+            // Crash after durable intent but BEFORE SQLite commit: the marker must reject replay.
             assertTrue(app.deleteDatabase("legion-control-history.db"))
+            clearAuxiliary()
+            assertTrue(prefs.edit().remove("ci_restore_sentinel").commit())
+            assertTrue(preflight.edit().clear().commit())
+            val beforeCommit = runCatching {
+                LegionDataBackup.restoreInterruptedBeforeDbCommitForTest(app, backup) {
+                    throw IllegalStateException("SIMULATED_BEFORE_SQLITE_COMMIT")
+                }
+            }.exceptionOrNull()
+            assertEquals("SIMULATED_BEFORE_SQLITE_COMMIT", beforeCommit?.message)
+            assertTrue("Durable intent exists before SQLite commit", LegionDataBackup.hasPendingRestore(app))
+            assertFalse("Uncommitted marker must discard, not replay, preferences",
+                LegionDataBackup.recoverPendingRestore(app))
+            assertFalse(LegionDataBackup.hasPendingRestore(app))
+            assertNull(prefs.getString("ci_restore_sentinel", null))
+            assertEquals(PreflightPreset(), PreflightPresets.read(app, pkgA))
+            GameSessionRepository(app).use { repo -> assertNull(repo.header(sessionId)) }
+            val afterPreCommitRecovery = LegionDataBackup.restoreOnEmptyDatabase(app, backup, confirmed)
+            assertEquals(exported.rows, afterPreCommitRecovery.rows)
+            assertEquals("restored", prefs.getString("ci_restore_sentinel", null))
+            assertAuxiliary()
+
+            // Simulate interruption AFTER the SQLite transaction is committed
+            // but BEFORE any SharedPreferences files are modified.            assertTrue(app.deleteDatabase("legion-control-history.db"))
             clearAuxiliary()
             assertTrue(prefs.edit().remove("ci_restore_sentinel").commit())
             assertTrue(preflight.edit().clear().commit())
