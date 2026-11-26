@@ -14,6 +14,8 @@ assert "GameLaunchProfiles.pendingPackage(" in detail
 assert "setView(scroll)" in tool and "LegionUiSupport.spinner" in tool
 assert "confirmApplyGameLaunchProfile" in tool and "setPositiveButton" in tool
 assert "confirmRestoreGameLaunchProfile" in tool
+assert "GameLaunchProfiles.pendingConfirmation(ctx)" in tool
+assert "GameLaunchProfiles.restoreConfirmed(ctx, pending)" in tool
 assert "GameLaunchProfilePolicy.editorPercentOptions(" in tool
 assert "applyGameLaunchProfile(pkg, profile, launch)" in tool
 assert "COUNT(g.thermal_status),COUNT(g.network_validated)" in insights

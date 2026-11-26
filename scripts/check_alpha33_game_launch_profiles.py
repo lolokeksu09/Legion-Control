@@ -21,6 +21,10 @@ assert "android.permission.WRITE_SECURE_SETTINGS" not in actual
 assert "android.permission.BIND_ACCESSIBILITY_SERVICE" not in actual
 assert "GameLaunchProfiles.applyConfirmed(requireContext(), pkg, approved)" in ui and "GameLaunchProfiles.restore(requireContext())" in ui
 assert "applyGameLaunchProfile(pkg, profile, launch)" in ui
+assert "GameLaunchProfiles.restoreConfirmed(ctx, pending)" in ui
+assert "pendingConfirmation(context) != approved" in engine
+assert ".putString(GENERATION, UUID.randomUUID().toString())" in engine
+assert ".remove(OWNER).remove(GENERATION).commit()" in engine
 assert "(owner != null || approved != null) && p != approved" in engine
 assert engine.index("p != approved") < engine.index("val snapshot = runCatching")
 assert "GameLaunchProfiles.apply(this, pkg)" in overlay and "GameLaunchProfiles.restore(this)" in overlay
@@ -64,6 +68,8 @@ export = backup[backup.index("@Synchronized fun export"):backup.index("fun previ
 assert "ProfileMaintenanceGate.tryRun" in export
 assert export.index("ProfileMaintenanceGate.tryRun") < export.index("checkArchiveWritesAllowed")
 assert "pending_global_undo" in export
+assert 'key == "pending_undo_generation"' in backup
+assert 'key != "pending_undo_generation"' in backup
 
 
 

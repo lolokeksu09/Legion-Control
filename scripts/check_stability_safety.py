@@ -11,7 +11,11 @@ restore = controls[controls.index("fun restoreScreenSettings"):]
 assert ".commit()" in timeout and timeout.index(".commit()") < timeout.index("writeVerified(")
 assert ".commit()" in brightness and brightness.index(".commit()") < brightness.index("writeVerified(")
 assert ".apply()" not in timeout + brightness + restore
-assert 'restore("brightness", "brightness_requested", Settings.System.SCREEN_BRIGHTNESS)' in restore
+assert 'restore("brightness", "brightness_requested", Settings.System.SCREEN_BRIGHTNESS,' in restore
+assert "modeAfterBrightness(hadBrightness, brightnessDecision)" in restore
+assert "BrightnessModeRestoreAction.DEFER" in restore and "BrightnessModeRestoreAction.DISCARD" in restore
+assert 'listOf("brightness_mode", "brightness_mode_requested")' in restore
+assert "discardOnConflict.forEach { edit.remove(it) }" in controls
 assert 'restore("brightness_mode", "brightness_mode_requested", Settings.System.SCREEN_BRIGHTNESS_MODE)' in restore
 assert 'restore("timeout", "timeout_requested", Settings.System.SCREEN_OFF_TIMEOUT)' in restore
 assert "SmartSystemRestorePolicy.decide" in controls

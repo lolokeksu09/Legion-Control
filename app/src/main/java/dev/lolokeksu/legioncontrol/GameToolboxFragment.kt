@@ -451,17 +451,17 @@ class GameToolboxFragment : Fragment() {
 
     private fun confirmRestoreGameLaunchProfile() {
         val ctx = requireContext()
-        val pending = GameLaunchProfiles.pendingPackage(ctx)
+        val pending = GameLaunchProfiles.pendingConfirmation(ctx)
         if (pending == null) {
             status.text = "Нет ожидающих возврата настроек."
             return
         }
         LegionDialogs.builder(ctx).setTitle("Восстановить системные настройки?")
-            .setMessage("Запись возврата: $pending\nLegion Control сравнит текущие значения с исходными и запрошенными. " +
+            .setMessage("Запись возврата: ${pending.packageName}\nLegion Control сравнит текущие значения с исходными и запрошенными. " +
                 "Поля, которые пользователь или другая программа изменили после применения, останутся нетронутыми. " +
                 "Ошибки Android останутся в записи для повторной попытки.")
             .setPositiveButton("Восстановить") { _, _ ->
-                status.text = GameLaunchProfiles.restore(ctx).message
+                status.text = GameLaunchProfiles.restoreConfirmed(ctx, pending).message
                 renderStatus()
             }.setNegativeButton("Отмена", null).show()
     }

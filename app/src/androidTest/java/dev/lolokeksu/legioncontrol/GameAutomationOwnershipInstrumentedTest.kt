@@ -13,12 +13,21 @@ class GameAutomationOwnershipInstrumentedTest {
         val context=InstrumentationRegistry.getInstrumentation().targetContext
         val prefs=context.getSharedPreferences("legion-launch-profiles-v1",Context.MODE_PRIVATE)
         val pkg="dev.legion.automation.test"
-        val keys=listOf("pending_global_undo","pending_auto_owner","profile_"+pkg)
+        val keys=listOf("pending_global_undo","pending_auto_owner","profile_"+pkg,"pending_undo_generation")
         val previous=keys.associateWith{prefs.getString(it,null)}
         val ticket=GameLaunchUndo(pkg,LaunchSettingChange(1,2),null,null,null).encode()
         try {
             assertTrue(prefs.edit().putString(keys[0],ticket).putString(keys[1],"owner-a")
-                .putString(keys[2],GameLaunchProfile(mediaPercent=20).encode()).commit())
+                .putString(keys[2],GameLaunchProfile(mediaPercent=20).encode())
+                .putString(keys[3],"generation-a").commit())
+            val approval = requireNotNull(GameLaunchProfiles.pendingConfirmation(context))
+            // Identical values/package/owner, but a different ticket instance: no Android writes.
+            assertTrue(prefs.edit().putString(keys[3],"generation-b").commit())
+            val staleUndo = GameLaunchProfiles.restoreConfirmed(context, approval)
+            assertFalse(staleUndo.success)
+            assertTrue(staleUndo.message.contains("Запись возврата изменилась"))
+            assertEquals(ticket,prefs.getString(keys[0],null))
+            assertEquals("generation-b",prefs.getString(keys[3],null))
             var manualExecuted = false
             val blocked = SmartSystemControls.withManualMutation(context) {
                 manualExecuted = true

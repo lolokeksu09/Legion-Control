@@ -159,7 +159,8 @@ object SmartSystemControls {
         prefs: android.content.SharedPreferences,
         originalKey: String,
         requestedKey: String,
-        systemKey: String
+        systemKey: String,
+        discardOnConflict: List<String> = emptyList()
     ): SmartSystemRestoreDecision {
         val original = prefs.getInt(originalKey, 0)
         val requested = if (prefs.contains(requestedKey)) prefs.getInt(requestedKey, original) else null
@@ -170,7 +171,12 @@ object SmartSystemControls {
                 writeVerified(context, systemKey, original)
             SmartSystemRestoreDecision.ALREADY_ORIGINAL, SmartSystemRestoreDecision.USER_CHANGED -> Unit
         }
-        check(prefs.edit().remove(originalKey).remove(requestedKey).commit())
+        val edit = prefs.edit().remove(originalKey).remove(requestedKey)
+        // If brightness changed externally, discard the associated mode ticket atomically
+        // with brightness, so a process restart cannot later toggle adaptive brightness.
+        if (decision == SmartSystemRestoreDecision.USER_CHANGED)
+            discardOnConflict.forEach { edit.remove(it) }
+        check(edit.commit())
         return decision
     }
 
@@ -184,19 +190,29 @@ object SmartSystemControls {
         var unchanged = 0
         var conflicts = 0
         var failures = 0
-        fun restore(originalKey: String, requestedKey: String, systemKey: String) {
-            if (!prefs.contains(originalKey)) return
+        fun restore(originalKey: String, requestedKey: String, systemKey: String,
+                    discardOnConflict: List<String> = emptyList()): SmartSystemRestoreDecision? {
+            if (!prefs.contains(originalKey)) return null
             val decision = runCatching {
-                restoreTrackedSetting(context, prefs, originalKey, requestedKey, systemKey)
-            }.onFailure { failures++ }.getOrNull() ?: return
+                restoreTrackedSetting(context, prefs, originalKey, requestedKey, systemKey, discardOnConflict)
+            }.onFailure { failures++ }.getOrNull() ?: return null
             when (decision) {
                 SmartSystemRestoreDecision.RESTORE, SmartSystemRestoreDecision.LEGACY_RESTORE -> restored++
                 SmartSystemRestoreDecision.ALREADY_ORIGINAL -> unchanged++
                 SmartSystemRestoreDecision.USER_CHANGED -> conflicts++
             }
+            return decision
         }
-        restore("brightness", "brightness_requested", Settings.System.SCREEN_BRIGHTNESS)
-        restore("brightness_mode", "brightness_mode_requested", Settings.System.SCREEN_BRIGHTNESS_MODE)
+        val hadBrightness = prefs.contains("brightness")
+        val hadMode = prefs.contains("brightness_mode")
+        val brightnessDecision = restore("brightness", "brightness_requested", Settings.System.SCREEN_BRIGHTNESS,
+            listOf("brightness_mode", "brightness_mode_requested"))
+        when (SmartSystemRestorePolicy.modeAfterBrightness(hadBrightness, brightnessDecision)) {
+            BrightnessModeRestoreAction.RESTORE ->
+                restore("brightness_mode", "brightness_mode_requested", Settings.System.SCREEN_BRIGHTNESS_MODE)
+            BrightnessModeRestoreAction.DEFER -> Unit // retain mode ticket until brightness can be restored
+            BrightnessModeRestoreAction.DISCARD -> if (hadMode) { conflicts++ } // already removed with brightness
+        }
         restore("timeout", "timeout_requested", Settings.System.SCREEN_OFF_TIMEOUT)
         return@withManualMutation when {
             failures > 0 -> "Восстановлено: $restored; изменено пользователем и не перезаписано: $conflicts; ошибок Android: $failures. Повторите возврат для незавершённых параметров."
