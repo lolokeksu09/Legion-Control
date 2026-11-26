@@ -13,3 +13,5 @@ Verification: updated live-monitor source contract, new cross-module source guar
 ## CI follow-up
 
 The first run on `6773312` failed in `check_shizuku_hub.py` because the former 19-module count did not reflect the merged Live Monitor. Three historical diagnostics guards also required exactly 25 buttons, although the new disclosure control makes 26. The catalog guard now checks the exact 18 unique module identities; the diagnostics guards check the relevant named actions, and the center guard checks all 25 retained actions plus the new disclosure. No safety or build gate is disabled. Local container has no GitHub network access; targeted source comparisons use the GitHub connector, and the full source suite/Android build must run in CI.
+
+The five existing Live Monitor instrumentation cases now launch MainActivity with its MONITOR page instead of the redirect-only Activity. Assertions are retained; emulator execution is not claimed.

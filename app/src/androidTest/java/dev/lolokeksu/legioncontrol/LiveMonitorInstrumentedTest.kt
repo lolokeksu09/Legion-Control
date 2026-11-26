@@ -3,6 +3,9 @@ package dev.lolokeksu.legioncontrol
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
 import androidx.test.core.app.ActivityScenario
+import androidx.test.core.app.ApplicationProvider
+import android.content.Context
+import android.content.Intent
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Assert.*
 import org.junit.Test
@@ -10,8 +13,14 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class LiveMonitorInstrumentedTest {
+    private fun launchMonitor(): ActivityScenario<MainActivity> =
+        ActivityScenario.launch<MainActivity>(
+            Intent(ApplicationProvider.getApplicationContext<Context>(), MainActivity::class.java)
+                .putExtra(MainActivity.EXTRA_PAGE, DiagnosticsPage.MONITOR.name)
+        )
+
     @Test fun finderUsesIdentityNotLabelAndNeverClicks() {
-        ActivityScenario.launch(LiveMonitorActivity::class.java).use { scenario ->
+        launchMonitor().use { scenario ->
             scenario.onActivity { activity ->
                 val root = android.widget.LinearLayout(activity)
                 val target = android.widget.Button(activity).apply { text = "Original title" }
@@ -39,7 +48,7 @@ class LiveMonitorInstrumentedTest {
     }
 
     @Test fun sharedButtonUsesCompactMinimumWithoutFixedHeight() {
-        ActivityScenario.launch(LiveMonitorActivity::class.java).use { scenario ->
+        launchMonitor().use { scenario ->
             scenario.onActivity { activity ->
                 val button = android.widget.Button(activity).apply { text = "Long action label" }
                 LegionUiSupport.styleAction(button)
@@ -53,7 +62,7 @@ class LiveMonitorInstrumentedTest {
     }
 
     @Test fun sharedDialogsPreserveConfirmationAndChoiceSemantics() {
-        ActivityScenario.launch(LiveMonitorActivity::class.java).use { scenario ->
+        launchMonitor().use { scenario ->
             val idle = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
             lateinit var dialog: android.app.AlertDialog
             var confirmed = 0
@@ -148,7 +157,7 @@ class LiveMonitorInstrumentedTest {
     }
 
     @Test fun commonChartAndNoticeComponentsRemainBoundedAndReadable() {
-        ActivityScenario.launch(LiveMonitorActivity::class.java).use { scenario ->
+        launchMonitor().use { scenario ->
             scenario.onActivity { activity ->
                 val density = activity.resources.displayMetrics.density
                 val width = (320 * density).toInt()
@@ -182,7 +191,7 @@ class LiveMonitorInstrumentedTest {
     }
 
     @Test fun realReadingsStopWhenScreenStopsAndRequireExplicitRestart() {
-        ActivityScenario.launch(LiveMonitorActivity::class.java).use { scenario ->
+        launchMonitor().use { scenario ->
             lateinit var model: LiveMonitorViewModel
             scenario.onActivity { activity ->
                 model = ViewModelProvider(activity)[LiveMonitorViewModel::class.java]
