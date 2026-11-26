@@ -40,8 +40,12 @@ object SmartSystemControls {
         return runCatching {
             val audio=context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
             val max=audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-            audio.setStreamVolume(AudioManager.STREAM_MUSIC,(max*percent/100f).roundToInt(),0)
-            "Громкость мультимедиа установлена: $percent% (с учётом шагов устройства)."
+            require(max > 0)
+            val requested=(max*percent/100f).roundToInt()
+            val actual=VerifiedSettingWrite.apply(requested,
+                { audio.getStreamVolume(AudioManager.STREAM_MUSIC) },
+                { audio.setStreamVolume(AudioManager.STREAM_MUSIC,it,0); true })
+            "Громкость мультимедиа: $actual/$max (подтверждено Android)."
         }.getOrElse { "Не удалось изменить громкость: ${it.javaClass.simpleName}" }
     }
 
@@ -51,7 +55,10 @@ object SmartSystemControls {
         return runCatching {
             nm.setInterruptionFilter(if(enabled) NotificationManager.INTERRUPTION_FILTER_NONE
                 else NotificationManager.INTERRUPTION_FILTER_ALL)
-            "Запрошено: «Не беспокоить» "+if(enabled) "включить" else "выключить"
+            if (Build.VERSION.SDK_INT >= 35) {
+                if (enabled) "Запрошено включение правила Legion Control; итоговый DND зависит от правил Android."
+                else "Запрошено выключение правила Legion Control; другие правила Android могут сохранить DND."
+            } else "Запрошено: «Не беспокоить» "+if(enabled) "включить" else "выключить"
         }.getOrElse { "Прошивка отклонила изменение: ${it.javaClass.simpleName}" }
     }
 
@@ -67,10 +74,9 @@ object SmartSystemControls {
             val prefs=context.getSharedPreferences(PREFS,Context.MODE_PRIVATE)
             if(!prefs.contains("timeout")) {
                 prefs.edit().putInt("timeout",Settings.System.getInt(context.contentResolver,
-                    Settings.System.SCREEN_OFF_TIMEOUT)).apply()
+                    Settings.System.SCREEN_OFF_TIMEOUT)).commit().also { check(it) }
             }
-            check(Settings.System.putInt(context.contentResolver,
-                Settings.System.SCREEN_OFF_TIMEOUT,seconds*1000))
+            writeVerified(context, Settings.System.SCREEN_OFF_TIMEOUT,seconds*1000)
             "Тайм-аут экрана изменён на $seconds с. Исходное значение сохранено для ручного восстановления."
         }.getOrElse { "Не удалось изменить тайм-аут: ${it.javaClass.simpleName}" }
     }
@@ -84,34 +90,46 @@ object SmartSystemControls {
             if(!prefs.contains("brightness")) {
                 prefs.edit().putInt("brightness",Settings.System.getInt(resolver,
                     Settings.System.SCREEN_BRIGHTNESS)).putInt("brightness_mode",
-                    Settings.System.getInt(resolver,Settings.System.SCREEN_BRIGHTNESS_MODE)).apply()
+                    Settings.System.getInt(resolver,Settings.System.SCREEN_BRIGHTNESS_MODE)).commit().also { check(it) }
             }
-            check(Settings.System.putInt(resolver,Settings.System.SCREEN_BRIGHTNESS_MODE,
-                Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL))
-            check(Settings.System.putInt(resolver,Settings.System.SCREEN_BRIGHTNESS,
-                (percent*255/100f).roundToInt().coerceIn(1,255)))
+            writeVerified(context,Settings.System.SCREEN_BRIGHTNESS_MODE,
+                Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL)
+            writeVerified(context,Settings.System.SCREEN_BRIGHTNESS,
+                (percent*255/100f).roundToInt().coerceIn(1,255))
             "Яркость изменена на $percent%. Автояркость отключена; восстановить исходную можно кнопкой."
-        }.getOrElse { "Не удалось изменить яркость: ${it.javaClass.simpleName}" }
+        }.getOrElse { "Яркость не подтверждена: ${it.javaClass.simpleName}. При частичном изменении используйте ручное восстановление." }
     }
+
+    private fun writeVerified(context: Context, key: String, value: Int): Int =
+        VerifiedSettingWrite.apply(value,
+            { Settings.System.getInt(context.contentResolver,key) },
+            { Settings.System.putInt(context.contentResolver,key,it) })
 
     fun restoreScreenSettings(context: Context): String {
         if(!Settings.System.canWrite(context)) return "Нужно разрешение WRITE_SETTINGS для восстановления."
         val prefs=context.getSharedPreferences(PREFS,Context.MODE_PRIVATE)
         if(!prefs.contains("brightness") && !prefs.contains("timeout")) return "Сохранённых параметров нет."
         return runCatching {
-            val resolver=context.contentResolver
-            var success=true
+            var failures=0
             if(prefs.contains("brightness")) {
-                success=Settings.System.putInt(resolver,Settings.System.SCREEN_BRIGHTNESS,
-                    prefs.getInt("brightness",128)) && success
-                success=Settings.System.putInt(resolver,Settings.System.SCREEN_BRIGHTNESS_MODE,
-                    prefs.getInt("brightness_mode",0)) && success
+                val restored=runCatching {
+                    check(prefs.contains("brightness_mode"))
+                    writeVerified(context,Settings.System.SCREEN_BRIGHTNESS,prefs.getInt("brightness",0))
+                    writeVerified(context,Settings.System.SCREEN_BRIGHTNESS_MODE,prefs.getInt("brightness_mode",0))
+                    check(prefs.edit().remove("brightness").remove("brightness_mode").commit())
+                }.isSuccess
+                if(!restored) failures++
             }
-            if(prefs.contains("timeout")) success=Settings.System.putInt(resolver,
-                Settings.System.SCREEN_OFF_TIMEOUT,prefs.getInt("timeout",30_000)) && success
-            if(success) prefs.edit().clear().apply()
-            if(success) "Исходные экранные параметры восстановлены."
-                else "Некоторые значения отклонены прошивкой; повторите восстановление."
+            // An independent timeout restore must run even if brightness failed.
+            if(prefs.contains("timeout")) {
+                val restored=runCatching {
+                    writeVerified(context,Settings.System.SCREEN_OFF_TIMEOUT,prefs.getInt("timeout",0))
+                    check(prefs.edit().remove("timeout").commit())
+                }.isSuccess
+                if(!restored) failures++
+            }
+            if(failures==0) "Исходные экранные параметры восстановлены и подтверждены Android."
+                else "Не все параметры подтверждены; повторите восстановление."
         }.getOrElse { "Восстановление отклонено: ${it.javaClass.simpleName}" }
     }
 }
