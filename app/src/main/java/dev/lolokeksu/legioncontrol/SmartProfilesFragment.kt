@@ -134,6 +134,18 @@ class SmartProfilesFragment : Fragment() {
         action("Состояние системных переключателей") {
             show(SmartSystemControls.status(requireContext()))
         }
+        action("Открыть разрешения уведомлений") {
+            CapabilityAccessBackend.settingsIntent(requireContext(), CapabilityAccess.NOTIFICATIONS)
+                ?.let { launchSettings(it) }
+        }
+        action("Открыть доступ к статистике использования") {
+            CapabilityAccessBackend.settingsIntent(requireContext(), CapabilityAccess.USAGE)
+                ?.let { launchSettings(it) }
+        }
+        action("Открыть доступ поверх окон") {
+            CapabilityAccessBackend.settingsIntent(requireContext(), CapabilityAccess.OVERLAY)
+                ?.let { launchSettings(it) }
+        }
         root.addView(LegionUiSupport.sectionLabel(requireContext(), "УПРАВЛЕНИЕ ГРОМКОСТЬЮ"))
         action("Громкость мультимедиа · 25%") { show(SmartSystemControls.setMediaVolume(requireContext(),25)) }
         action("Громкость мультимедиа · 75%") { show(SmartSystemControls.setMediaVolume(requireContext(),75)) }

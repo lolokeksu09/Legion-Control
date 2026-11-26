@@ -48,6 +48,16 @@ Frozen export по-прежнему удерживает ссылки на ст�
 
 Instrumentation test проверяет, что при активном game ticket ручной callback не выполняется, ticket сохраняется. Source guard проверяет пять ручных методов и шаги громкости overlay. Новые тесты требуют CI точной ревизии.
 
+## LC-08a — Capability Engine
+
+CapabilityAccessPolicy различает READY, DISABLED, PERMISSION_REQUIRED, UNSUPPORTED и UNKNOWN. CapabilityAccessBackend независимо читает public API для уведомлений, overlay, Usage Access, DND, WRITE_SETTINGS и громкости. Неподдерживаемые функции (FPS чужой игры, OEM Boost) не предлагают выдачу бессмысленных разрешений. DND показывает право управления, а не текущую активацию; уведомления — app-wide, не отдельные каналы. SmartCompatibilityBackend, SmartSystemControls.status и Game Toolbox используют общие состояния. В Smart Profiles добавлены явные переходы к настройкам уведомлений, Usage Access и overlay. Нет новых разрешений, фонового polling, автоматической выдачи доступа или изменения существующих runtime guards.
+
+Пять JVM-тестов политики и source guard. Capability snapshot не заменяет проверку разрешения непосредственно перед системной записью. Интеграция остальных экранов и индивидуальных каналов уведомлений остаётся открытой.
+
+## LC-06b — исправление CI
+
+В run 45825495567 сборка прошла, но post-commit ZIP instrumentation получил отказ на непустой базе: строка удаления тестовой БД была случайно закомментирована после комментария. Восстановлен отдельный executable statement; source guard проверяет наличие этой команды между сценариями. Production backup gate не ослаблен. Повторный emulator CI необходим.
+
 ## Проверка и границы
 
 - Проверка конфигурации: scripts/check_release_signing.py, scripts/run_source_checks.py.

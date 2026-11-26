@@ -1,10 +1,8 @@
 package dev.lolokeksu.legioncontrol
 
-import android.Manifest
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.media.AudioManager
 import android.net.Uri
 import android.os.Build
@@ -34,7 +32,7 @@ object SmartSystemControls {
 
     fun status(context: Context): String {
         val audio = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
-        val notification = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+        val access = CapabilityAccessBackend.read(context)
         val music = runCatching {
             if (audio == null) "н/д" else {
                 val max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
@@ -42,14 +40,11 @@ object SmartSystemControls {
                 "$current/$max"
             }
         }.getOrDefault("н/д")
-        val policy = runCatching { notification?.isNotificationPolicyAccessGranted == true }.getOrDefault(false)
-        val write = runCatching { Settings.System.canWrite(context) }.getOrDefault(false)
-        val notify = context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
         return buildString {
             append("Звук мультимедиа: ").append(music).append('\n')
-            append("«Не беспокоить»: ").append(if (policy) "доступ разрешён" else "требуется доступ").append('\n')
-            append("Изменение системных параметров: ").append(if (write) "разрешено" else "нужен WRITE_SETTINGS").append('\n')
-            append("Уведомления: ").append(if (notify) "разрешены" else "отключены/не разрешены")
+            append("Доступ к «Не беспокоить»: ").append(access[CapabilityAccess.DND].label).append('\n')
+            append("Изменение системных параметров: ").append(access[CapabilityAccess.WRITE_SETTINGS].label).append('\n')
+            append("Уведомления: ").append(access[CapabilityAccess.NOTIFICATIONS].label)
         }
     }
 

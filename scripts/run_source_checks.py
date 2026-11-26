@@ -10,6 +10,7 @@ CHECKS = (
     "check_backend.py",
     "check_release_signing.py",
     "check_stability_safety.py",
+    "check_capability_access.py",
     "check_startup_recovery.py",
     "check_backup_recovery.py",
     "check_replay_memory_policy.py",

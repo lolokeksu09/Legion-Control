@@ -258,19 +258,17 @@ class GameToolboxFragment : Fragment() {
     }
 
     private fun renderStatus() {
-        val enabled = Settings.canDrawOverlays(requireContext())
+        val access = CapabilityAccessBackend.read(requireContext())
         if(::automationStatus.isInitialized) {
-            val usage=GameUsageDiagnostics.hasUsageAccess(requireContext())
-            val notifications=requireContext().getSystemService(android.app.NotificationManager::class.java)?.areNotificationsEnabled()==true
-            automationStatus.text="Usage Access: "+(if(usage)"выдан" else "нет доступа")+
-                " · уведомления: "+(if(notifications)"включены" else "выключены")+
+            automationStatus.text="Usage Access: "+access[CapabilityAccess.USAGE].label+
+                " · уведомления: "+access[CapabilityAccess.NOTIFICATIONS].label+
                 "\nОдноразовый авто-профиль · возврат при наблюдаемом выходе"
         }
         val pkg = prefs.getString(ToolboxPreferences.GAME, null)
         val label = prefs.getString(ToolboxPreferences.LABEL, null)
         summary.text = buildString {
             append("Показ поверх окон: ")
-            append(if (enabled) "РАЗРЕШЁН" else "НЕТ ДОСТУПА")
+            append(access[CapabilityAccess.OVERLAY].label)
             append("\nВыбрано: ").append(label ?: "не выбрано")
             if (pkg != null) append(" (").append(pkg).append(")")
             append("\nПрозрачность: ")
