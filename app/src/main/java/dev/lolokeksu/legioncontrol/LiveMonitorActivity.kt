@@ -1,20 +1,35 @@
 package dev.lolokeksu.legioncontrol
 
+import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
 import android.os.Bundle
 import android.view.View
 import android.widget.Button
 import android.widget.LinearLayout
-import android.widget.ScrollView
 import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.ComponentActivity
 import androidx.fragment.app.FragmentActivity
-import androidx.lifecycle.ViewModelProvider
 
-/** Explicit, foreground-only live sampling. No extra permissions or system writes. */
+/** Compatibility entry point; all monitoring now lives in the diagnostics center. */
 class LiveMonitorActivity : FragmentActivity() {
-    private lateinit var model: LiveMonitorViewModel
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        startActivity(Intent(this, MainActivity::class.java).apply {
+            this@LiveMonitorActivity.intent.extras?.let { putExtras(it) }
+            putExtra(MainActivity.EXTRA_PAGE, DiagnosticsPage.MONITOR.name)
+        })
+        finish()
+    }
+}
+
+/** Existing foreground-only monitor UI, embedded without a second sampler or Activity. */
+internal class LiveMonitorPanel(
+    private val activity: ComponentActivity,
+    private val model: LiveMonitorViewModel,
+    savedInstanceState: Bundle?
+) {
     private lateinit var status: TextView
     private lateinit var summary: TextView
     private lateinit var comparison: TextView
@@ -28,25 +43,21 @@ class LiveMonitorActivity : FragmentActivity() {
     private lateinit var clearButton: Button
     private lateinit var exportButton: Button
     private var metric = MonitorMetric.TEMPERATURE
-    private val Int.dp get() = (this * resources.displayMetrics.density + .5f).toInt()
-    private val document = registerForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
-        if (::model.isInitialized) model.finishExport(uri)
+    private val Int.dp get() = (this * activity.resources.displayMetrics.density + .5f).toInt()
+    private val document = activity.registerForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
+        model.finishExport(uri)
+    }
+    val root = LinearLayout(activity).apply {
+        orientation = LinearLayout.VERTICAL
     }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        model = ViewModelProvider(this)[LiveMonitorViewModel::class.java]
+    init {
         metric = savedInstanceState?.getString("monitor_metric")?.let {
             runCatching { MonitorMetric.valueOf(it) }.getOrNull()
         } ?: MonitorMetric.TEMPERATURE
 
-        val root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.BLACK)
-            setPadding(18.dp, 18.dp, 18.dp, 24.dp)
-        }
         fun label(value: String, size: Float = 14f, color: Int = Color.WHITE): TextView =
-            TextView(this).apply {
+            TextView(activity).apply {
                 text = value
                 textSize = size
                 setTextColor(color)
@@ -54,7 +65,7 @@ class LiveMonitorActivity : FragmentActivity() {
                 setPadding(0, 5.dp, 0, 10.dp)
                 root.addView(this, LinearLayout.LayoutParams(-1, -2))
             }
-        fun action(title: String, featureId: String? = null, click: () -> Unit): Button = Button(this).apply {
+        fun action(title: String, featureId: String? = null, click: () -> Unit): Button = Button(activity).apply {
             text = title
             if(featureId != null) FeatureReveal.bind(this, featureId)
             LegionUiSupport.styleAction(this)
@@ -70,7 +81,7 @@ class LiveMonitorActivity : FragmentActivity() {
         status = label("Мониторинг не запущен.", 14f, LegionUiSupport.ACCENT)
         intervalButton = action("Интервал измерений") {
             val intervals = MonitorPolicy.intervals
-            LegionDialogs.builder(this).setTitle("Интервал измерений")
+            LegionDialogs.builder(activity).setTitle("Интервал измерений")
                 .setSingleChoiceItems(intervals.map { "${it / 1000} с" }.toTypedArray(),
                     intervals.indexOf(model.state.value?.intervalMs ?: 5000L)) { dialog, index ->
                     model.interval(intervals[index])
@@ -79,7 +90,7 @@ class LiveMonitorActivity : FragmentActivity() {
         }
         startButton = action("НАЧАТЬ МОНИТОРИНГ", "monitor.start") {
             if (model.state.value?.points?.isNotEmpty() == true) {
-                LegionDialogs.builder(this).setTitle("Начать новый мониторинг?")
+                LegionDialogs.builder(activity).setTitle("Начать новый мониторинг?")
                     .setMessage("Новые измерения заменят текущие замеры в памяти. Сначала экспортируйте CSV, если хотите сохранить их. Контрольная точка останется.")
                     .setPositiveButton("Начать") { _, _ -> model.start() }
                     .setNegativeButton("Отмена", null).show()
@@ -87,12 +98,12 @@ class LiveMonitorActivity : FragmentActivity() {
         }
         stopButton = action("ОСТАНОВИТЬ МОНИТОРИНГ") { model.stop() }
 
-        root.addView(LegionUiSupport.sectionLabel(this, "ТЕКУЩИЕ ПОКАЗАНИЯ"))
+        root.addView(LegionUiSupport.sectionLabel(activity, "ТЕКУЩИЕ ПОКАЗАНИЯ"))
         summary = label("Показаний пока нет.").apply { LegionUiSupport.reportSurface(this) }
-        root.addView(LegionUiSupport.sectionLabel(this, "ГРАФИК"))
+        root.addView(LegionUiSupport.sectionLabel(activity, "ГРАФИК"))
         metricButton = action("Выбрать показатель графика", "monitor.chart") {
             val options = MonitorMetric.entries
-            LegionDialogs.builder(this).setTitle("Показатель графика")
+            LegionDialogs.builder(activity).setTitle("Показатель графика")
                 .setSingleChoiceItems(options.map { it.label }.toTypedArray(),
                     options.indexOf(metric)) { dialog, index ->
                     metric = options[index]
@@ -101,13 +112,13 @@ class LiveMonitorActivity : FragmentActivity() {
                 }.setNegativeButton("Отмена", null).show()
         }
         chartSummary = label("Нет измерений для графика.", 13f, LegionUiSupport.MUTED)
-        chart = MonitorChartView(this)
+        chart = MonitorChartView(activity)
         root.addView(chart, LinearLayout.LayoutParams(-1, 172.dp).apply { bottomMargin = 12.dp })
-        root.addView(LegionUiSupport.sectionLabel(this, "СРАВНЕНИЕ С КОНТРОЛЬНОЙ ТОЧКОЙ"))
+        root.addView(LegionUiSupport.sectionLabel(activity, "СРАВНЕНИЕ С КОНТРОЛЬНОЙ ТОЧКОЙ"))
         pinButton = action("ЗАФИКСИРОВАТЬ КОНТРОЛЬНУЮ ТОЧКУ", "monitor.baseline") { model.pinBaseline() }
         comparison = label("Контрольная точка не выбрана.")
         clearButton = action("Сбросить контрольную точку") { model.clearBaseline() }
-        root.addView(LegionUiSupport.sectionLabel(this, "ЭКСПОРТ"))
+        root.addView(LegionUiSupport.sectionLabel(activity, "ЭКСПОРТ"))
         exportButton = action("СОХРАНИТЬ МОНИТОРИНГ CSV", "monitor.csv") {
             if (!model.beginExport()) return@action
             model.state.value?.let(::render)
@@ -119,12 +130,10 @@ class LiveMonitorActivity : FragmentActivity() {
         }
         label("До 120 замеров в памяти. Для сохранения данных остановите мониторинг и экспортируйте CSV. Данные не отправляются в сеть и не добавляются в SQLite.",
             13f, LegionUiSupport.MUTED)
-        LegionUiSupport.setModuleActivityContent(this, ScrollView(this).apply {
-            addView(root)
-        }, "ЖИВОЙ МОНИТОР УСТРОЙСТВА")
-        model.state.observe(this, ::render)
-        FeatureReveal.fromActivity(this, root, FeatureModule.MONITOR)
+        model.state.observe(activity, ::render)
     }
+
+    fun revealFeature() = FeatureReveal.fromActivity(activity, root, FeatureModule.MONITOR)
 
     private fun format(value: Double?, unit: String): String =
         value?.let { "${MonitorPolicy.fmt(it)} $unit" } ?: "н/д"
@@ -174,16 +183,9 @@ class LiveMonitorActivity : FragmentActivity() {
         }
     }
 
-    override fun onStart() {
-        super.onStart()
-        model.setVisible(true)
-    }
-    override fun onStop() {
-        model.setVisible(false)
-        super.onStop()
-    }
-    override fun onSaveInstanceState(outState: Bundle) {
+    fun setVisible(value: Boolean) = model.setVisible(value)
+
+    fun saveState(outState: Bundle) {
         outState.putString("monitor_metric", metric.name)
-        super.onSaveInstanceState(outState)
     }
 }

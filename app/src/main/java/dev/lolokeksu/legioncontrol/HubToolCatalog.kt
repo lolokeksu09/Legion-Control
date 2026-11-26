@@ -28,11 +28,10 @@ internal object HubToolCatalog {
             item("Gamepad Live", "Кнопки и стики контроллера", GamepadLiveActivity::class.java)
         )),
         HubToolGroup("Система и диагностика", listOf(
-            item("Live Monitor", "Живые замеры, график и сравнение", LiveMonitorActivity::class.java),
             item("Gaming Lab", "Батарея, сеть, сенсоры и производительность", GamingDiagnosticsActivity::class.java),
             item("Hardware Lab", "Аппаратные измерения и тесты", HardwareLabActivity::class.java),
             item("Compatibility Lab", "Совместимость функций Android", CompatibilityLabActivity::class.java),
-            item("Диагностика Kotlin + Rust", "Батарея, датчики и отчёты CSV/ZIP", MainActivity::class.java)
+            item("Диагностический центр", "Kotlin + Rust, Live Monitor, батарея, RAM, датчики, история, графики и CSV/ZIP", MainActivity::class.java)
         )),
         HubToolGroup("Сеть", listOf(
             item("Connectivity Observatory", "DNS, IPv4/IPv6, TCP и TLS", ConnectivityLabActivity::class.java)

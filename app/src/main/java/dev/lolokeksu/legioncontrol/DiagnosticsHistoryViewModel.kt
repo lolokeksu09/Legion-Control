@@ -29,6 +29,9 @@ class DiagnosticsHistoryViewModel(application: Application) : AndroidViewModel(a
     private val cleared = AtomicBoolean(false)
     private val mutableReport = MutableLiveData<DiagnosticsReadResult>()
     val report: LiveData<DiagnosticsReadResult> = mutableReport
+    // Access only on main; the worker posts validated results to mainHandler.
+    private val cachedReports = linkedMapOf<String, DiagnosticsReadResult>()
+    fun latestReports(): List<DiagnosticsReadResult> = cachedReports.values.toList()
 
     private fun slot(pane: String) = when (pane) {
         "history" -> 0
@@ -51,7 +54,9 @@ class DiagnosticsHistoryViewModel(application: Application) : AndroidViewModel(a
                 // postValue() coalesces pane events; dispatch each one on main separately.
                 mainHandler.post {
                     if (!cleared.get() && generations.get(index) == generation) {
-                        mutableReport.value = DiagnosticsReadResult(kind.pane, report)
+                        val result = DiagnosticsReadResult(kind.pane, report)
+                        cachedReports[kind.pane] = result
+                        mutableReport.value = result
                     }
                 }
             }
@@ -60,6 +65,7 @@ class DiagnosticsHistoryViewModel(application: Application) : AndroidViewModel(a
 
     fun invalidate(pane: String) {
         generations.incrementAndGet(slot(pane))
+        cachedReports.remove(pane)
     }
 
     override fun onCleared() {

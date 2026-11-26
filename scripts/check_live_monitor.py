@@ -15,7 +15,10 @@ assert activity is not None and activity.get(a+"exported") == "false"
 assert all("LiveMonitor" not in x.get(a+"name", "") for x in manifest.findall("./application/service"))
 assert "MAX_POINTS = 120" in model
 assert "GameSessionTelemetry.snapshot(app)" in vm and "ResourceTelemetryBackend.readForMonitor(app)" in vm
-assert "override fun onStop()" in ui and "model.setVisible(false)" in ui
+host = (src / "MainActivity.kt").read_text()
+assert "override fun onStop()" in host and "monitorPanel.setVisible(false)" in host
+assert "fun setVisible(value: Boolean) = model.setVisible(value)" in ui
+assert "monitorPanel.setVisible(foreground && next == DiagnosticsPage.MONITOR)" in host
 assert "token != generation" in vm and "main.removeCallbacks(tick)" in vm
 assert "ActivityResultContracts.CreateDocument" in ui and "openOutputStream(uri" in vm
 assert "pendingDocument.begin(s.points.toList())" in vm and "model.beginExport()" in ui

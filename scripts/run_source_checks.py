@@ -67,6 +67,7 @@ CHECKS = (
     "check_amoled_design_system_audit.py",
     "check_feature_finder.py",
     "check_live_monitor.py",
+    "check_diagnostics_center.py",
     "check_game_preflight.py",
     "check_session_compare.py",
     "check_session_library.py",

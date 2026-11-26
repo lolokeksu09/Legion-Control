@@ -13,6 +13,8 @@ import android.graphics.Color
 import android.graphics.Typeface
 import android.hardware.display.DisplayManager
 import android.view.Display
+import android.view.View
+import android.widget.AdapterView
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -40,6 +42,12 @@ class MainActivity : ComponentActivity() {
     private lateinit var thermalView: TextView
     private lateinit var analyticsView: TextView
     private lateinit var timedView: TextView
+    private lateinit var timedHistoryView: TextView
+    private lateinit var pagePanels: Map<DiagnosticsPage, LinearLayout>
+    private lateinit var monitorPanel: LiveMonitorPanel
+    private lateinit var centerScroll: ScrollView
+    private var currentPage = DiagnosticsPage.OVERVIEW
+    private var foreground = false
     private var latestReport: String? = null
     // New backend probes may call OEM services; never block the Android UI thread.
     private val diagnosticsExecutor get() = sampleController.writer
@@ -49,30 +57,41 @@ class MainActivity : ComponentActivity() {
     private var timedVisible = false
 
     companion object {
+        const val EXTRA_PAGE = "diagnostics_page"
+        private const val STATE_PAGE = "diagnostics_page_state"
         private const val REQUEST_EXPORT_CSV = 4001
         private const val REQUEST_EXPORT_ARCHIVE = 4002
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val layout = LinearLayout(this).apply {
+        val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(18.dp, 20.dp, 18.dp, 28.dp)
             setBackgroundColor(Color.BLACK)
         }
-        layout.addView(TextView(this).apply {
+        root.addView(TextView(this).apply {
             text = "Диагностика устройства"
             textSize = 23f
             setTextColor(Color.WHITE)
             setTypeface(typeface, Typeface.BOLD)
         })
-        layout.addView(TextView(this).apply {
+        root.addView(TextView(this).apply {
             text = "Kotlin + Rust · " + LegionUiSupport.versionLabel(this@MainActivity) +
                 " · диагностика"
             textSize = 13f
             setTextColor(0xFFA5A5A5.toInt())
             setPadding(0, 8.dp, 0, 12.dp)
         })
+        val selector = LegionUiSupport.spinner(this, DiagnosticsPage.entries.map { it.label }).apply {
+            contentDescription = "Раздел диагностического центра"
+        }
+        root.addView(selector)
+        pagePanels = DiagnosticsPage.entries.associateWith {
+            LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        }
+        pagePanels.values.forEach { root.addView(it) }
+        var layout = pagePanels.getValue(DiagnosticsPage.OVERVIEW)
         fun sectionHeader(label: String) {
             layout.addView(TextView(this).apply {
                 text = label
@@ -123,21 +142,9 @@ class MainActivity : ComponentActivity() {
         })
         layout.addView(Button(this).apply {
             LegionUiSupport.styleAction(this)
-            text = "История тестов батареи"
-            minHeight = 48.dp
-            setOnClickListener { showTimedBatteryHistory() }
-        })
-        layout.addView(Button(this).apply {
-            LegionUiSupport.styleAction(this)
             text = "Поделиться последним отчётом"
             minHeight = 48.dp
             setOnClickListener { shareReport() }
-        })
-        layout.addView(Button(this).apply {
-            LegionUiSupport.styleAction(this)
-            text = "Сохранить историю в CSV"
-            minHeight = 48.dp
-            setOnClickListener { exportCsv() }
         })
         layout.addView(Button(this).apply {
             LegionUiSupport.styleAction(this)
@@ -145,6 +152,7 @@ class MainActivity : ComponentActivity() {
             minHeight = 48.dp
             setOnClickListener { confirmReset() }
         })
+        layout = pagePanels.getValue(DiagnosticsPage.HISTORY)
         sectionHeader("История и аналитика")
         historyView = TextView(this).apply {
             textSize = 13f
@@ -175,13 +183,6 @@ class MainActivity : ComponentActivity() {
         })
         layout.addView(Button(this).apply {
             LegionUiSupport.styleAction(this)
-            text = "Экспорт полной диагностики ZIP"
-            FeatureReveal.bind(this, "diag.zip")
-            minHeight = 48.dp
-            setOnClickListener { exportDiagnosticArchive() }
-        })
-        layout.addView(Button(this).apply {
-            LegionUiSupport.styleAction(this)
             text = "Обновить список сеансов"
             minHeight = 48.dp
             setOnClickListener { showSavedHistory() }
@@ -201,6 +202,35 @@ class MainActivity : ComponentActivity() {
             text = "Тепловая история доступна по запросу."
         }
         layout.addView(thermalView)
+        sectionHeader("Сохранённые тесты батареи")
+        timedHistoryView = TextView(this).apply {
+            textSize = 13f
+            text = "История тестов батареи доступна по запросу."
+            setTextColor(Color.WHITE)
+            LegionUiSupport.reportSurface(this)
+        }
+        layout.addView(timedHistoryView)
+        layout.addView(Button(this).apply {
+            LegionUiSupport.styleAction(this)
+            text = "История тестов батареи"
+            minHeight = 48.dp
+            setOnClickListener { showTimedBatteryHistory() }
+        })
+        sectionHeader("Экспорт измерений")
+        layout.addView(Button(this).apply {
+            LegionUiSupport.styleAction(this)
+            text = "Сохранить историю в CSV"
+            minHeight = 48.dp
+            setOnClickListener { exportCsv() }
+        })
+        layout.addView(Button(this).apply {
+            LegionUiSupport.styleAction(this)
+            text = "Экспорт полной диагностики ZIP"
+            FeatureReveal.bind(this, "diag.zip")
+            minHeight = 48.dp
+            setOnClickListener { exportDiagnosticArchive() }
+        })
+        layout = pagePanels.getValue(DiagnosticsPage.SENSORS)
         sectionHeader("Датчики")
         sensorsView = TextView(this).apply {
             textSize = 13f
@@ -228,7 +258,23 @@ class MainActivity : ComponentActivity() {
             minHeight = 48.dp
             setOnClickListener { showLastSensorReadings() }
         })
+        layout = pagePanels.getValue(DiagnosticsPage.OVERVIEW)
         sectionHeader("Другие инструменты")
+        val shortcuts = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            visibility = View.GONE
+        }
+        layout.addView(Button(this).apply {
+            LegionUiSupport.styleAction(this)
+            text = "Показать другие инструменты"
+            setOnClickListener {
+                val show = shortcuts.visibility != View.VISIBLE
+                shortcuts.visibility = if (show) View.VISIBLE else View.GONE
+                text = if (show) "Скрыть другие инструменты" else "Показать другие инструменты"
+            }
+        })
+        layout.addView(shortcuts)
+        layout = shortcuts
         layout.addView(Button(this).apply {
             LegionUiSupport.styleAction(this)
             text = "CAPTURE STUDIO · запись экрана и клипы MP4"
@@ -309,11 +355,13 @@ class MainActivity : ComponentActivity() {
                 startActivity(Intent(this@MainActivity, GamingDiagnosticsActivity::class.java))
             }
         })
-        LegionUiSupport.setModuleActivityContent(this, ScrollView(this).apply {
+        monitorPanel = LiveMonitorPanel(this, ViewModelProvider(this)[LiveMonitorViewModel::class.java], savedInstanceState)
+        pagePanels.getValue(DiagnosticsPage.MONITOR).addView(monitorPanel.root)
+        centerScroll = ScrollView(this).apply {
             isFillViewport = true
-            addView(layout)
-        }, "ДИАГНОСТИКА УСТРОЙСТВА")
-        FeatureReveal.fromActivity(this, layout, FeatureModule.DIAGNOSTICS)
+            addView(root)
+        }
+        LegionUiSupport.setModuleActivityContent(this, centerScroll, "ДИАГНОСТИКА УСТРОЙСТВА")
         // The real Rust writer survives recreation and never retains Android UI objects.
         sampleController = ViewModelProvider(this)[RustSampleController::class.java]
         sampleController.uiState.observe(this) { state ->
@@ -322,22 +370,66 @@ class MainActivity : ComponentActivity() {
         }
         // Observers are lifecycle-aware: no TextView is retained by the read backend.
         historyModel = ViewModelProvider(this)[DiagnosticsHistoryViewModel::class.java]
-        historyModel.report.observe(this) { reading ->
-            when (reading.pane) {
-                "history" -> historyView.text = reading.content
-                "analytics" -> analyticsView.text = reading.content
-                "thermal" -> thermalView.text = reading.content
-                "timed" -> if (timedTest?.isActive != true) timedView.text = reading.content
-                "sensors" -> sensorsView.text = reading.content
+        historyModel.latestReports().forEach(::renderHistory)
+        historyModel.report.observe(this) { reading -> renderHistory(reading) }
+        val initial = DiagnosticsPage.initial(
+            savedInstanceState?.getString(STATE_PAGE),
+            intent.getStringExtra(EXTRA_PAGE),
+            intent.getStringExtra(FeatureFinder.EXTRA_FEATURE_ID)
+        )
+        selectPage(initial)
+        selector.setSelection(initial.ordinal)
+        selector.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onNothingSelected(parent: AdapterView<*>?) = Unit
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                DiagnosticsPage.entries.getOrNull(position)?.let(::selectPage)
             }
         }
+        if (initial == DiagnosticsPage.MONITOR) monitorPanel.revealFeature()
+        else FeatureReveal.fromActivity(this, root, FeatureModule.DIAGNOSTICS)
         // Persisted history is visible after a restart without generating a new sample.
         showSavedHistory()
     }
 
+    private fun renderHistory(reading: DiagnosticsReadResult) {
+        when (reading.pane) {
+            "history" -> historyView.text = reading.content
+            "analytics" -> analyticsView.text = reading.content
+            "thermal" -> thermalView.text = reading.content
+            "timed" -> timedHistoryView.text = reading.content
+            "sensors" -> if (sensorCapture == null) sensorsView.text = reading.content
+        }
+    }
+
+    private fun selectPage(next: DiagnosticsPage) {
+        val changed = currentPage != next
+        if (changed) {
+            if (currentPage == DiagnosticsPage.OVERVIEW) {
+                timedVisible = false
+                timedTest?.stop(TimedBatteryStopReason.APP_BACKGROUND)
+            }
+            if (currentPage == DiagnosticsPage.SENSORS) cancelSensorCapture()
+        }
+        currentPage = next
+        pagePanels.forEach { (page, panel) ->
+            panel.visibility = if (page == next) View.VISIBLE else View.GONE
+        }
+        timedVisible = foreground && next == DiagnosticsPage.OVERVIEW
+        monitorPanel.setVisible(foreground && next == DiagnosticsPage.MONITOR)
+        if (changed && foreground) centerScroll.scrollTo(0, 0)
+    }
+
     override fun onStart() {
         super.onStart()
-        timedVisible = true
+        foreground = true
+        timedVisible = currentPage == DiagnosticsPage.OVERVIEW
+        monitorPanel.setVisible(currentPage == DiagnosticsPage.MONITOR)
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putString(STATE_PAGE, currentPage.name)
+        monitorPanel.saveState(outState)
+        super.onSaveInstanceState(outState)
     }
 
     private fun manualSample() {
@@ -411,7 +503,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun showTimedBatteryHistory() {
-        timedView.text = "Чтение сохранённых тестов…"
+        timedHistoryView.text = "Чтение сохранённых тестов…"
         // Enqueue through the original write executor to preserve save-before-read order.
         diagnosticsExecutor.execute { historyModel.request(DiagnosticsReadKind.TIMED_BATTERY) }
     }
@@ -436,6 +528,11 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun checkSensors() {
+        if (sensorCapture != null) {
+            Toast.makeText(this, "Сначала дождитесь окончания измерения датчиков", Toast.LENGTH_SHORT).show()
+            return
+        }
+        historyModel.invalidate("sensors")
         val available = AndroidSensorInventory.inspect(this)
         sensorsView.text = buildString {
             append("ДАТЧИКИ · публичный SensorManager\n")
@@ -483,6 +580,10 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun showLastSensorReadings() {
+        if (sensorCapture != null) {
+            Toast.makeText(this, "Сначала дождитесь окончания измерения датчиков", Toast.LENGTH_SHORT).show()
+            return
+        }
         diagnosticsExecutor.execute { historyModel.request(DiagnosticsReadKind.SENSOR_READINGS) }
     }
 
@@ -636,15 +737,21 @@ class MainActivity : ComponentActivity() {
         return point
     }
 
-    override fun onStop() {
-        timedVisible = false
-        timedTest?.stop(TimedBatteryStopReason.APP_BACKGROUND)
+    private fun cancelSensorCapture() {
         if (sensorCapture != null) {
             sensorRequestId++
             sensorCapture?.cancel()
             sensorCapture = null
             if (::sensorsView.isInitialized) sensorsView.text = "Измерение датчиков отменено"
         }
+    }
+
+    override fun onStop() {
+        foreground = false
+        monitorPanel.setVisible(false)
+        timedVisible = false
+        timedTest?.stop(TimedBatteryStopReason.APP_BACKGROUND)
+        cancelSensorCapture()
         super.onStop()
     }
 

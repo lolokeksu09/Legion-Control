@@ -396,11 +396,8 @@ class HubPageFragment : Fragment() {
             open(GameSessionActivity::class.java)
         }
         group("Состояние Android")
-        tile("Live Monitor", "Температура, RAM, заряд и частота дисплея в реальном времени") {
-            open(LiveMonitorActivity::class.java)
-        }
-        tile("Батарея · ${s.batteryPercent?.let { "$it%" } ?: "нет данных"}",
-            "Частота дисплея: ${s.refreshHz?.let { String.format(Locale.US, "%.1f Гц", it) } ?: "нет данных"} · это не FPS игры") {
+        tile("Диагностический центр · ${s.batteryPercent?.let { "$it%" } ?: "нет данных"}",
+            "Live Monitor, история, датчики · дисплей: ${s.refreshHz?.let { String.format(Locale.US, "%.1f Гц", it) } ?: "нет данных"}") {
             open(MainActivity::class.java)
         }
         if (s.recentSessions.isNotEmpty()) {
@@ -587,7 +584,7 @@ class HubPageFragment : Fragment() {
             FeatureModule.BASELINES -> NavHostFragment.findNavController(this).navigate(R.id.sessionBaselinesFragment, args)
             FeatureModule.DIAGNOSTICS -> openStandaloneFeature(MainActivity::class.java, args)
             FeatureModule.GAMEPAD -> openStandaloneFeature(GamepadLiveActivity::class.java, args)
-            FeatureModule.MONITOR -> openStandaloneFeature(LiveMonitorActivity::class.java, args)
+            FeatureModule.MONITOR -> openStandaloneFeature(MainActivity::class.java, args)
             FeatureModule.PREFLIGHT -> openStandaloneFeature(GamePreflightActivity::class.java, args)
             FeatureModule.COMPARE -> openStandaloneFeature(SessionCompareActivity::class.java, args)
             FeatureModule.LIBRARY -> openStandaloneFeature(SessionLibraryActivity::class.java, args)
@@ -718,7 +715,11 @@ class HubPageFragment : Fragment() {
         }
         tile("Эксперименты", "Сравнения и заметки") { open(ExperimentLabActivity::class.java) }
         group("Данные устройства и приложений")
-        tile("Измерения устройства", "Rust JNI, батарея, тепловая история и CSV") { open(MainActivity::class.java) }
+        tile("Измерения устройства", "История Kotlin + Rust, тесты батареи, тепло и CSV/ZIP") {
+            openStandaloneFeature(MainActivity::class.java, Bundle().apply {
+                putString(MainActivity.EXTRA_PAGE, DiagnosticsPage.HISTORY.name)
+            })
+        }
         tile("История приложений", "Отслеживаемые версии и события") { open(ApplicationCenterActivity::class.java) }
         group("Последние восемь игровых сессий")
         if (s.recentSessions.isEmpty()) {
