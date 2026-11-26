@@ -11,12 +11,14 @@ fragment = (src / "SmartProfilesFragment.kt").read_text()
 assert "GameProfilePresentation.report(" in detail
 assert "CapabilityAccessBackend.profileAccess(" in detail
 assert "GameLaunchProfiles.pendingPackage(" in detail
-assert "setView(scroll)" in tool and "LegionUiSupport.spinner" in tool
+editor = (src / "GameLaunchProfileEditor.kt").read_text()
+assert "setView(scroll)" in editor and "LegionUiSupport.spinner" in editor
+assert "GameLaunchProfileEditor.show(" in tool and "GameLaunchProfileEditor.show(" in detail and "GameLaunchProfileEditor.show(" in fragment
 assert "confirmApplyGameLaunchProfile" in tool and "setPositiveButton" in tool
 assert "confirmRestoreGameLaunchProfile" in tool
 assert "GameLaunchProfiles.pendingConfirmation(ctx)" in tool
 assert "GameLaunchProfiles.restoreConfirmed(ctx, pending)" in tool
-assert "GameLaunchProfilePolicy.editorPercentOptions(" in tool
+assert "GameLaunchProfilePolicy.editorPercentOptions(" in editor
 assert "applyGameLaunchProfile(pkg, profile, launch)" in tool
 assert "COUNT(g.thermal_status),COUNT(g.network_validated)" in insights
 assert "end_reason='USER_STOP'" in insights

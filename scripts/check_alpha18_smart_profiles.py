@@ -126,7 +126,7 @@ for token in ("smartEngine.evaluate(point,smartRules)","smartStorage?.logAlert("
 assert "GameSessionRecorderService.start" not in activity
 assert "ModuleNavigation.forwardLegacyEntry(this)" in compat
 assert "state.observe(viewLifecycleOwner)" in activity
-for token in ("SmartSystemControls.setBrightness", "SmartSystemControls.setDoNotDisturb",
+for token in ("SystemControlPanel.show(requireContext())", "GameLaunchProfileEditor.show(requireContext()",
               "ACTION_CREATE_DOCUMENT","ACTION_OPEN_DOCUMENT",
               "ViewModelProvider(this)[SmartProfilesViewModel::class.java]"):
     assert token in activity,token

@@ -36,10 +36,10 @@ for token in (
     "GameToolboxService.stop(requireContext())",
     "GameLaunchProfiles.applyConfirmed(requireContext(), pkg, approved)",
     "GameLaunchProfiles.restore(requireContext())",
-    "GameLaunchProfiles.save(ctx, pkg, profile)",
+    "GameLaunchProfileEditor.show(ctx, pkg)",
     "confirmApplyGameLaunchProfile",
     "confirmRestoreGameLaunchProfile",
-    "SmartSystemControls.restoreScreenSettings(requireContext())",
+    "SystemControlPanel.show(requireContext())",
 ):
     assert token in ui, token
 manifest = (root / "app/src/main/AndroidManifest.xml").read_text()

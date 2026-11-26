@@ -28,8 +28,10 @@ assert ".remove(OWNER).remove(GENERATION).commit()" in engine
 assert "(owner != null || approved != null) && p != approved" in engine
 assert engine.index("p != approved") < engine.index("val snapshot = runCatching")
 assert "GameLaunchProfiles.apply(this, pkg)" in overlay and "GameLaunchProfiles.restore(this)" in overlay
-assert "GameLaunchProfiles.save(ctx, pkg, profile)" in ui
-assert "setView(scroll)" in ui and "confirmApplyGameLaunchProfile" in ui
+editor = (src / "GameLaunchProfileEditor.kt").read_text(encoding="utf-8")
+assert "GameLaunchProfiles.save(ctx, pkg, profile)" in editor
+assert "GameLaunchProfileEditor.show(ctx, pkg)" in ui
+assert "setView(scroll)" in editor and "confirmApplyGameLaunchProfile" in ui
 assert "confirmRestoreGameLaunchProfile" in ui
 assert "getLaunchIntentForPackage(pkg)" in ui
 assert 'edit().putString(ACTIVE, snapshot.encode())' in engine

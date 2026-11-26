@@ -7,7 +7,8 @@ backend = (src / "CapabilityAccessBackend.kt").read_text()
 policy = (src / "CapabilityAccessPolicy.kt").read_text()
 for name in ("SmartCompatibilityBackend.kt", "SmartSystemControls.kt", "GameToolboxFragment.kt"):
     assert "CapabilityAccessBackend.read(" in (src / name).read_text(), name
-assert "CapabilityAccessBackend.settingsIntent" in (src / "SmartProfilesFragment.kt").read_text()
+assert "CapabilityAccessBackend.settingsIntent" in (src / "SystemControlPanel.kt").read_text()
+assert "SystemControlPanel.show(requireContext())" in (src / "SmartProfilesFragment.kt").read_text()
 for state in ("READY", "DISABLED", "PERMISSION_REQUIRED", "UNSUPPORTED", "UNKNOWN"):
     assert state in policy
 assert "notification?.areNotificationsEnabled()" in backend and "POST_NOTIFICATIONS" in backend

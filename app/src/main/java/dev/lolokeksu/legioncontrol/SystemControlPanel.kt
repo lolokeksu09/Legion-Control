@@ -36,7 +36,10 @@ internal object SystemControlPanel {
         fun refresh(message: String? = null) {
             current.text = runCatching { SmartSystemControls.status(ctx) }
                 .getOrDefault("Состояние настроек недоступно.")
-            if (message != null) result.text = message
+            if (message != null) {
+                result.text = message
+                result.announceForAccessibility(message)
+            }
         }
         fun perform(action: () -> String) {
             refresh(runCatching(action).getOrElse { "Действие не выполнено: " + it.javaClass.simpleName })
@@ -73,6 +76,11 @@ internal object SystemControlPanel {
                 button("Обновить") { refresh("Текущие показания обновлены.") }
             ))
         }
+
+        content.addView(LegionUiSupport.actionTile(ctx, "Возможности устройства",
+            "Android API, разрешения, ограничения и статус Shizuku") {
+            result.text = SmartCompatibilityBackend.inspect(ctx)
+        }, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(6) })
 
         percentage("ГРОМКОСТЬ МУЛЬТИМЕДИА", 0) { SmartSystemControls.setMediaVolume(ctx, it) }
         percentage("ЯРКОСТЬ ЭКРАНА", 10) { SmartSystemControls.setBrightness(ctx, it) }
