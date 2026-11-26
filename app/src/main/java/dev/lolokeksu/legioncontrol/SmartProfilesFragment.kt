@@ -39,6 +39,7 @@ class SmartProfilesFragment : Fragment() {
     private lateinit var lowText:EditText
     private lateinit var tcpBox:CheckBox
     private lateinit var result:TextView
+    private lateinit var analyticsPanel:LinearLayout
 
     private val Int.dp:Int get()=(this*resources.displayMetrics.density).toInt()
     override fun onCreateView(inflater:LayoutInflater,container:ViewGroup?,savedInstanceState:Bundle?):View {
@@ -191,6 +192,11 @@ class SmartProfilesFragment : Fragment() {
         }
         LegionUiSupport.reportSurface(result)
         root.addView(result)
+        analyticsPanel = LinearLayout(requireContext()).apply {
+            orientation = LinearLayout.VERTICAL
+            visibility = View.GONE
+        }
+        root.addView(analyticsPanel)
         return ScrollView(requireContext()).apply { addView(root) }
     }
 
@@ -201,6 +207,7 @@ class SmartProfilesFragment : Fragment() {
         viewModel=ViewModelProvider(this)[SmartProfilesViewModel::class.java]
         viewModel.state.observe(viewLifecycleOwner) { update ->
             show(update.message)
+            update.insights?.let(::showInsights)
             update.profiles?.let { profiles ->
                 viewModel.consumeDialog(update.nonce)
                 showSavedProfiles(profiles)
@@ -221,7 +228,55 @@ class SmartProfilesFragment : Fragment() {
         }?.let { packageText.setText(it) }
     }
 
-    private fun show(message:String) { result.text=message }
+    private fun show(message:String) {
+        result.text=message
+        if (::analyticsPanel.isInitialized) analyticsPanel.visibility=View.GONE
+    }
+
+    private fun showInsights(data: SmartInsightsResult) {
+        analyticsPanel.removeAllViews()
+        analyticsPanel.addView(LegionUiSupport.sectionLabel(
+            requireContext(), "АНАЛИТИКА · ${data.days} ДН."
+        ))
+        for (metric in SmartInsightsPresentation.metrics(data)) {
+            val row = LinearLayout(requireContext()).apply {
+                orientation = LinearLayout.VERTICAL
+                background = LegionUiSupport.cardSurface(this)
+                setPadding(14.dp, 10.dp, 14.dp, 10.dp)
+                minimumHeight = 48.dp
+                contentDescription = "${metric.title}: ${metric.value}. ${metric.detail}"
+            }
+            val top = LinearLayout(requireContext()).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = android.view.Gravity.CENTER_VERTICAL
+            }
+            top.addView(TextView(requireContext()).apply {
+                text = metric.title
+                textSize = 13f
+                setTextColor(Color.WHITE)
+                setTypeface(null, Typeface.BOLD)
+            }, LinearLayout.LayoutParams(0, -2, 1f))
+            top.addView(TextView(requireContext()).apply {
+                text = metric.value
+                textSize = 14f
+                setTextColor(LegionUiSupport.ACCENT)
+                setTypeface(null, Typeface.BOLD)
+                gravity = android.view.Gravity.END
+            })
+            row.addView(top)
+            row.addView(TextView(requireContext()).apply {
+                text = metric.detail
+                textSize = 11f
+                setTextColor(LegionUiSupport.MUTED)
+                setPadding(0, 4.dp, 0, 0)
+            })
+            analyticsPanel.addView(row, LinearLayout.LayoutParams(-1, -2).apply {
+                bottomMargin = 6.dp
+            })
+        }
+        result.text = SmartInsightsPresentation.report(data)
+        analyticsPanel.visibility = View.VISIBLE
+    }
 
     private fun packageNameInput():String=packageText.text.toString().trim()
 

@@ -16,7 +16,8 @@ data class SmartProfilesUiState(
     val nonce: Int = 0,
     val profiles: List<SmartProfile>? = null,
     val rulesPackage: String? = null,
-    val rules: List<SmartRule>? = null
+    val rules: List<SmartRule>? = null,
+    val insights: SmartInsightsResult? = null
 )
 
 /** The ViewModel owns repository operations, never Android system controls or dialog objects. */
@@ -60,9 +61,8 @@ class SmartProfilesViewModel(application: Application) : AndroidViewModel(applic
     }
 
     fun insights(pkg: String, days: Int) = submit {
-        SmartProfilesUiState(SmartSessionInsights.summarize(
-            getApplication<Application>(), pkg, days
-        ).textReport())
+        val result = SmartSessionInsights.summarize(getApplication<Application>(), pkg, days)
+        SmartProfilesUiState("Аналитика обновлена.", insights = result)
     }
 
     fun events() = submit {
