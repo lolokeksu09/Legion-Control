@@ -252,7 +252,7 @@ class HubPageFragment : Fragment() {
     }
 
     private fun showHome(s: HubSnapshot) {
-        section("Game Hub", "Подготовка игры, запись и состояние устройства.")
+        section("Готов к запуску", "Подготовка игры, запись и состояние устройства.")
         group("Избранные игры")
         val favorites = HubLibraryPolicy.homeFavorites(s.apps)
         if (favorites.isEmpty()) {
@@ -358,8 +358,6 @@ class HubPageFragment : Fragment() {
         val previous = Button(requireContext()).apply { text = "Назад"; contentDescription = "Предыдущая страница" }
         val next = Button(requireContext()).apply { text = "Далее"; contentDescription = "Следующая страница" }
         column.addView(CompactActionRow(requireContext(), previous, next))
-        LegionUiSupport.styleButtonSurface(previous)
-        LegionUiSupport.styleButtonSurface(next)
         fun redraw() {
             list.removeAllViews()
             val result = HubLibraryPolicy.select(s.apps, libraryFilter, librarySort, query, libraryPage)
