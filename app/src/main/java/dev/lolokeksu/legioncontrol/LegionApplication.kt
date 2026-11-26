@@ -27,7 +27,7 @@ class LegionApplication : Application() {
         startupRecovery = StartupRecoveryCoordinator(
             initialState = if (pending) StartupRecoveryState.Running else StartupRecoveryState.Ready,
             executor = recoveryExecutor,
-            dispatch = { action -> mainHandler.post(action); Unit },
+            dispatch = { action -> mainHandler.post { action() }; Unit },
             recover = {
                 runCatching { LegionDataBackup.recoverPendingRestore(this) }
                     .onFailure {
