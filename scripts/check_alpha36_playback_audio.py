@@ -36,10 +36,13 @@ assert "onRequestPermissionsResult(" in ui
 assert "createScreenCaptureIntent()" in ui
 assert "CaptureRecordingService.EXTRA_PLAYBACK_AUDIO" in ui
 assert "CaptureRecordingService.EXTRA_AUDIO_GAME" in ui
-assert "settings.profile.playbackAudio && settings.selectedGame == null" in ui
+assert "if (!canStartCapture(settings)) return" in ui
+assert "if (!canStartCapture(snapshot)) return" in ui
+assert "if (settings.selectedGame != null) return true" in ui
+assert "if (!settings.profile.playbackAudio) return true" in ui
 assert "val audioGame = if (playbackRequested) snapshot.selectedGame else null" in ui
 assert "val config = snapshot.profile.toConfig()" in ui
-assert "packageManager.getLaunchIntentForPackage(it) != null" in ui
+assert "packageManager.getLaunchIntentForPackage(it) != null" in repository
 assert "getStringExtra(EXTRA_AUDIO_GAME)" in service
 assert "getLaunchIntentForPackage(pkg) != null" in service
 assert "selectedGameUid = uid" in service

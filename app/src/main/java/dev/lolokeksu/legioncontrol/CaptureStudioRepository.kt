@@ -7,21 +7,20 @@ import android.net.Uri
  * Single source of truth for user-selected capture presets and app-owned MediaStore clips.
  * No MediaProjection token, system consent, foreground service or Activity references live here.
  */
-class CaptureStudioRepository(context: Context) {
+class CaptureStudioRepository(context: Context, private val requestedGame: String? = null) {
     private val app = context.applicationContext
     private val prefs = app.getSharedPreferences(CaptureRecordingService.PREFS, Context.MODE_PRIVATE)
 
     private val profiles = GameCaptureProfiles(app)
 
-    /** Only the explicitly selected and currently launchable Game Toolbox app is eligible. */
-    fun selectedGame(): String? =
-        app.getSharedPreferences(ToolboxPreferences.NAME, Context.MODE_PRIVATE)
-            .getString(ToolboxPreferences.GAME, null)
-            ?.takeIf {
-                GameCaptureProfilePolicy.validPackage(it) &&
-                    ApplicationInventory.isPackageName(it) &&
-                    app.packageManager.getLaunchIntentForPackage(it) != null
-            }
+    private fun selectedGame(): String? = GameCaptureProfilePolicy.selectGame(
+        requestedGame,
+        toolboxGame = {
+            app.getSharedPreferences(ToolboxPreferences.NAME, Context.MODE_PRIVATE)
+                .getString(ToolboxPreferences.GAME, null)
+        },
+        isLaunchable = { app.packageManager.getLaunchIntentForPackage(it) != null }
+    )
 
     private fun globalProfile(): GameCaptureProfile {
         // Retain the old CaptureConfig normalization for pre-existing preference values.
@@ -42,12 +41,16 @@ class CaptureStudioRepository(context: Context) {
         return ActiveGameCaptureSettings(game, override ?: globalProfile(), override != null)
     }
 
+    private fun settingsForEdit(): ActiveGameCaptureSettings = captureSettings().also {
+        check(requestedGame == null || it.selectedGame != null) { "Выбранную игру нельзя запустить" }
+    }
+
     fun playbackAudioEnabled(): Boolean = captureSettings().profile.playbackAudio
 
     fun choosePlaybackAudio(enabled: Boolean): Boolean {
-        val current = captureSettings()
+        val current = settingsForEdit()
         val pkg = current.selectedGame
-        if (current.usingGameProfile && pkg != null) {
+        if (pkg != null && (requestedGame != null || current.usingGameProfile)) {
             profiles.save(pkg, current.profile.withPlaybackAudio(enabled))
         } else {
             check(prefs.edit().putBoolean("playback_audio", enabled).commit())
@@ -59,9 +62,9 @@ class CaptureStudioRepository(context: Context) {
 
     fun updateOption(name: String, value: Int): CaptureConfig {
         CapturePresetRules.requireSupported(name, value)
-        val current = captureSettings()
+        val current = settingsForEdit()
         val pkg = current.selectedGame
-        if (current.usingGameProfile && pkg != null) {
+        if (pkg != null && (requestedGame != null || current.usingGameProfile)) {
             profiles.save(pkg, current.profile.setOption(name, value))
         } else {
             check(prefs.edit().putInt(name, value).commit())
@@ -72,13 +75,13 @@ class CaptureStudioRepository(context: Context) {
     /** Takes a copy of the current effective settings; does not change global defaults. */
     fun saveSelectedGameProfile(): ActiveGameCaptureSettings {
         val current = captureSettings()
-        val pkg = requireNotNull(current.selectedGame) { "Сначала выберите игру в Game Toolbox" }
+        val pkg = requireNotNull(current.selectedGame) { "Выберите доступную игру" }
         profiles.save(pkg, current.profile)
         return captureSettings()
     }
 
     fun removeSelectedGameProfile(): ActiveGameCaptureSettings {
-        val pkg = requireNotNull(selectedGame()) { "Сначала выберите игру в Game Toolbox" }
+        val pkg = requireNotNull(selectedGame()) { "Выберите доступную игру" }
         profiles.delete(pkg)
         return captureSettings()
     }

@@ -69,7 +69,7 @@ assert "worker.execute { runCatching { repository.close() } }" in diagnostic_vm
 assert "cleared.set(true)" in diagnostic_vm
 
 assert "class CaptureStudioActivity : ComponentActivity()" in capture
-assert "ViewModelProvider(this)[CaptureStudioViewModel::class.java]" in capture
+assert "ViewModelProvider(this, factory)[CaptureStudioViewModel::class.java]" in capture
 assert "viewModel.library.observe(this)" in capture
 assert "viewModel.refresh()" in capture
 assert "viewModel.deleteConfirmed(clip)" in capture

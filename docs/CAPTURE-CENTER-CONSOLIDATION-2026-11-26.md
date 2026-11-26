@@ -13,3 +13,7 @@ Verification: updated source guard added to canonical CI; Android compilation an
 
 - `d4a94d3`: retain stable feature IDs and align search with the shared media library.
 - Restore the shared Notice presentation separately for MP4 and PNG loading, error, empty and ready states. The existing unified-dialog guard remains unchanged; the capture-center guard now verifies both independent state paths.
+
+## Переход из карточки игры
+
+Capture Studio получает пакет открытой игры и использует его для команды запуска, профиля качества, записи и Replay со звуком. Выбор Game Toolbox нужен для входа через общий медиамодуль. Если игру из карточки нельзя запустить, запись и Replay из этого контекста недоступны. Изменение параметра из карточки создаёт отдельный профиль на основе общих настроек, если профиля ещё нет. Настройки и пакет записи фиксируются перед системным согласием Android.

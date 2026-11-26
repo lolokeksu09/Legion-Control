@@ -2,6 +2,7 @@ package dev.lolokeksu.legioncontrol
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -66,5 +67,26 @@ class GameCaptureProfileTest {
         val snap = ActiveGameCaptureSettings("com.example.game", base, false)
         assertFalse(snap.usingGameProfile)
         assertEquals(4, snap.profile.mbit)
+    }
+
+    @Test fun explicitGameDoesNotReadToolboxSelection() {
+        val selected = GameCaptureProfilePolicy.selectGame("com.example.card",
+            toolboxGame = { error("Toolbox is irrelevant when the game card set a target") },
+            isLaunchable = { it == "com.example.card" })
+        assertEquals("com.example.card", selected)
+    }
+
+    @Test fun explicitUnavailableGameDoesNotFallBackToToolbox() {
+        val selected = GameCaptureProfilePolicy.selectGame("com.example.uninstalled",
+            toolboxGame = { "com.example.toolbox" },
+            isLaunchable = { it == "com.example.toolbox" })
+        assertNull(selected)
+    }
+
+    @Test fun genericEntryKeepsToolboxFallbackAndValidatesIt() {
+        assertEquals("com.example.toolbox",
+            GameCaptureProfilePolicy.selectGame(null, { "com.example.toolbox" }, { true }))
+        assertNull(GameCaptureProfilePolicy.selectGame(null, { "broken" }, { error("Invalid package was probed") }))
+        assertNull(GameCaptureProfilePolicy.selectGame(null, { null }, { error("No game was selected") }))
     }
 }

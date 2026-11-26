@@ -28,7 +28,7 @@ assert "data class ActiveGameCaptureSettings(" in model
 assert "fun validPackage(" in model
 assert "MAX_PROFILES = 64" in model
 assert "MAX_JSON_BYTES = 128 * 1024" in model
-assert unit.count("@Test") >= 8
+assert "explicitUnavailableGameDoesNotFallBackToToolbox" in unit
 
 # Exact validated persisted shape; never use arbitrary user file paths.
 assert 'getSharedPreferences(\n        "legion-game-capture-profiles"' in storage
@@ -47,10 +47,18 @@ assert 'val profile = runCatching { decode(JSONObject(value as String)) }.getOrN
 assert 'fun backupJson()' in storage and 'fun restoreJson(text: String)' in storage
 assert "fun delete(pkg: String): Boolean" in storage
 
-# Selected game always from Game Toolbox and a package launchable under current visibility.
+# The card passes its package to the shared capture session; Toolbox is a fallback for generic entry.
 assert "getSharedPreferences(ToolboxPreferences.NAME" in repo
 assert "getString(ToolboxPreferences.GAME, null)" in repo
-assert "ApplicationInventory.isPackageName(it)" in repo
+detail = read("GameDetailFragment.kt")
+assert "it.putExtra(CaptureStudioActivity.EXTRA_GAME_PACKAGE, pkg)" in detail
+assert "intent.getStringExtra(EXTRA_GAME_PACKAGE)" in ui
+assert "CaptureStudioViewModel(application, requestedGame)" in ui
+assert "CaptureStudioRepository(application, gamePackage)" in vm
+assert "(requestedGame ?: toolboxGame())?.takeIf" in model
+assert "check(requestedGame == null || it.selectedGame != null)" in repo
+assert repo.count("requestedGame != null || current.usingGameProfile") >= 2
+assert "ToolboxPreferences" not in ui
 assert "getLaunchIntentForPackage(it) != null" in repo
 assert "fun captureSettings(): ActiveGameCaptureSettings" in repo
 assert "override ?: globalProfile()" in repo
