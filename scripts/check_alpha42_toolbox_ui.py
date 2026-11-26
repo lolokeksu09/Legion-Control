@@ -7,7 +7,7 @@ root = Path(__file__).resolve().parents[1]
 src = root / "app/src/main/java/dev/lolokeksu/legioncontrol"
 ui = (src / "GameToolboxFragment.kt").read_text(encoding="utf-8")
 legacy = (src / "GameToolboxActivity.kt").read_text(encoding="utf-8")
-host = (src / "NavigationHostActivity.kt").read_text(encoding="utf-8")
+host = (src / "LegionHubActivity.kt").read_text(encoding="utf-8")
 routes = (src / "HubDestinationRoutes.kt").read_text(encoding="utf-8")
 graph = ET.parse(root / "app/src/main/res/navigation/legion_nav_graph.xml").getroot()
 ns = "{http://schemas.android.com/apk/res/android}"
@@ -18,9 +18,8 @@ assert destinations[0].get(ns + "name") == "dev.lolokeksu.legioncontrol.GameTool
 assert not any(n.get(ns + "id") == "@+id/gameToolboxDestination"
                for n in graph.findall("activity"))
 assert "GameToolboxActivity::class.java to R.id.gameToolboxDestination" in routes
-assert 'putExtra("open_game_toolbox", true)' in legacy
-assert 'intent.getBooleanExtra("open_game_toolbox", false)' in host
-assert "nav.navigate(R.id.gameToolboxDestination)" in host
+assert 'ModuleNavigation.forwardLegacyEntry(this)' in legacy
+assert "R.id.gameToolboxDestination" in host[host.index("private fun openRequestedModule"):]
 assert 'R.id.gameToolboxDestination -> "ИГРОВАЯ ПАНЕЛЬ"' in host
 assert "actual == R.id.gameToolboxDestination" in host
 assert "R.id.applicationCenterDestination, R.id.gameToolboxDestination" in host

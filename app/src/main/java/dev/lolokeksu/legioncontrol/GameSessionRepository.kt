@@ -113,9 +113,13 @@ class GameSessionRepository(context: Context) : AutoCloseable {
     }
 
     /** Freeze a selected, completed record before offering an export. */
-    fun libraryDetail(id:String):LibraryDetail {
-        val h=header(id) ?: error("Session unavailable")
-        require(h.endedAtMs!=null) { "Only ended records can be exported" }
+    fun libraryDetail(id:String):LibraryDetail = readSessionDetail(id, allowOpen = false)
+
+    internal fun analyticsDetail(id: String): LibraryDetail = readSessionDetail(id, allowOpen = true)
+
+    private fun readSessionDetail(id: String, allowOpen: Boolean): LibraryDetail {
+        val h = header(id) ?: error("Session unavailable")
+        require(allowOpen || h.endedAtMs != null) { "Session has no completion record" }
         val samples=readPoints(id,SessionLibraryPolicy.MAX_SAMPLES+1)
         val events=readEventsChronological(id,SessionLibraryPolicy.MAX_EVENTS+1)
         return LibraryDetail(h,samples.take(SessionLibraryPolicy.MAX_SAMPLES),

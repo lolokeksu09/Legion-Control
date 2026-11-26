@@ -75,7 +75,7 @@ assert "ActivityManager.MemoryInfo()" in resources and "StatFs(" in resources
 assert "ResourceTelemetryBackend.readSystemMemory(context)" in devices
 center_host = (src / "MainActivity.kt").read_text(encoding="utf-8")
 assert "DiagnosticsPage.GAMING -> GamingDiagnosticsFragment()" in center_host
-assert "putExtra(EXTRA_PAGE,DiagnosticsPage.GAMING.name)" in center_host
+assert "openPage(DiagnosticsPage.GAMING)" in center_host
 assert "worker.shutdownNow()" in viewmodel and "onStop()" in activity
 assert "task?.cancel(true)" in viewmodel
 assert "frameCapture?.stop(false)" in viewmodel

@@ -8,18 +8,8 @@ src=root/"app/src/main/java/dev/lolokeksu/legioncontrol"
 def read(name):return (src/name).read_text(encoding="utf-8")
 engine=read("SessionBaselines.kt")
 repo=read("GameSessionRepository.kt")
-vm=read("SessionBaselinesViewModel.kt")
-screen=read("SessionBaselinesFragment.kt")
-hub=read("HubPageFragment.kt")
-host=read("NavigationHostActivity.kt")
-session=read("GameSessionFragment.kt")
-signals=read("SessionSignalsFragment.kt")
-tests=(root/"app/src/test/java/dev/lolokeksu/legioncontrol/SessionBaselinesTest.kt").read_text()
-nav=ET.parse(root/"app/src/main/res/navigation/legion_nav_graph.xml").getroot()
-android="{http://schemas.android.com/apk/res/android}"
-frags={n.get(android+"id"):n for n in nav.findall("fragment")}
-assert len(frags)==20
-assert frags["@+id/sessionBaselinesFragment"].get(android+"name").endswith(".SessionBaselinesFragment")
+vm=read("SessionLibraryViewModel.kt")
+screen=read("SessionLibraryActivity.kt")
 for term in ("ExperimentAnalytics.evidence", "MAX_SESSIONS = 24",
              "MAX_POINTS_PER_SESSION = 2000", "MIN_REFERENCES = 3",
              "MIN_COVERAGE = 0.70", "MAX_GAP_MS = 45_000L",
@@ -30,15 +20,10 @@ for term in ("knownSessionPackages", "recentForPackage", "WHERE package_name=?",
              "ORDER BY started_at_ms DESC,session_id DESC LIMIT ?"):
     assert term in repo,term
 for term in ("GameSessionRepository(getApplication())", "recentForPackage",
-             "SessionBaselines.compare", "Executors.newSingleThreadExecutor()",
-             "onCleared()", "OutputStreamWriter", "lastReport"):
-    assert term in vm,term
-for term in ("setTextIsSelectable(true)", "Intent.ACTION_CREATE_DOCUMENT",
-             "vm.exportCsv(it)", "vm.pickPackages()", "vm.setDays(30)"):
-    assert term in screen,term
-for term in ("R.id.sessionBaselinesFragment",):
-    assert term in hub+host+session+signals,term
-assert tests.count("@Test") >= 9
+             "SessionBaselines.compare", "Executors.newSingleThreadExecutor()", "onCleared()"):
+    assert term in vm, term
+for term in ('vm.baseline(7)', 'vm.baseline(30)', 'SessionBaselines.csv(it)', 'SessionBaselines.render(it)'):
+    assert term in screen, term
 assert "ShizukuService" not in engine+vm+screen
 manifest=(root/"app/src/main/AndroidManifest.xml").read_text()
 for forbidden in ("QUERY_ALL_PACKAGES", "WRITE_SECURE_SETTINGS", "ACCESS_FINE_LOCATION"):

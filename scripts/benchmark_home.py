@@ -44,7 +44,7 @@ def proc_stat(raw):
     return int(fields[11]) + int(fields[12]), int(fields[19])
 
 
-def benchmark_home(adb, expect, package, apk, evidence, ticks_per_second):
+def benchmark_home(adb, await_home, package, apk, evidence, ticks_per_second):
     report = {"schema": 1, "status": "incomplete", "environment": "CI debug emulator; process-cold, not storage-cold",
               "apk_sha256": hashlib.sha256(Path(apk).read_bytes()).hexdigest(),
               "samples": [], "errors": []}
@@ -64,10 +64,16 @@ def benchmark_home(adb, expect, package, apk, evidence, ticks_per_second):
             # pidof legitimately returns exit 1 if the process does not exist.
             if adb("shell", "pidof " + package + " || true").strip():
                 raise RuntimeError("Old process survived force-stop")
+            start = time.monotonic()
             raw = adb("shell", "am", "start", "-W", "-n",
                       package + "/.NavigationHostActivity", timeout=60)
-            sample = {"launch_total_ms": launch_ms(raw)}
-            expect("Готов к запуску")
+            await_home()
+            sample = {"home_observed_ms": round((time.monotonic() - start) * 1000)}
+            try:
+                sample["launcher_wait_ms"] = launch_ms(raw)
+            except ValueError:
+                # The no-display launcher may finish before Android reports a draw.
+                pass
             time.sleep(3)
             pid = adb("shell", "pidof", package).strip()
             if not pid.isdigit():
@@ -89,7 +95,7 @@ def benchmark_home(adb, expect, package, apk, evidence, ticks_per_second):
             except Exception as error:
                 sample["cpu_unavailable"] = type(error).__name__
             report["samples"].append(sample)
-        report["median_launch_ms"] = statistics.median(s["launch_total_ms"] for s in report["samples"])
+        report["median_home_observed_ms"] = statistics.median(s["home_observed_ms"] for s in report["samples"])
         report["median_pss_kib"] = statistics.median(s["pss_kib"] for s in report["samples"])
         cpu = [s["idle_cpu_percent_one_core"] for s in report["samples"] if "idle_cpu_percent_one_core" in s]
         if len(cpu) == 3:

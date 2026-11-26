@@ -9,6 +9,7 @@ import java.util.zip.ZipOutputStream
 object SessionLibraryExport {
     fun write(detail:LibraryDetail,stream:OutputStream) {
         val h=detail.header
+        require(h.endedAtMs != null) { "Only ended records can be archived" }
         fun cell(v:Any?):String=when(v) {
             null -> ""
             is String -> CsvEscaper.cell(v)

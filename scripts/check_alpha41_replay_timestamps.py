@@ -33,8 +33,9 @@ assert "android.permission.QUERY_ALL_PACKAGES" not in MANIFEST
 # and standalone AMOLED activities have black Android system bars.
 for name in ("CaptureStudioActivity.kt", "CaptureStudioRepository.kt"):
     assert r"\\n" not in (SRC / name).read_text(), name
-for name in ("CaptureStudioActivity.kt", "GameToolboxActivity.kt"):
+for name in ("CaptureStudioActivity.kt", "LegionHubActivity.kt"):
     activity = (SRC / name).read_text()
     assert "window.statusBarColor = Color.BLACK" in activity
     assert "window.navigationBarColor = Color.BLACK" in activity
+assert "ModuleNavigation.forwardLegacyEntry(this)" in (SRC / "GameToolboxActivity.kt").read_text()
 print("alpha.41 Replay timeline and screenshot-derived UI regressions: PASS")

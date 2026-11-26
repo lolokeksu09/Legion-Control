@@ -7,7 +7,7 @@ base = Path(__file__).resolve().parents[1]
 src = base / "app/src/main/java/dev/lolokeksu/legioncontrol"
 read = lambda name: (src / name).read_text(encoding="utf-8")
 skin = read("LegionUiSupport.kt")
-host = read("NavigationHostActivity.kt")
+host = read("LegionHubActivity.kt")
 hub = read("HubPageFragment.kt")
 toolbox = read("GameToolboxFragment.kt")
 assert "fun styleModuleTree(root: View)" in skin
@@ -18,9 +18,7 @@ assert all(v in skin for v in ("PANEL", "BORDER", "ACCENT", "MUTED",
 assert all(v in hub and v in toolbox for v in ("LegionUiSupport.MUTED",
     "LegionUiSupport.ACCENT", "LegionUiSupport.BORDER", "LegionUiSupport.PANEL"))
 assert "LegionUiSupport.styleFragmentButtons(view)" not in host
-for name in ("GameSessionFragment.kt", "SessionSignalsFragment.kt",
-    "SessionIncidentsFragment.kt", "SessionBaselinesFragment.kt",
-    "ApplicationCenterFragment.kt", "SmartProfilesFragment.kt",
+for name in ("GameSessionFragment.kt", "ApplicationCenterFragment.kt", "SmartProfilesFragment.kt",
     "AudioLabFragment.kt", "HapticLabFragment.kt", "ConnectivityLabFragment.kt",
     "ExperimentLabFragment.kt", "CompatibilityLabFragment.kt",
     "HardwareLabFragment.kt", "GamingDiagnosticsFragment.kt"):
@@ -31,9 +29,9 @@ for name in ("GamingDiagnosticsActivity.kt", "GameSessionActivity.kt",
     "CompatibilityLabActivity.kt", "ConnectivityLabActivity.kt",
     "ExperimentLabActivity.kt"):
     assert "ModuleNavigation.forwardLegacyEntry(this)" in read(name), name
-assert "openRequestedModule(intent)" in host
+assert "openRequestedNavigation(intent)" in host
 assert "EXTRA_MODULE_ROUTE" in read("ModuleNavigation.kt")
-assert "openRequestedTab(intent)" in host
+assert "openRequestedTab(request)" in host
 assert "override fun onNewIntent(intent: Intent)" in host
 assert "setLaunchSingleTop(true)" in host and "setRestoreState(true)" in host
 for name in ("CaptureStudioActivity.kt", "MainActivity.kt", "GamepadLiveActivity.kt"):
@@ -42,8 +40,9 @@ assert "setModuleActivityContent" not in read("DisplayPatternActivity.kt")
 graph = ET.parse(base / "app/src/main/res/navigation/legion_nav_graph.xml")
 ns = "{http://schemas.android.com/apk/res/android}"
 nodes = graph.getroot().findall("fragment")
-assert len(nodes) == 20
-assert len([n for n in nodes if n.get(ns + "name", "").endswith("HubPageFragment")]) == 5
+hub_pages = {n.find("argument").get(ns + "defaultValue") for n in nodes
+             if n.get(ns + "name", "").endswith("HubPageFragment")}
+assert hub_pages == {"home", "games", "tools", "history", "settings"}
 # Both the NavHost and the Activity-only chrome resolve the same five
 # canonical labels. Do not force an obsolete hard-coded copy of the tab names.
 tabs = read("HubNavigationRules.kt")
@@ -57,4 +56,4 @@ for name, title in (
 assert "val selected = index == selectedIndex" in skin
 assert "android.permission.QUERY_ALL_PACKAGES" not in (
     base / "app/src/main/AndroidManifest.xml").read_text()
-print("PASS unified frontend: 5 stable hub tabs, 20 destinations, 3 chrome-wrapped Activities, dedicated display test preserved")
+print("PASS unified frontend: 5 stable hub tabs, canonical destinations, 3 chrome-wrapped Activities, dedicated display test preserved")

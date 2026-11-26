@@ -11,6 +11,15 @@ import androidx.navigation.fragment.NavHostFragment
  * This class does not trigger any backend operation, permission request or service.
  */
 object ModuleNavigation {
+    private val devicePages: Map<Class<*>, DiagnosticsPage> = mapOf(
+        GamingDiagnosticsActivity::class.java to DiagnosticsPage.GAMING,
+        HardwareLabActivity::class.java to DiagnosticsPage.HARDWARE,
+        ConnectivityLabActivity::class.java to DiagnosticsPage.NETWORK,
+        CompatibilityLabActivity::class.java to DiagnosticsPage.COMPAT,
+        AudioLabActivity::class.java to DiagnosticsPage.AUDIO,
+        HapticLabActivity::class.java to DiagnosticsPage.HAPTIC
+    )
+
     const val EXTRA_MODULE_ROUTE = "legion_module_route"
     const val EXTRA_MODULE_ARGS = "legion_module_args"
 
@@ -19,9 +28,15 @@ object ModuleNavigation {
      * diagnostics and display Activities remain separate by design.
      */
     fun forwardLegacyEntry(activity: android.app.Activity) {
+        val page = devicePages[activity.javaClass]
+        if (page != null) {
+            activity.startActivity(deviceIntent(activity, page, activity.intent?.extras))
+            activity.finish()
+            return
+        }
         val route = HubDestinationRoutes.destinationFor(activity.javaClass)
             ?: throw IllegalArgumentException("Unknown module entry: ${activity.javaClass.simpleName}")
-        val intent = Intent(activity, NavigationHostActivity::class.java).apply {
+        val intent = Intent(activity, LegionHubActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             putExtra(EXTRA_MODULE_ROUTE, route)
             activity.intent?.extras?.let { putExtra(EXTRA_MODULE_ARGS, Bundle(it)) }
@@ -31,6 +46,14 @@ object ModuleNavigation {
     }
 
     fun open(from:Fragment, target:Class<*>, args:Bundle?=null) {
+        val page = devicePages[target]
+        if (page != null) {
+            val host = from.activity as? MainActivity
+            if (host?.openPage(page) != true) {
+                from.startActivity(deviceIntent(from.requireContext(), page, args))
+            }
+            return
+        }
         val route=HubDestinationRoutes.destinationFor(target)
         val controller=runCatching { NavHostFragment.findNavController(from) }.getOrNull()
         if(route != null && controller != null) {
@@ -41,4 +64,10 @@ object ModuleNavigation {
             })
         }
     }
+
+    private fun deviceIntent(context: android.content.Context, page: DiagnosticsPage, args: Bundle?): Intent =
+        Intent(context, MainActivity::class.java).apply {
+            args?.let { putExtras(it) }
+            putExtra(MainActivity.EXTRA_PAGE, page.name)
+        }
 }

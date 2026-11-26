@@ -384,6 +384,13 @@ class HubPageFragment : Fragment() {
     }
 
     private fun centerCard(center: HubCenter): LinearLayout = LinearLayout(requireContext()).apply {
+        id = when (center) {
+            HubCenter.GAMES -> R.id.hub_center_games
+            HubCenter.DEVICE -> R.id.hub_center_device
+            HubCenter.MEDIA -> R.id.hub_center_media
+            HubCenter.PERIPHERALS -> R.id.hub_center_peripherals
+            HubCenter.ANALYTICS -> R.id.hub_center_analytics
+        }
         orientation = LinearLayout.VERTICAL
         gravity = Gravity.TOP
         setPadding(16.dp, 16.dp, 16.dp, 15.dp)
@@ -470,17 +477,8 @@ class HubPageFragment : Fragment() {
         tile("Запись сессии", "Ручной запуск телеметрии") { open(GameSessionActivity::class.java) }
     }
 
-    private fun openRecentSession(session:GameSessionHeader) {
-        if(session.endedAtMs==null) {
-            NavHostFragment.findNavController(this).navigate(R.id.sessionIncidentsFragment,
-                Bundle().apply {
-                    putString("session_id",session.id)
-                    putString("smart_package",session.packageName)
-                })
-        } else openStandaloneFeature(SessionLibraryActivity::class.java,Bundle().apply {
-            putString(SessionLibraryActivity.EXTRA_PACKAGE,session.packageName)
-            putString(SessionLibraryActivity.EXTRA_SESSION,session.id)
-        })
+    private fun openRecentSession(session: GameSessionHeader) {
+        startActivity(SessionLibraryActivity.intent(requireContext(), session.packageName, session.id))
     }
 
     private fun openGameCard(app: HubApp) {
@@ -689,6 +687,7 @@ class HubPageFragment : Fragment() {
         group("Поиск функций")
         val catalog = HubToolCatalog.groups
         val input = EditText(requireContext()).apply {
+            id = R.id.hub_feature_search
             hint = "Поиск функций и инструментов"
             setTextColor(fg)
             setHintTextColor(muted)
@@ -755,7 +754,8 @@ class HubPageFragment : Fragment() {
                         results.addView(LegionUiSupport.actionTile(
                             requireContext(), entry.title,
                             "${entry.module.displayName} · открыть действие"
-                        ) { openFeature(entry) }, LinearLayout.LayoutParams(-1, -2).apply {
+                        ) { openFeature(entry) }.also { FeatureReveal.bind(it, entry.id) },
+                            LinearLayout.LayoutParams(-1, -2).apply {
                             bottomMargin = 10.dp
                         })
                     }

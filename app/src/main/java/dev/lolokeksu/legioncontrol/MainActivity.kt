@@ -20,6 +20,7 @@ import android.widget.AdapterView
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ScrollView
+import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
 import java.io.OutputStreamWriter
@@ -50,6 +51,7 @@ class MainActivity : FragmentActivity() {
     private lateinit var centerScroll: ScrollView
     private lateinit var labHost: FragmentContainerView
     private lateinit var visiblePages: List<DiagnosticsPage>
+    private lateinit var selector: Spinner
     private var initialLabFeature: String? = null
     private var currentPage = DiagnosticsPage.OVERVIEW
     private var foreground = false
@@ -92,7 +94,7 @@ class MainActivity : FragmentActivity() {
             setTextColor(0xFFA5A5A5.toInt())
             setPadding(0, 8.dp, 0, 12.dp)
         })
-        val selector = LegionUiSupport.spinner(this, visiblePages.map { it.label }).apply {
+        selector = LegionUiSupport.spinner(this, visiblePages.map { it.label }).apply {
             contentDescription = "Раздел диагностического центра"
         }
         root.addView(selector)
@@ -337,10 +339,7 @@ class MainActivity : FragmentActivity() {
             text = "CONNECTIVITY OBSERVATORY · DNS / IPv4 / IPv6 / TCP / TLS"
             minHeight = 52.dp
             setOnClickListener {
-                startActivity(Intent(this@MainActivity, MainActivity::class.java).apply {
-                    putExtra(EXTRA_PAGE,DiagnosticsPage.NETWORK.name)
-                })
-                finish()
+                openPage(DiagnosticsPage.NETWORK)
             }
         })
         layout.addView(Button(this).apply {
@@ -372,10 +371,7 @@ class MainActivity : FragmentActivity() {
             text = "Gaming Lab · сеть, сенсоры, производительность"
             minHeight = 52.dp
             setOnClickListener {
-                startActivity(Intent(this@MainActivity, MainActivity::class.java).apply {
-                    putExtra(EXTRA_PAGE,DiagnosticsPage.GAMING.name)
-                })
-                finish()
+                openPage(DiagnosticsPage.GAMING)
             }
         })
         monitorPanel = LiveMonitorPanel(this, ViewModelProvider(this)[LiveMonitorViewModel::class.java], savedInstanceState)
@@ -417,8 +413,6 @@ class MainActivity : FragmentActivity() {
         }
         if (initial == DiagnosticsPage.MONITOR) monitorPanel.revealFeature()
         else if(!initial.isEmbeddedLab) FeatureReveal.fromActivity(this, root, FeatureModule.DIAGNOSTICS)
-        // Persisted history is visible after a restart without generating a new sample.
-        showSavedHistory()
     }
 
     private fun renderHistory(reading: DiagnosticsReadResult) {
@@ -429,6 +423,14 @@ class MainActivity : FragmentActivity() {
             "timed" -> timedHistoryView.text = reading.content
             "sensors" -> if (sensorCapture == null) sensorsView.text = reading.content
         }
+    }
+
+    internal fun openPage(page: DiagnosticsPage): Boolean {
+        val index = visiblePages.indexOf(page)
+        if (index < 0 || supportFragmentManager.isStateSaved) return false
+        selectPage(page)
+        selector.setSelection(index)
+        return true
     }
 
     private fun selectPage(next: DiagnosticsPage) {
@@ -449,6 +451,7 @@ class MainActivity : FragmentActivity() {
         }
         timedVisible = foreground && next == DiagnosticsPage.OVERVIEW
         monitorPanel.setVisible(foreground && next == DiagnosticsPage.MONITOR)
+        if (changed && next == DiagnosticsPage.HISTORY) showSavedHistory()
         if (changed && foreground) centerScroll.scrollTo(0, 0)
     }
 

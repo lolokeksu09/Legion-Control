@@ -2,4 +2,15 @@
 <resources>
     <item name="hub_nav_host_container" type="id" />
     <item name="device_lab_container" type="id" />
+    <item name="hub_tab_home" type="id" />
+    <item name="hub_tab_games" type="id" />
+    <item name="hub_tab_tools" type="id" />
+    <item name="hub_tab_history" type="id" />
+    <item name="hub_tab_settings" type="id" />
+    <item name="hub_center_games" type="id" />
+    <item name="hub_center_device" type="id" />
+    <item name="hub_center_media" type="id" />
+    <item name="hub_center_peripherals" type="id" />
+    <item name="hub_center_analytics" type="id" />
+    <item name="hub_feature_search" type="id" />
 </resources>

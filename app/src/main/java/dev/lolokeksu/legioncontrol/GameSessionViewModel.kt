@@ -43,7 +43,7 @@ class GameSessionViewModel(application: Application) : AndroidViewModel(applicat
                 val text = buildString {
                     append("ПОСЛЕДНИЕ СЕССИИ · ").append(rows.size).append('\n')
                     for (row in rows) {
-                        val points = repo.points(row.id)
+                        val points = if (row.id == rows[0].id) series else repo.points(row.id)
                         val summary = GameSessionAnalysis.summarize(row, points)
                         append("\n").append(date(row.startedAtMs)).append(" · ")
                             .append(GameSessionAnalysis.render(summary)).append('\n')
@@ -56,17 +56,6 @@ class GameSessionViewModel(application: Application) : AndroidViewModel(applicat
                 }
                 GameSessionUiState(text, series)
             }
-        }
-    }
-
-    fun compare() = submit {
-        GameSessionRepository(getApplication()).use { repo ->
-            val latest = repo.recent(2)
-            if (latest.size < 2) GameSessionUiState("Для сравнения нужны две сессии.")
-            else GameSessionUiState(GameSessionAnalysis.compare(
-                GameSessionAnalysis.summarize(latest[0], repo.points(latest[0].id)),
-                GameSessionAnalysis.summarize(latest[1], repo.points(latest[1].id))
-            ))
         }
     }
 

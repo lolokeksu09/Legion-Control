@@ -1,6 +1,5 @@
 package dev.lolokeksu.legioncontrol
 
-import android.content.Intent
 import android.os.Build
 import android.os.SystemClock
 import androidx.lifecycle.ViewModelProvider
@@ -36,12 +35,11 @@ class SessionCompareInstrumentedTest {
             newer=seed(pkg,start+700000L,420)
             seed(other,start+1400000L,500)
         }
-        val intent=Intent(context,SessionCompareActivity::class.java)
-            .putExtra(SessionCompareActivity.EXTRA_PACKAGE,pkg)
-        ActivityScenario.launch<SessionCompareActivity>(intent).use { scenario ->
-            lateinit var vm:SessionCompareViewModel
-            scenario.onActivity { vm=ViewModelProvider(it)[SessionCompareViewModel::class.java] }
-            fun await(predicate:(CompareState)->Boolean) {
+        val intent = SessionLibraryActivity.intent(context, pkg, older)
+        ActivityScenario.launch<SessionLibraryActivity>(intent).use { scenario ->
+            lateinit var vm:SessionLibraryViewModel
+            scenario.onActivity { vm=ViewModelProvider(it)[SessionLibraryViewModel::class.java] }
+            fun await(predicate:(LibraryState)->Boolean) {
                 val end=SystemClock.elapsedRealtime()+15000L
                 while(SystemClock.elapsedRealtime()<end) {
                     var ready=false
@@ -51,16 +49,14 @@ class SessionCompareInstrumentedTest {
                 }
                 fail("Expected comparison state not observed")
             }
-            await { !it.busy && it.sessions.size>=2 }
+            await { !it.busy && it.detail?.header?.id == older }
             scenario.onActivity {
                 val s=vm.state.value!!
-                assertEquals(pkg,s.packageName)
-                assertTrue(s.sessions.all { h->h.packageName==pkg })
-                assertEquals(older,s.aId)
-                assertEquals(newer,s.bId)
+                assertEquals(pkg, s.filter.packageName)
+                assertTrue(s.rows.all { it.packageName == pkg })
+                assertEquals(listOf(newer), s.comparisonRows.map { it.id })
                 assertNull(s.pair)
-                vm.chooseWindow(5)
-                vm.compare()
+                vm.compareWith(newer, 5)
             }
             await { !it.busy && it.pair!=null }
             scenario.onActivity {
@@ -68,17 +64,18 @@ class SessionCompareInstrumentedTest {
                 assertTrue(pair.comparable)
                 assertEquals(21,pair.a.points)
                 assertEquals(2.0,pair.delta(CompareMeasure.PEAK_TEMP)!!,0.001)
-                vm.swap()
+                vm.select(newer)
                 assertNull(vm.state.value!!.pair)
-                vm.compare()
             }
+            await { !it.busy && it.detail?.header?.id == newer }
+            scenario.onActivity { vm.compareWith(older, 5) }
             await { !it.busy && it.pair!=null }
             scenario.onActivity {
                 val pair=vm.state.value!!.pair!!
                 assertEquals(-2.0,pair.delta(CompareMeasure.PEAK_TEMP)!!,0.001)
-                vm.chooseWindow(15)
+                vm.clearComparison()
                 assertNull(vm.state.value!!.pair)
-                vm.compare()
+                vm.compareWith(older, 15)
             }
             await { !it.busy && it.pair!=null }
             scenario.onActivity {

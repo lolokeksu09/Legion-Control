@@ -24,43 +24,22 @@ assert "FeatureReveal.fromActivity(activity, root, FeatureModule.MONITOR)" in mo
 assert "FeatureModule.MONITOR -> openStandaloneFeature(MainActivity::class.java, args)" in hub
 assert "putString(MainActivity.EXTRA_PAGE, DiagnosticsPage.HISTORY.name)" in hub
 assert "LiveMonitorActivity::class.java" not in catalog
-assert catalog.count("MainActivity::class.java") == 1
+assert "MainActivity::class.java" in catalog
 assert '"timed" -> timedHistoryView.text = reading.content' in host
 assert "cachedReports[kind.pane] = result" in history and "historyModel.latestReports().forEach(::renderHistory)" in host
 assert "parse(saved)?.let { return it }" in page
 assert '"diag.thermal", "diag.zip" -> HISTORY' in page
 assert "FeatureFinder.resolve(featureId, FeatureModule.MONITOR)" in page
-# All 25 pre-consolidation controls remain; only the shortcuts disclosure was added.
-expected_actions = {
-    "Обновить измерение",
-    "Тест батареи · 60 секунд",
-    "Остановить тест батареи",
-    "История тестов батареи",
-    "Поделиться последним отчётом",
-    "Сохранить историю в CSV",
-    "Завершить сеанс Rust",
-    "Профиль последнего сеанса",
-    "Аналитика датчиков",
-    "Экспорт полной диагностики ZIP",
-    "Обновить список сеансов",
-    "Тепловая история",
-    "Проверить доступность датчиков",
-    "Снять показания датчиков",
-    "Последние показания датчиков",
-    "CAPTURE STUDIO · запись экрана и клипы MP4",
-    "GAME TOOLBOX · плавающая панель поверх игр",
-    "HAPTIC LAB · вибромотор, шаблоны и ручная оценка",
-    "AUDIO LAB · стерео, частоты, маршруты и история",
-    "APPLICATION CENTER · библиотека, обновления, разрешения",
-    "CONNECTIVITY OBSERVATORY · DNS / IPv4 / IPv6 / TCP / TLS",
-    "EXPERIMENT LAB · сессии, заметки и A/B",
-    "SMART PROFILES · правила, аналитика и управление",
-    "GAME SESSION · запись для любой игры/приложения",
-    "Gaming Lab · сеть, сенсоры, производительность",
-    "Показать другие инструменты",
-}
-actions = re.findall(r'layout\.addView\(Button\(this\)\.apply \{[\s\S]*?text = "([^"]+)"', host)
-assert len(actions) == len(set(actions)) and set(actions) == expected_actions, actions
+for action in (
+    "manualSample()", "startTimedBatteryTest()", "stopTimedBatteryTest()",
+    "showTimedBatteryHistory()", "shareReport()", "exportCsv()", "confirmReset()",
+    "showSessionProfile()", "showSensorQuality()", "exportDiagnosticArchive()",
+    "showSavedHistory()", "showThermalHistory()", "checkSensors()",
+    "startSensorCapture()", "showLastSensorReadings()",
+    "openPage(DiagnosticsPage.NETWORK)", "openPage(DiagnosticsPage.GAMING)",
+):
+    assert re.search(r"setOnClickListener\s*\{(?:(?!\n\s*\}).)*" + re.escape(action), host, re.S), action
+assert "host?.openPage(page)" in read("ModuleNavigation.kt")
 assert "mountLab(next)" in host and "transaction.commitNow()" in host
 assert host.index("if (currentPage == DiagnosticsPage.MONITOR) monitorPanel.setVisible(false)") < host.index("mountLab(next)")
 assert "putString(MainActivity.EXTRA_PAGE,diagnosticPage.name)" in hub

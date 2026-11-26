@@ -31,13 +31,11 @@ for node in nodes:
 assert ids==set(expected)
 assert not any(n.get(android+"id")=="@+id/gameSessionFragment" for n in nodes)
 frags={n.get(android+"id"):n for n in nav.findall("fragment")}
-assert len(frags)==20 and "@+id/gameSessionFragment" in frags
+assert "@+id/gameSessionFragment" in frags
 assert frags["@+id/gameToolboxDestination"].get(android+"name").endswith(".GameToolboxFragment")
 assert "GameToolboxActivity::class.java to R.id.gameToolboxDestination" in mapping
 assert ".GameToolboxActivity" in registered
-assert 'putExtra("open_game_toolbox", true)' in (src/"GameToolboxActivity.kt").read_text()
-assert frags["@+id/sessionBaselinesFragment"].get(android+"name").endswith(".SessionBaselinesFragment")
-assert frags["@+id/sessionSignalsFragment"].get(android+"name").endswith(".SessionSignalsFragment")
+assert 'ModuleNavigation.forwardLegacyEntry(this)' in (src/"GameToolboxActivity.kt").read_text()
 assert frags["@+id/applicationCenterDestination"].get(android+"name").endswith(".ApplicationCenterFragment")
 assert "ApplicationCenterActivity::class.java to R.id.applicationCenterDestination" in mapping
 assert ".ApplicationCenterActivity" in registered

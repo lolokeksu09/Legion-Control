@@ -7,7 +7,6 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
-import androidx.navigation.fragment.NavHostFragment
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
@@ -130,16 +129,9 @@ class GameSessionFragment : Fragment() {
             "Запись не измеряет FPS игры и не перехватывает трафик."
         ))
         root.addView(LegionUiSupport.sectionLabel(requireContext(), "АНАЛИТИКА И ИСТОРИЯ"))
-        action("Session Signals · хронология и события") { openSessionSignals() }
-        action("Session Incidents · эпизоды и длительность") { openSessionIncidents() }
-        action("Session Baselines · сравнение с историей") { openSessionBaselines() }
-        action("Session Compare · выбрать две записи") {
-            val pkg=packageInput.text.toString().trim()
-            runCatching {
-                startActivity(Intent(requireContext(),SessionCompareActivity::class.java).apply {
-                    if(ApplicationInventory.isPackageName(pkg))putExtra(SessionCompareActivity.EXTRA_PACKAGE,pkg)
-                })
-            }.onFailure { reportView.text="Не удалось открыть сравнение." }
+        action("История и отчёты игры") {
+            val pkg = packageInput.text.toString().trim().takeIf(packagePattern::matches)
+            startActivity(SessionLibraryActivity.intent(requireContext(), pkg))
         }
         action("Разрешить уведомления о записи (Android 13+)") {
             if (requireContext().checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)
@@ -147,7 +139,6 @@ class GameSessionFragment : Fragment() {
             else reportView.text="Уведомления уже разрешены."
         }
         action("Обновить и показать последние сессии") { refresh() }
-        action("Сравнить две последние сессии") { compare() }
         root.addView(LegionUiSupport.sectionLabel(requireContext(), "ЭКСПОРТ"))
         action("Сохранить историю замеров CSV", "session.csv") { createFile(REQUEST_CSV) }
         action("Сохранить полный архив сессий ZIP") { createFile(REQUEST_ZIP) }
@@ -269,45 +260,6 @@ class GameSessionFragment : Fragment() {
             }.setNegativeButton("Отмена",null).show()
     }
 
-    private fun openSessionSignals() {
-        val args=Bundle().apply {
-            val pkg=packageInput.text.toString().trim()
-            if(packagePattern.matches(pkg))putString("smart_package",pkg)
-        }
-        val controller=runCatching { NavHostFragment.findNavController(this) }.getOrNull()
-        if(controller!=null)controller.navigate(R.id.sessionSignalsFragment,args)
-        else startActivity(Intent(requireContext(),NavigationHostActivity::class.java).apply {
-            putExtra("open_session_signals",true)
-            putExtras(args)
-        })
-    }
-
-    private fun openSessionBaselines() {
-        val args=Bundle().apply {
-            val pkg=packageInput.text.toString().trim()
-            if(packagePattern.matches(pkg))putString("smart_package",pkg)
-        }
-        val controller=runCatching { NavHostFragment.findNavController(this) }.getOrNull()
-        if(controller!=null)controller.navigate(R.id.sessionBaselinesFragment,args)
-        else startActivity(Intent(requireContext(),NavigationHostActivity::class.java).apply {
-            putExtra("open_session_baselines",true)
-            putExtras(args)
-        })
-    }
-
-    private fun openSessionIncidents() {
-        val args = Bundle().apply {
-            val pkg = packageInput.text.toString().trim()
-            if (packagePattern.matches(pkg)) putString("smart_package", pkg)
-        }
-        val controller = runCatching { NavHostFragment.findNavController(this) }.getOrNull()
-        if (controller != null) controller.navigate(R.id.sessionIncidentsFragment, args)
-        else startActivity(Intent(requireContext(), NavigationHostActivity::class.java).apply {
-            putExtra("open_session_incidents", true)
-            putExtras(args)
-        })
-    }
-
     private fun openSelectedApp() {
         val (pkg,_)=target() ?: return
         val launch=requireContext().packageManager.getLaunchIntentForPackage(pkg)
@@ -318,8 +270,6 @@ class GameSessionFragment : Fragment() {
     }
 
     private fun refresh() = viewModel.refresh()
-
-    private fun compare() = viewModel.compare()
 
     private fun createFile(requestCode: Int) {
         val isZip=requestCode==REQUEST_ZIP

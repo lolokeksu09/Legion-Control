@@ -63,9 +63,13 @@ internal object ShizukuAccessBackend {
     /** Explicit click only. False means the manager must be opened or access is unavailable. */
     fun requestAccess(context: Context): Boolean {
         if (snapshot(context).connection != ShizukuConnection.PERMISSION_REQUIRED) return false
-        if (Shizuku.shouldShowRequestPermissionRationale()) return false
-        Shizuku.requestPermission(REQUEST_CODE)
-        return true
+        return try {
+            if (Shizuku.shouldShowRequestPermissionRationale()) return false
+            Shizuku.requestPermission(REQUEST_CODE)
+            true
+        } catch (_: Exception) {
+            false
+        }
     }
 
     /** Fixed read-only remote probes, invoked on a worker only after the user requests them. */
