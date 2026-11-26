@@ -57,39 +57,61 @@ data class LaunchSettingChange(val original: Int, val requested: Int) {
     }
 }
 
+enum class FocusUndoScope { GLOBAL_FILTER, APP_RULE }
+
 /** The explicit undo record survives process death; no background restoration. */
 data class GameLaunchUndo(
     val packageName: String,
     val media: LaunchSettingChange?,
     val brightness: LaunchSettingChange?,
     val brightnessMode: LaunchSettingChange?,
-    val focus: LaunchSettingChange?
+    val focus: LaunchSettingChange?,
+    val focusScope: FocusUndoScope = FocusUndoScope.GLOBAL_FILTER,
+    val focusRuleExisted: Boolean = true
 ) {
     val pending: Boolean
         get() = media != null || brightness != null || brightnessMode != null || focus != null
 
+    /** v2 records the DND scope; v1 remains readable as a legacy global-filter ticket. */
     fun encode(): String = listOf(
-        "v1", packageName, media?.encode() ?: "-", brightness?.encode() ?: "-",
-        brightnessMode?.encode() ?: "-", focus?.encode() ?: "-"
+        "v2", packageName, media?.encode() ?: "-", brightness?.encode() ?: "-",
+        brightnessMode?.encode() ?: "-", focus?.encode() ?: "-",
+        when (focusScope) { FocusUndoScope.GLOBAL_FILTER -> "global"; FocusUndoScope.APP_RULE -> "app_rule" },
+        if (focusRuleExisted) "1" else "0"
     ).joinToString("|")
 
     companion object {
         fun decode(encoded: String?): GameLaunchUndo? {
             if (encoded == null) return null
             val fields = encoded.split('|')
-            if (fields.size != 6 || fields[0] != "v1" ||
-                !GameLaunchProfilePolicy.validPackage(fields[1])) return null
+            if (fields.size < 2 || !GameLaunchProfilePolicy.validPackage(fields[1])) return null
             fun parseChange(field: String): LaunchSettingChange? =
                 if (field == "-") null else LaunchSettingChange.decode(field)
                     ?: error("Invalid undo entry")
             return runCatching {
-                GameLaunchUndo(fields[1], parseChange(fields[2]), parseChange(fields[3]),
-                    parseChange(fields[4]), parseChange(fields[5]))
+                when (fields[0]) {
+                    "v1" -> {
+                        require(fields.size == 6)
+                        GameLaunchUndo(fields[1], parseChange(fields[2]), parseChange(fields[3]),
+                            parseChange(fields[4]), parseChange(fields[5]), FocusUndoScope.GLOBAL_FILTER, true)
+                    }
+                    "v2" -> {
+                        require(fields.size == 8)
+                        val scope = when (fields[6]) {
+                            "global" -> FocusUndoScope.GLOBAL_FILTER
+                            "app_rule" -> FocusUndoScope.APP_RULE
+                            else -> error("Invalid focus scope")
+                        }
+                        val existed = when (fields[7]) { "1" -> true; "0" -> false; else -> error("Invalid focus rule state") }
+                        GameLaunchUndo(fields[1], parseChange(fields[2]), parseChange(fields[3]),
+                            parseChange(fields[4]), parseChange(fields[5]), scope, existed)
+                    }
+                    else -> null
+                }
             }.getOrNull()
         }
     }
 }
-
 enum class RestoreChoice { RESTORE, ALREADY_ORIGINAL, CHANGED_BY_USER }
 
 object GameLaunchProfilePolicy {
