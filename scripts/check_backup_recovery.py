@@ -12,7 +12,7 @@ assert core.index("savePending(context") < core.index("afterJournalWrite?.invoke
 assert "afterDbCommit?.invoke()" in core
 assert "restoreInterruptedBeforeDbCommitForTest" in body
 assert "restoreInterruptedForTest" in body
-assert "sqliteMarker(context)" in body
+assert "sqliteMarker(helper.readableDatabase) == marker" in body
 assert "committed" in body and "preferences_sha256" in body
 assert "SIMULATED_BEFORE_SQLITE_COMMIT" in android_test
 assert "SIMULATED_PROCESS_INTERRUPTION" in android_test
