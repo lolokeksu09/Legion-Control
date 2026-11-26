@@ -34,9 +34,11 @@ for token in (
     "Settings.canDrawOverlays(requireContext())",
     "GameToolboxService.start(requireContext())",
     "GameToolboxService.stop(requireContext())",
-    "GameLaunchProfiles.apply(requireContext(), pkg)",
+    "GameLaunchProfiles.applyConfirmed(requireContext(), pkg, approved)",
     "GameLaunchProfiles.restore(requireContext())",
-    "GameLaunchProfiles.save(requireContext(), pkg, profile)",
+    "GameLaunchProfiles.save(ctx, pkg, profile)",
+    "confirmApplyGameLaunchProfile",
+    "confirmRestoreGameLaunchProfile",
     "SmartSystemControls.restoreScreenSettings(requireContext())",
 ):
     assert token in ui, token
@@ -45,5 +47,5 @@ assert "android.permission.QUERY_ALL_PACKAGES" not in manifest
 assert "android.permission.WRITE_SECURE_SETTINGS" not in manifest
 assert "android.permission.BIND_ACCESSIBILITY_SERVICE" not in manifest
 assert "class GameToolboxFragment : Fragment()" in ui
-assert "versionCode = 49" in (root / "app/build.gradle.kts").read_text()
+assert "versionCode = 59" in (root / "app/build.gradle.kts").read_text()
 print("PASS alpha42: shared Game Hub shell, selectable cards, opt-in toolbox and legacy compatibility")

@@ -18,6 +18,33 @@ assert "ReplayMemoryPolicy.audioByteLimit" in service
 assert "ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW" in service
 assert "trimRequested.compareAndSet(true, false)" in service
 assert "reduceByteLimit" in video and "hasSecondKey()" in video
+assert "keyFrameCount > 1" in video and "keyFrameCount--" in video and "keyFrameCount = 0" in video
+assert "val available = snapshot()" not in video
+assert "nextSaveProbeAt = now + 100L" in service
+assert "liveWindow = buffer.stats()" in service and "nextStatsAt = now + 1_000L" in service
+assert "statsReflectRetainedFramesAndReducedLimit" in video_tests
+assert "byteCount + frozenBytes - sharedBytes" in video
+assert "buffer.freezeAt(nowVideoUs)" in service and "finishExport(lease, audioExport)" in service
+assert "lease.close()" in service and "exporting.set(false)" in service
+assert "audioExport?.close()" in service
+assert "finishExport(lease, acquiredAudio)" in service
+assert "size + frozenBytes - sharedBytes" in audio
+assert "buffer.freezeForVideo(" in audio_capture
+assert "buffer.appendEncoded(info.size, info.presentationTimeUs)" in audio_capture
+assert "liveAudioWindow = playbackAudio?.stats()" in service
+assert "if (!canAdmit(size, ptsUs, false)) return false" in audio
+for token in ("liveAndFrozenAudioShareOneBudget", "trimmingAndProducerShutdownKeepOnlyOwnedAudioUntilRelease",
+              "rejectedAacPacketsDoNotInvokeCopyAndPtsStayOriginal"):
+    assert token in audio_tests, token
+assert "frozenExportAndLiveWindowShareOneByteBudget" in video_tests
+assert "pressureKeepsFrozenBytesButStopsGrowingUntilRelease" in video_tests
+assert "buffer.addEncoded(info.size, info.presentationTimeUs" in service
+assert "if (!canAdmit(size, ptsUs, keyFrame, false)) return false" in video
+assert video.index("if (!canAdmit(size, ptsUs, keyFrame, false))") < video.index("val bytes = copyBytes()")
+assert "rejectedCodecSamplesDoNotAllocateAndResumeFromSync" in video_tests
+assert "snapshotForVideo(" in audio and "freezeSnapshot(" in audio_capture
+assert "buffer.snapshot(0L, Long.MAX_VALUE)" not in audio_capture
+assert "videoClockSnapshotSelectsOnlyMatchingPackets" in audio_tests
 assert "reduceByteLimit" in audio and "packets.removeFirst()" in audio
 assert "ReplayMemoryPolicy.afterAudioTrim" in audio_capture
 assert "ReplayFrameBuffer(windowSeconds, videoLimit)" in service

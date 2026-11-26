@@ -285,7 +285,8 @@ class FullBackupInstrumentedTest {
             assertAuxiliary()
 
             // Simulate interruption AFTER the SQLite transaction is committed
-            // but BEFORE any SharedPreferences files are modified.            assertTrue(app.deleteDatabase("legion-control-history.db"))
+            // but BEFORE any SharedPreferences files are modified.
+            assertTrue(app.deleteDatabase("legion-control-history.db"))
             clearAuxiliary()
             assertTrue(prefs.edit().remove("ci_restore_sentinel").commit())
             assertTrue(preflight.edit().clear().commit())

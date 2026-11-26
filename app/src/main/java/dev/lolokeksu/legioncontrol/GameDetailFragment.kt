@@ -126,6 +126,22 @@ class GameDetailFragment : Fragment() {
             (if (app.favorite) "★ Избранное" else "Не в избранном") + " · " +
                 (if (app.visible) "Доступна для запуска" else "Не видна через Android Launcher"),
             13f, accent).apply { setPadding(0, 0, 0, 17.dp) })
+        val launchProfile = GameLaunchProfiles.profile(requireContext(), pkg)
+        val pendingRestore = GameLaunchProfiles.pendingPackage(requireContext())
+        column.addView(LegionUiSupport.sectionLabel(requireContext(), "ПРОФИЛЬ ЗАПУСКА"))
+        val profileAccess = launchProfile?.takeIf { it.actionable }?.let {
+            CapabilityAccessBackend.profileAccess(requireContext(), it)
+        }
+        val profileReport = GameProfilePresentation.report(
+            launchProfile, profileAccess, pendingRestore, pkg
+        )
+        val profileInfo = text(profileReport, 13f, Color.WHITE).apply {
+            setPadding(14.dp, 12.dp, 14.dp, 12.dp)
+            background = LegionUiSupport.cardSurface(this)
+            contentDescription = profileReport
+        }
+        LegionUiSupport.reportSurface(profileInfo)
+        column.addView(profileInfo, ViewGroup.LayoutParams(-1, -2))
         status = text("Действия выполняются только по нажатию. Без Root/Shizuku.", 12f, muted)
         column.addView(status.apply { setPadding(0, 0, 0, 16.dp) })
 
@@ -140,7 +156,7 @@ class GameDetailFragment : Fragment() {
                 else runCatching { startActivity(launch) }
                     .onFailure { status.text = "Запуск отклонён: " + it.javaClass.simpleName }
             }
-            addAction("Выбрать для Game Toolbox", "Сохранить пакет в настройках существующей панели") {
+            addAction("Выбрать для Game Toolbox", "Подготовить эту игру для настройки профиля запуска и управления панелью") {
                 vm.chooseForToolbox(pkg, app.label)
             }
         }

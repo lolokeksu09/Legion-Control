@@ -95,3 +95,8 @@ The `0.1.0-alpha.8` build increments to `versionCode=8` and retains `dev.lolokek
 ## Alpha.9 signed update
 
 `0.1.0-alpha.9` increments `versionCode` from 8 to 9 with the existing `dev.lolokeksu.legioncontrol` package and same pinned permanent signing key. There is no SQLite schema change (v2), Rust ABI change, new Android permission, or change to saved data/CSV. The update must install **over** the earlier release-signed APK; do not uninstall and erase SQLite history to install a debug build. Protected `main` release CI must pass and verify `apksigner`/certificate pin before the APK is offered as an update.
+
+
+## Alpha.59 candidate — build-only request
+
+Version code 59, version name 0.1.0-alpha.59; application ID and permanent signing fingerprint remain unchanged. The owner's merge/APK request authorizes an explicit main merge message containing `[signed-apk]`. Only that trusted main push or a manual dispatch can run permanent signing; exact main Android CI must pass before key restoration. Push builds produce an Actions artifact only. Public release publication remains separately opt-in through manual dispatch with publish=true; never replace the alpha.49 release. Install compatible signed updates over the existing application; do not uninstall. Physical Y70 acceptance remains separate.

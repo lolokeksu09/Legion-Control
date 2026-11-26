@@ -1,10 +1,8 @@
 package dev.lolokeksu.legioncontrol
 
-import android.app.AppOpsManager
 import android.app.usage.UsageEvents
 import android.app.usage.UsageStatsManager
 import android.content.Context
-import android.os.Process
 import java.util.Locale
 
 data class GameUseResult(
@@ -18,16 +16,12 @@ data class GameUseResult(
 object GameUsageDiagnostics {
     const val DEFAULT_PACKAGE = "com.riotgames.league.wildrift"
 
-    fun hasUsageAccess(context: Context): Boolean {
-        val ops = context.getSystemService(Context.APP_OPS_SERVICE) as? AppOpsManager
-            ?: return false
-        return ops.checkOpNoThrow(
-            AppOpsManager.OPSTR_GET_USAGE_STATS, Process.myUid(), context.packageName
-        ) == AppOpsManager.MODE_ALLOWED
-    }
+    fun hasUsageAccess(context: Context): Boolean =
+        CapabilityAccessBackend.usageState(context) == AccessState.READY
 
     fun read(context: Context, gamePackage: String): String {
-        if (!hasUsageAccess(context)) return "GAME SESSION TRACKER · требуется специальный доступ к статистике использования. Включается вручную в настройках Android."
+        val access = CapabilityAccessBackend.usageState(context)
+        if (access != AccessState.READY) return "GAME SESSION TRACKER · статистика использования: " + access.label
         val pkg = gamePackage.trim()
         if (!Regex("^[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z0-9_]+)+$").matches(pkg))
             return "GAME SESSION TRACKER · неверное имя пакета"

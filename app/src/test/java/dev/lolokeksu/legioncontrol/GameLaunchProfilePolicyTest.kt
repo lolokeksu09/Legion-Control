@@ -43,6 +43,17 @@ class GameLaunchProfilePolicyTest {
         assertFalse(GameLaunchProfilePolicy.validPackage("a." + "x".repeat(200)))
     }
 
+    @Test fun editorRetainsCustomImportedPercentAndNull() {
+        assertEquals(listOf(null, 0, 20, 37, 40, 100),
+            GameLaunchProfilePolicy.editorPercentOptions(listOf(0, 20, 40, 100), 37))
+        assertEquals(listOf(null, 10, 20, 75, 100),
+            GameLaunchProfilePolicy.editorPercentOptions(listOf(10, 20, 100), 75))
+        assertEquals(listOf(null, 10, 20, 100),
+            GameLaunchProfilePolicy.editorPercentOptions(listOf(100, 20, 10), 20))
+        assertEquals(listOf(null, 0, 100),
+            GameLaunchProfilePolicy.editorPercentOptions(listOf(0, 100), null))
+    }
+
     @Test fun volumeConversionUsesIntegerArithmeticAndStreamBoundaries() {
         assertEquals(0, GameLaunchProfilePolicy.mediaIndex(0, 15))
         assertEquals(8, GameLaunchProfilePolicy.mediaIndex(50, 15))

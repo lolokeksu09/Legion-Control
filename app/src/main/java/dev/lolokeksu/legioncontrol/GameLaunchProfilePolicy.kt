@@ -119,6 +119,10 @@ object GameLaunchProfilePolicy {
 
     fun validPackage(pkg: String): Boolean = pkg.length in 3..200 && PACKAGE.matches(pkg)
 
+    /** Keep imported/custom valid values when reopening the editor. Null is always first. */
+    internal fun editorPercentOptions(defaults: List<Int>, saved: Int?): List<Int?> =
+        listOf<Int?>(null) + (defaults + listOfNotNull(saved)).distinct().sorted()
+
     fun mediaIndex(percent: Int, max: Int): Int {
         require(percent in 0..100 && max >= 0)
         return ((percent.toLong() * max + 50) / 100).toInt()

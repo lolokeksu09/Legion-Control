@@ -515,7 +515,8 @@ object LegionDataBackup {
             for ((key, value) in stored) {
                 if(name == PreflightPresets.STORE)
                     require(PreflightPresets.validBackupEntry(key, value))
-                if (key == "pending_global_undo" || key == "pending_auto_owner" || key == "last_result" ||
+                if (key == "pending_global_undo" || key == "pending_auto_owner" ||
+                    key == "pending_undo_generation" || key == "last_result" ||
                     key == "replay_status") continue
                 require(key.length in 1..(if(name == PreflightPresets.STORE) 207 else 150))
                 val wrapped = when (value) {
@@ -552,7 +553,8 @@ object LegionDataBackup {
             require(obj.length() <= (if(name == PreflightPresets.STORE) PreflightPresets.LIMIT else 500))
             obj.keys().asSequence().associateWith { key ->
                 require(key.length in 1..(if(name == PreflightPresets.STORE) 207 else 150) && key != "pending_global_undo" &&
-                    key != "last_result" && key != "replay_status" && key != "pending_auto_owner")
+                    key != "last_result" && key != "replay_status" && key != "pending_auto_owner" &&
+                    key != "pending_undo_generation")
                 val wrapped = obj.getJSONObject(key)
                 require(wrapped.keys().asSequence().toSet() == setOf("type", "value"))
                 if(name == PreflightPresets.STORE) {

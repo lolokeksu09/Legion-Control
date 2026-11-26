@@ -38,7 +38,8 @@ for forbidden in (
 ):
     assert forbidden not in str(perms)
 assert 'android.permission.PACKAGE_USAGE_STATS' in perms
-assert "AppOpsManager.OPSTR_GET_USAGE_STATS" in usage
+assert "CapabilityAccessBackend.usageState(context)" in usage
+assert "AppOpsManager.OPSTR_GET_USAGE_STATS" in (src/"CapabilityAccessBackend.kt").read_text(encoding="utf-8")
 assert "ModuleNavigation.forwardLegacyEntry(this)" in wrapper
 assert "report.observe(viewLifecycleOwner)" in activity
 assert "Settings.ACTION_USAGE_ACCESS_SETTINGS" in activity
@@ -75,8 +76,8 @@ assert "frameCapture?.stop(false)" in viewmodel
 assert "ViewModelProvider(this)[GamingDiagnosticsViewModel::class.java]" in activity
 assert 'android:exported="false"' in (root / "app/src/main/AndroidManifest.xml").read_text()
 assert "SQLiteOpenHelper" in store and "HapticLabSchema.VERSION" in store
-assert 'versionCode = 49' in gradle
-assert 'versionName = "0.1.0-alpha.49"' in gradle
+assert 'versionCode = 59' in gradle
+assert 'versionName = "0.1.0-alpha.59"' in gradle
 
 # The actual repo session query must be runnable with escaped bind values,
 # not interpolated into a SQL string.

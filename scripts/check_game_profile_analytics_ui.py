@@ -1,0 +1,32 @@
+"""Guard the game card, explicit launch-profile controls and truthful analytics dashboard."""
+from pathlib import Path
+root = Path(__file__).resolve().parents[1]
+src = root / "app/src/main/java/dev/lolokeksu/legioncontrol"
+detail = (src / "GameDetailFragment.kt").read_text()
+profile = (src / "GameProfilePresentation.kt").read_text()
+tool = (src / "GameToolboxFragment.kt").read_text()
+insights = (src / "SmartSessionInsights.kt").read_text()
+presentation = (src / "SmartInsightsPresentation.kt").read_text()
+fragment = (src / "SmartProfilesFragment.kt").read_text()
+assert "GameProfilePresentation.report(" in detail
+assert "CapabilityAccessBackend.profileAccess(" in detail
+assert "GameLaunchProfiles.pendingPackage(" in detail
+assert "setView(scroll)" in tool and "LegionUiSupport.spinner" in tool
+assert "confirmApplyGameLaunchProfile" in tool and "setPositiveButton" in tool
+assert "confirmRestoreGameLaunchProfile" in tool
+assert "GameLaunchProfiles.pendingConfirmation(ctx)" in tool
+assert "GameLaunchProfiles.restoreConfirmed(ctx, pending)" in tool
+assert "GameLaunchProfilePolicy.editorPercentOptions(" in tool
+assert "applyGameLaunchProfile(pkg, profile, launch)" in tool
+assert "COUNT(g.thermal_status),COUNT(g.network_validated)" in insights
+assert "end_reason='USER_STOP'" in insights
+assert "thermalSampleCount" in presentation and "networkSampleCount" in presentation
+assert '"н/д"' in presentation
+assert "update.insights?.let(::showInsights)" in fragment
+assert "analyticsPanel.visibility = View.VISIBLE" in fragment
+assert "SmartInsightsPresentation.metrics(data)" in fragment
+tests = (root / "app/src/test/java/dev/lolokeksu/legioncontrol/GameProfilePresentationTest.kt").read_text()
+assert tests.count("@Test") >= 3
+tests = (root / "app/src/test/java/dev/lolokeksu/legioncontrol/SmartInsightsPresentationTest.kt").read_text()
+assert tests.count("@Test") >= 3
+print("PASS: game profile detail, explicit profile apply/undo, SQL-backed analytics with known denominators and accessible metric rows")

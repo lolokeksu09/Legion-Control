@@ -1,6 +1,5 @@
 package dev.lolokeksu.legioncontrol
 
-import android.app.NotificationManager
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
@@ -16,6 +15,8 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.LayoutInflater
 import android.widget.EditText
+import android.widget.Button
+import android.widget.AdapterView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -25,6 +26,7 @@ import androidx.navigation.fragment.NavHostFragment
 import java.text.DateFormat
 import java.util.Date
 import java.util.Locale
+import rikka.shizuku.Shizuku
 
 /** Five real Navigation Component destinations, all backed by one Activity-scoped ViewModel. */
 class HubPageFragment : Fragment() {
@@ -37,17 +39,45 @@ class HubPageFragment : Fragment() {
     private lateinit var viewModel: HubViewModel
     private lateinit var column: LinearLayout
     private var query = ""
-    private var showAllApps = false
+    private var libraryFilter = HubGameFilter.GAMES
+    private var librarySort = HubGameSort.PRIORITY
+    private var libraryPage = 0
     private var toolQuery = ""
+    private var toolCategory = 0
     private val searchHandler=Handler(Looper.getMainLooper())
     private var pendingSearch:Runnable?=null
     private var observedSnapshot:HubLoadState?=null
-    private data class CatalogAction(
-        val title: String,
-        val description: String,
-        val launch: () -> Unit
-    )
+    private var shizukuStatusView: TextView? = null
+    private var shizukuProbeEpoch = 0
+    private var shizukuProbeRunning = false
+    private var shizukuListening = false
+    private val binderReceived = Shizuku.OnBinderReceivedListener { invalidateShizuku() }
+    private val binderDead = Shizuku.OnBinderDeadListener { invalidateShizuku() }
+    private val permissionResult = Shizuku.OnRequestPermissionResultListener { code, _ ->
+        if (code == ShizukuAccessBackend.REQUEST_CODE) invalidateShizuku()
+    }
     private val Int.dp get() = (this * resources.displayMetrics.density).toInt()
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        val saved = savedInstanceState ?: return
+        query = saved.getString("libraryQuery").orEmpty()
+        libraryFilter = HubLibraryPolicy.restore(HubGameFilter.entries, saved.getString("libraryFilter"), HubGameFilter.GAMES)
+        librarySort = HubLibraryPolicy.restore(HubGameSort.entries, saved.getString("librarySort"), HubGameSort.PRIORITY)
+        libraryPage = saved.getInt("libraryPage", 0).coerceAtLeast(0)
+        toolQuery = saved.getString("toolQuery").orEmpty()
+        toolCategory = saved.getInt("toolCategory", 0).coerceAtLeast(0)
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putString("libraryQuery", query)
+        outState.putString("libraryFilter", libraryFilter.name)
+        outState.putString("librarySort", librarySort.name)
+        outState.putInt("libraryPage", libraryPage)
+        outState.putString("toolQuery", toolQuery)
+        outState.putInt("toolCategory", toolCategory)
+    }
 
     override fun onCreateView(inflater: LayoutInflater, parent: ViewGroup?, saved: Bundle?): View {
         val root = ScrollView(requireContext()).apply {
@@ -81,6 +111,74 @@ class HubPageFragment : Fragment() {
         viewModel.refresh()
     }
 
+    override fun onStart() {
+        super.onStart()
+        if (page() == HubTab.SETTINGS) {
+            Shizuku.addBinderReceivedListener(binderReceived)
+            Shizuku.addBinderDeadListener(binderDead)
+            Shizuku.addRequestPermissionResultListener(permissionResult)
+            shizukuListening = true
+            refreshShizuku()
+        }
+    }
+
+    override fun onStop() {
+        if (shizukuListening) {
+            Shizuku.removeBinderReceivedListener(binderReceived)
+            Shizuku.removeBinderDeadListener(binderDead)
+            Shizuku.removeRequestPermissionResultListener(permissionResult)
+            shizukuListening = false
+        }
+        shizukuProbeEpoch++
+        shizukuProbeRunning = false
+        super.onStop()
+    }
+
+    private fun refreshShizuku() {
+        val ctx = context ?: return
+        shizukuStatusView?.text = ShizukuAccessBackend.snapshot(ctx).report()
+    }
+
+    private fun invalidateShizuku() {
+        shizukuProbeEpoch++
+        shizukuProbeRunning = false
+        refreshShizuku()
+    }
+
+    private fun configureShizuku() {
+        val ctx = requireContext()
+        val state = ShizukuAccessBackend.snapshot(ctx)
+        if (state.connection == ShizukuConnection.SHELL_READY) {
+            refreshShizuku()
+            return
+        }
+        runCatching {
+            if (!ShizukuAccessBackend.requestAccess(ctx)) {
+                val intent = ShizukuAccessBackend.managerIntent(ctx)
+                if (intent != null) startActivity(intent)
+                else shizukuStatusView?.text = state.report() +
+                    "\nУстановите и запустите Shizuku, затем вернитесь в Legion Control."
+            }
+        }.onFailure { shizukuStatusView?.text = state.report() + "\nНе удалось запросить доступ." }
+    }
+
+    private fun inspectShizuku() {
+        if (shizukuProbeRunning) return
+        val ctx = requireContext().applicationContext
+        val epoch = ++shizukuProbeEpoch
+        shizukuProbeRunning = true
+        shizukuStatusView?.text = "Проверка прав ADB shell…"
+        Thread({
+            val report = ShizukuAccessBackend.inspectShell(ctx)
+            searchHandler.post {
+                if (epoch == shizukuProbeEpoch && shizukuListening) {
+                    shizukuProbeRunning = false
+                    shizukuStatusView?.text = report
+                }
+            }
+        }, "legion-shizuku-inspect").start()
+    }
+
     override fun onResume() {
         super.onResume()
         if (::viewModel.isInitialized) {
@@ -107,6 +205,7 @@ class HubPageFragment : Fragment() {
     private fun section(title: String, detail: String? = null) {
         column.addView(text(title, 22f, fg, true).apply {
             setPadding(0, 8.dp, 0, 7.dp)
+            isAccessibilityHeading = true
         })
         if (detail != null) column.addView(text(detail, 13f, muted).apply {
             setPadding(0, 0, 0, 20.dp)
@@ -135,6 +234,7 @@ class HubPageFragment : Fragment() {
         column.addView(text(label.uppercase(Locale.ROOT), 12f, accent, true).apply {
             setPadding(0, 19.dp, 0, 11.dp)
             letterSpacing = 0.08f
+            isAccessibilityHeading = true
         })
     }
 
@@ -171,6 +271,7 @@ class HubPageFragment : Fragment() {
         if (!isAdded || !::column.isInitialized) return
         cancelSearch()
         column.removeAllViews()
+        shizukuStatusView = null
         if (page() == HubTab.SETTINGS) {
             showSettings((state as? HubLoadState.Ready)?.snapshot)
             LegionDataBackup.recoveryWarning()?.let(::info)
@@ -225,16 +326,32 @@ class HubPageFragment : Fragment() {
     }
 
     private fun showHome(s: HubSnapshot) {
-        section("Готов к запуску", "Игры, инструменты и локальная история — в одном месте.")
+        section("Готов к запуску", "Подготовка игры, запись и состояние устройства.")
+        group("Избранные игры")
+        val favorites = HubLibraryPolicy.homeFavorites(s.apps)
+        if (favorites.isEmpty()) {
+            info("Добавьте игру в избранное через её карточку — она появится здесь.")
+        } else {
+            favorites.forEach { app ->
+                tile(app.label, if (app.visible) "Открыть карточку игры" else "Не видно через Launcher · карточка сохранена") {
+                    openGameCard(app)
+                }
+            }
+        }
+        tile("Мои игры", "${s.apps.count { it.isGame || it.favorite }} игровых и избранных записей") {
+            NavHostFragment.findNavController(this).navigate(R.id.gamesFragment)
+        }
+        group("Локальная библиотека")
         val stats = LinearLayout(requireContext()).apply {
             orientation = LinearLayout.HORIZONTAL
+            background = outline()
+            setPadding(5.dp, 3.dp, 5.dp, 3.dp)
         }
         fun stat(value: String, label: String) {
             val box = LinearLayout(requireContext()).apply {
                 orientation = LinearLayout.VERTICAL
                 gravity = Gravity.CENTER
-                background = outline()
-                setPadding(8.dp, 17.dp, 8.dp, 17.dp)
+                setPadding(8.dp, 14.dp, 8.dp, 14.dp)
             }
             box.addView(text(value, 22f, accent, true))
             box.addView(text(label, 11f, muted))
@@ -249,9 +366,6 @@ class HubPageFragment : Fragment() {
         column.addView(stats)
         info("* Быстрая сводка: не более 40 последних MP4. Все записи — в Capture Studio.")
         group("Быстрый доступ")
-        tile("Мои игры", "${s.apps.count { it.isGame || it.favorite }} игровых и избранных записей") {
-            NavHostFragment.findNavController(this).navigate(R.id.gamesFragment)
-        }
         tile("GAME TOOLBOX", "Плавающая игровая панель по запросу") {
             open(GameToolboxActivity::class.java)
         }
@@ -279,9 +393,130 @@ class HubPageFragment : Fragment() {
         }
     }
 
+    private fun openGameCard(app: HubApp) {
+        NavHostFragment.findNavController(this).navigate(R.id.gameDetailFragment, Bundle().apply {
+            putString("gamePackage", app.packageName)
+        })
+    }
+
     private fun showGames(s: HubSnapshot) {
         section("Игровая библиотека",
             "Настоящие Android-приложения из Launcher и избранное Application Center.")
+        group("Библиотека")
+        val filter = LegionUiSupport.spinner(requireContext(), HubGameFilter.entries.map { it.label })
+        val sort = LegionUiSupport.spinner(requireContext(), HubGameSort.entries.map { it.label })
+        filter.contentDescription = "Фильтр библиотеки"
+        sort.contentDescription = "Сортировка библиотеки"
+        filter.setSelection(libraryFilter.ordinal)
+        sort.setSelection(librarySort.ordinal)
+        column.addView(filter, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 6.dp })
+        column.addView(sort, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 8.dp })
+        val input = EditText(requireContext()).apply {
+            hint = "Поиск игры или имени пакета"
+            setTextColor(fg)
+            setHintTextColor(muted)
+            textSize = 14f
+            isSingleLine = true
+            setPadding(15.dp, 14.dp, 15.dp, 14.dp)
+            background = outline()
+            setText(query)
+            contentDescription = "Поиск игр и приложений"
+        }
+        column.addView(input, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 13.dp })
+        val count = text("", 13f, muted).apply {
+            accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+            setPadding(0, 0, 0, 8.dp)
+        }
+        column.addView(count)
+        val list = LinearLayout(requireContext()).apply { orientation = LinearLayout.VERTICAL }
+        column.addView(list)
+        val previous = Button(requireContext()).apply { text = "Назад"; contentDescription = "Предыдущая страница" }
+        val next = Button(requireContext()).apply { text = "Далее"; contentDescription = "Следующая страница" }
+        column.addView(CompactActionRow(requireContext(), previous, next))
+        fun redraw() {
+            list.removeAllViews()
+            val result = HubLibraryPolicy.select(s.apps, libraryFilter, librarySort, query, libraryPage)
+            libraryPage = result.page
+            count.text = "Найдено: ${result.total} · страница ${result.page + 1} из ${result.pageCount}"
+            previous.isEnabled = result.page > 0
+            next.isEnabled = result.page + 1 < result.pageCount
+            if (result.items.isEmpty()) {
+                list.addView(LegionUiSupport.noticeView(requireContext(),
+                    "Совпадений нет. Измените фильтр или запрос.", LegionUiSupport.Notice.EMPTY))
+                return
+            }
+            result.items.forEach { app ->
+                val row = LinearLayout(requireContext()).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER_VERTICAL
+                    background = outline()
+                    setPadding(15.dp, 11.dp, 13.dp, 11.dp)
+                    isClickable = true
+                    isFocusable = true
+                    minimumHeight = 48.dp
+                    contentDescription = "Открыть карточку " + app.label +
+                        (if (app.favorite) ". Избранное." else "") +
+                        (if (!app.visible) " Не видно через Launcher." else "")
+                    setOnClickListener {
+                        openGameCard(app)
+                    }
+                }
+                val monogram = text(app.label.firstOrNull()?.uppercaseChar()?.toString() ?: "•",
+                    20f, accent, true).apply {
+                    gravity = Gravity.CENTER
+                    importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+                }
+                row.addView(monogram, LinearLayout.LayoutParams(37.dp, 49.dp))
+                val labels = LinearLayout(requireContext()).apply {
+                    orientation = LinearLayout.VERTICAL
+                    importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+                }
+                labels.addView(text((if (app.favorite) "★  " else "") + app.label, 14f, fg, true))
+                labels.addView(text(if (app.visible) app.packageName else "Не видно через Launcher · ${app.packageName}",
+                    11f, muted))
+                row.addView(labels, LinearLayout.LayoutParams(0, -2, 1f))
+                row.addView(text("›", 22f, accent).apply {
+                    importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+                })
+                list.addView(row, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 9.dp })
+            }
+        }
+        input.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                query = s?.toString().orEmpty()
+                libraryPage = 0
+                cancelSearch()
+                val task=Runnable { if(isAdded && view!=null && list.isAttachedToWindow) redraw() }
+                pendingSearch=task
+                searchHandler.postDelayed(task,HubRefreshGate.SEARCH_DELAY_MS)
+            }
+            override fun afterTextChanged(s: Editable?) {}
+        })
+        previous.setOnClickListener { libraryPage--; redraw() }
+        next.setOnClickListener { libraryPage++; redraw() }
+        filter.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onNothingSelected(parent: AdapterView<*>?) = Unit
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                val value = HubGameFilter.entries.getOrNull(position) ?: return
+                if (value != libraryFilter) {
+                    libraryFilter = value; libraryPage = 0; cancelSearch(); redraw()
+                }
+            }
+        }
+        sort.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onNothingSelected(parent: AdapterView<*>?) = Unit
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                val value = HubGameSort.entries.getOrNull(position) ?: return
+                if (value != librarySort) {
+                    librarySort = value; libraryPage = 0; cancelSearch(); redraw()
+                }
+            }
+        }
+        redraw()
+        tile("Управление библиотекой", "Категории, заметки, сохранённые приложения") {
+            open(ApplicationCenterActivity::class.java)
+        }
         group("Игровые функции")
         tile("Game Preflight", "Проверка требований выбранной игры перед запуском") {
             open(GamePreflightActivity::class.java)
@@ -295,81 +530,6 @@ class HubPageFragment : Fragment() {
         tile("Smart Profiles", "Профили и правила для приложений") {
             open(SmartProfilesActivity::class.java)
         }
-        group("Библиотека")
-        tile("Управление библиотекой", "Категории, заметки, сохранённые приложения") {
-            open(ApplicationCenterActivity::class.java)
-        }
-        tile(if (showAllApps) "Показываются все приложения · изменить" else "Игры и избранное · показать все",
-            "Видимость определяется Android, не скрытым поиском") {
-            showAllApps = !showAllApps
-            render(viewModel.state.value ?: HubLoadState.Loading)
-        }
-        val input = EditText(requireContext()).apply {
-            hint = "Поиск игры или имени пакета"
-            setTextColor(fg)
-            setHintTextColor(muted)
-            textSize = 14f
-            isSingleLine = true
-            setPadding(15.dp, 14.dp, 15.dp, 14.dp)
-            background = outline()
-            setText(query)
-            contentDescription = "Поиск игр и приложений"
-        }
-        column.addView(input, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 13.dp })
-        val list = LinearLayout(requireContext()).apply { orientation = LinearLayout.VERTICAL }
-        column.addView(list)
-        fun redraw() {
-            list.removeAllViews()
-            val filtered = s.apps.filter {
-                (showAllApps || it.isGame || it.favorite) &&
-                    HubSearch.matches(it.label, it.packageName, query)
-            }
-            if (filtered.isEmpty()) {
-                list.addView(text("Совпадений нет. Нажмите «Показать все» или добавьте игру в Application Center.", 13f, muted))
-                return
-            }
-            if (filtered.size > 60) list.addView(text(
-                "Показаны первые 60 из ${filtered.size}. Уточните поиск.", 12f, muted))
-            filtered.take(60).forEach { app ->
-                val row = LinearLayout(requireContext()).apply {
-                    orientation = LinearLayout.HORIZONTAL
-                    gravity = Gravity.CENTER_VERTICAL
-                    background = outline()
-                    setPadding(15.dp, 11.dp, 13.dp, 11.dp)
-                    isClickable = true
-                    isFocusable = true
-                    contentDescription = "Открыть карточку " + app.label
-                    setOnClickListener {
-                        NavHostFragment.findNavController(this@HubPageFragment).navigate(
-                            R.id.gameDetailFragment, Bundle().apply {
-                                putString("gamePackage", app.packageName)
-                            })
-                    }
-                }
-                val monogram = text(app.label.firstOrNull()?.uppercaseChar()?.toString() ?: "•",
-                    20f, accent, true).apply { gravity = Gravity.CENTER }
-                row.addView(monogram, LinearLayout.LayoutParams(37.dp, 49.dp))
-                val labels = LinearLayout(requireContext()).apply { orientation = LinearLayout.VERTICAL }
-                labels.addView(text((if (app.favorite) "★  " else "") + app.label, 14f, fg, true))
-                labels.addView(text(if (app.visible) app.packageName else "Не видно через Launcher · ${app.packageName}",
-                    11f, muted))
-                row.addView(labels, LinearLayout.LayoutParams(0, -2, 1f))
-                row.addView(text("›", 22f, accent))
-                list.addView(row, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 9.dp })
-            }
-        }
-        input.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                query = s?.toString().orEmpty()
-                cancelSearch()
-                val task=Runnable { if(isAdded && view!=null && list.isAttachedToWindow) redraw() }
-                pendingSearch=task
-                searchHandler.postDelayed(task,HubRefreshGate.SEARCH_DELAY_MS)
-            }
-            override fun afterTextChanged(s: Editable?) {}
-        })
-        redraw()
     }
 
     private fun cancelSearch() {
@@ -421,33 +581,7 @@ class HubPageFragment : Fragment() {
     /** Searchable feature catalog; launches the existing real modules without migrating their data. */
     private fun showTools() {
         section("Инструменты", "Найдите модуль или конкретную функцию: Replay, ZIP, стерео, DNS.")
-        val catalog = listOf(
-            "Запись и медиа" to listOf(
-                CatalogAction("Capture Studio", "Запись экрана и библиотека MP4") { open(CaptureStudioActivity::class.java) },
-                CatalogAction("Audio Lab", "Стерео, частоты и аудиомаршруты") { open(AudioLabActivity::class.java) }
-            ),
-            "Экран и управление" to listOf(
-                CatalogAction("Display Patterns", "Проверка дисплея") { open(DisplayPatternActivity::class.java) },
-                CatalogAction("Haptic Lab", "Вибрация и тактильная отдача") { open(HapticLabActivity::class.java) },
-                CatalogAction("Gamepad Live", "Кнопки и стики контроллера") { open(GamepadLiveActivity::class.java) }
-            ),
-            "Система и производительность" to listOf(
-                CatalogAction("Game Preflight", "Предпусковая проверка выбранной игры") { open(GamePreflightActivity::class.java) },
-                CatalogAction("Live Monitor", "Живые замеры, график и сравнение") { open(LiveMonitorActivity::class.java) },
-                CatalogAction("Gaming Lab", "Батарея, сеть, сенсоры и производительность") { open(GamingDiagnosticsActivity::class.java) },
-                CatalogAction("Hardware Lab", "Аппаратные измерения и тесты") { open(HardwareLabActivity::class.java) },
-                CatalogAction("Compatibility Lab", "Совместимость функций Android") { open(CompatibilityLabActivity::class.java) },
-                CatalogAction("Диагностика Kotlin + Rust", "Батарея, датчики и отчёты CSV/ZIP") { open(MainActivity::class.java) }
-            ),
-            "Сеть" to listOf(
-                CatalogAction("Connectivity Observatory", "DNS, IPv4/IPv6, TCP и TLS") { open(ConnectivityLabActivity::class.java) }
-            ),
-            "Эксперименты" to listOf(
-                CatalogAction("Experiment Lab", "A/B-сравнения и заметки") { open(ExperimentLabActivity::class.java) },
-                CatalogAction("Session Compare", "Две выбранные сессии и совмещённые графики") { open(SessionCompareActivity::class.java) },
-                CatalogAction("Session Library", "Фильтры истории и ZIP одной записи") { open(SessionLibraryActivity::class.java) }
-            )
-        )
+        val catalog = HubToolCatalog.groups
         val input = EditText(requireContext()).apply {
             hint = "Поиск функций и инструментов"
             setTextColor(fg)
@@ -460,6 +594,15 @@ class HubPageFragment : Fragment() {
             setText(toolQuery)
         }
         column.addView(input, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 12.dp })
+        val categorySelector = LegionUiSupport.spinner(requireContext(), listOf("Все категории") + catalog.map { it.title })
+        toolCategory = toolCategory.coerceIn(0, catalog.size)
+        categorySelector.setSelection(toolCategory)
+        categorySelector.contentDescription = "Категория инструментов"
+        column.addView(categorySelector, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 8.dp })
+        val resultCount = text("", 13f, muted).apply {
+            accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+        }
+        column.addView(resultCount)
         val results = LinearLayout(requireContext()).apply { orientation = LinearLayout.VERTICAL }
         column.addView(results)
 
@@ -467,19 +610,23 @@ class HubPageFragment : Fragment() {
             results.removeAllViews()
             val filter = toolQuery.trim().lowercase(Locale.ROOT)
             var shown = 0
-            for ((category, entries) in catalog) {
-                val matching = entries.filter { entry ->
-                    filter.isEmpty() || (category + " " + entry.title + " " + entry.description)
-                        .lowercase(Locale.ROOT).contains(filter)
+            // Search always covers the entire catalog; category is a browse-only filter.
+            categorySelector.isEnabled = filter.isEmpty()
+            for ((index, moduleGroup) in catalog.withIndex()) {
+                val category = moduleGroup.title
+                if (filter.isEmpty() && toolCategory != 0 && toolCategory != index + 1) continue
+                val matching = moduleGroup.entries.filter { entry ->
+                    HubToolCatalog.matches(moduleGroup, entry, filter)
                 }
                 if (matching.isEmpty()) continue
                 results.addView(text(category.uppercase(Locale.ROOT), 12f, accent, true).apply {
                     setPadding(0, 19.dp, 0, 11.dp)
                     letterSpacing = 0.08f
+                    isAccessibilityHeading = true
                 })
                 for (entry in matching) {
                     results.addView(
-                        LegionUiSupport.actionTile(requireContext(), entry.title, entry.description, entry.launch),
+                        LegionUiSupport.actionTile(requireContext(), entry.title, entry.description) { open(entry.activity) },
                         LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 10.dp }
                     )
                 }
@@ -500,6 +647,7 @@ class HubPageFragment : Fragment() {
                     shown += functions.size
                 }
             }
+            resultCount.text = "Найдено: $shown" + if (filter.isNotEmpty()) " · поиск по всем категориям" else ""
             if (shown == 0) {
                 results.addView(text("Инструменты не найдены. Попробуйте другое название.", 13f, muted))
                 results.addView(
@@ -520,6 +668,16 @@ class HubPageFragment : Fragment() {
             }
             override fun afterTextChanged(s: Editable?) {}
         })
+        categorySelector.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onNothingSelected(parent: AdapterView<*>?) = Unit
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                if (toolCategory != position) {
+                    toolCategory = position
+                    cancelSearch()
+                    redraw()
+                }
+            }
+        }
         redraw()
     }
 
@@ -582,51 +740,56 @@ class HubPageFragment : Fragment() {
             }
     }
 
+    private fun openCapabilitySettings(capability: CapabilityAccess) {
+        val ctx = requireContext()
+        val request = CapabilityAccessBackend.settingsIntent(ctx, capability) ?: return
+        runCatching { startActivity(request) }.onFailure {
+            when (capability) {
+                CapabilityAccess.OVERLAY -> systemSettings(Settings.ACTION_MANAGE_OVERLAY_PERMISSION)
+                CapabilityAccess.NOTIFICATIONS, CapabilityAccess.PLAYBACK_AUDIO ->
+                    systemSettings(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, true)
+                else -> LegionDialogs.builder(ctx).setTitle("Настройки недоступны")
+                    .setMessage("Android не открыл этот экран: " + it.javaClass.simpleName)
+                    .setPositiveButton("Понятно", null).show()
+            }
+        }
+    }
+
     private fun showSettings(s: HubSnapshot?) {
         section("Настройки", "Разрешения, локальные данные и параметры модулей.")
-        group("Разрешения Android")
-        tile("Поверх других окон", if (Settings.canDrawOverlays(requireContext())) "Разрешено" else "Не разрешено") {
-            systemSettings(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, true)
+        group("Центр разрешений")
+        val access = CapabilityAccessBackend.read(requireContext())
+        val permissions = PermissionCenterModel.permissions(access)
+        info(PermissionCenterModel.summary(permissions) + ". Доступы выдаются только в Android; " +
+            "не все нужны для каждой функции.")
+        for (item in permissions) {
+            column.addView(LegionUiSupport.permissionRow(requireContext(), item) {
+                openCapabilitySettings(item.capability)
+            }, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 6.dp })
         }
-        val notifications = requireContext().getSystemService(NotificationManager::class.java)
-        tile("Режим «Не беспокоить»",
-            if (notifications.isNotificationPolicyAccessGranted) "Специальный доступ разрешён" else "Нужен спецдоступ Android") {
-            systemSettings(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
-        }
-        tile("Изменение системных настроек",
-            if (Settings.System.canWrite(requireContext())) "Разрешено" else "Нужен спецдоступ Android") {
-            systemSettings(Settings.ACTION_MANAGE_WRITE_SETTINGS, true)
-        }
-        tile("Уведомления", if (notifications.areNotificationsEnabled()) "Разрешено" else "Отключены в Android") {
-            runCatching {
-                startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
-                    .putExtra(Settings.EXTRA_APP_PACKAGE, requireContext().packageName))
-            }.onFailure { systemSettings(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, true) }
-        }
-        tile("Использование приложений", "Официальные настройки Android") {
-            systemSettings(Settings.ACTION_USAGE_ACCESS_SETTINGS)
+        group("Расширенный доступ")
+        shizukuStatusView = LegionUiSupport.noticeView(requireContext(),
+            ShizukuAccessBackend.snapshot(requireContext()).report(), LegionUiSupport.Notice.INFO)
+        column.addView(requireNotNull(shizukuStatusView))
+        tile("Настроить Shizuku", "Подключить ADB shell или открыть менеджер Shizuku") { configureShizuku() }
+        tile("Проверить права ADB shell", "Только чтение · доступ к системным возможностям") { inspectShizuku() }
+        group("Возможности и ограничения")
+        for (item in PermissionCenterModel.limitations(access)) {
+            column.addView(LegionUiSupport.permissionRow(requireContext(), item) {},
+                LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 6.dp })
         }
         group("Резервное копирование и файлы")
-        for (id in listOf("capture.backup", "capture.restore", "capture.resume", "capture.clips")) {
+        for (id in listOf("capture.backup", "capture.restore", "capture.resume")) {
             val entry = FeatureFinder.resolve(id, FeatureModule.CAPTURE) ?: continue
             tile(entry.title, "Capture Studio · локальные данные") { openFeature(entry) }
         }
-        group("Параметры модулей")
-        tile("Application Center", s?.let { "${it.trackedCount} записей в библиотеке · избранное и заметки" } ?: "Избранное и заметки") {
-            open(ApplicationCenterActivity::class.java)
-        }
-        tile("Smart Profiles", s?.let { "${it.profileCount} профилей · импорт и экспорт JSON" } ?: "Импорт и экспорт JSON") {
-            open(SmartProfilesActivity::class.java)
-        }
-        tile("Game Toolbox", "Размер, прозрачность, выбранная игра") {
-            open(GameToolboxActivity::class.java)
-        }
-        tile("Capture Studio", "Качество, звук, длительность и профили записи") {
-            open(CaptureStudioActivity::class.java)
+        group("Модули")
+        tile("Каталог инструментов", "Все модули и поиск конкретных функций") {
+            NavHostFragment.findNavController(this).navigate(R.id.toolsFragment)
         }
         group("О проекте")
         info("Legion Control ${LegionUiSupport.versionLabel(requireContext())} · Android 13+ · Kotlin + Rust. " +
-            "Нет Root/Shizuku; 30/60 FPS записи — запрос кодеку, не реальные FPS игры. " +
+            "Shizuku опционален; обычные функции без Root. 30/60 FPS записи — запрос кодеку, не FPS игры. " +
             "SQLite и существующая релизная подпись сохранены.")
     }
 

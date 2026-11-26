@@ -23,7 +23,7 @@ sample_controller = (src/"RustSampleController.kt").read_text()
 store = (src/"LocalHistoryStore.kt").read_text()
 rust = (root/"rust-core/src/lib.rs").read_text()
 
-assert 'versionCode = 49' in gradle and 'versionName = "0.1.0-alpha.49"' in gradle
+assert 'versionCode = 59' in gradle and 'versionName = "0.1.0-alpha.59"' in gradle
 assert 'applicationId = "dev.lolokeksu.legioncontrol"' in gradle
 assert 'androidx.navigation:navigation-fragment:2.10.2' in gradle
 assert 'androidx.lifecycle:lifecycle-viewmodel:2.11.1' in gradle
@@ -140,7 +140,8 @@ assert "onResume()" in activity and "refresh()" in activity
 assert "ViewModelProvider(requireActivity())[HubViewModel::class.java]" in view
 assert "state.observe(viewLifecycleOwner)" in view
 assert "HubTab.parse(arguments?.getString(" in view
-assert "HubSearch.matches(" in view
+assert "HubLibraryPolicy.select(" in view
+assert "HubSearch.matches(" in (src/"HubLibraryPolicy.kt").read_text()
 assert "R.id.gameDetailFragment" in view and "gamePackage" in view
 assert "ApplicationCenterActivity::class.java" in view
 assert "MainActivity::class.java" in view and "CaptureStudioActivity::class.java" in view

@@ -8,8 +8,14 @@ import androidx.annotation.RequiresApi
 import android.content.Context
 import android.media.AudioManager
 import android.provider.Settings
+import java.util.UUID
 
 data class GameLaunchResult(val success: Boolean, val message: String)
+
+/** A device-local identity, never included in an exported ZIP. Legacy tickets may lack a generation. */
+internal data class UndoConfirmation(val raw: String, val owner: String?, val generation: String?) {
+    val packageName: String get() = GameLaunchUndo.decode(raw)?.packageName ?: "неизвестен (запись повреждена)"
+}
 
 /**
  * Explicit per-package launch actions, including separately approved one-shot automation.
@@ -20,6 +26,7 @@ object GameLaunchProfiles {
     private const val NAME = "legion-launch-profiles-v1"
     private const val ACTIVE = "pending_global_undo"
     private const val OWNER = "pending_auto_owner"
+    private const val GENERATION = "pending_undo_generation"
     private const val PREFIX = "profile_"
     private val lock = Any()
 
@@ -44,6 +51,12 @@ object GameLaunchProfiles {
         }
     }
 
+    internal fun pendingConfirmation(context: Context): UndoConfirmation? = synchronized(lock) {
+        val store = prefs(context)
+        val raw = store.getString(ACTIVE, null) ?: return@synchronized null
+        UndoConfirmation(raw, store.getString(OWNER, null), store.getString(GENERATION, null))
+    }
+
     fun pendingPackage(context: Context): String? {
         val raw = prefs(context).getString(ACTIVE, null) ?: return null
         return GameLaunchUndo.decode(raw)?.packageName ?: "неизвестен (запись повреждена)"
@@ -54,6 +67,10 @@ object GameLaunchProfiles {
      * A pending ticket prevents one game from overwriting another game's restore data.
      */
     fun apply(context: Context, pkg: String): GameLaunchResult = applyInternal(context,pkg,null,null)
+
+    /** The dialog's approved values are checked again under the mutation lock. */
+    internal fun applyConfirmed(context: Context, pkg: String, approved: GameLaunchProfile): GameLaunchResult =
+        applyInternal(context, pkg, null, approved)
 
     internal fun applyAutomatic(context:Context,pkg:String,owner:String,approved:GameLaunchProfile):GameLaunchResult =
         applyInternal(context,pkg,owner,approved)
@@ -81,8 +98,9 @@ object GameLaunchProfiles {
         }
         val p = profile(context, pkg)
             ?: return@synchronized GameLaunchResult(false, "Сначала сохраните профиль этой игры.")
-        if (owner!=null && (approved==null || p!=approved)) {
-            return@synchronized GameLaunchResult(false,"Профиль изменился после подтверждения. Запустите автоматизацию заново.")
+        if ((owner != null || approved != null) && p != approved) {
+            return@synchronized GameLaunchResult(false,
+                "Профиль изменился после подтверждения. Проверьте настройки и подтвердите заново.")
         }
         if (!p.actionable) {
             return@synchronized GameLaunchResult(false, "Профиль не содержит действий.")
@@ -90,6 +108,10 @@ object GameLaunchProfiles {
         if (prefs(context).contains(ACTIVE)) {
             return@synchronized GameLaunchResult(false,
                 "Сначала верните предыдущие системные настройки кнопкой «Восстановить».")
+        }
+        if (p.brightnessPercent != null && SmartSystemControls.hasPendingBrightness(context)) {
+            return@synchronized GameLaunchResult(false,
+                "Сначала восстановите ручные настройки яркости в Smart Profiles или Toolbox.")
         }
         val snapshot = runCatching {
             val audio = if (p.mediaPercent != null)
@@ -157,6 +179,7 @@ object GameLaunchProfiles {
             return@synchronized GameLaunchResult(true, "Настройки уже соответствуют профилю.")
         }
         val journal=prefs(context).edit().putString(ACTIVE, snapshot.encode())
+            .putString(GENERATION, UUID.randomUUID().toString())
         if(owner!=null) journal.putString(OWNER,owner) else journal.remove(OWNER)
         if (!journal.commit()) {
             return@synchronized GameLaunchResult(false,
@@ -166,14 +189,23 @@ object GameLaunchProfiles {
             snapshot.media?.let {
                 val audio = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
                 audio.setStreamVolume(AudioManager.STREAM_MUSIC, it.requested, 0)
+                check(audio.getStreamVolume(AudioManager.STREAM_MUSIC) == it.requested) {
+                    "Android не подтвердил громкость профиля"
+                }
             }
             snapshot.brightnessMode?.let {
                 check(Settings.System.putInt(context.contentResolver,
                     Settings.System.SCREEN_BRIGHTNESS_MODE, it.requested))
+                check(Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS_MODE) == it.requested) {
+                    "Android не подтвердил параметр экрана"
+                }
             }
             snapshot.brightness?.let {
                 check(Settings.System.putInt(context.contentResolver,
                     Settings.System.SCREEN_BRIGHTNESS, it.requested))
+                check(Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS) == it.requested) {
+                    "Android не подтвердил параметр экрана"
+                }
             }
             snapshot.focus?.let { change ->
                 val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -207,6 +239,16 @@ object GameLaunchProfiles {
     fun restore(context: Context): GameLaunchResult = ProfileMaintenanceGate.tryRun({maintenanceBusy()}) {
         synchronized(lock) { restoreLocked(context) }
     }
+
+    /** A dialog can only consume the exact ticket it displayed, including its generation. */
+    internal fun restoreConfirmed(context: Context, approved: UndoConfirmation): GameLaunchResult =
+        ProfileMaintenanceGate.tryRun({maintenanceBusy()}) {
+            synchronized(lock) {
+                if (pendingConfirmation(context) != approved)
+                    GameLaunchResult(false, "Запись возврата изменилась. Откройте подтверждение заново.")
+                else restoreLocked(context)
+            }
+        }
 
     private fun restoreLocked(context: Context): GameLaunchResult {
         val raw = prefs(context).getString(ACTIVE, null)
@@ -297,7 +339,7 @@ object GameLaunchProfiles {
             brightnessMode = mode, focus = focus)
         val saved = if (remaining.pending) {
             prefs(context).edit().putString(ACTIVE, remaining.encode()).commit()
-        } else prefs(context).edit().remove(ACTIVE).remove(OWNER).commit()
+        } else prefs(context).edit().remove(ACTIVE).remove(OWNER).remove(GENERATION).commit()
         val summary = "Восстановлено: $restored; изменения пользователя не тронуты: $conflicts; " +
             "ошибок Android: $failures." +
             if (legacyFocusSkipped) " Старую запись DND нельзя безопасно сопоставить с правилом Android 15+; режим оставлен без изменений." else ""

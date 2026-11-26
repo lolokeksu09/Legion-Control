@@ -11,7 +11,11 @@ restore = controls[controls.index("fun restoreScreenSettings"):]
 assert ".commit()" in timeout and timeout.index(".commit()") < timeout.index("writeVerified(")
 assert ".commit()" in brightness and brightness.index(".commit()") < brightness.index("writeVerified(")
 assert ".apply()" not in timeout + brightness + restore
-assert 'restore("brightness", "brightness_requested", Settings.System.SCREEN_BRIGHTNESS)' in restore
+assert 'restore("brightness", "brightness_requested", Settings.System.SCREEN_BRIGHTNESS,' in restore
+assert "modeAfterBrightness(hadBrightness, brightnessDecision)" in restore
+assert "BrightnessModeRestoreAction.DEFER" in restore and "BrightnessModeRestoreAction.DISCARD" in restore
+assert 'listOf("brightness_mode", "brightness_mode_requested")' in restore
+assert "discardOnConflict.forEach { edit.remove(it) }" in controls
 assert 'restore("brightness_mode", "brightness_mode_requested", Settings.System.SCREEN_BRIGHTNESS_MODE)' in restore
 assert 'restore("timeout", "timeout_requested", Settings.System.SCREEN_OFF_TIMEOUT)' in restore
 assert "SmartSystemRestorePolicy.decide" in controls
@@ -27,4 +31,13 @@ for token in ("restoresOnlyWhenCurrentValueStillMatchesLegionRequest",
               "preservesValuesChangedByTheUserOrAnotherApp",
               "keepsBackwardCompatibilityForLegacyUndoRecords"):
     assert token in restore_tests, token
-print("PASS: durable manual settings snapshots, readback, compare-before-restore and Android 15 DND feedback")
+engine = (src / "GameLaunchProfiles.kt").read_text(encoding="utf-8")
+overlay = (src / "GameToolboxService.kt").read_text(encoding="utf-8")
+assert "ProfileMaintenanceGate.tryRun" in controls
+assert "GameLaunchProfiles.pendingPackage(context) != null" in controls
+assert "SmartSystemControls.hasPendingBrightness(context)" in engine
+assert "SmartSystemControls.withManualMutation(this)" in overlay
+for name in ("setMediaVolume", "setDoNotDisturb", "setScreenTimeout", "setBrightness", "restoreScreenSettings"):
+    method = controls[controls.index("fun " + name):]
+    assert "withManualMutation(context" in method.splitlines()[0], name
+print("PASS: durable manual settings snapshots, readback, compare-before-restore, shared ownership gate and Android 15 DND feedback")
