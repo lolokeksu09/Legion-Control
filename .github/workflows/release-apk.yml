@@ -1,19 +1,22 @@
 name: Legion Control permanently signed APK
 
 on:
-  # Only trusted main-branch changes can access protected signing secrets.
-  push:
-    branches: [main]
-    paths:
-      - 'app/**'
-      - 'rust-core/**'
-      - 'scripts/**'
-      - '.github/workflows/release-apk.yml'
+  # Ordinary development pushes are verified by android.yml, not published.
   workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Publish an approved new version after exact main CI'
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: write
   actions: read
+
+concurrency:
+  group: legion-signed-release
+  cancel-in-progress: false
 
 jobs:
   signed-release:
@@ -117,7 +120,7 @@ jobs:
           path: app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
       - name: Wait for exact main commit Android CI before publication
-        if: github.event_name == 'push'
+        if: inputs.publish == true
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -146,7 +149,7 @@ jobs:
             exit 1
           fi
       - name: Publish pre-release with permanent certificate
-        if: github.event_name == 'push'
+        if: inputs.publish == true
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash

@@ -24,6 +24,11 @@ assert 'signingConfig = signingConfigs.getByName("legionRelease")' in gradle
 assert 'versionCode = 49' in gradle
 assert 'versionName = "0.1.0-alpha.49"' in gradle
 assert "workflow_dispatch:" in workflow
+assert not re.search(r"^  push:", workflow, re.MULTILINE)
+assert "type: boolean" in workflow and "default: false" in workflow
+assert workflow.count("if: inputs.publish == true") == 2
+assert "refusing to replace binaries" in workflow
+assert "cancel-in-progress: false" in workflow
 assert "tag=v0.1.0-alpha.49" in workflow
 assert "Legion-Control-v0.1.0-alpha.49-signed.apk" in workflow
 assert "--event push --branch main" in workflow
