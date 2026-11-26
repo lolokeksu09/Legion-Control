@@ -27,7 +27,7 @@ files = {
     "LIBRARY": "SessionLibraryActivity.kt",
 }
 entries = re.findall(r'FeatureEntry\("([^"]+)", FeatureModule\.(\w+), "([^"]+)", "([^"]+)", "([^"]+)"\)', registry)
-assert len(entries) == 79, len(entries)
+assert len(entries) == 80, len(entries)
 assert len({e[1] for e in entries}) == 21
 assert len({e[0] for e in entries}) == len(entries)
 for key, module, title, anchor, _ in entries:
@@ -53,4 +53,4 @@ assert "!target.isEnabled" in helper
 assert "FeatureFinder.resolve(id, module)" in helper
 assert "performClick(" not in helper and "callOnClick(" not in helper
 assert "startService(" not in helper and "startActivity(" not in helper
-print("PASS: 79 explicitly bound stable feature IDs across 21 modules; reveal never executes actions")
+print("PASS: 80 explicitly bound stable feature IDs across 21 modules; reveal never executes actions")

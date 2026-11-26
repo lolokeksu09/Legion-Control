@@ -37,12 +37,13 @@ class GamingDiagnosticsFragment : Fragment() {
     override fun onCreateView(inflater:LayoutInflater,container:ViewGroup?,savedInstanceState:Bundle?):View {
         val root = LinearLayout(requireContext()).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(18.dp, 32.dp, 18.dp, 28.dp)
+            setPadding(18.dp, 20.dp, 18.dp, 28.dp)
             setBackgroundColor(Color.BLACK)
         }
         root.addView(TextView(requireContext()).apply {
             text = "LEGION CONTROL · GAMING LAB"
-            textSize = 21f
+            textSize = 24f
+            isAccessibilityHeading = true
             setTextColor(Color.WHITE)
             setTypeface(null, Typeface.BOLD)
         })
@@ -65,7 +66,7 @@ class GamingDiagnosticsFragment : Fragment() {
         root.addView(resultView)
 
         root.addView(LegionUiSupport.sectionLabel(requireContext(), "ПРОВЕРКИ УСТРОЙСТВА"))
-        addButton(root, "Сводка устройства") {
+        addButton(root, "Сводка устройства", "gaming.overview") {
             viewModel.run(GamingProbe.OVERVIEW, refreshHzDisplay = requireActivity().display)
         }
         addButton(root, "Остановить текущую проверку") {
@@ -83,6 +84,7 @@ class GamingDiagnosticsFragment : Fragment() {
         addButton(root, "2 · Battery Intelligence", "gaming.battery") {
             viewModel.run(GamingProbe.BATTERY)
         }
+        addButton(root, "Тепловой снимок") { viewModel.run(GamingProbe.THERMAL) }
         addButton(root, "3 · Thermal Guard — включить/выключить события", "gaming.thermal") {
             toggleThermalGuard()
         }
@@ -132,6 +134,7 @@ class GamingDiagnosticsFragment : Fragment() {
         addButton(root, "HARDWARE LAB · ещё 6 диагностик") {
             ModuleNavigation.open(this,HardwareLabActivity::class.java)
         }
+        addButton(root, "К результату") { DiagnosticLabUi.revealResult(resultView) }
         addButton(root, "Вернуться к Legion Control") {
             val nav=runCatching { NavHostFragment.findNavController(this) }.getOrNull()
             if(nav!=null) nav.navigateUp() else requireActivity().finish()
@@ -153,13 +156,9 @@ class GamingDiagnosticsFragment : Fragment() {
     private val Int.dp: Int get() = (this * resources.displayMetrics.density).toInt()
 
     private fun addButton(root: LinearLayout, title: String, featureId: String? = null, action: () -> Unit) {
-        root.addView(Button(requireContext()).apply {
+        root.addView(DiagnosticLabUi.action(requireContext(), title, action).apply {
             if(featureId!=null) FeatureReveal.bind(this,featureId)
-            text = title
-            minHeight = 48.dp
-            isAllCaps = false
-            setOnClickListener { action() }
-        })
+        }, DiagnosticLabUi.actionLayout(requireContext()))
     }
 
     private fun report(message: String) {

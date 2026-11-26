@@ -52,7 +52,8 @@ assert "ModuleNavigation.forwardLegacyEntry(this)" in compatActivity
 assert "display.supportedModes" in compat
 assert "hdrCapabilities.supportedHdrTypes" in compat
 assert "display.isWideColorGamut" in compat
-assert "manager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)" in compat
+assert "AudioRouteInspector.readOutputs(context)" in compat
+assert "manager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)" in (src/"AudioRouteInspector.kt").read_text()
 assert "PROPERTY_OUTPUT_FRAMES_PER_BUFFER" in compat
 assert "InputDevice.getDeviceIds()" in compat
 assert ".filterNotNull()" in compat, "primitive IntArray must map before filtering"

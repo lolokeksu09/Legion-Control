@@ -58,9 +58,12 @@ assert "NetworkDiagnostics.probe()" in viewmodel
 assert "TcpProbeStatistics.format(" in viewmodel
 assert "Socket()" in network and "TIMEOUT_MS = 1800" in network
 assert 'NOT ICMP' in network and 'не ICMP' in network
-assert "BATTERY_PROPERTY_CHARGE_COUNTER" in devices
-assert "BATTERY_PROPERTY_ENERGY_COUNTER" in devices
-assert "getThermalHeadroom(0)" in devices
+resources = (src / "ResourceTelemetryBackend.kt").read_text(encoding="utf-8")
+assert "BATTERY_PROPERTY_CHARGE_COUNTER" in resources
+assert "BATTERY_PROPERTY_ENERGY_COUNTER" in resources
+assert "getThermalHeadroom(0)" in resources
+assert "ResourceTelemetryBackend.readBatteryCounters(context)" in devices
+assert "ResourceTelemetryBackend.readThermalHeadroom(context)" in devices
 assert "addThermalStatusListener" in viewmodel and "removeThermalStatusListener" in viewmodel
 assert "TouchDiagnosticsView" in activity and "onTouchEvent(event: MotionEvent)" in touch
 assert "Choreographer.FrameCallback" in touch and "5000L" in touch
@@ -68,7 +71,8 @@ assert "getNetworkCapabilities(active)" in devices
 assert "UsageStatsManager" in usage and "queryEvents(from, now)" in usage
 assert "ChargingDiagnostics.read(" in viewmodel and "ChargeReading" in devices
 assert "SessionAnalytics.analyze(" in viewmodel and "sessionReadings(" in store
-assert "ActivityManager.MemoryInfo()" in devices and "StatFs(" in devices
+assert "ActivityManager.MemoryInfo()" in resources and "StatFs(" in resources
+assert "ResourceTelemetryBackend.readSystemMemory(context)" in devices
 assert 'GamingDiagnosticsActivity::class.java' in main
 assert "worker.shutdownNow()" in viewmodel and "onStop()" in activity
 assert "task?.cancel(true)" in viewmodel

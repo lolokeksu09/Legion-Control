@@ -28,17 +28,18 @@ class CompatibilityLabFragment : Fragment() {
     override fun onCreateView(inflater:LayoutInflater,container:ViewGroup?,savedInstanceState:Bundle?):View {
         val root = LinearLayout(requireContext()).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(18.dp, 30.dp, 18.dp, 30.dp)
+            setPadding(18.dp, 20.dp, 18.dp, 28.dp)
             setBackgroundColor(Color.BLACK)
         }
         root.addView(TextView(requireContext()).apply {
             text = "LEGION CONTROL · COMPATIBILITY"
             setTextColor(Color.WHITE)
             setTypeface(null,Typeface.BOLD)
-            textSize = 21f
+            textSize = 24f
+            isAccessibilityHeading = true
         })
         root.addView(TextView(requireContext()).apply {
-            text = "Ещё 7 инструментов · только открытые Android API. " +
+            text = "Режимы дисплея, аудио и поддержка функций Android. " +
                 "Никаких изменений системных режимов, Root, Shizuku или перехвата чужих игр."
             textSize = 13f
             setTextColor(Color.LTGRAY)
@@ -81,7 +82,12 @@ class CompatibilityLabFragment : Fragment() {
         root.addView(LegionUiSupport.sectionLabel(requireContext(), "ОТЧЁТ"))
         addButton(root, "Полный отчёт о совместимости", "compat.report") { runFullReport() }
         addButton(root, "Поделиться последним завершённым отчётом") { shareLastReport() }
-        addButton(root, "Вернуться в Hardware Lab") {
+        addButton(root, "Остановить текущую проверку") {
+            viewModel.cancel()
+            output.text = "Проверка остановлена. Можно выбрать следующий инструмент."
+        }
+        addButton(root, "К результату") { DiagnosticLabUi.revealResult(output) }
+        addButton(root, "Назад") {
             val controller=runCatching { NavHostFragment.findNavController(this) }.getOrNull()
             if(controller!=null) controller.navigateUp() else requireActivity().finish()
         }
@@ -102,13 +108,9 @@ class CompatibilityLabFragment : Fragment() {
     private val Int.dp get() = (this * resources.displayMetrics.density).toInt()
 
     private fun addButton(root: LinearLayout, title: String, featureId: String? = null, action: () -> Unit) {
-        root.addView(Button(requireContext()).apply {
+        root.addView(DiagnosticLabUi.action(requireContext(), title, action).apply {
             if(featureId!=null) FeatureReveal.bind(this,featureId)
-            text = title
-            isAllCaps = false
-            minHeight = 48.dp
-            setOnClickListener { action() }
-        })
+        }, DiagnosticLabUi.actionLayout(requireContext()))
     }
 
     private fun runFullReport() { viewModel.run(CompatibilityRead.ALL,requireActivity().display) }

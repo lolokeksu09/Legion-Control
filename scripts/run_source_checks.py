@@ -13,6 +13,7 @@ CHECKS = (
     "check_capability_access.py",
     "check_permission_center.py",
     "check_shizuku_hub.py",
+    "check_diagnostic_consolidation.py",
     "check_hub_library.py",
     "check_game_profile_analytics_ui.py",
     "check_startup_recovery.py",

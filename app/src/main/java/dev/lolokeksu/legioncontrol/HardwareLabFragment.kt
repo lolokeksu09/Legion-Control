@@ -32,17 +32,18 @@ class HardwareLabFragment : Fragment() {
     override fun onCreateView(inflater:LayoutInflater,container:ViewGroup?,savedInstanceState:Bundle?):View {
         val root = LinearLayout(requireContext()).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(18.dp, 30.dp, 18.dp, 24.dp)
+            setPadding(18.dp, 20.dp, 18.dp, 28.dp)
             setBackgroundColor(Color.BLACK)
         }
         root.addView(TextView(requireContext()).apply {
             text = "LEGION CONTROL · HARDWARE LAB"
-            textSize = 21f
+            textSize = 24f
+            isAccessibilityHeading = true
             setTextColor(Color.WHITE)
             setTypeface(null, Typeface.BOLD)
         })
         root.addView(TextView(requireContext()).apply {
-            text = "Новые локальные инструменты · без Root и Shizuku. " +
+            text = "Локальные аппаратные измерения · без Root и Shizuku. " +
                 "Проверки запускаются вручную, слушатели работают только при открытом экране."
             textSize = 13f
             setTextColor(Color.LTGRAY)
@@ -93,7 +94,12 @@ class HardwareLabFragment : Fragment() {
             ModuleNavigation.open(this,CompatibilityLabActivity::class.java)
         }
         addButton(root, "Поделиться последним отчётом") { shareLastReport() }
-        addButton(root, "Назад в Gaming Lab") {
+        addButton(root, "Остановить текущую проверку") {
+            viewModel.cancelAll()
+            report("Проверка остановлена. Можно выбрать следующий инструмент.")
+        }
+        addButton(root, "К результату") { DiagnosticLabUi.revealResult(result) }
+        addButton(root, "Назад") {
             val nav=runCatching { NavHostFragment.findNavController(this) }.getOrNull()
             if(nav != null) nav.navigateUp() else requireActivity().finish()
         }
@@ -115,13 +121,9 @@ class HardwareLabFragment : Fragment() {
     private val Int.dp: Int get() = (this * resources.displayMetrics.density).toInt()
 
     private fun addButton(root: LinearLayout, label: String, featureId: String? = null, action: () -> Unit) {
-        root.addView(Button(requireContext()).apply {
+        root.addView(DiagnosticLabUi.action(requireContext(), label, action).apply {
             if(featureId!=null) FeatureReveal.bind(this,featureId)
-            text = label
-            isAllCaps = false
-            minHeight = 48.dp
-            setOnClickListener { action() }
-        })
+        }, DiagnosticLabUi.actionLayout(requireContext()))
     }
 
     private fun toggleMotion() = viewModel.toggleMotion()

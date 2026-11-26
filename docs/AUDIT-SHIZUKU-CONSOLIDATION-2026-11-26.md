@@ -29,3 +29,10 @@ Explicit Settings action opens a non-daemon UserService using the official API. 
 One durable game-selection path for Hub and Toolbox, serialized against ZIP restoration. Game detail selects then opens Toolbox only after successful commit on worker and only while originating destination remains active. Shared action tile instead of duplicate renderer, real app icon when visible, grouped launch/history/media actions, library pagination scrolls to count, redundant four global shortcuts replaced with catalog link. Existing routes, local history and favorites retained. Visual check NOT RUN.
 
 Build-only alpha.59 iteration keeps versionCode 59 and permanent certificate; same-version update via package installer depends on installer policy. No data migration. New version number reserved for public release.
+
+
+## LC-S13 — Consolidated diagnostics and laboratory interaction
+
+Gaming Lab now has a single user-triggered device overview (battery charge/energy/current, thermal status/headroom, RAM, app filesystem, own PSS, display refresh, power saving and local network capabilities). No TCP/DNS request, benchmark, background listener or privileged write is triggered by overview. ResourceTelemetryBackend owns common battery/memory/storage/thermal reads, Gaming Readiness shares memory validation, audio routes share output enumeration and labels. Unknown, API error and throttled readings are distinct. Negative valid battery temperature retained; missing sticky temperature is not fabricated as -0.1 °C. DeviceInfo and profile flows otherwise retained.
+
+LC-S14: Gaming and Hardware labs refuse overlapping probes and active listeners/captures, avoiding stale-generation completion leaving a capture stuck. Thermal listener callback is generation-guarded; thermal snapshot remains separately callable. All three labs use shared action tiles and result navigation, manual cancel, no visible ordinal prefixes, retained stable feature IDs and accessible headings. Overview registered in FeatureFinder. Existing native/SQLite/permission/signing contracts unchanged. Three focused presentation tests; fast CI only; physical UI/hardware NOT RUN. No public release.

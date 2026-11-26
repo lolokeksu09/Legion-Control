@@ -64,6 +64,7 @@ object FeatureFinder {
         FeatureEntry("session.csv", FeatureModule.SESSION, "Экспорт игровой истории", "Сохранить историю замеров CSV", "session csv история"),
         FeatureEntry("toolbox.profile", FeatureModule.TOOLBOX, "Профиль запуска игры", "Настроить профиль", "game toolbox яркость громкость dnd"),
         FeatureEntry("toolbox.undo", FeatureModule.TOOLBOX, "Возврат системных настроек", "Восстановить прежние настройки", "game toolbox undo rollback яркость"),
+        FeatureEntry("gaming.overview", FeatureModule.GAMING, "Сводка устройства", "Сводка устройства", "система батарея ram память thermal нагрев сеть энергосбережение"),
         FeatureEntry("gaming.network", FeatureModule.GAMING, "Анализ сети игры", "1 · Network Analyzer — TCP/DNS", "сеть tcp dns network latency"),
         FeatureEntry("gaming.wifi", FeatureModule.GAMING, "Состояние Wi-Fi и LTE", "6 · Wi-Fi / LTE Inspector", "wifi lte мобильная сеть сигнал"),
         FeatureEntry("gaming.battery", FeatureModule.GAMING, "Диагностика батареи", "2 · Battery Intelligence", "battery заряд аккумулятор"),
