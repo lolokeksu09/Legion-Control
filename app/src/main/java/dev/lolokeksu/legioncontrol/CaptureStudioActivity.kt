@@ -2,6 +2,8 @@ package dev.lolokeksu.legioncontrol
 
 import androidx.activity.ComponentActivity
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import android.Manifest
 import android.content.pm.PackageManager
 import android.content.Intent
@@ -30,6 +32,7 @@ import java.util.Locale
  */
 class CaptureStudioActivity : ComponentActivity() {
     companion object {
+        const val EXTRA_GAME_PACKAGE = "capture_game_package"
         private const val REQUEST_CAPTURE = 25001
         private const val REQUEST_SCREENSHOT = 25002
         private const val REQUEST_PLAYBACK_PERMISSION = 25003
@@ -41,7 +44,13 @@ class CaptureStudioActivity : ComponentActivity() {
         private const val REQUEST_IMPORT_FULL_BACKUP = 25009
     }
 
-    private val viewModel by lazy { ViewModelProvider(this)[CaptureStudioViewModel::class.java] }
+    private val requestedGame by lazy { intent.getStringExtra(EXTRA_GAME_PACKAGE) }
+    private val viewModel by lazy {
+        val factory = viewModelFactory {
+            initializer { CaptureStudioViewModel(application, requestedGame) }
+        }
+        ViewModelProvider(this, factory)[CaptureStudioViewModel::class.java]
+    }
     private lateinit var clipsContainer: LinearLayout
     private lateinit var shotsContainer: LinearLayout
     private lateinit var status: TextView
@@ -170,7 +179,7 @@ class CaptureStudioActivity : ComponentActivity() {
                 .onFailure { status.text = "Не удалось отменить снимок: " + it.javaClass.simpleName }
         }
         action("Обновить состояние записи") { refreshStatus() }
-        action("Открыть выбранную игру Game Toolbox") { openSelectedGame() }
+        action("Открыть выбранную игру") { openSelectedGame() }
         note("Replay сохраняет реально накопленные 30/60/120 секунд без остановки захвата. " +
             "PNG снимается через 5 секунд после отдельного согласия Android. " +
             "Запись, Replay и снимок не могут работать одновременно. " +
@@ -213,8 +222,11 @@ class CaptureStudioActivity : ComponentActivity() {
         }
 
         heading("Профили записи по играм")
-        note("Выберите игру в Game Toolbox. До сохранения её профиля применяются общие настройки. " +
-            "После сохранения разрешение, FPS, битрейт, лимит и звук изменяются отдельно для этой игры.")
+        if (requestedGame == null) {
+            note("Выберите игру в Game Toolbox и сохраните профиль, чтобы менять параметры отдельно для неё.")
+        } else {
+            note("При первом изменении параметра создаётся профиль этой игры на основе общих настроек.")
+        }
         action("СОХРАНИТЬ ПРОФИЛЬ ВЫБРАННОЙ ИГРЫ") { viewModel.saveSelectedGameProfile() }
         action("СБРОСИТЬ ПРОФИЛЬ ВЫБРАННОЙ ИГРЫ") {
             LegionDialogs.builder(this)
@@ -434,27 +446,34 @@ class CaptureStudioActivity : ComponentActivity() {
         if (replay && actionable) captureState.text = "$name · $state\n" + ReplayCaptureService.status(this)
     }
 
-    private fun selectedAudioGame(): String? =
-        getSharedPreferences(ToolboxPreferences.NAME, MODE_PRIVATE)
-            .getString(ToolboxPreferences.GAME, null)
-            ?.takeIf { ApplicationInventory.isPackageName(it) &&
-                packageManager.getLaunchIntentForPackage(it) != null }
-
     private fun refreshChoices() {
-        val config = viewModel.config()
         val active = viewModel.captureSettings()
-        choices.text = (if (active.usingGameProfile)
-                "Профиль игры: ${active.selectedGame}\n"
-            else if (active.selectedGame != null)
-                "Общие настройки (для ${active.selectedGame} профиль не сохранён)\n"
-            else "Общие настройки · игра не выбрана\n") +
+        val config = active.profile.toConfig()
+        val game = active.selectedGame
+        val profileLabel = when {
+            game == null && requestedGame != null -> "Выбранную игру нельзя запустить · $requestedGame"
+            game == null -> "Общие настройки · игра не выбрана"
+            active.usingGameProfile -> "Профиль игры · $game"
+            else -> "Общие настройки для игры · $game"
+        }
+        choices.text = profileLabel + "\n" +
             "Сторона до ${config.maxEdge} px · ${config.fps} FPS запрошено\n" +
             "${config.videoBitrate / 1_000_000} Мбит/с · " +
             "${config.maxDurationMs / 60_000} мин максимум\n" +
-            (if (viewModel.playbackAudioEnabled())
-                "Внутренний звук: ЗАПРОШЕН (AAC)\nИгра: " +
-                    (selectedAudioGame() ?: "НЕ ВЫБРАНА — сначала Game Toolbox")
+            (if (active.profile.playbackAudio)
+                "Внутренний звук: ЗАПРОШЕН (AAC)\nИгра: " + (game ?: "не выбрана")
              else "Внутренний звук: ВЫКЛЮЧЕН")
+    }
+
+    private fun canStartCapture(settings: ActiveGameCaptureSettings): Boolean {
+        if (settings.selectedGame != null) return true
+        if (requestedGame != null) {
+            status.text = "Выбранную игру нельзя запустить. Вернитесь в её карточку."
+            return false
+        }
+        if (!settings.profile.playbackAudio) return true
+        status.text = "Для захвата со звуком выберите игру в Game Toolbox."
+        return false
     }
 
     private fun selectOption(title: String, name: String, values: IntArray, labels: Array<String>) {
@@ -469,10 +488,7 @@ class CaptureStudioActivity : ComponentActivity() {
 
     private fun askConsent() {
         val settings = viewModel.captureSettings()
-        if (settings.profile.playbackAudio && settings.selectedGame == null) {
-            status.text = "Сначала выберите игру для Game Toolbox. Звук других приложений не записывается."
-            return
-        }
+        if (!canStartCapture(settings)) return
         if (settings.profile.playbackAudio &&
             checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), REQUEST_PLAYBACK_PERMISSION)
@@ -507,10 +523,7 @@ class CaptureStudioActivity : ComponentActivity() {
             return
         }
         val snapshot = viewModel.captureSettings()
-        if (snapshot.profile.playbackAudio && snapshot.selectedGame == null) {
-            status.text = "Для Replay со звуком сначала выберите игру в Game Toolbox."
-            return
-        }
+        if (!canStartCapture(snapshot)) return
         if (snapshot.profile.playbackAudio &&
             checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             viewModel.rememberReplayAudioPermission(wantedSeconds)
@@ -696,7 +709,7 @@ class CaptureStudioActivity : ComponentActivity() {
         val audioGame = if (playbackRequested) snapshot.selectedGame else null
         if (playbackRequested && audioGame == null) {
             CaptureCoordinator.release(CaptureMode.RECORDING)
-            status.text = "Выбранная игра недоступна. Повторите выбор в Game Toolbox."
+            status.text = "Выбранная игра недоступна. Повторите запрос записи."
             return
         }
         if (playbackRequested &&
@@ -728,11 +741,11 @@ class CaptureStudioActivity : ComponentActivity() {
     }
 
     private fun openSelectedGame() {
-        val game = getSharedPreferences(ToolboxPreferences.NAME, MODE_PRIVATE)
-            .getString(ToolboxPreferences.GAME, null)
+        val game = viewModel.captureSettings().selectedGame
         val appIntent = game?.let { packageManager.getLaunchIntentForPackage(it) }
         if (appIntent == null) {
-            status.text = "В Game Toolbox не выбрано доступное приложение."
+            status.text = if (requestedGame == null) "Выберите доступную игру в Game Toolbox."
+                else "Выбранную игру нельзя запустить."
             return
         }
         runCatching { startActivity(appIntent) }

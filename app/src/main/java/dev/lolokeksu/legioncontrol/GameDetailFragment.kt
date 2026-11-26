@@ -221,7 +221,9 @@ class GameDetailFragment : Fragment() {
             vm.toggleFavorite(pkg, app.label)
         }
         addAction("Capture Studio", "Начать запись только после согласия Android") {
-            open(CaptureStudioActivity::class.java)
+            open(CaptureStudioActivity::class.java) {
+                it.putExtra(CaptureStudioActivity.EXTRA_GAME_PACKAGE, pkg)
+            }
         }
         addAction("Application Center", "Версии, права и заметки об этой игре") {
             open(ApplicationCenterActivity::class.java) {

@@ -47,5 +47,12 @@ object GameCaptureProfilePolicy {
     fun validPackage(name: String): Boolean =
         name.length in 3..160 && packageRegex.matches(name)
 
+    /** An explicit package never falls back to a different game if it is unavailable. */
+    fun selectGame(
+        requestedGame: String?,
+        toolboxGame: () -> String?,
+        isLaunchable: (String) -> Boolean
+    ): String? = (requestedGame ?: toolboxGame())?.takeIf { validPackage(it) && isLaunchable(it) }
+
     fun default(): GameCaptureProfile = GameCaptureProfile(1280, 30, 4, 5, false)
 }

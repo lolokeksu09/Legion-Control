@@ -34,8 +34,11 @@ data class ReplayConsentSettings(
     val selectedGame: String?
 )
 
-class CaptureStudioViewModel(application: Application) : AndroidViewModel(application) {
-    private val repository = CaptureStudioRepository(application)
+class CaptureStudioViewModel(
+    application: Application,
+    gamePackage: String?
+) : AndroidViewModel(application) {
+    private val repository = CaptureStudioRepository(application, gamePackage)
     private var pendingCaptureConsent: ActiveGameCaptureSettings? = null
     private var pendingReplayConsent: ReplayConsentSettings? = null
     private var pendingReplayAudioPermission: Int? = null
@@ -165,7 +168,6 @@ class CaptureStudioViewModel(application: Application) : AndroidViewModel(applic
             }
     }
 
-    fun config(): CaptureConfig = repository.config()
     fun status(): String = repository.status()
 
     fun setOption(name: String, value: Int) {
