@@ -27,4 +27,13 @@ for token in ("restoresOnlyWhenCurrentValueStillMatchesLegionRequest",
               "preservesValuesChangedByTheUserOrAnotherApp",
               "keepsBackwardCompatibilityForLegacyUndoRecords"):
     assert token in restore_tests, token
-print("PASS: durable manual settings snapshots, readback, compare-before-restore and Android 15 DND feedback")
+engine = (src / "GameLaunchProfiles.kt").read_text(encoding="utf-8")
+overlay = (src / "GameToolboxService.kt").read_text(encoding="utf-8")
+assert "ProfileMaintenanceGate.tryRun" in controls
+assert "GameLaunchProfiles.pendingPackage(context) != null" in controls
+assert "SmartSystemControls.hasPendingBrightness(context)" in engine
+assert "SmartSystemControls.withManualMutation(this)" in overlay
+for name in ("setMediaVolume", "setDoNotDisturb", "setScreenTimeout", "setBrightness", "restoreScreenSettings"):
+    method = controls[controls.index("fun " + name):]
+    assert "withManualMutation(context" in method.splitlines()[0], name
+print("PASS: durable manual settings snapshots, readback, compare-before-restore, shared ownership gate and Android 15 DND feedback")

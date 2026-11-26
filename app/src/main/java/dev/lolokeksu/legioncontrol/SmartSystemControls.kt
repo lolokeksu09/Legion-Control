@@ -15,6 +15,23 @@ import kotlin.math.roundToInt
 object SmartSystemControls {
     private const val PREFS = "legion-smart-system-undo"
 
+    /** Manual actions and game profiles share the same non-blocking ownership gate. */
+    internal fun withManualMutation(context: Context, restoring: Boolean = false, work: () -> String): String =
+        ProfileMaintenanceGate.tryRun({ "Выполняется другая операция настроек или ZIP. Повторите позже." }) {
+            when {
+                GameLaunchProfiles.pendingPackage(context) != null ->
+                    "Сначала завершите возврат игрового профиля."
+                !restoring && LegionDataBackup.hasPendingRestore(context) ->
+                    "Сначала завершите восстановление ZIP."
+                else -> work()
+            }
+        }
+
+    internal fun hasPendingBrightness(context: Context): Boolean {
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        return prefs.contains("brightness") || prefs.contains("brightness_mode")
+    }
+
     fun status(context: Context): String {
         val audio = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
         val notification = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
@@ -36,9 +53,9 @@ object SmartSystemControls {
         }
     }
 
-    fun setMediaVolume(context: Context, percent: Int): String {
+    fun setMediaVolume(context: Context, percent: Int): String = withManualMutation(context) {
         require(percent in 0..100)
-        return runCatching {
+        return@withManualMutation runCatching {
             val audio = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
             val max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
             require(max > 0)
@@ -50,10 +67,10 @@ object SmartSystemControls {
         }.getOrElse { "Не удалось изменить громкость: ${it.javaClass.simpleName}" }
     }
 
-    fun setDoNotDisturb(context: Context, enabled: Boolean): String {
+    fun setDoNotDisturb(context: Context, enabled: Boolean): String = withManualMutation(context) {
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        if (!nm.isNotificationPolicyAccessGranted) return "Сначала разрешите доступ к режиму «Не беспокоить» в системных настройках."
-        return runCatching {
+        if (!nm.isNotificationPolicyAccessGranted) return@withManualMutation "Сначала разрешите доступ к режиму «Не беспокоить» в системных настройках."
+        return@withManualMutation runCatching {
             nm.setInterruptionFilter(if (enabled) NotificationManager.INTERRUPTION_FILTER_NONE
                 else NotificationManager.INTERRUPTION_FILTER_ALL)
             if (Build.VERSION.SDK_INT >= 35) {
@@ -68,10 +85,10 @@ object SmartSystemControls {
         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     }
 
-    fun setScreenTimeout(context: Context, seconds: Int): String {
+    fun setScreenTimeout(context: Context, seconds: Int): String = withManualMutation(context) {
         require(seconds in listOf(30, 60, 120, 300, 600))
-        if (!Settings.System.canWrite(context)) return "Нужно разрешить «Изменение системных настроек»."
-        return runCatching {
+        if (!Settings.System.canWrite(context)) return@withManualMutation "Нужно разрешить «Изменение системных настроек»."
+        return@withManualMutation runCatching {
             val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             val key = Settings.System.SCREEN_OFF_TIMEOUT
             val current = Settings.System.getInt(context.contentResolver, key)
@@ -93,10 +110,10 @@ object SmartSystemControls {
         }.getOrElse { "Не удалось изменить тайм-аут: ${it.message ?: it.javaClass.simpleName}" }
     }
 
-    fun setBrightness(context: Context, percent: Int): String {
+    fun setBrightness(context: Context, percent: Int): String = withManualMutation(context) {
         require(percent in 10..100)
-        if (!Settings.System.canWrite(context)) return "Нужно разрешить «Изменение системных настроек»."
-        return runCatching {
+        if (!Settings.System.canWrite(context)) return@withManualMutation "Нужно разрешить «Изменение системных настроек»."
+        return@withManualMutation runCatching {
             val resolver = context.contentResolver
             val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             val brightnessKey = Settings.System.SCREEN_BRIGHTNESS
@@ -162,11 +179,11 @@ object SmartSystemControls {
         return decision
     }
 
-    fun restoreScreenSettings(context: Context): String {
-        if (!Settings.System.canWrite(context)) return "Нужно разрешение WRITE_SETTINGS для восстановления."
+    fun restoreScreenSettings(context: Context): String = withManualMutation(context, restoring = true) {
+        if (!Settings.System.canWrite(context)) return@withManualMutation "Нужно разрешение WRITE_SETTINGS для восстановления."
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         if (!prefs.contains("brightness") && !prefs.contains("brightness_mode") && !prefs.contains("timeout")) {
-            return "Сохранённых параметров нет."
+            return@withManualMutation "Сохранённых параметров нет."
         }
         var restored = 0
         var unchanged = 0
@@ -186,7 +203,7 @@ object SmartSystemControls {
         restore("brightness", "brightness_requested", Settings.System.SCREEN_BRIGHTNESS)
         restore("brightness_mode", "brightness_mode_requested", Settings.System.SCREEN_BRIGHTNESS_MODE)
         restore("timeout", "timeout_requested", Settings.System.SCREEN_OFF_TIMEOUT)
-        return when {
+        return@withManualMutation when {
             failures > 0 -> "Восстановлено: $restored; изменено пользователем и не перезаписано: $conflicts; ошибок Android: $failures. Повторите возврат для незавершённых параметров."
             conflicts > 0 -> "Восстановлено: $restored; уже исходные: $unchanged; изменённые вне Legion Control параметры оставлены без изменений: $conflicts."
             else -> "Исходные экранные параметры подтверждены. Восстановлено: $restored; уже исходные: $unchanged."

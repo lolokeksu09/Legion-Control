@@ -364,7 +364,8 @@ class GameToolboxService : Service() {
     }
 
     private fun volume(direction: Int) {
-        showFeedback(runCatching {
+        showFeedback(SmartSystemControls.withManualMutation(this) {
+            runCatching {
             val audio = getSystemService(AUDIO_SERVICE) as AudioManager
             val max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
             if (max <= 0) return@runCatching "Аудиопоток не поддерживает регулировку."
@@ -373,7 +374,8 @@ class GameToolboxService : Service() {
                 ToolboxTuning.volumeStep(before, max, direction), 0)
             val after = audio.getStreamVolume(AudioManager.STREAM_MUSIC)
             "Громкость мультимедиа: " + after + " / " + max
-        }.getOrElse { "Громкость недоступна: " + it.javaClass.simpleName })
+            }.getOrElse { "Громкость недоступна: " + it.javaClass.simpleName }
+        })
     }
 
     private fun openSelectedGame() {

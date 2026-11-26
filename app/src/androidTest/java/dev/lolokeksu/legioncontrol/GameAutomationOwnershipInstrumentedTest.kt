@@ -19,6 +19,14 @@ class GameAutomationOwnershipInstrumentedTest {
         try {
             assertTrue(prefs.edit().putString(keys[0],ticket).putString(keys[1],"owner-a")
                 .putString(keys[2],GameLaunchProfile(mediaPercent=20).encode()).commit())
+            var manualExecuted = false
+            val blocked = SmartSystemControls.withManualMutation(context) {
+                manualExecuted = true
+                "unexpected"
+            }
+            assertFalse(manualExecuted)
+            assertTrue(blocked.contains("возврат игрового профиля"))
+            assertEquals(ticket,prefs.getString(keys[0],null))
             assertTrue(GameLaunchProfiles.ownsAutomatic(context,"owner-a"))
             assertFalse(GameLaunchProfiles.ownsAutomatic(context,"owner-b"))
             assertTrue(GameLaunchProfiles.restoreAutomatic(context,"owner-b").success)

@@ -91,6 +91,10 @@ object GameLaunchProfiles {
             return@synchronized GameLaunchResult(false,
                 "Сначала верните предыдущие системные настройки кнопкой «Восстановить».")
         }
+        if (p.brightnessPercent != null && SmartSystemControls.hasPendingBrightness(context)) {
+            return@synchronized GameLaunchResult(false,
+                "Сначала восстановите ручные настройки яркости в Smart Profiles или Toolbox.")
+        }
         val snapshot = runCatching {
             val audio = if (p.mediaPercent != null)
                 context.getSystemService(Context.AUDIO_SERVICE) as AudioManager else null
@@ -166,14 +170,23 @@ object GameLaunchProfiles {
             snapshot.media?.let {
                 val audio = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
                 audio.setStreamVolume(AudioManager.STREAM_MUSIC, it.requested, 0)
+                check(audio.getStreamVolume(AudioManager.STREAM_MUSIC) == it.requested) {
+                    "Android не подтвердил громкость профиля"
+                }
             }
             snapshot.brightnessMode?.let {
                 check(Settings.System.putInt(context.contentResolver,
                     Settings.System.SCREEN_BRIGHTNESS_MODE, it.requested))
+                check(Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS_MODE) == it.requested) {
+                    "Android не подтвердил параметр экрана"
+                }
             }
             snapshot.brightness?.let {
                 check(Settings.System.putInt(context.contentResolver,
                     Settings.System.SCREEN_BRIGHTNESS, it.requested))
+                check(Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS) == it.requested) {
+                    "Android не подтвердил параметр экрана"
+                }
             }
             snapshot.focus?.let { change ->
                 val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
