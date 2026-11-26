@@ -28,9 +28,10 @@ class ReplayAudioCapture(
     private val context: Context,
     private val projection: MediaProjection,
     private val selectedGameUid: Int,
-    seconds: Int
+    seconds: Int,
+    maxBufferBytes: Long = ReplayMemoryPolicy.MAX_AUDIO_BYTES
 ) {
-    private val buffer = ReplayAudioBuffer(seconds)
+    private val buffer = ReplayAudioBuffer(seconds, maxBufferBytes)
     private val running = AtomicBoolean(false)
     @Volatile private var outputFormat: MediaFormat? = null
     @Volatile var error: String? = null
@@ -112,6 +113,10 @@ class ReplayAudioCapture(
                 pts != null && pts >= videoStartUs && pts < videoEndUs
             }
         return if (shifted.isEmpty()) null else ReplayAudioSnapshot(format, shifted)
+    }
+
+    fun reduceMemoryLimit() {
+        buffer.reduceByteLimit(ReplayMemoryPolicy.afterAudioTrim(buffer.byteLimitBytes))
     }
 
     fun stop() {

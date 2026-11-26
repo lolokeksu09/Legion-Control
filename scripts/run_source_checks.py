@@ -11,6 +11,7 @@ CHECKS = (
     "check_release_signing.py",
     "check_stability_safety.py",
     "check_startup_recovery.py",
+    "check_replay_memory_policy.py",
     "check_session_backend.py",
     "check_persistent_history.py",
     "check_resource_telemetry.py",

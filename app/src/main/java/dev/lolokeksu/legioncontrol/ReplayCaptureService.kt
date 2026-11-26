@@ -10,6 +10,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
+import android.content.ComponentCallbacks2
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.hardware.display.DisplayManager
@@ -91,9 +92,19 @@ class ReplayCaptureService : Service() {
     private val saveRequested = AtomicBoolean(false)
     @Volatile private var saveRequestedAtMs = 0L
     private val exporting = AtomicBoolean(false)
+    private val trimRequested = AtomicBoolean(false)
     @Volatile private var drainComplete = false
 
     override fun onBind(intent: Intent?): IBinder? = null
+
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (level == ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW ||
+            level == ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL ||
+            level >= ComponentCallbacks2.TRIM_MEMORY_BACKGROUND) {
+            trimRequested.set(true)
+        }
+    }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
@@ -255,13 +266,18 @@ class ReplayCaptureService : Service() {
             resources.displayMetrics.densityDpi.coerceAtLeast(1),
             DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR, input, null, handler
         )
+        val activityManager = getSystemService(ACTIVITY_SERVICE) as ActivityManager
+        val maxHeapBytes = Runtime.getRuntime().maxMemory().coerceAtLeast(1L)
+        val videoLimit = ReplayMemoryPolicy.videoByteLimit(maxHeapBytes, activityManager.isLowRamDevice)
+        val audioLimit = ReplayMemoryPolicy.audioByteLimit(maxHeapBytes, activityManager.isLowRamDevice)
+        trimRequested.set(false)
         running.set(true)
         active = true
         drainComplete = false
         if (audioRequested) {
             runCatching {
                 ReplayAudioCapture(this, projection, requireNotNull(selectedGameUid),
-                    windowSeconds).also {
+                    windowSeconds, audioLimit).also {
                     it.start()
                     playbackAudio = it
                 }
@@ -270,11 +286,12 @@ class ReplayCaptureService : Service() {
             }
         }
         codecThread = Thread({
-            drainVideo(encoder, ReplayFrameBuffer(windowSeconds))
+            drainVideo(encoder, ReplayFrameBuffer(windowSeconds, videoLimit))
         }, "legion-replay-video").apply { start() }
         handler.postDelayed(safetyStop, 60L * 60_000L)
-        writeStatus("Replay активен: буфер " + windowSeconds +
-            " с, H.264. " + when {
+        writeStatus("Replay активен: окно до " + windowSeconds + " с; лимиты RAM — видео " +
+            (videoLimit / (1024L * 1024L)) + " МиБ, звук " +
+            (audioLimit / (1024L * 1024L)) + " МиБ. H.264. " + when {
                 playbackAudio != null -> "Звук игры запрошен; приложение может запретить его."
                 audioRequested -> "Видео БЕЗ звука: " + (audioProblem ?: "Android отказал")
                 else -> "Видео без звука."
@@ -289,6 +306,12 @@ class ReplayCaptureService : Service() {
         var nextSafetyAt = SystemClock.elapsedRealtime() + 2_000L
         try {
             while (running.get() || SystemClock.elapsedRealtime() < deadline) {
+                if (trimRequested.compareAndSet(true, false)) {
+                    val oldVideoLimit = buffer.byteLimitBytes
+                    buffer.reduceByteLimit(ReplayMemoryPolicy.afterVideoTrim(oldVideoLimit))
+                    playbackAudio?.reduceMemoryLimit()
+                    writeStatus("Replay: Android сообщил о давлении на память; лимиты буферов сокращены.")
+                }
                 if (!running.get() && deadline == Long.MAX_VALUE) {
                     deadline = SystemClock.elapsedRealtime() + 2500L
                 }

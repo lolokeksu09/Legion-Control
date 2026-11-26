@@ -46,6 +46,17 @@ class ReplayAudioBufferTest {
         assertTrue(buffer.snapshot(0, 100_000_000).isEmpty())
     }
 
+    @Test fun memoryPressureDropsOldestAudioPacketsAndKeepsTheNewBudget() {
+        val buffer = ReplayAudioBuffer(60, 6000L)
+        for (second in 1L..3L) assertTrue(buffer.append(packet(second, 2000)))
+        val frozen = buffer.snapshot(0L, 4_000_000L)
+        buffer.reduceByteLimit(2000L)
+        assertEquals(2000L, buffer.sizeBytes)
+        assertEquals(2000L, buffer.byteLimitBytes)
+        assertEquals(3_000_000L, buffer.snapshot(0L, 4_000_000L).single().ptsUs)
+        assertEquals(3, frozen.size)
+    }
+
     @Test fun clockAdjustmentAndInvalidRanges() {
         assertEquals(1_500_000L, ReplayAudioTimeline.videoPts(1_000_000L, 500_000L))
         assertEquals(500_000L, ReplayAudioTimeline.videoPts(1_000_000L, -500_000L))

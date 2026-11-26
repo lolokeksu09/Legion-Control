@@ -12,7 +12,7 @@ data class ReplayAudioPacket(val encoded: ByteArray, val ptsUs: Long)
  */
 class ReplayAudioBuffer(
     private val seconds: Int,
-    private val maxBytes: Long = 8L * 1024L * 1024L
+    maxBytes: Long = ReplayMemoryPolicy.MAX_AUDIO_BYTES
 ) {
     init {
         require(seconds in setOf(30, 60, 120))
@@ -21,7 +21,9 @@ class ReplayAudioBuffer(
 
     private val packets = ArrayDeque<ReplayAudioPacket>()
     private var size = 0L
+    private var maxBytes = maxBytes
     val sizeBytes: Long get() = synchronized(this) { size }
+    val byteLimitBytes: Long get() = synchronized(this) { maxBytes }
 
     @Synchronized fun append(packet: ReplayAudioPacket): Boolean {
         if (packet.encoded.isEmpty() || packet.ptsUs < 0 ||
@@ -35,6 +37,16 @@ class ReplayAudioBuffer(
             size -= packets.removeFirst().encoded.size
         }
         return true
+    }
+
+    /** Shrink under memory pressure; oldest AAC packets are expendable, video remains authoritative. */
+    @Synchronized fun reduceByteLimit(newLimit: Long) {
+        require(newLimit > 0L)
+        if (newLimit >= maxBytes) return
+        maxBytes = newLimit
+        while (packets.isNotEmpty() && size > maxBytes) {
+            size -= packets.removeFirst().encoded.size
+        }
     }
 
     /** No copying of sample bytes; recorder never mutates published arrays. */

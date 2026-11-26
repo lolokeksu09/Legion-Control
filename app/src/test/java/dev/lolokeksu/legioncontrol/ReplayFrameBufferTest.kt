@@ -77,6 +77,20 @@ class ReplayFrameBufferTest {
         assertTrue(buffer.snapshotAt(-1L).isEmpty())
     }
 
+    @Test fun memoryPressureDropsWholeGopsAndNeverRaisesTheLimit() {
+        val buffer = ReplayFrameBuffer(120, 200L)
+        assertTrue(buffer.add(frame(0, true, 50)))
+        assertTrue(buffer.add(frame(1, false, 50)))
+        assertTrue(buffer.add(frame(2, true, 50)))
+        assertTrue(buffer.add(frame(3, false, 50)))
+        buffer.reduceByteLimit(100L)
+        assertEquals(100L, buffer.sizeBytes)
+        assertEquals(100L, buffer.byteLimitBytes)
+        assertEquals(2_000_000L, buffer.snapshot().first().ptsUs)
+        buffer.reduceByteLimit(150L)
+        assertEquals(100L, buffer.byteLimitBytes)
+    }
+
     @Test fun resetDropsOnlyInMemoryFrames() {
         val buffer = ReplayFrameBuffer(60)
         buffer.add(frame(0, true))

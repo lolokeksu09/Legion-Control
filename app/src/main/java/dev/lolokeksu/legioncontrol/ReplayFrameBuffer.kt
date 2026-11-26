@@ -5,15 +5,13 @@ import java.util.ArrayDeque
 /**
  * Memory-bounded H.264 replay window. Immutable encoded access units only.
  * Time is the codec's presentation timestamp, NEVER wall clock or display Hz.
- *
- * The retained head is always a sync frame. Trimming may shorten the available
- * history; callers must not claim that a full requested duration was captured.
+ * The retained head is always a sync frame; trimming may shorten available history.
  */
 data class ReplayFrame(val bytes: ByteArray, val ptsUs: Long, val keyFrame: Boolean)
 
 class ReplayFrameBuffer(
     private val windowSeconds: Int,
-    private val byteLimit: Long = 80L * 1024L * 1024L
+    byteLimit: Long = ReplayMemoryPolicy.MAX_VIDEO_BYTES
 ) {
     init {
         require(windowSeconds in setOf(30, 60, 120))
@@ -22,10 +20,12 @@ class ReplayFrameBuffer(
 
     private val frames = ArrayDeque<ReplayFrame>()
     private var byteCount = 0L
-    val sizeBytes: Long get() = byteCount
-    val frameCount: Int get() = frames.size
+    private var byteLimit = byteLimit
+    val sizeBytes: Long get() = synchronized(this) { byteCount }
+    val byteLimitBytes: Long get() = synchronized(this) { byteLimit }
+    val frameCount: Int get() = synchronized(this) { frames.size }
 
-    fun add(frame: ReplayFrame): Boolean {
+    @Synchronized fun add(frame: ReplayFrame): Boolean {
         if (frame.bytes.isEmpty() || frame.ptsUs < 0 ||
             frame.bytes.size.toLong() > byteLimit) return false
         if (frames.isEmpty() && !frame.keyFrame) return false
@@ -33,14 +33,26 @@ class ReplayFrameBuffer(
 
         frames.addLast(frame)
         byteCount += frame.bytes.size
-        val threshold = frame.ptsUs - windowSeconds.toLong() * 1_000_000L
+        trim(frame.ptsUs)
+        return true
+    }
+
+    /** Reduce the cap under memory pressure without retaining an undecodable GOP prefix. */
+    @Synchronized fun reduceByteLimit(newLimit: Long) {
+        require(newLimit > 0L)
+        if (newLimit >= byteLimit) return
+        byteLimit = newLimit
+        if (frames.isNotEmpty()) trim(frames.last.ptsUs)
+    }
+
+    private fun trim(latestPtsUs: Long) {
+        val threshold = latestPtsUs - windowSeconds.toLong() * 1_000_000L
         while (frames.isNotEmpty() &&
             (byteCount > byteLimit || frames.first.ptsUs < threshold) && hasSecondKey()) {
             evictThroughNextKey()
         }
-        // One oversized group with no next keyframe is not safe to keep or export.
+        // A single GOP larger than the budget is not safe to keep or export.
         if (byteCount > byteLimit) clear()
-        return true
     }
 
     private fun hasSecondKey(): Boolean =
@@ -56,8 +68,8 @@ class ReplayFrameBuffer(
         byteCount -= frames.removeFirst().bytes.size
     }
 
-    /** Returns original immutable frame references; the caller holds its own list. */
-    fun snapshot(): List<ReplayFrame> {
+    /** Holds references to immutable samples, not copies of encoded byte arrays. */
+    @Synchronized fun snapshot(): List<ReplayFrame> {
         if (frames.size < 2) return emptyList()
         val copy = frames.toList()
         if (copy.last().ptsUs - copy.first().ptsUs < 1_000_000L) return emptyList()
@@ -66,22 +78,20 @@ class ReplayFrameBuffer(
     }
 
     /** Snapshot bounded against SAVE time, not just the last generated video frame. */
-    fun snapshotAt(videoNowUs: Long): List<ReplayFrame> {
+    @Synchronized fun snapshotAt(videoNowUs: Long): List<ReplayFrame> {
         if (videoNowUs < 0L) return emptyList()
         val available = snapshot()
         if (available.isEmpty()) return emptyList()
-        val oldestUs = (videoNowUs - windowSeconds.toLong() * 1_000_000L)
-            .coerceAtLeast(0L)
+        val oldestUs = (videoNowUs - windowSeconds.toLong() * 1_000_000L).coerceAtLeast(0L)
         if (available.last().ptsUs < oldestUs) return emptyList()
         val start = available.indexOfFirst { it.keyFrame && it.ptsUs >= oldestUs }
         if (start < 0) return emptyList()
         val clipped = available.drop(start)
         return if (clipped.size >= 2 &&
-            clipped.last().ptsUs - clipped.first().ptsUs >= 1_000_000L)
-            clipped else emptyList()
+            clipped.last().ptsUs - clipped.first().ptsUs >= 1_000_000L) clipped else emptyList()
     }
 
-    fun clear() {
+    @Synchronized fun clear() {
         frames.clear()
         byteCount = 0L
     }

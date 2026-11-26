@@ -20,6 +20,12 @@ API 35+ сообщает о запросе изменения правила Leg
 
 Граница: физическое измерение cold-start/ANR и проверка восстановления на Motorola/OEM пока не выполнены. Новые прямые entry points должны соблюдать тот же gate.
 
+## LC-05a — адаптивная память Instant Replay
+
+Видео-лимит теперь рассчитывается от `Runtime.maxMemory()` (до 1/8 heap, hard cap 80 МиБ; для low-RAM устройства — половина). AAC получает отдельный меньший бюджет (до 1/128 heap, hard cap 8 МиБ). `onTrimMemory` выставляет неблокирующий флаг; codec thread сокращает лимиты, video eviction сохраняет границы GOP, audio сбрасывает старые пакеты. Статус Replay показывает выбранные бюджеты.
+
+Frozen export по-прежнему удерживает ссылки на старые encoded samples, пока live buffer наполняется новыми: пиковое перекрытие двух video windows остаётся возможным, но каждый window теперь ограничен heap-relative budget. Это не измерение PSS и не гарантия отсутствия OOM. Нужны реальные замеры на Legion Y70 и слабом Android-устройстве.
+
 ## Проверка и границы
 
 - Проверка конфигурации: scripts/check_release_signing.py, scripts/run_source_checks.py.
