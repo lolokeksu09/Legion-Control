@@ -28,12 +28,34 @@ for pair in ("BinderReceived", "BinderDead", "RequestPermissionResult"):
 assert "ShizukuAccessBackend.inspectShell(ctx)" in hub and "legion-shizuku-inspect" in hub
 assert "HubToolCatalog.groups" in hub and "HubToolCatalog.matches(" in hub
 activities = re.findall(r'item\("[^"]+", "[^"]+", (\w+)::class.java\)', catalog)
-assert len(activities) == 19 and len(set(activities)) == 19, activities
+expected = {
+    "GameToolboxActivity",
+    "SmartProfilesActivity",
+    "ApplicationCenterActivity",
+    "GameSessionActivity",
+    "GamePreflightActivity",
+    "CaptureStudioActivity",
+    "AudioLabActivity",
+    "DisplayPatternActivity",
+    "HapticLabActivity",
+    "GamepadLiveActivity",
+    "GamingDiagnosticsActivity",
+    "HardwareLabActivity",
+    "CompatibilityLabActivity",
+    "MainActivity",
+    "ConnectivityLabActivity",
+    "ExperimentLabActivity",
+    "SessionCompareActivity",
+    "SessionLibraryActivity",
+}
+assert len(activities) == len(set(activities)) and set(activities) == expected, activities
+assert "LiveMonitorActivity" not in activities
+assert 'item("Диагностический центр"' in catalog
 assert 'R.id.toolsFragment' in hub
 ci = (root / ".github/workflows/android.yml").read_text()
 assert "inputs.full_emulator == true" in ci and "default: false" in ci
 assert "testDebugUnitTest" in ci and "scripts/verify_apk.py" in ci
-print("PASS: optional Shizuku, shell-only diagnostics, unified 19-module catalog and opt-in emulator")
+print("PASS: optional Shizuku, shell-only diagnostics, unified 18-module catalog and opt-in emulator")
 
 # Scoped read-only Shizuku UserService, no general command API.
 audit = (src / "ShizukuSystemAudit.kt").read_text()

@@ -22,7 +22,11 @@ assert set(x.attrib["{http://schemas.android.com/apk/res/android}name"] for x in
     "android.permission.ACCESS_NOTIFICATION_POLICY",
     "android.permission.WRITE_SETTINGS","android.permission.VIBRATE","android.permission.SYSTEM_ALERT_WINDOW"
 }, "No privileges needed"
-assert activity.count("layout.addView(Button(this).apply {") == 25, "Keep all diagnostic actions"
+assert all(f'text = "{label}"' in activity for label in (
+    "Обновить измерение", "Проверить доступность датчиков",
+    "Снять показания датчиков", "Последние показания датчиков",
+    "Поделиться последним отчётом", "Экспорт полной диагностики ZIP",
+)), "Preserve diagnostic actions"
 assert "val writer = Executors.newSingleThreadExecutor()" in controller
 assert "diagnosticsExecutor.execute {" in activity
 assert "writer.execute {" in controller

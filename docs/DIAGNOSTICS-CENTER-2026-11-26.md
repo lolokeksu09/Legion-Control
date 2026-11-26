@@ -9,3 +9,7 @@ Base: `9a8e4e5` (both Android CI and signed APK succeeded).
 - Data and security: no schema, permissions, native ABI, release signer or new background work. Live monitor data remains in its bounded in-memory buffer until explicit CSV export; SQLite history stays separate and intact.
 
 Verification: updated live-monitor source contract, new cross-module source guard and JVM routing tests. Android build and signed APK require exact-SHA CI. Device/emulator acceptance not performed in this session. Version remains alpha.59; no release tag is published automatically.
+
+## CI follow-up
+
+The first run on `6773312` failed in `check_shizuku_hub.py` because the former 19-module count did not reflect the merged Live Monitor. Three historical diagnostics guards also required exactly 25 buttons, although the new disclosure control makes 26. The catalog guard now checks the exact 18 unique module identities; the diagnostics guards check the relevant named actions, and the center guard checks all 25 retained actions plus the new disclosure. No safety or build gate is disabled. Local container has no GitHub network access; targeted source comparisons use the GitHub connector, and the full source suite/Android build must run in CI.

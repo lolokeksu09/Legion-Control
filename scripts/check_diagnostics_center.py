@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """One diagnostics host, preserved deep links and foreground-only measurement ownership."""
 from pathlib import Path
+import re
 src = Path(__file__).resolve().parents[1] / "app/src/main/java/dev/lolokeksu/legioncontrol"
 read = lambda file: (src / file).read_text()
 host = read("MainActivity.kt")
@@ -28,4 +29,35 @@ assert "cachedReports[kind.pane] = result" in history and "historyModel.latestRe
 assert "parse(saved)?.let { return it }" in page
 assert '"diag.thermal", "diag.zip" -> HISTORY' in page
 assert "FeatureFinder.resolve(featureId, FeatureModule.MONITOR)" in page
+# All 25 pre-consolidation controls remain; only the shortcuts disclosure was added.
+expected_actions = {
+    "Обновить измерение",
+    "Тест батареи · 60 секунд",
+    "Остановить тест батареи",
+    "История тестов батареи",
+    "Поделиться последним отчётом",
+    "Сохранить историю в CSV",
+    "Завершить сеанс Rust",
+    "Профиль последнего сеанса",
+    "Аналитика датчиков",
+    "Экспорт полной диагностики ZIP",
+    "Обновить список сеансов",
+    "Тепловая история",
+    "Проверить доступность датчиков",
+    "Снять показания датчиков",
+    "Последние показания датчиков",
+    "CAPTURE STUDIO · запись экрана и клипы MP4",
+    "GAME TOOLBOX · плавающая панель поверх игр",
+    "HAPTIC LAB · вибромотор, шаблоны и ручная оценка",
+    "AUDIO LAB · стерео, частоты, маршруты и история",
+    "APPLICATION CENTER · библиотека, обновления, разрешения",
+    "CONNECTIVITY OBSERVATORY · DNS / IPv4 / IPv6 / TCP / TLS",
+    "EXPERIMENT LAB · сессии, заметки и A/B",
+    "SMART PROFILES · правила, аналитика и управление",
+    "GAME SESSION · запись для любой игры/приложения",
+    "Gaming Lab · сеть, сенсоры, производительность",
+    "Показать другие инструменты",
+}
+actions = re.findall(r'layout\.addView\(Button\(this\)\.apply \{[\s\S]*?text = "([^"]+)"', host)
+assert len(actions) == len(set(actions)) and set(actions) == expected_actions, actions
 print("PASS: one diagnostics center, stable navigation, isolated history reports, and bounded foreground-only telemetry")

@@ -42,7 +42,11 @@ assert "val snapshot = output.toString()" in controller
 assert controller.index("BatteryHealthReport.format(") < controller.index("val snapshot = output.toString()")
 assert "reportHeader?.plus(snapshot)" in controller
 assert "reportHeader?.plus(complete)" in controller
-assert activity.count("layout.addView(Button(this).apply {") == 25, "All existing battery controls remain"
+assert all(f'text = "{label}"' in activity for label in (
+    "Обновить измерение", "Тест батареи · 60 секунд", "Остановить тест батареи",
+    "История тестов батареи", "Поделиться последним отчётом",
+    "Сохранить историю в CSV", "Завершить сеанс Rust",
+)), "Preserve battery actions"
 for test in (
     "androidHealthIsNotDegradationPercentage",
     "missingValuesDoNotBecomeZeroOrFalse",

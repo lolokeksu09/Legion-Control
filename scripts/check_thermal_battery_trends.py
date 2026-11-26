@@ -42,7 +42,10 @@ assert "DiagnosticTrendTextReport.format(trend)" in controller
 assert "mutableUiState.value = RustSampleUiState(complete, reportHeader?.plus(complete))" in controller
 assert "mainHandler.post {" in controller
 assert "!cleared && requestId == diagnosticRequestId" in controller
-assert activity.count("layout.addView(Button(this).apply {") == 25
+assert all(f'text = "{label}"' in activity for label in (
+    "Обновить измерение", "Тепловая история", "Профиль последнего сеанса",
+    "Обновить список сеансов", "Сохранить историю в CSV",
+)), "Preserve measurement and thermal history actions"
 for test_name in (
     "firstReadingIsBaselineAndSecondShowsMeasuredChanges",
     "missingDataNeverBecomesAZeroDelta",
