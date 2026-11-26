@@ -245,6 +245,7 @@ class CaptureStudioActivity : ComponentActivity() {
         clipState = stateLabel()
         clipState.text = "Нажмите «Обновить медиатеку»."
         root.addView(clipState)
+        LegionUiSupport.notice(clipState, LegionUiSupport.Notice.INFO)
         note("CLIP WORKSHOP · Выделяйте фрагменты MP4 без потери качества и " +
             "сохраняйте отдельные PNG-кадры. Начало MP4 округляется к предыдущему " +
             "ключевому кадру; исходный файл сохраняется.")
@@ -256,6 +257,7 @@ class CaptureStudioActivity : ComponentActivity() {
         shotState = stateLabel()
         shotState.text = "Нажмите «Обновить медиатеку»."
         root.addView(shotState)
+        LegionUiSupport.notice(shotState, LegionUiSupport.Notice.INFO)
         shotsContainer = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         root.addView(shotsContainer)
         heading("Полная локальная резервная копия")
@@ -337,9 +339,13 @@ class CaptureStudioActivity : ComponentActivity() {
                 CaptureLibraryState.Idle -> Unit
                 CaptureLibraryState.Loading -> {
                     clipState.text = "Загрузка MP4…"
+                    LegionUiSupport.notice(clipState, LegionUiSupport.Notice.LOADING)
                 }
                 is CaptureLibraryState.Ready -> showClipList(state.clips)
-                is CaptureLibraryState.Error -> { clipState.text = state.message }
+                is CaptureLibraryState.Error -> {
+                    clipState.text = state.message
+                    LegionUiSupport.notice(clipState, LegionUiSupport.Notice.ERROR)
+                }
             }
         }
         viewModel.screenshots.observe(this) { state ->
@@ -347,9 +353,13 @@ class CaptureStudioActivity : ComponentActivity() {
                 CaptureScreenshotsState.Idle -> Unit
                 CaptureScreenshotsState.Loading -> {
                     shotState.text = "Загрузка PNG…"
+                    LegionUiSupport.notice(shotState, LegionUiSupport.Notice.LOADING)
                 }
                 is CaptureScreenshotsState.Ready -> showScreenshotList(state.shots)
-                is CaptureScreenshotsState.Error -> { shotState.text = state.message }
+                is CaptureScreenshotsState.Error -> {
+                    shotState.text = state.message
+                    LegionUiSupport.notice(shotState, LegionUiSupport.Notice.ERROR)
+                }
             }
         }
         refreshChoices()
@@ -738,6 +748,7 @@ class CaptureStudioActivity : ComponentActivity() {
         clipsContainer.removeAllViews()
         clipState.text = if (clips.isEmpty()) "На этой странице нет готовых MP4."
             else "MP4 · страница ${viewModel.clipsPageNumber()} · файлов: ${clips.size}"
+        LegionUiSupport.notice(clipState, if (clips.isEmpty()) LegionUiSupport.Notice.EMPTY else LegionUiSupport.Notice.INFO)
         if (viewModel.clipsPageNumber() > 1) {
             clipsContainer.addView(Button(this).apply {
                 text = "ПРЕДЫДУЩАЯ СТРАНИЦА MP4"
@@ -878,6 +889,7 @@ class CaptureStudioActivity : ComponentActivity() {
         shotsContainer.removeAllViews()
         shotState.text = if (shots.isEmpty()) "На этой странице нет PNG."
             else "PNG · страница ${viewModel.screenshotsPageNumber()} · файлов: ${shots.size}"
+        LegionUiSupport.notice(shotState, if (shots.isEmpty()) LegionUiSupport.Notice.EMPTY else LegionUiSupport.Notice.INFO)
         if (viewModel.screenshotsPageNumber() > 1) {
             shotsContainer.addView(Button(this).apply {
                 text = "ПРЕДЫДУЩАЯ СТРАНИЦА PNG"

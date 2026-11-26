@@ -15,6 +15,10 @@ assert 'action("ОБНОВИТЬ МЕДИАТЕКУ", "capture.clips")' in ui
 assert "browseClips()\n            viewModel.refreshScreenshots()" in ui
 assert "clipState.text = if (clips.isEmpty())" in ui
 assert "shotState.text = if (shots.isEmpty())" in ui
+for view, items in (("clipState", "clips"), ("shotState", "shots")):
+    for kind in ("LOADING", "ERROR"):
+        assert f"LegionUiSupport.notice({view}, LegionUiSupport.Notice.{kind})" in ui
+    assert f"LegionUiSupport.notice({view}, if ({items}.isEmpty()) LegionUiSupport.Notice.EMPTY else LegionUiSupport.Notice.INFO)" in ui
 assert "Intent(requireContext(), CaptureStudioActivity::class.java)" in toolbox
 for mode in ("RECORDING", "REPLAY", "SCREENSHOT"):
     assert f"reserveConsent(CaptureMode.{mode})" in ui
