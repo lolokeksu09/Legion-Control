@@ -1,6 +1,5 @@
 package dev.lolokeksu.legioncontrol
 
-import android.app.NotificationManager
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
@@ -107,6 +106,7 @@ class HubPageFragment : Fragment() {
     private fun section(title: String, detail: String? = null) {
         column.addView(text(title, 22f, fg, true).apply {
             setPadding(0, 8.dp, 0, 7.dp)
+            isAccessibilityHeading = true
         })
         if (detail != null) column.addView(text(detail, 13f, muted).apply {
             setPadding(0, 0, 0, 20.dp)
@@ -135,6 +135,7 @@ class HubPageFragment : Fragment() {
         column.addView(text(label.uppercase(Locale.ROOT), 12f, accent, true).apply {
             setPadding(0, 19.dp, 0, 11.dp)
             letterSpacing = 0.08f
+            isAccessibilityHeading = true
         })
     }
 
@@ -582,29 +583,37 @@ class HubPageFragment : Fragment() {
             }
     }
 
+    private fun openCapabilitySettings(capability: CapabilityAccess) {
+        val ctx = requireContext()
+        val request = CapabilityAccessBackend.settingsIntent(ctx, capability) ?: return
+        runCatching { startActivity(request) }.onFailure {
+            when (capability) {
+                CapabilityAccess.OVERLAY -> systemSettings(Settings.ACTION_MANAGE_OVERLAY_PERMISSION)
+                CapabilityAccess.NOTIFICATIONS, CapabilityAccess.PLAYBACK_AUDIO ->
+                    systemSettings(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, true)
+                else -> LegionDialogs.builder(ctx).setTitle("Настройки недоступны")
+                    .setMessage("Android не открыл этот экран: " + it.javaClass.simpleName)
+                    .setPositiveButton("Понятно", null).show()
+            }
+        }
+    }
+
     private fun showSettings(s: HubSnapshot?) {
         section("Настройки", "Разрешения, локальные данные и параметры модулей.")
-        group("Разрешения Android")
-        tile("Поверх других окон", if (Settings.canDrawOverlays(requireContext())) "Разрешено" else "Не разрешено") {
-            systemSettings(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, true)
+        group("Центр разрешений")
+        val access = CapabilityAccessBackend.read(requireContext())
+        val permissions = PermissionCenterModel.permissions(access)
+        info(PermissionCenterModel.summary(permissions) + ". Доступы выдаются только в Android; " +
+            "не все нужны для каждой функции.")
+        for (item in permissions) {
+            column.addView(LegionUiSupport.permissionRow(requireContext(), item) {
+                openCapabilitySettings(item.capability)
+            }, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 6.dp })
         }
-        val notifications = requireContext().getSystemService(NotificationManager::class.java)
-        tile("Режим «Не беспокоить»",
-            if (notifications.isNotificationPolicyAccessGranted) "Специальный доступ разрешён" else "Нужен спецдоступ Android") {
-            systemSettings(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
-        }
-        tile("Изменение системных настроек",
-            if (Settings.System.canWrite(requireContext())) "Разрешено" else "Нужен спецдоступ Android") {
-            systemSettings(Settings.ACTION_MANAGE_WRITE_SETTINGS, true)
-        }
-        tile("Уведомления", if (notifications.areNotificationsEnabled()) "Разрешено" else "Отключены в Android") {
-            runCatching {
-                startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
-                    .putExtra(Settings.EXTRA_APP_PACKAGE, requireContext().packageName))
-            }.onFailure { systemSettings(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, true) }
-        }
-        tile("Использование приложений", "Официальные настройки Android") {
-            systemSettings(Settings.ACTION_USAGE_ACCESS_SETTINGS)
+        group("Возможности и ограничения")
+        for (item in PermissionCenterModel.limitations(access)) {
+            column.addView(LegionUiSupport.permissionRow(requireContext(), item) {},
+                LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 6.dp })
         }
         group("Резервное копирование и файлы")
         for (id in listOf("capture.backup", "capture.restore", "capture.resume", "capture.clips")) {

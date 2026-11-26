@@ -11,23 +11,6 @@ import android.net.Uri
 import android.os.Process
 import android.provider.Settings
 
-internal enum class CapabilityAccess(val label: String) {
-    NOTIFICATIONS("Уведомления"),
-    OVERLAY("Поверх окон"),
-    USAGE("Статистика использования"),
-    DND("Доступ к управлению DND"),
-    WRITE_SETTINGS("Изменение системных настроек"),
-    MEDIA_VOLUME("Управление громкостью"),
-    PLAYBACK_AUDIO("Разрешение захвата игрового звука"),
-    GAME_FPS("Измерение FPS чужой игры"),
-    OEM_BOOST("Управление Touch Boost / Bypass / CPU-GPU")
-}
-
-internal data class CapabilityAccessSnapshot(private val states: Map<CapabilityAccess, AccessState>) {
-    operator fun get(capability: CapabilityAccess): AccessState = states[capability] ?: AccessState.UNKNOWN
-    fun report(): String = CapabilityAccess.entries.joinToString("\n") { "${it.label}: ${get(it).label}" }
-}
-
 /** Read-only public API probes, evaluated on demand. No persistent cache or background polling. */
 internal object CapabilityAccessBackend {
     private fun probe(read: () -> Boolean?): Boolean? = runCatching { read() }.getOrNull()
@@ -125,6 +108,7 @@ internal object CapabilityAccessBackend {
             CapabilityAccess.USAGE -> Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
             CapabilityAccess.DND -> Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
             CapabilityAccess.WRITE_SETTINGS -> Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, packageUri)
+            CapabilityAccess.PLAYBACK_AUDIO -> Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, packageUri)
             else -> null
         }
     }
