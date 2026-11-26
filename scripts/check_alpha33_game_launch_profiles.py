@@ -21,7 +21,9 @@ assert "android.permission.WRITE_SECURE_SETTINGS" not in actual
 assert "android.permission.BIND_ACCESSIBILITY_SERVICE" not in actual
 assert "GameLaunchProfiles.apply(requireContext(), pkg)" in ui and "GameLaunchProfiles.restore(requireContext())" in ui
 assert "GameLaunchProfiles.apply(this, pkg)" in overlay and "GameLaunchProfiles.restore(this)" in overlay
-assert "GameLaunchProfiles.save(requireContext(), pkg, profile)" in ui
+assert "GameLaunchProfiles.save(ctx, pkg, profile)" in ui
+assert "setView(scroll)" in ui and "confirmApplyGameLaunchProfile" in ui
+assert "confirmRestoreGameLaunchProfile" in ui
 assert "getLaunchIntentForPackage(pkg)" in ui
 assert 'edit().putString(ACTIVE, snapshot.encode())' in engine
 assert engine.index('journal.commit()') < engine.index('audio.setStreamVolume(')
