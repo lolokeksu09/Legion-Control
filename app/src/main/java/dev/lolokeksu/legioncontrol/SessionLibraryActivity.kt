@@ -148,12 +148,12 @@ class SessionLibraryActivity:FragmentActivity() {
         signals=label("Выберите завершённую сессию в библиотеке.").apply {
             setTextIsSelectable(true);LegionUiSupport.reportSurface(this)
         }
-        reportActions += button("Обновить хронологию","signals.timeline") {
+        reportActions += button("Обновить хронологию", "signals.timeline") {
             val s=vm.state.value ?: return@button
             val id=s.detail?.header?.id ?: return@button
             vm.refreshSelected(id)
         }
-        csvSignals=button("Сохранить события выбранной сессии CSV","signals.csv") {
+        csvSignals=button("Сохранить события выбранной сессии CSV", "signals.csv") {
             vm.state.value?.analytics?.let { exportCsv("signals",SessionSignals.csv(it.signals)) }
         }
 
@@ -161,7 +161,7 @@ class SessionLibraryActivity:FragmentActivity() {
         incidents=label("Выберите завершённую сессию в библиотеке.").apply {
             setTextIsSelectable(true);LegionUiSupport.reportSurface(this)
         }
-        reportActions += button("Фильтр категорий","incidents.filter") {
+        reportActions += button("Фильтр категорий", "incidents.filter") {
             val kinds=SessionIncidents.Kind.entries
             LegionDialogs.builder(this).setTitle("Категория проблем")
                 .setItems((listOf("Все категории")+kinds.map { it.label }).toTypedArray()) { _,i ->
@@ -169,25 +169,25 @@ class SessionLibraryActivity:FragmentActivity() {
                     vm.state.value?.let(::renderReports)
                 }.setNegativeButton("Отмена",null).show()
         }
-        csvIncidents=button("Сохранить эпизоды CSV","incidents.csv") {
+        csvIncidents=button("Сохранить эпизоды CSV", "incidents.csv") {
             vm.state.value?.analytics?.let { exportCsv("incidents",SessionIncidents.csv(it.incidents,incidentKind)) }
         }
 
         target=panels.getValue(AnalyticsPage.COMPARE)
         label("A — выбранная сессия; B — другая завершённая запись той же игры.",13f,LegionUiSupport.MUTED)
-        button("ВЫБРАТЬ ИГРУ ИЗ ИСТОРИИ","compare.game") { chooseGame() }
+        button("ВЫБРАТЬ ИГРУ ИЗ ИСТОРИИ", "compare.game") { chooseGame() }
         comparisonChoice=button("Выбрать вторую сессию") { chooseComparison() }
-        windowButton=button("Выбрать окно сравнения","compare.window") {
+        windowButton=button("Выбрать окно сравнения", "compare.window") {
             val options=SessionCompareAnalysis.windows
             LegionDialogs.builder(this).setTitle("Одинаковое окно")
                 .setItems(options.map { "$it мин" }.toTypedArray()) { _,i ->
                     minutes=options[i];vm.clearComparison()
                 }.setNegativeButton("Отмена",null).show()
         }
-        compareRun=button("СРАВНИТЬ ВЫБРАННЫЕ СЕССИИ","compare.run") {
+        compareRun=button("СРАВНИТЬ ВЫБРАННЫЕ СЕССИИ", "compare.run") {
             compareId?.let { vm.compareWith(it,minutes) }
         }
-        chartButton=button("Выбрать показатель сравнения","compare.graph") {
+        chartButton=button("Выбрать показатель сравнения", "compare.graph") {
             val choices=CompareGraph.entries
             LegionDialogs.builder(this).setTitle("Показатель графика")
                 .setItems(choices.map { it.label }.toTypedArray()) { _,i ->
@@ -199,7 +199,7 @@ class SessionLibraryActivity:FragmentActivity() {
         comparison=label("Сравнение не выполнялось.").apply {
             setTextIsSelectable(true);LegionUiSupport.reportSurface(this)
         }
-        csvCompare=button("СОХРАНИТЬ СРАВНЕНИЕ CSV","compare.csv") {
+        csvCompare=button("СОХРАНИТЬ СРАВНЕНИЕ CSV", "compare.csv") {
             vm.state.value?.pair?.let { exportCsv("compare",SessionCompareAnalysis.csv(it)) }
         }
         shareCompare=button("Поделиться сравнением сессий") {
@@ -212,12 +212,12 @@ class SessionLibraryActivity:FragmentActivity() {
 
         target=panels.getValue(AnalyticsPage.BASELINES)
         label("Базовые показатели сравнивают новейшую запись игры с её историей, а не произвольную сессию.",13f,LegionUiSupport.MUTED)
-        reportActions += button("За последние 7 дней","baselines.week") { vm.baseline(7) }
-        reportActions += button("За последние 30 дней","baselines.month") { vm.baseline(30) }
+        reportActions += button("За последние 7 дней", "baselines.week") { vm.baseline(7) }
+        reportActions += button("За последние 30 дней", "baselines.month") { vm.baseline(30) }
         baseline=label("Выберите игру и завершённую сессию.").apply {
             setTextIsSelectable(true);LegionUiSupport.reportSurface(this)
         }
-        csvBaseline=button("Экспортировать сравнение CSV","baselines.csv") {
+        csvBaseline=button("Экспортировать сравнение CSV", "baselines.csv") {
             vm.state.value?.baseline?.let { exportCsv("baseline",SessionBaselines.csv(it)) }
         }
         target=panels.getValue(AnalyticsPage.OVERVIEW)
@@ -319,7 +319,7 @@ class SessionLibraryActivity:FragmentActivity() {
     private fun renderReports(s:LibraryState) {
         val snapshot=s.analytics
         val enabled=!s.busy && !vm.pendingCsv.hasPending && !vm.pendingDocument.hasPending
-        if(compareId !in s.comparisonRows.map { it.id })compareId=null
+        if(s.comparisonRows.none { it.id==compareId })compareId=null
         signals.text=snapshot?.let { SessionSignals.render(it.signals) } ?: "Выберите завершённую сессию."
         incidents.text=snapshot?.let { SessionIncidents.render(it.incidents,incidentKind) } ?: "Выберите завершённую сессию."
         comparison.text=s.pair?.let(SessionCompareAnalysis::report) ?: "Выберите вторую сессию и окно: $minutes мин."
