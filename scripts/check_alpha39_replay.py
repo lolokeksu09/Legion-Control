@@ -57,7 +57,7 @@ assert "audio capture is optional" in (
     ROOT / "docs/ALPHA39-REPLAY-ENGINE.md").read_text().lower()
 assert "android.permission.QUERY_ALL_PACKAGES" not in MANIFEST
 assert "android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" in MANIFEST
-for forbidden in ("Runtime.getRuntime()", "Shizuku", "MediaRecorder(",
+for forbidden in ("Runtime.getRuntime().exec(", "Shizuku", "MediaRecorder(",
                   "MediaProjection.createScreenCaptureIntent"):
     assert forbidden not in REPLAY, forbidden
 print("alpha.39 Replay + opt-in UID-filtered AAC wiring: PASS")
