@@ -19,7 +19,10 @@ assert required.issubset(actual)
 assert "android.permission.QUERY_ALL_PACKAGES" not in actual
 assert "android.permission.WRITE_SECURE_SETTINGS" not in actual
 assert "android.permission.BIND_ACCESSIBILITY_SERVICE" not in actual
-assert "GameLaunchProfiles.apply(requireContext(), pkg)" in ui and "GameLaunchProfiles.restore(requireContext())" in ui
+assert "GameLaunchProfiles.applyConfirmed(requireContext(), pkg, approved)" in ui and "GameLaunchProfiles.restore(requireContext())" in ui
+assert "applyGameLaunchProfile(pkg, profile, launch)" in ui
+assert "(owner != null || approved != null) && p != approved" in engine
+assert engine.index("p != approved") < engine.index("val snapshot = runCatching")
 assert "GameLaunchProfiles.apply(this, pkg)" in overlay and "GameLaunchProfiles.restore(this)" in overlay
 assert "GameLaunchProfiles.save(ctx, pkg, profile)" in ui
 assert "setView(scroll)" in ui and "confirmApplyGameLaunchProfile" in ui

@@ -14,6 +14,8 @@ assert "GameLaunchProfiles.pendingPackage(" in detail
 assert "setView(scroll)" in tool and "LegionUiSupport.spinner" in tool
 assert "confirmApplyGameLaunchProfile" in tool and "setPositiveButton" in tool
 assert "confirmRestoreGameLaunchProfile" in tool
+assert "GameLaunchProfilePolicy.editorPercentOptions(" in tool
+assert "applyGameLaunchProfile(pkg, profile, launch)" in tool
 assert "COUNT(g.thermal_status),COUNT(g.network_validated)" in insights
 assert "end_reason='USER_STOP'" in insights
 assert "thermalSampleCount" in presentation and "networkSampleCount" in presentation

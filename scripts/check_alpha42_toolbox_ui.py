@@ -34,7 +34,7 @@ for token in (
     "Settings.canDrawOverlays(requireContext())",
     "GameToolboxService.start(requireContext())",
     "GameToolboxService.stop(requireContext())",
-    "GameLaunchProfiles.apply(requireContext(), pkg)",
+    "GameLaunchProfiles.applyConfirmed(requireContext(), pkg, approved)",
     "GameLaunchProfiles.restore(requireContext())",
     "GameLaunchProfiles.save(ctx, pkg, profile)",
     "confirmApplyGameLaunchProfile",

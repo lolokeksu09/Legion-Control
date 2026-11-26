@@ -55,6 +55,10 @@ object GameLaunchProfiles {
      */
     fun apply(context: Context, pkg: String): GameLaunchResult = applyInternal(context,pkg,null,null)
 
+    /** The dialog's approved values are checked again under the mutation lock. */
+    internal fun applyConfirmed(context: Context, pkg: String, approved: GameLaunchProfile): GameLaunchResult =
+        applyInternal(context, pkg, null, approved)
+
     internal fun applyAutomatic(context:Context,pkg:String,owner:String,approved:GameLaunchProfile):GameLaunchResult =
         applyInternal(context,pkg,owner,approved)
 
@@ -81,8 +85,9 @@ object GameLaunchProfiles {
         }
         val p = profile(context, pkg)
             ?: return@synchronized GameLaunchResult(false, "Сначала сохраните профиль этой игры.")
-        if (owner!=null && (approved==null || p!=approved)) {
-            return@synchronized GameLaunchResult(false,"Профиль изменился после подтверждения. Запустите автоматизацию заново.")
+        if ((owner != null || approved != null) && p != approved) {
+            return@synchronized GameLaunchResult(false,
+                "Профиль изменился после подтверждения. Проверьте настройки и подтвердите заново.")
         }
         if (!p.actionable) {
             return@synchronized GameLaunchResult(false, "Профиль не содержит действий.")

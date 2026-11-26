@@ -31,6 +31,15 @@ class GameAutomationOwnershipInstrumentedTest {
             assertFalse(GameLaunchProfiles.ownsAutomatic(context,"owner-b"))
             assertTrue(GameLaunchProfiles.restoreAutomatic(context,"owner-b").success)
             assertEquals(ticket,prefs.getString(keys[0],null))
+            // A stale confirmation must be rejected before the existing-ticket gate.
+            // Synthetic ticket makes this test non-mutating even if that check regresses.
+            val staleManual = GameLaunchProfiles.applyConfirmed(context, pkg, GameLaunchProfile(mediaPercent=80))
+            assertFalse(staleManual.success)
+            assertTrue(staleManual.message.contains("Профиль изменился после подтверждения"))
+            val currentManual = GameLaunchProfiles.applyConfirmed(context, pkg, GameLaunchProfile(mediaPercent=20))
+            assertFalse(currentManual.success)
+            assertTrue(currentManual.message.contains("Сначала верните предыдущие"))
+            assertEquals(ticket, prefs.getString(keys[0], null))
             assertFalse(GameLaunchProfiles.applyAutomatic(context,pkg,"owner-b",GameLaunchProfile(mediaPercent=80)).success)
             assertFalse(GameLaunchProfiles.applyAutomatic(context,pkg,"owner-b",GameLaunchProfile(mediaPercent=20)).success)
             assertEquals("owner-a",prefs.getString(keys[1],null))

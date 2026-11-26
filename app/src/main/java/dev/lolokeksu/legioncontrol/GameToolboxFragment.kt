@@ -340,8 +340,10 @@ class GameToolboxFragment : Fragment() {
             return
         }
         val current = GameLaunchProfiles.profile(ctx, pkg)
-        val volumes: List<Int?> = listOf(null, 0, 20, 40, 60, 80, 100)
-        val brightness: List<Int?> = listOf(null, 20, 40, 60, 80, 100)
+        val volumes = GameLaunchProfilePolicy.editorPercentOptions(
+            listOf(0, 20, 40, 60, 80, 100), current?.mediaPercent)
+        val brightness = GameLaunchProfilePolicy.editorPercentOptions(
+            listOf(10, 20, 40, 60, 80, 100), current?.brightnessPercent)
         val focus: List<Boolean?> = listOf(null, true, false)
         val content = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
@@ -427,13 +429,13 @@ class GameToolboxFragment : Fragment() {
             if (withGame) "Применить профиль и открыть игру?" else "Применить профиль?"
         ).setMessage(description)
             .setPositiveButton(if (withGame) "Применить и открыть" else "Применить") { _, _ ->
-                applyGameLaunchProfile(pkg, launch)
+                applyGameLaunchProfile(pkg, profile, launch)
             }
             .setNegativeButton("Отмена", null).show()
     }
 
-    private fun applyGameLaunchProfile(pkg: String, launchIntent: Intent?) {
-        val result = GameLaunchProfiles.apply(requireContext(), pkg)
+    private fun applyGameLaunchProfile(pkg: String, approved: GameLaunchProfile, launchIntent: Intent?) {
+        val result = GameLaunchProfiles.applyConfirmed(requireContext(), pkg, approved)
         status.text = result.message
         renderStatus()
         if (result.success && launchIntent != null) {
