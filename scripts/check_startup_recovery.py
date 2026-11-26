@@ -23,9 +23,14 @@ assert "initializeNavigation(pendingSavedState)" in launcher
 assert "continueAfterFailure()" in launcher
 assert "Intent(this,NavigationHostActivity::class.java)" in tile
 assert "SmartProfilesActivity::class.java" not in tile
+for service_name in ("GameSessionRecorderService.kt", "CaptureScreenshotService.kt",
+                     "CaptureRecordingService.kt", "ReplayCaptureService.kt", "GameToolboxService.kt"):
+    service = (src / service_name).read_text(encoding="utf-8")
+    assert "startupRecoveryAllowsServiceStart()" in service, service_name
+assert "allowsUserStartedServices" in coordinator
 assert "Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP" in tile
 for token in ("recoveryIsQueuedAndRunsOnlyOnce", "failureIsVisibleUntilUserAcknowledgesIt",
               "laterSuccessfulManualRetryClearsWarningForActivityRecreation",
-              "cleanInstallDoesNotScheduleRecoveryWork"):
+              "cleanInstallDoesNotScheduleRecoveryWork", "serviceStartsRequireCompletedOrAcknowledgedRecovery"):
     assert token in tests, token
 print("PASS: startup recovery is background-only, launcher-gated, failure-visible and retryable")

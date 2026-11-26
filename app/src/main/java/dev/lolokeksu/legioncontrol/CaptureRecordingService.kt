@@ -104,6 +104,12 @@ class CaptureRecordingService : Service() {
             } else if (!recording && !stopping) stopSelfResult(startId)
             return START_NOT_STICKY
         }
+        if (intent?.action == ACTION_START && !startupRecoveryAllowsServiceStart()) {
+            CaptureCoordinator.releasePending(CaptureMode.RECORDING)
+            writeStatus("Запись не запущена: завершается восстановление локальных данных.")
+            stopSelfResult(startId)
+            return START_NOT_STICKY
+        }
         if (intent?.action != ACTION_START || recording || projection != null || stopping) {
             if (!recording && !stopping) stopSelf(startId)
             return START_NOT_STICKY

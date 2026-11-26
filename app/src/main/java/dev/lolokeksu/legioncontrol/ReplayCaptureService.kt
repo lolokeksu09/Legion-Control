@@ -125,6 +125,12 @@ class ReplayCaptureService : Service() {
                 return START_NOT_STICKY
             }
             ACTION_START -> {
+                if (!startupRecoveryAllowsServiceStart()) {
+                    CaptureCoordinator.releasePending(CaptureMode.REPLAY)
+                    writeStatus("Replay не запущен: завершается восстановление локальных данных.")
+                    stopSelfResult(startId)
+                    return START_NOT_STICKY
+                }
                 if (active || running.get() || stopping.get() ||
                     CaptureRecordingService.recording || CaptureScreenshotService.active) {
                     writeStatus("Другой захват уже выполняется. Остановите его перед Replay.")

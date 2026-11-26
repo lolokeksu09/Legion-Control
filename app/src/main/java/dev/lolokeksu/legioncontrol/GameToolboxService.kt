@@ -108,6 +108,11 @@ class GameToolboxService : Service() {
             stopSelf()
             return START_NOT_STICKY
         }
+        if ((intent?.action == ACTION_REFRESH || intent?.action == ACTION_START ||
+                intent?.action == ACTION_AUTO) && !startupRecoveryAllowsServiceStart()) {
+            if (overlay == null) stopSelfResult(startId)
+            return START_NOT_STICKY
+        }
         if (intent?.action == ACTION_REFRESH) {
             if (overlay != null) applyPreferences() else stopSelfResult(startId)
             return START_NOT_STICKY

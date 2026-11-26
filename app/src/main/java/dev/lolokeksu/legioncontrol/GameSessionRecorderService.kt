@@ -107,6 +107,10 @@ class GameSessionRecorderService : Service() {
             if (note != null) enqueueEvent("USER_MARK",note)
             return START_NOT_STICKY
         }
+        if (intent?.action == ACTION_START && !startupRecoveryAllowsServiceStart()) {
+            stopSelfResult(startId)
+            return START_NOT_STICKY
+        }
         if (intent?.action != ACTION_START || started || stopping) return START_NOT_STICKY
         if (CaptureCoordinator.state().first == CaptureMode.MAINTENANCE) {
             stopSelfResult(startId)

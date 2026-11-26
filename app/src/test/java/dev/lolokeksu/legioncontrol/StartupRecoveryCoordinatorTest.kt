@@ -49,6 +49,15 @@ class StartupRecoveryCoordinatorTest {
         assertEquals(StartupRecoveryState.Ready, coordinator.state)
     }
 
+    @Test fun serviceStartsRequireCompletedOrAcknowledgedRecovery() {
+        assertTrue(StartupRecoveryAccessPolicy.allowsUserStartedServices(StartupRecoveryState.Ready))
+        assertTrue(StartupRecoveryAccessPolicy.allowsUserStartedServices(
+            StartupRecoveryState.ContinuedWithWarning("IOException")))
+        assertFalse(StartupRecoveryAccessPolicy.allowsUserStartedServices(StartupRecoveryState.Running))
+        assertFalse(StartupRecoveryAccessPolicy.allowsUserStartedServices(
+            StartupRecoveryState.Failed("IOException")))
+    }
+
     @Test fun cleanInstallDoesNotScheduleRecoveryWork() {
         val executor = QueuedExecutor()
         val coordinator = StartupRecoveryCoordinator(StartupRecoveryState.Ready, executor, { it() }) {

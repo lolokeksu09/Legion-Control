@@ -1,5 +1,6 @@
 package dev.lolokeksu.legioncontrol
 
+import android.content.Context
 import java.util.concurrent.Executor
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -86,4 +87,15 @@ internal class StartupRecoveryCoordinator(
             }
         }
     }
+}
+
+internal object StartupRecoveryAccessPolicy {
+    fun allowsUserStartedServices(state: StartupRecoveryState): Boolean =
+        state == StartupRecoveryState.Ready || state is StartupRecoveryState.ContinuedWithWarning
+}
+
+/** Service starts are denied until recovery completes or the user acknowledges the warning. */
+internal fun Context.startupRecoveryAllowsServiceStart(): Boolean {
+    val app = applicationContext as? LegionApplication ?: return true
+    return StartupRecoveryAccessPolicy.allowsUserStartedServices(app.startupRecovery.state)
 }
