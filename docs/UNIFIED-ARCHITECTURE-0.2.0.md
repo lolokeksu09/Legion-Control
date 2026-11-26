@@ -167,3 +167,5 @@ Application Center продолжает поддерживать неигров�
 ### A1 — первый функциональный срез
 
 `SessionLibraryActivity` и `SessionLibraryViewModel` становятся центром завершённых сессий: одна ограниченная `LibraryDetail` используется обзором, событиями и инцидентами; сравнение повторно использует точки A, загружает только B, базовые показатели повторно используют A при совпадении заголовка. При быстром выборе generation защищает от публикации старого результата. CSV выбирается из отображённого отчёта, ZIP сохраняет прежний контракт. Все 16 feature ID этих пяти категорий перенаправлены в новый host; старые экраны и анализ незавершённых сессий пока сохраняются. A/B-редактор остаётся отдельным, но доступен с контекстом игры. UA-01 частично (карта ID/маршрутов, ещё нужна полевая карта владельцев и полный аудит вызовов); UA-02–04 и UA-12 частично до CI и приёмки. Не считать фазу A закрытой. Версия и схема не менялись.
+
+A1 CI repair: distinguish `UnifiedGameSessionSnapshot` (selected game recording) from the pre-existing `SessionAnalyticsSnapshot` (Rust/SQLite diagnostic statistics). No change to either analyzer's semantics; exact-SHA rebuild required.

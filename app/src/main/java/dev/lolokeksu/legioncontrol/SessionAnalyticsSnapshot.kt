@@ -1,16 +1,16 @@
 package dev.lolokeksu.legioncontrol
 
 /** One bounded, completed session supplies all compatible offline reports. */
-data class SessionAnalyticsSnapshot(
+data class UnifiedGameSessionSnapshot(
     val detail: LibraryDetail,
     val summary: GameSessionSummary,
     val signals: SessionSignalsReport,
     val incidents: SessionIncidentsReport
 ) {
     companion object {
-        fun from(detail: LibraryDetail): SessionAnalyticsSnapshot {
+        fun from(detail: LibraryDetail): UnifiedGameSessionSnapshot {
             require(detail.header.endedAtMs != null)
-            return SessionAnalyticsSnapshot(
+            return UnifiedGameSessionSnapshot(
                 detail, GameSessionAnalysis.summarize(detail.header, detail.points),
                 SessionSignals.analyze(detail.header, detail.points, detail.events,
                     detail.sampleLimited, detail.eventLimited),

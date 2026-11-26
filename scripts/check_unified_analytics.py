@@ -10,7 +10,7 @@ vm=read("SessionLibraryViewModel.kt")
 model=read("SessionAnalyticsSnapshot.kt")
 hub=read("HubPageFragment.kt")
 catalog=read("HubToolCatalog.kt")
-assert "SessionAnalyticsSnapshot.from(detail)" in vm
+assert "UnifiedGameSessionSnapshot.from(detail)" in vm
 assert "detail.header.id==row.id && detail.header.packageName==row.packageName" in vm
 assert "selectionGeneration.get()==token" in vm and "selectionGeneration.incrementAndGet()" in vm
 assert "SessionSignals.analyze(detail.header, detail.points, detail.events" in model

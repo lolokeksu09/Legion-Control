@@ -19,7 +19,7 @@ data class LibraryState(
     val cursor:LibraryCursor?=null,
     val now:Long=0,
     val detail:LibraryDetail?=null,
-    val analytics:SessionAnalyticsSnapshot?=null,
+    val analytics:UnifiedGameSessionSnapshot?=null,
     val comparisonRows:List<GameSessionHeader> = emptyList(),
     val pair:ComparePair?=null,
     val baseline:SessionBaselinesResult?=null,
@@ -78,7 +78,7 @@ class SessionLibraryViewModel(app:Application):AndroidViewModel(app) {
     private fun loaded(s:LibraryState,row:GameSessionHeader,repo:GameSessionRepository):LibraryState {
         val detail=repo.libraryDetail(row.id)
         require(detail.header.id==row.id && detail.header.packageName==row.packageName)
-        val snapshot=SessionAnalyticsSnapshot.from(detail)
+        val snapshot=UnifiedGameSessionSnapshot.from(detail)
         val candidates=repo.recentForPackage(row.packageName,25)
             .filter { it.endedAtMs!=null && it.id!=row.id }
         return s.copy(detail=detail,analytics=snapshot,comparisonRows=candidates,pair=null,
