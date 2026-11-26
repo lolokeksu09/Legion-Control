@@ -38,7 +38,8 @@ for forbidden in (
 ):
     assert forbidden not in str(perms)
 assert 'android.permission.PACKAGE_USAGE_STATS' in perms
-assert "AppOpsManager.OPSTR_GET_USAGE_STATS" in usage
+assert "CapabilityAccessBackend.usageState(context)" in usage
+assert "AppOpsManager.OPSTR_GET_USAGE_STATS" in (src/"CapabilityAccessBackend.kt").read_text(encoding="utf-8")
 assert "ModuleNavigation.forwardLegacyEntry(this)" in wrapper
 assert "report.observe(viewLifecycleOwner)" in activity
 assert "Settings.ACTION_USAGE_ACCESS_SETTINGS" in activity

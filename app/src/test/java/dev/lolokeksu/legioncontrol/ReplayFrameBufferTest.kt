@@ -91,6 +91,43 @@ class ReplayFrameBufferTest {
         assertEquals(100L, buffer.byteLimitBytes)
     }
 
+    @Test fun repeatedEvictionAndClearDoNotLeaveStaleSyncCount() {
+        val buffer = ReplayFrameBuffer(120, 65L)
+        for (start in 0..50 step 5) {
+            buffer.add(frame(start, true))
+            buffer.add(frame(start+1, false))
+            buffer.add(frame(start+2, true))
+            buffer.add(frame(start+3, false))
+            assertEquals(40L, buffer.sizeBytes)
+            assertEquals((start+2)*1_000_000L, buffer.snapshot().first().ptsUs)
+            buffer.clear()
+            assertTrue(buffer.add(frame(start+4, true, 50)))
+            assertTrue(buffer.add(frame(start+5, false, 50)))
+            assertEquals(0L, buffer.sizeBytes)
+            assertFalse(buffer.add(frame(start+6, false)))
+        }
+    }
+
+    @Test fun clippedSnapshotKeepsOnlyFreshGopAndStableReferences() {
+        val buffer = ReplayFrameBuffer(30)
+        for (s in 0..31) buffer.add(frame(s, s % 2 == 0))
+        val clipped = buffer.snapshotAt(40_000_000L)
+        assertEquals(10_000_000L, clipped.first().ptsUs)
+        assertEquals(31_000_000L, clipped.last().ptsUs)
+        assertTrue(clipped.first().keyFrame)
+        buffer.clear()
+        assertEquals(22, clipped.size)
+        assertTrue(buffer.snapshotAt(40_000_000L).isEmpty())
+    }
+
+    @Test fun snapshotRejectsFreshWindowShorterThanOneSecond() {
+        val buffer = ReplayFrameBuffer(30)
+        buffer.add(frame(0, true))
+        buffer.add(frame(2, false))
+        buffer.add(frame(30, true))
+        assertTrue(buffer.snapshotAt(60_000_000L).isEmpty())
+    }
+
     @Test fun resetDropsOnlyInMemoryFrames() {
         val buffer = ReplayFrameBuffer(60)
         buffer.add(frame(0, true))

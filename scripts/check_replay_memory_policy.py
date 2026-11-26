@@ -18,6 +18,9 @@ assert "ReplayMemoryPolicy.audioByteLimit" in service
 assert "ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW" in service
 assert "trimRequested.compareAndSet(true, false)" in service
 assert "reduceByteLimit" in video and "hasSecondKey()" in video
+assert "keyFrameCount > 1" in video and "keyFrameCount--" in video and "keyFrameCount = 0" in video
+assert "val available = snapshot()" not in video
+assert "nextSaveProbeAt = now + 100L" in service
 assert "reduceByteLimit" in audio and "packets.removeFirst()" in audio
 assert "ReplayMemoryPolicy.afterAudioTrim" in audio_capture
 assert "ReplayFrameBuffer(windowSeconds, videoLimit)" in service

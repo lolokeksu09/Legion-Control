@@ -231,6 +231,15 @@ class GameToolboxFragment : Fragment() {
         }
 
         group("Системные разрешения и возврат")
+        tile("Уведомления Game Toolbox", "Включить уведомления приложения или канала") {
+            val ctx=requireContext()
+            val manager=ctx.getSystemService(android.app.NotificationManager::class.java)
+            val intent=if(manager?.getNotificationChannel("game-toolbox")!=null)
+                CapabilityAccessBackend.notificationChannelIntent(ctx,"game-toolbox")
+                else CapabilityAccessBackend.settingsIntent(ctx,CapabilityAccess.NOTIFICATIONS)
+            if(intent!=null) runCatching { startActivity(intent) }
+                .onFailure { status.text="Не удалось открыть настройки уведомлений." }
+        }
         tile("Доступ к режиму «Не беспокоить»", "Управляется настройками Android") {
             runCatching { startActivity(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)) }
                 .onFailure { status.text = "Не удалось открыть настройки: ${it.javaClass.simpleName}" }
@@ -262,6 +271,7 @@ class GameToolboxFragment : Fragment() {
         if(::automationStatus.isInitialized) {
             automationStatus.text="Usage Access: "+access[CapabilityAccess.USAGE].label+
                 " · уведомления: "+access[CapabilityAccess.NOTIFICATIONS].label+
+                " · канал: "+CapabilityAccessBackend.notificationChannelState(requireContext(), "game-toolbox").label+
                 "\nОдноразовый авто-профиль · возврат при наблюдаемом выходе"
         }
         val pkg = prefs.getString(ToolboxPreferences.GAME, null)
@@ -388,10 +398,18 @@ class GameToolboxFragment : Fragment() {
         val profile=GameLaunchProfiles.profile(ctx,pkg)
         if(profile==null || !profile.actionable){status.text="Сначала сохраните профиль.";return}
         if(GameLaunchProfiles.pendingPackage(ctx)!=null){status.text="Сначала восстановите предыдущий профиль.";return}
-        if(!Settings.canDrawOverlays(ctx)){status.text="Разрешите показ поверх окон.";overlaySettings();return}
-        if(!GameUsageDiagnostics.hasUsageAccess(ctx)){status.text="Выдайте Usage Access вручную.";return}
-        val nm=ctx.getSystemService(android.app.NotificationManager::class.java)
-        if(nm?.areNotificationsEnabled()!=true){status.text="Разрешите уведомления для явного контроля авто-сессии.";return}
+        val overlay=CapabilityAccessBackend.overlayState(ctx)
+        if(overlay!=AccessState.READY){status.text="Поверх окон: "+overlay.label;overlaySettings();return}
+        val usage=CapabilityAccessBackend.usageState(ctx)
+        if(usage!=AccessState.READY){status.text="Usage Access: "+usage.label;return}
+        val notifications=CapabilityAccessBackend.notificationState(ctx)
+        if(notifications!=AccessState.READY){status.text="Уведомления: "+notifications.label;return}
+        // Channel may not exist yet; service creates it. A known disabled channel blocks start.
+        if(CapabilityAccessBackend.notificationChannelState(ctx,"game-toolbox")==AccessState.DISABLED){
+            status.text="Канал Game Toolbox отключён. Включите его в системных настройках.";return
+        }
+        val profileAccess=CapabilityAccessBackend.profileAccess(ctx,profile)
+        if(profileAccess!=AccessState.READY){status.text="Настройки профиля: "+profileAccess.label;return}
         val launch=ctx.packageManager.getLaunchIntentForPackage(pkg)
         if(launch==null){status.text="Игра недоступна для запуска.";return}
         LegionDialogs.builder(ctx).setTitle("Включить одноразовую автоматизацию?")

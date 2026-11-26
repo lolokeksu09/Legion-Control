@@ -16,7 +16,12 @@ assert "AccessState.UNSUPPORTED" in backend
 assert "getOrNull()" in backend
 assert "startActivity(" not in backend and "requestPermissions(" not in backend
 test = (root / "app/src/test/java/dev/lolokeksu/legioncontrol/CapabilityAccessPolicyTest.kt").read_text()
-assert test.count("@Test") >= 5
+assert test.count("@Test") >= 8
+assert "CapabilityAccessBackend.automationAccess(" in (src / "GameAutomationController.kt").read_text()
+assert "CapabilityAccessBackend.profileAccess(" in (src / "GameToolboxFragment.kt").read_text()
+assert "CapabilityAccessBackend.playbackAudioState(" in (src / "CaptureStudioActivity.kt").read_text()
+assert "ACTION_CHANNEL_NOTIFICATION_SETTINGS" in backend
+assert "getNotificationChannel(channelId)" in backend
 backup = (root / "app/src/androidTest/java/dev/lolokeksu/legioncontrol/FullBackupInstrumentedTest.kt").read_text()
 after = backup[backup.index("// Simulate interruption AFTER"):backup.index("val interrupted = runCatching")]
 assert re.search(r'^\s*assertTrue\(app\.deleteDatabase\("legion-control-history\.db"\)\)', after, re.M)

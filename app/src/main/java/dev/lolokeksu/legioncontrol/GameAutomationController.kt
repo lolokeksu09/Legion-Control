@@ -54,11 +54,9 @@ internal class GameAutomationController(
     }
     private data class Observation(val events:List<AutomationEvent>,val temp:Int?,val thermal:Int?)
     private fun available():Boolean {
-        val nm=context.getSystemService(NotificationManager::class.java)
         val power=context.getSystemService(PowerManager::class.java)
         val keyguard=context.getSystemService(KeyguardManager::class.java)
-        return GameUsageDiagnostics.hasUsageAccess(context) && Settings.canDrawOverlays(context) &&
-            nm?.areNotificationsEnabled()==true && nm.getNotificationChannel("game-toolbox")?.importance?.let{it>NotificationManager.IMPORTANCE_NONE}==true &&
+        return CapabilityAccessBackend.automationAccess(context, "game-toolbox") == AccessState.READY &&
             power?.isInteractive==true && keyguard?.isKeyguardLocked==false
     }
     fun start() {

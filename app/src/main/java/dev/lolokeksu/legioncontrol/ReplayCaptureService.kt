@@ -309,6 +309,7 @@ class ReplayCaptureService : Service() {
         val info = MediaCodec.BufferInfo()
         var deadline = Long.MAX_VALUE
         var nextSafetyAt = SystemClock.elapsedRealtime() + 2_000L
+        var nextSaveProbeAt = 0L
         try {
             while (running.get() || SystemClock.elapsedRealtime() < deadline) {
                 if (trimRequested.compareAndSet(true, false)) {
@@ -376,7 +377,9 @@ class ReplayCaptureService : Service() {
                 // A still game can produce no new encoded frames: process SAVE
                 // even on INFO_TRY_AGAIN_LATER, without creating another display.
                 if (saveRequested.get() && !stopping.get() && videoFormat != null &&
-                    !exporting.get()) {
+                    !exporting.get() && now >= nextSaveProbeAt) {
+                    // A missing sync frame can otherwise trigger a snapshot scan every codec poll.
+                    nextSaveProbeAt = now + 100L
                     val nowVideoUs = ReplayAudioTimeline.videoPts(
                         System.nanoTime() / 1000L, videoMinusNanoClockUs ?: 0L)
                     val snapshot = if (nowVideoUs != null) buffer.snapshotAt(nowVideoUs)

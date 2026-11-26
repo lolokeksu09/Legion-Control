@@ -20,6 +20,7 @@ class ReplayFrameBuffer(
 
     private val frames = ArrayDeque<ReplayFrame>()
     private var byteCount = 0L
+    private var keyFrameCount = 0
     private var byteLimit = byteLimit
     val sizeBytes: Long get() = synchronized(this) { byteCount }
     val byteLimitBytes: Long get() = synchronized(this) { byteLimit }
@@ -33,6 +34,7 @@ class ReplayFrameBuffer(
 
         frames.addLast(frame)
         byteCount += frame.bytes.size
+        if (frame.keyFrame) keyFrameCount++
         trim(frame.ptsUs)
         return true
     }
@@ -55,8 +57,7 @@ class ReplayFrameBuffer(
         if (byteCount > byteLimit) clear()
     }
 
-    private fun hasSecondKey(): Boolean =
-        frames.asSequence().drop(1).any { it.keyFrame }
+    private fun hasSecondKey(): Boolean = keyFrameCount > 1
 
     private fun evictThroughNextKey() {
         if (frames.isEmpty()) return
@@ -65,34 +66,43 @@ class ReplayFrameBuffer(
     }
 
     private fun removeFirst() {
-        byteCount -= frames.removeFirst().bytes.size
+        val removed = frames.removeFirst()
+        byteCount -= removed.bytes.size
+        if (removed.keyFrame) keyFrameCount--
     }
 
     /** Holds references to immutable samples, not copies of encoded byte arrays. */
     @Synchronized fun snapshot(): List<ReplayFrame> {
         if (frames.size < 2) return emptyList()
-        val copy = frames.toList()
-        if (copy.last().ptsUs - copy.first().ptsUs < 1_000_000L) return emptyList()
-        check(copy.first().keyFrame)
-        return copy
+        if (frames.last.ptsUs - frames.first.ptsUs < 1_000_000L) return emptyList()
+        check(frames.first.keyFrame)
+        return frames.toList()
     }
 
     /** Snapshot bounded against SAVE time, not just the last generated video frame. */
     @Synchronized fun snapshotAt(videoNowUs: Long): List<ReplayFrame> {
         if (videoNowUs < 0L) return emptyList()
-        val available = snapshot()
-        if (available.isEmpty()) return emptyList()
+        if (frames.size < 2) return emptyList()
         val oldestUs = (videoNowUs - windowSeconds.toLong() * 1_000_000L).coerceAtLeast(0L)
-        if (available.last().ptsUs < oldestUs) return emptyList()
-        val start = available.indexOfFirst { it.keyFrame && it.ptsUs >= oldestUs }
-        if (start < 0) return emptyList()
-        val clipped = available.drop(start)
-        return if (clipped.size >= 2 &&
-            clipped.last().ptsUs - clipped.first().ptsUs >= 1_000_000L) clipped else emptyList()
+        val latestUs = frames.last.ptsUs
+        if (latestUs < oldestUs) return emptyList()
+        val iterator = frames.iterator()
+        while (iterator.hasNext()) {
+            val first = iterator.next()
+            if (!first.keyFrame || first.ptsUs < oldestUs) continue
+            if (latestUs - first.ptsUs < 1_000_000L) return emptyList()
+            // Allocate only one list, and only for a valid window.
+            val result = ArrayList<ReplayFrame>()
+            result.add(first)
+            while (iterator.hasNext()) result.add(iterator.next())
+            return result
+        }
+        return emptyList()
     }
 
     @Synchronized fun clear() {
         frames.clear()
         byteCount = 0L
+        keyFrameCount = 0
     }
 }

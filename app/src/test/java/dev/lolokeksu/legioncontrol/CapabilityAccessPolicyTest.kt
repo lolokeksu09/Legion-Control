@@ -16,6 +16,20 @@ class CapabilityAccessPolicyTest {
     @Test fun unsupportedIsNotPermissionRequired() =
         assertEquals(AccessState.UNSUPPORTED, CapabilityAccessPolicy.evaluate(false, false))
 
+    @Test fun compositeRequiresEveryRelevantCapability() {
+        assertEquals(AccessState.READY, CapabilityAccessPolicy.combine(emptyList()))
+        assertEquals(AccessState.READY, CapabilityAccessPolicy.combine(listOf(AccessState.READY, AccessState.READY)))
+        assertEquals(AccessState.UNKNOWN, CapabilityAccessPolicy.combine(listOf(AccessState.READY, AccessState.UNKNOWN)))
+    }
+
+    @Test fun knownDenialOutranksUnknownInComposite() =
+        assertEquals(AccessState.PERMISSION_REQUIRED,
+            CapabilityAccessPolicy.combine(listOf(AccessState.UNKNOWN, AccessState.PERMISSION_REQUIRED)))
+
+    @Test fun disabledChannelNeverCountsAsReady() =
+        assertEquals(AccessState.DISABLED,
+            CapabilityAccessPolicy.combine(listOf(AccessState.READY, AccessState.DISABLED)))
+
     @Test fun unknownProbeNeverInventsAccess() {
         assertEquals(AccessState.UNKNOWN, CapabilityAccessPolicy.evaluate(null, true))
         assertEquals(AccessState.UNKNOWN, CapabilityAccessPolicy.evaluate(true, null))

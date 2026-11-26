@@ -10,6 +10,11 @@ internal enum class AccessState(val label: String) {
 }
 
 internal object CapabilityAccessPolicy {
+    /** All requested capabilities must be ready. Unknown fails closed. */
+    fun combine(states: List<AccessState>): AccessState =
+        listOf(AccessState.UNSUPPORTED, AccessState.PERMISSION_REQUIRED,
+            AccessState.DISABLED, AccessState.UNKNOWN).firstOrNull { it in states } ?: AccessState.READY
+
     fun evaluate(supported: Boolean?, granted: Boolean?, enabled: Boolean? = true): AccessState =
         when {
             supported == false -> AccessState.UNSUPPORTED
