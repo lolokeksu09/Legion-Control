@@ -5,6 +5,8 @@ src = root / "app/src/main/java/dev/lolokeksu/legioncontrol"
 detail = (src / "GameDetailFragment.kt").read_text()
 profile = (src / "GameProfilePresentation.kt").read_text()
 tool = (src / "GameToolboxFragment.kt").read_text()
+actions = (src / "GameLaunchProfileActions.kt").read_text()
+session = (src / "GameSessionFragment.kt").read_text()
 insights = (src / "SmartSessionInsights.kt").read_text()
 presentation = (src / "SmartInsightsPresentation.kt").read_text()
 fragment = (src / "SmartProfilesFragment.kt").read_text()
@@ -14,12 +16,15 @@ assert "GameLaunchProfiles.pendingPackage(" in detail
 editor = (src / "GameLaunchProfileEditor.kt").read_text()
 assert "setView(scroll)" in editor and "LegionUiSupport.spinner" in editor
 assert "GameLaunchProfileEditor.show(" in tool and "GameLaunchProfileEditor.show(" in detail and "GameLaunchProfileEditor.show(" in fragment
-assert "confirmApplyGameLaunchProfile" in tool and "setPositiveButton" in tool
-assert "confirmRestoreGameLaunchProfile" in tool
-assert "GameLaunchProfiles.pendingConfirmation(ctx)" in tool
-assert "GameLaunchProfiles.restoreConfirmed(ctx, pending)" in tool
+for entry in (tool, detail):
+    assert "GameLaunchProfileActions.confirmApply(" in entry
+    assert "GameLaunchProfileActions.confirmRestore(" in entry
+assert "setPositiveButton" in actions
+assert "GameLaunchProfiles.pendingConfirmation(context)" in actions
+assert "GameLaunchProfiles.restoreConfirmed(context, pending)" in actions
 assert "GameLaunchProfilePolicy.editorPercentOptions(" in editor
-assert "applyGameLaunchProfile(pkg, profile, launch)" in tool
+assert 'putString("app_center_package", it)' in session
+assert "ModuleNavigation.open(this, SmartProfilesActivity::class.java, args)" in session
 assert "COUNT(g.thermal_status),COUNT(g.network_validated)" in insights
 assert "end_reason='USER_STOP'" in insights
 assert "thermalSampleCount" in presentation and "networkSampleCount" in presentation

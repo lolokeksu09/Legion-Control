@@ -26,7 +26,7 @@ assert 'contentDescription = if (detail.isBlank()) title else "$title. $detail"'
 assert "fun cardSurface(view: View)" in support
 for name, code in (("HubPageFragment", hub), ("GameToolboxFragment", toolbox)):
     assert "LegionUiSupport.actionTile(requireContext(), title," in code, name
-assert "LegionUiSupport.cardSurface(this)" in detail
+assert "LegionUiSupport.reportSurface(info)" in detail
 assert "LegionUiSupport.actionTile(requireContext(), title, desc, callback)" in detail
 assert "getApplicationIcon(pkg)" in detail
 

@@ -114,7 +114,9 @@ class GameSessionFragment : Fragment() {
 
         root.addView(LegionUiSupport.sectionLabel(requireContext(), "ДОПОЛНИТЕЛЬНЫЕ НАСТРОЙКИ"))
         action("Smart Profiles · сохранённые настройки") {
-            ModuleNavigation.open(this,SmartProfilesActivity::class.java)
+            val pkg = packageInput.text.toString().trim().takeIf(packagePattern::matches)
+            val args = pkg?.let { Bundle().apply { putString("app_center_package", it) } }
+            ModuleNavigation.open(this, SmartProfilesActivity::class.java, args)
         }
         tcpOption = CheckBox(requireContext()).apply {
             text="Дополнительно: TCP-тест one.one.one.one:443 примерно раз в 2 минуты"

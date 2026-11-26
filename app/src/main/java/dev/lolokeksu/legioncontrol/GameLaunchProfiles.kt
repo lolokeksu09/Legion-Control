@@ -72,6 +72,21 @@ object GameLaunchProfiles {
     internal fun applyConfirmed(context: Context, pkg: String, approved: GameLaunchProfile): GameLaunchResult =
         applyInternal(context, pkg, null, approved)
 
+    /** Keep profile mutations serialized until launch succeeds or this attempt is reverted. */
+    internal fun launchConfirmed(
+        context: Context, pkg: String, approved: GameLaunchProfile, openGame: () -> Unit
+    ): GameLaunchResult = ProfileMaintenanceGate.tryRun({maintenanceBusy()}) {
+        val applied = applyConfirmed(context, pkg, approved)
+        if (!applied.success) return@tryRun applied
+        try {
+            openGame()
+            applied
+        } catch (e: Exception) {
+            val rollback = restore(context)
+            GameLaunchResult(false, "Игра не запущена: ${e.javaClass.simpleName}. Возврат настроек: ${rollback.message}")
+        }
+    }
+
     internal fun applyAutomatic(context:Context,pkg:String,owner:String,approved:GameLaunchProfile):GameLaunchResult =
         applyInternal(context,pkg,owner,approved)
 
