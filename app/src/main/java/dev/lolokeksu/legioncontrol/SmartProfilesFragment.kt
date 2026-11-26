@@ -238,12 +238,17 @@ class SmartProfilesFragment : Fragment() {
         analyticsPanel.addView(LegionUiSupport.sectionLabel(
             requireContext(), "АНАЛИТИКА · ${data.days} ДН."
         ))
-        for (metric in SmartInsightsPresentation.metrics(data)) {
+        val table = LinearLayout(requireContext()).apply {
+            orientation = LinearLayout.VERTICAL
+            background = LegionUiSupport.cardSurface(this)
+            setPadding(14.dp, 8.dp, 14.dp, 8.dp)
+        }
+        val metrics = SmartInsightsPresentation.metrics(data)
+        metrics.forEachIndexed { index, metric ->
             val row = LinearLayout(requireContext()).apply {
                 orientation = LinearLayout.VERTICAL
-                background = LegionUiSupport.cardSurface(this)
-                setPadding(14.dp, 10.dp, 14.dp, 10.dp)
                 minimumHeight = 48.dp
+                setPadding(0, 9.dp, 0, 9.dp)
                 contentDescription = "${metric.title}: ${metric.value}. ${metric.detail}"
             }
             val top = LinearLayout(requireContext()).apply {
@@ -270,10 +275,14 @@ class SmartProfilesFragment : Fragment() {
                 setTextColor(LegionUiSupport.MUTED)
                 setPadding(0, 4.dp, 0, 0)
             })
-            analyticsPanel.addView(row, LinearLayout.LayoutParams(-1, -2).apply {
-                bottomMargin = 6.dp
-            })
+            table.addView(row)
+            if (index < metrics.lastIndex) {
+                table.addView(View(requireContext()).apply {
+                    setBackgroundColor(0xFF252B33.toInt())
+                }, LinearLayout.LayoutParams(-1, 1.dp.coerceAtLeast(1)))
+            }
         }
+        analyticsPanel.addView(table, LinearLayout.LayoutParams(-1, -2))
         result.text = SmartInsightsPresentation.report(data)
         analyticsPanel.visibility = View.VISIBLE
     }
