@@ -4,9 +4,11 @@ root = Path(__file__).resolve().parents[1]
 src = root / "app/src/main/java/dev/lolokeksu/legioncontrol"
 hub = (src / "HubPageFragment.kt").read_text()
 policy = (src / "HubLibraryPolicy.kt").read_text()
+assert "HubGameFilter" in policy and "HubGameSort" in policy and "HubGamePage" in policy
 assert "PAGE_SIZE = 24" in policy and "requestedPage.coerceIn" in policy
 assert "HubSearch.matches(" in policy
-assert "HubLibraryPolicy.select(" in hub and "HubLibraryPolicy.homeFavorites(" in hub
+assert "HubLibraryPolicy.select(" in hub
+assert "HubGameFilter.entries" in hub and "HubGameSort.entries" in hub and "HubLibraryPolicy.homeFavorites(" in hub
 assert "filtered.take(60)" not in hub
 assert "previous.isEnabled = result.page > 0" in hub
 assert "next.isEnabled = result.page + 1 < result.pageCount" in hub

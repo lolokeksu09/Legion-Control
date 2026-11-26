@@ -38,8 +38,8 @@ class HubPageFragment : Fragment() {
     private lateinit var viewModel: HubViewModel
     private lateinit var column: LinearLayout
     private var query = ""
-    private var libraryFilter = LibraryFilter.GAMES
-    private var librarySort = LibrarySort.PRIORITY
+    private var libraryFilter = HubGameFilter.GAMES
+    private var librarySort = HubGameSort.PRIORITY
     private var libraryPage = 0
     private var toolQuery = ""
     private var toolCategory = 0
@@ -57,8 +57,8 @@ class HubPageFragment : Fragment() {
         super.onCreate(savedInstanceState)
         val saved = savedInstanceState ?: return
         query = saved.getString("libraryQuery").orEmpty()
-        libraryFilter = HubLibraryPolicy.restore(LibraryFilter.entries, saved.getString("libraryFilter"), LibraryFilter.GAMES)
-        librarySort = HubLibraryPolicy.restore(LibrarySort.entries, saved.getString("librarySort"), LibrarySort.PRIORITY)
+        libraryFilter = HubLibraryPolicy.restore(HubGameFilter.entries, saved.getString("libraryFilter"), HubGameFilter.GAMES)
+        librarySort = HubLibraryPolicy.restore(HubGameSort.entries, saved.getString("librarySort"), HubGameSort.PRIORITY)
         libraryPage = saved.getInt("libraryPage", 0).coerceAtLeast(0)
         toolQuery = saved.getString("toolQuery").orEmpty()
         toolCategory = saved.getInt("toolCategory", 0).coerceAtLeast(0)
@@ -328,8 +328,8 @@ class HubPageFragment : Fragment() {
         section("Игровая библиотека",
             "Настоящие Android-приложения из Launcher и избранное Application Center.")
         group("Библиотека")
-        val filter = LegionUiSupport.spinner(requireContext(), LibraryFilter.entries.map { it.label })
-        val sort = LegionUiSupport.spinner(requireContext(), LibrarySort.entries.map { it.label })
+        val filter = LegionUiSupport.spinner(requireContext(), HubGameFilter.entries.map { it.label })
+        val sort = LegionUiSupport.spinner(requireContext(), HubGameSort.entries.map { it.label })
         filter.contentDescription = "Фильтр библиотеки"
         sort.contentDescription = "Сортировка библиотеки"
         filter.setSelection(libraryFilter.ordinal)
@@ -423,7 +423,7 @@ class HubPageFragment : Fragment() {
         filter.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onNothingSelected(parent: AdapterView<*>?) = Unit
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                val value = LibraryFilter.entries.getOrNull(position) ?: return
+                val value = HubGameFilter.entries.getOrNull(position) ?: return
                 if (value != libraryFilter) {
                     libraryFilter = value; libraryPage = 0; cancelSearch(); redraw()
                 }
@@ -432,7 +432,7 @@ class HubPageFragment : Fragment() {
         sort.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onNothingSelected(parent: AdapterView<*>?) = Unit
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                val value = LibrarySort.entries.getOrNull(position) ?: return
+                val value = HubGameSort.entries.getOrNull(position) ?: return
                 if (value != librarySort) {
                     librarySort = value; libraryPage = 0; cancelSearch(); redraw()
                 }
