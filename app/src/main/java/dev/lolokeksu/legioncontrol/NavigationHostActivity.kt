@@ -8,7 +8,9 @@ import android.os.Bundle
 import android.view.Gravity
 import android.view.View
 import android.view.WindowInsets
+import android.widget.Button
 import android.widget.FrameLayout
+import android.widget.ProgressBar
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -32,6 +34,9 @@ class NavigationHostActivity : FragmentActivity() {
     private lateinit var back: TextView
     private val buttons = LinkedHashMap<Int, Pair<ImageView, TextView>>()
     private val tabSurfaces = LinkedHashMap<Int, View>()
+    private var recoveryObserver: AutoCloseable? = null
+    private var pendingSavedState: Bundle? = null
+    private var navigationInitialized = false
     private val Int.dp get() = (this * resources.displayMetrics.density).toInt()
     private fun versionLabel(): String = runCatching {
         packageManager.getPackageInfo(packageName,
@@ -41,6 +46,76 @@ class NavigationHostActivity : FragmentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.statusBarColor = Color.BLACK
+        window.navigationBarColor = Color.BLACK
+        window.decorView.systemUiVisibility = 0
+        pendingSavedState = savedInstanceState
+        val coordinator = (application as LegionApplication).startupRecovery
+        recoveryObserver = coordinator.observe(::onStartupRecoveryState)
+        onStartupRecoveryState(coordinator.state)
+    }
+
+    private fun onStartupRecoveryState(state: StartupRecoveryState) {
+        when (state) {
+            StartupRecoveryState.Running -> showRecoveryGate(recovering = true)
+            is StartupRecoveryState.Failed -> showRecoveryGate(recovering = false, reason = state.reason)
+            StartupRecoveryState.Ready, is StartupRecoveryState.ContinuedWithWarning -> {
+                recoveryObserver?.close()
+                recoveryObserver = null
+                initializeNavigation(pendingSavedState)
+            }
+        }
+    }
+
+    private fun showRecoveryGate(recovering: Boolean, reason: String? = null) {
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setPadding(28.dp, 32.dp, 28.dp, 32.dp)
+            setBackgroundColor(Color.BLACK)
+        }
+        root.addView(TextView(this).apply {
+            text = "LEGION CONTROL"
+            textSize = 21f
+            setTextColor(Color.WHITE)
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+        })
+        if (recovering) {
+            root.addView(ProgressBar(this).apply { isIndeterminate = true },
+                LinearLayout.LayoutParams(48.dp, 48.dp).apply { topMargin = 28.dp })
+        }
+        root.addView(TextView(this).apply {
+            text = if (recovering) {
+                "Проверяю журнал восстановления локальных данных…\n\n" +
+                    "Ожидайте завершения проверки. Главный поток остаётся свободным."
+            } else {
+                "Не удалось завершить восстановление (${reason ?: "Unknown"}). " +
+                    "Журнал сохранён, данные приложения не удалены. " +
+                    "После продолжения откройте Capture Studio → «Завершить прерванное восстановление». " +
+                    "Некоторые операции с локальными данными могут быть недоступны."
+            }
+            textSize = 14f
+            setTextColor(0xFFBFC5CF.toInt())
+            gravity = Gravity.CENTER
+            setLineSpacing(5f, 1f)
+            setPadding(0, 24.dp, 0, 24.dp)
+        })
+        if (!recovering) {
+            root.addView(Button(this).apply {
+                text = "Продолжить с предупреждением"
+                LegionUiSupport.styleAction(this)
+                setOnClickListener {
+                    (application as LegionApplication).startupRecovery.continueAfterFailure()
+                }
+            }, LinearLayout.LayoutParams(-1, -2))
+        }
+        setContentView(root)
+    }
+
+    private fun initializeNavigation(savedInstanceState: Bundle?) {
+        if (navigationInitialized || isFinishing || isDestroyed) return
+        navigationInitialized = true
         window.statusBarColor = Color.BLACK
         window.navigationBarColor = Color.BLACK
         window.decorView.systemUiVisibility = 0
@@ -252,6 +327,8 @@ class NavigationHostActivity : FragmentActivity() {
         ViewModelProvider(this)[HubViewModel::class.java].refresh()
     }
 
+    }
+
     private fun openRequestedModule(request: Intent) {
         val route = request.getIntExtra(ModuleNavigation.EXTRA_MODULE_ROUTE, -1)
         // Never navigate to arbitrary resources supplied by external Intents.
@@ -293,6 +370,12 @@ class NavigationHostActivity : FragmentActivity() {
             openRequestedTab(intent)
             openRequestedModule(intent)
         }
+    }
+
+    override fun onDestroy() {
+        recoveryObserver?.close()
+        recoveryObserver = null
+        super.onDestroy()
     }
 
     override fun onResume() {
