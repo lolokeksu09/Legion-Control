@@ -129,7 +129,10 @@ object GameLaunchProfiles {
                 val after: Int
                 if (Build.VERSION.SDK_INT >= 35) {
                     before = requireNotNull(appDnd).encoded
-                    after = if (p.focusEnabled == true) AppDndRuleSnapshot(true, APP_DND_ACTIVE,\n                        NotificationManager.INTERRUPTION_FILTER_NONE).encoded\n                    else if (appDnd.exists) AppDndRuleSnapshot(true, APP_DND_INACTIVE, appDnd.filter).encoded\n                    else appDnd.encoded
+                    after = if (p.focusEnabled == true) AppDndRuleSnapshot(true, APP_DND_ACTIVE,
+                        NotificationManager.INTERRUPTION_FILTER_NONE).encoded
+                    else if (appDnd.exists) AppDndRuleSnapshot(true, APP_DND_INACTIVE, appDnd.filter).encoded
+                    else appDnd.encoded
                 } else {
                     before = nm.currentInterruptionFilter
                     require(before in setOf(
