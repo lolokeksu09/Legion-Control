@@ -66,8 +66,8 @@ class HubNavigationInstrumentedTest {
                     await {
                         var mounted = false
                         instrumentation.runOnMainSync {
-                            mounted = host.supportFragmentManager.findFragmentById(R.id.device_lab_container)
-                                is ConnectivityLabFragment
+                            val lab = host.supportFragmentManager.findFragmentById(R.id.device_lab_container)
+                            mounted = lab is ConnectivityLabFragment
                         }
                         mounted
                     }
