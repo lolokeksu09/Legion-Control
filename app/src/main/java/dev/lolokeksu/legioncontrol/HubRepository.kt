@@ -21,7 +21,10 @@ data class HubSnapshot(
     val recentSessions: List<GameSessionHeader>,
     val batteryPercent: Int?,
     val refreshHz: Float?,
-    val warnings: List<String>
+    val warnings: List<String>,
+    val batteryTemperatureDeciC: Int? = null,
+    val memory: MemoryMetrics? = null,
+    val resourcesReadAtMs: Long? = null
 ) {
     companion object {
         val EMPTY = HubSnapshot(emptyList(), 0, 0, 0, 0, emptyList(), null, null, emptyList())
@@ -81,7 +84,9 @@ class HubRepository(context: Context) {
             warnings += "Библиотека клипов недоступна: " + it.javaClass.simpleName
             0
         }
-        val telemetry = runCatching { GameSessionTelemetry.hubSignals(app) }.getOrNull()
+        val battery = ResourceTelemetryBackend.readBatteryIntent(app)
+        val memory = ResourceTelemetryBackend.readSystemMemory(app)
+        val display = ResourceTelemetryBackend.readDisplayMode(app)
         return HubSnapshot(
             apps = apps,
             trackedCount = tracked.size,
@@ -89,9 +94,12 @@ class HubRepository(context: Context) {
             profileCount = profileCount,
             clipPreviewCount = clips,
             recentSessions = sessions,
-            batteryPercent = telemetry?.first,
-            refreshHz = telemetry?.second,
-            warnings = warnings
+            batteryPercent = ResourceTelemetryBackend.batteryPercent(battery),
+            refreshHz = ResourceTelemetryBackend.refreshRate(display),
+            warnings = warnings,
+            batteryTemperatureDeciC = ResourceTelemetryBackend.batteryTemperatureDeciC(battery),
+            memory = memory.value,
+            resourcesReadAtMs = System.currentTimeMillis()
         )
     }
 

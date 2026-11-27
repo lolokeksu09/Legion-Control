@@ -1,6 +1,5 @@
 package dev.lolokeksu.legioncontrol
 
-import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
 import android.os.Bundle
@@ -16,10 +15,7 @@ import androidx.fragment.app.FragmentActivity
 class LiveMonitorActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        startActivity(Intent(this, MainActivity::class.java).apply {
-            this@LiveMonitorActivity.intent.extras?.let { putExtras(it) }
-            putExtra(MainActivity.EXTRA_PAGE, DiagnosticsPage.MONITOR.name)
-        })
+        startActivity(ModuleNavigation.deviceIntent(this, DiagnosticsPage.MONITOR, intent.extras))
         finish()
     }
 }

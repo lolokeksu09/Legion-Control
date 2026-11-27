@@ -5,16 +5,9 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentContainerView
 import androidx.lifecycle.ViewModelProvider
 import android.os.Bundle
-import android.os.BatteryManager
-import android.os.Build
-import android.os.SystemClock
-import android.os.PowerManager
 import android.content.Intent
-import android.content.IntentFilter
 import android.graphics.Color
 import android.graphics.Typeface
-import android.hardware.display.DisplayManager
-import android.view.Display
 import android.view.View
 import android.widget.AdapterView
 import android.widget.Button
@@ -24,12 +17,10 @@ import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
 import java.io.OutputStreamWriter
-import java.text.DateFormat
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.UUID
-import java.util.concurrent.Executors
 
 /**
  * Read-only Android snapshots -> real Rust JNI -> private SQLite.
@@ -59,19 +50,23 @@ class MainActivity : FragmentActivity() {
     // New backend probes may call OEM services; never block the Android UI thread.
     private val diagnosticsExecutor get() = sampleController.writer
     private var sensorRequestId = 0L
+    private var showSensorHistory = false
     private var sensorCapture: SensorCaptureBackend? = null
     private var timedTest: ForegroundBatteryTest? = null
+    private var timedResultGeneration = 0L
     private var timedVisible = false
 
     companion object {
         const val EXTRA_PAGE = "diagnostics_page"
         private const val STATE_PAGE = "diagnostics_page_state"
+        private const val STATE_SENSOR_HISTORY = "diagnostics_sensor_history"
         private const val REQUEST_EXPORT_CSV = 4001
         private const val REQUEST_EXPORT_ARCHIVE = 4002
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        showSensorHistory = savedInstanceState?.getBoolean(STATE_SENSOR_HISTORY) ?: false
         val initial = DiagnosticsPage.initial(savedInstanceState?.getString(STATE_PAGE),
             intent.getStringExtra(EXTRA_PAGE), intent.getStringExtra(FeatureFinder.EXTRA_FEATURE_ID))
         val peripheral = initial.isPeripheral
@@ -421,7 +416,7 @@ class MainActivity : FragmentActivity() {
             "analytics" -> analyticsView.text = reading.content
             "thermal" -> thermalView.text = reading.content
             "timed" -> timedHistoryView.text = reading.content
-            "sensors" -> if (sensorCapture == null) sensorsView.text = reading.content
+            "sensors" -> if (showSensorHistory) sensorsView.text = reading.content
         }
     }
 
@@ -496,6 +491,7 @@ class MainActivity : FragmentActivity() {
 
     override fun onSaveInstanceState(outState: Bundle) {
         outState.putString(STATE_PAGE, currentPage.name)
+        outState.putBoolean(STATE_SENSOR_HISTORY, showSensorHistory)
         monitorPanel.saveState(outState)
         super.onSaveInstanceState(outState)
     }
@@ -503,7 +499,7 @@ class MainActivity : FragmentActivity() {
     private fun manualSample() {
         if (timedTest?.isActive == true) {
             Toast.makeText(this, "Сначала завершите тест батареи", Toast.LENGTH_SHORT).show()
-        } else sample()
+        } else sampleController.sample()
     }
 
     private fun startTimedBatteryTest() {
@@ -522,10 +518,11 @@ class MainActivity : FragmentActivity() {
                 runCatching { history.endSession(previousSession, System.currentTimeMillis()) }
             }
         }
+        val generation = ++timedResultGeneration
         val controller = ForegroundBatteryTest(
             testId = id,
             sessionId = id,
-            sample = { sample() },
+            sample = sampleController::sample,
             onProgress = { attempted, accepted ->
                 timedView.text = "Тест батареи · попыток: $attempted · принято Rust: $accepted\n" +
                     "Остановится через 60 с, при серьёзном нагреве или закрытии экрана."
@@ -541,7 +538,7 @@ class MainActivity : FragmentActivity() {
                         history.recordTimedBatteryTest(completed)
                     }
                     runOnUiThread {
-                        if (!isDestroyed && ::timedView.isInitialized) {
+                        if (!isDestroyed && generation == timedResultGeneration) {
                             timedView.text = TimedBatterySummary.format(completed) + "\n" +
                                 persisted.fold(
                                     onSuccess = {
@@ -552,7 +549,6 @@ class MainActivity : FragmentActivity() {
                                         "Ошибка сохранения теста: " + it.javaClass.simpleName
                                     }
                                 )
-                            showSavedHistory()
                         }
                     }
                 }
@@ -600,6 +596,8 @@ class MainActivity : FragmentActivity() {
             Toast.makeText(this, "Сначала дождитесь окончания измерения датчиков", Toast.LENGTH_SHORT).show()
             return
         }
+        sensorRequestId++
+        showSensorHistory = false
         historyModel.invalidate("sensors")
         val available = AndroidSensorInventory.inspect(this)
         sensorsView.text = buildString {
@@ -621,11 +619,13 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun startSensorCapture() {
+        if (!foreground || currentPage != DiagnosticsPage.SENSORS) return
         if (sensorCapture != null) {
             Toast.makeText(this, "Измерение датчиков уже выполняется", Toast.LENGTH_SHORT).show()
             return
         }
         val requestId = ++sensorRequestId
+        showSensorHistory = false
         historyModel.invalidate("sensors")
         sensorsView.text = "Сбор событий датчиков: до 3 с, для освещённости до 6 с…"
         val capture = SensorCaptureBackend(this) { outcome ->
@@ -652,6 +652,8 @@ class MainActivity : FragmentActivity() {
             Toast.makeText(this, "Сначала дождитесь окончания измерения датчиков", Toast.LENGTH_SHORT).show()
             return
         }
+        sensorRequestId++
+        showSensorHistory = true
         diagnosticsExecutor.execute { historyModel.request(DiagnosticsReadKind.SENSOR_READINGS) }
     }
 
@@ -796,13 +798,6 @@ class MainActivity : FragmentActivity() {
                 )
             }
         }
-    }
-
-    private fun sample(): TimedBatteryPoint? {
-        val point = sampleController.sample()
-        // Read is queued after this sample's primary and child diagnostic writes.
-        showSavedHistory()
-        return point
     }
 
     private fun cancelSensorCapture() {

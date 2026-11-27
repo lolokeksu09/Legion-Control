@@ -35,7 +35,7 @@ for name in ("RustEngine_resetBatterySession",
 assert "elapsedMs" not in power, "Android power source must not calculate synthetic Rust duration"
 for name in ("BatteryManager.EXTRA_PLUGGED", "BatteryManager.EXTRA_STATUS",
              "BatteryManager.EXTRA_VOLTAGE",
-             "BatteryManager.BATTERY_PROPERTY_CURRENT_NOW", "PowerManager"):
+             "ResourceTelemetryBackend.readCurrentNow(context)", "PowerManager"):
     assert name in power, name
 for name in ("engine.resetSession()", "engine.durationMs()", "AndroidPowerSource.read("):
     assert name in controller, name

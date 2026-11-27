@@ -27,14 +27,16 @@ src = android / "java/dev/lolokeksu/legioncontrol"
 kotlin = (src / "RustEngine.kt").read_text(encoding="utf-8")
 activity = (src / "MainActivity.kt").read_text(encoding="utf-8")
 controller = (src / "RustSampleController.kt").read_text(encoding="utf-8")
+telemetry = (src / "ResourceTelemetryBackend.kt").read_text(encoding="utf-8")
 rust = (root / "rust-core/src/lib.rs").read_text(encoding="utf-8")
 assert "System.loadLibrary(\"legion_core\")" in kotlin
 assert "private external fun recordBatterySample(" in kotlin
 assert "Java_dev_lolokeksu_legioncontrol_RustEngine_recordBatterySample" in rust
 assert "val elapsedMs = SystemClock.elapsedRealtime()" in controller
 assert "engine.record(percent, temp, elapsedMs)" in controller
-assert "ACTION_BATTERY_CHANGED" in controller
-assert "DisplayManager" in controller
+assert "ResourceTelemetryBackend.readBatteryIntent(context)" in controller
+assert "ResourceTelemetryBackend.readDisplayMode(context)" in controller
+assert "Intent.ACTION_BATTERY_CHANGED" in telemetry and "Display.DEFAULT_DISPLAY" in telemetry
 assert "sampleController.sample()" in activity and "RustSampleController::class.java" in activity
 assert "HISTORY_LIMIT: usize = 64" in rust
 # Second JNI contract: read-only Rust statistics, not Kotlin-calculated mock values.

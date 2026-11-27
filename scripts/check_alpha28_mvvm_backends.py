@@ -52,7 +52,7 @@ for token in ("engine.record(percent, temp, elapsedMs)","engine.statistics()",
               "engine.resetSession()", "onCleared()"):
     assert token in rust, token
 assert rust.index("history.record(StoredReading(") < rust.index("history.recordDiagnostic(")
-assert "registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))" in rust
+assert "ResourceTelemetryBackend.readBatteryIntent(context)" in rust
 assert "runOnUiThread" not in rust and "Activity" not in rust.split("class RustSampleController(",1)[1]
 
 for vm in (gamevm, profilevm, appvm, audiovm, hapticvm):

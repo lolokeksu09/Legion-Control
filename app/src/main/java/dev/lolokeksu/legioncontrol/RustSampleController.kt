@@ -2,16 +2,11 @@ package dev.lolokeksu.legioncontrol
 
 import android.app.Application
 import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
-import android.hardware.display.DisplayManager
-import android.os.BatteryManager
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
 import android.os.SystemClock
-import android.view.Display
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -43,23 +38,11 @@ class RustSampleController(application: Application) : AndroidViewModel(applicat
 
     fun sample(): TimedBatteryPoint? {
         val context = getApplication<Application>()
-        @Suppress("DEPRECATION")
-        val battery = runCatching {
-            context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-        }.getOrNull()
-        val level = battery?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
-        val scale = battery?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
-        val temp = battery?.getIntExtra(
-            BatteryManager.EXTRA_TEMPERATURE, Int.MIN_VALUE
-        ) ?: Int.MIN_VALUE
-        val percent = if (scale > 0 && level in 0..scale) {
-            (level * 100f / scale).toInt()
-        } else {
-            -1
-        }
-        val mode = (
-            context.getSystemService(Context.DISPLAY_SERVICE) as? DisplayManager
-        )?.getDisplay(Display.DEFAULT_DISPLAY)?.mode
+        val battery = ResourceTelemetryBackend.readBatteryIntent(context)
+        val temp = ResourceTelemetryBackend.batteryTemperatureDeciC(battery) ?: Int.MIN_VALUE
+        val percent = ResourceTelemetryBackend.batteryPercent(battery) ?: -1
+        val mode = ResourceTelemetryBackend.readDisplayMode(context)
+        val refreshHz = ResourceTelemetryBackend.refreshRate(mode)
         val power = AndroidPowerSource.read(context, battery)
         val batteryHealth = BatteryHealthBackend.read(battery)
         val thermalStatus = runCatching {
@@ -156,7 +139,7 @@ class RustSampleController(application: Application) : AndroidViewModel(applicat
             .append(" × ")
             .append(mode?.physicalHeight?.toString() ?: "—").append('\n')
         output.append("Режим дисплея: ")
-            .append(mode?.refreshRate?.let {
+            .append(refreshHz?.let {
                 String.format(Locale.getDefault(), "%.1f Гц", it)
             } ?: "нет данных").append('\n')
         output.append("Rust JNI: ").append(backend).append('\n')
@@ -198,7 +181,7 @@ class RustSampleController(application: Application) : AndroidViewModel(applicat
                     voltageMv = power.voltageMillivolts,
                     currentUa = power.currentMicroAmps,
                     powerSaving = power.powerSaving,
-                    refreshRateHz = mode?.refreshRate,
+                    refreshRateHz = refreshHz,
                     screenWidthPx = mode?.physicalWidth,
                     screenHeightPx = mode?.physicalHeight
                 ))

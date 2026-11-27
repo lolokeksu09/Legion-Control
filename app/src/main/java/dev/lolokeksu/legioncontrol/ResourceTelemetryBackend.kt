@@ -2,6 +2,10 @@ package dev.lolokeksu.legioncontrol
 
 import android.app.ActivityManager
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.hardware.display.DisplayManager
+import android.view.Display
 import android.os.BatteryManager
 import android.os.PowerManager
 import android.os.StatFs
@@ -34,19 +38,37 @@ object ResourceTelemetryBackend {
         )
     }
 
+    internal fun readBatteryIntent(context: Context): Intent? = runCatching {
+        context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+    }.getOrNull()
+
+    internal fun batteryPercent(battery: Intent?): Int? = TelemetryValidation.batteryPercent(
+        battery?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1,
+        battery?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
+    )
+
+    internal fun batteryTemperatureDeciC(battery: Intent?): Int? =
+        battery?.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, Int.MIN_VALUE)
+            ?.takeIf { it in -400..1200 }
+
+    internal fun readDisplayMode(context: Context): Display.Mode? = runCatching {
+        context.getSystemService(DisplayManager::class.java)?.getDisplay(Display.DEFAULT_DISPLAY)?.mode
+    }.getOrNull()
+
+    internal fun refreshRate(mode: Display.Mode?): Float? =
+        mode?.refreshRate?.takeIf { it.isFinite() && it in 1f..500f }
+
+    /** One-shot current value in µA. Each consumer keeps its existing validity range. */
+    internal fun readCurrentNow(context: Context): Int? =
+        batteryCurrentNow(batteryService(context)) { it?.takeUnless { raw -> raw == Int.MIN_VALUE } }.value
+
     /** Reused by manual battery screens without probing unrelated services. */
     internal fun readBatteryCounters(context: Context): BatteryCounterSnapshot {
-        val battery: ProbeResult<BatteryManager> = try {
-            val service = context.getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
-            if (service == null) ProbeResult.unavailable() else ProbeResult.available(service)
-        } catch (_: Exception) {
-            ProbeResult.failure()
-        }
+        val battery = batteryService(context)
         return BatteryCounterSnapshot(
             batteryProperty(battery, BatteryManager.BATTERY_PROPERTY_CHARGE_COUNTER,
                 TelemetryValidation::chargeCounterMicroAh),
-            batteryProperty(battery, BatteryManager.BATTERY_PROPERTY_CURRENT_NOW,
-                TelemetryValidation::currentMicroAmps),
+            batteryCurrentNow(battery, TelemetryValidation::currentMicroAmps),
             batteryProperty(battery, BatteryManager.BATTERY_PROPERTY_CURRENT_AVERAGE,
                 TelemetryValidation::currentMicroAmps),
             battery.flatMap { service ->
@@ -55,6 +77,17 @@ object ResourceTelemetryBackend {
             }
         )
     }
+
+    private fun batteryService(context: Context): ProbeResult<BatteryManager> = try {
+        val service = context.getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
+        if (service == null) ProbeResult.unavailable() else ProbeResult.available(service)
+    } catch (_: Exception) {
+        ProbeResult.failure()
+    }
+
+    private fun batteryCurrentNow(
+        service: ProbeResult<BatteryManager>, normalize: (Int?) -> Int?
+    ): ProbeResult<Int> = batteryProperty(service, BatteryManager.BATTERY_PROPERTY_CURRENT_NOW, normalize)
 
     /** Only the two resource fields required by the frequent live monitor. */
     fun readForMonitor(context: Context): MonitorResourceSnapshot =

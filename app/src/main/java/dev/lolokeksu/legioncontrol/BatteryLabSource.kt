@@ -1,20 +1,16 @@
 package dev.lolokeksu.legioncontrol
 
 import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
 import android.os.BatteryManager
 import android.os.PowerManager
 
 internal object BatteryLabSource {
     fun read(context:Context,elapsed:Long):BatteryLabPoint? {
-        val intent=context.registerReceiver(null,IntentFilter(Intent.ACTION_BATTERY_CHANGED)) ?: return null
+        val intent=ResourceTelemetryBackend.readBatteryIntent(context) ?: return null
         val bm=context.getSystemService(BatteryManager::class.java)
         val power=context.getSystemService(PowerManager::class.java)
         fun intProp(id:Int)=runCatching{bm?.getIntProperty(id)}.getOrNull()?.takeUnless{it==Int.MIN_VALUE}
         fun longProp(id:Int)=runCatching{bm?.getLongProperty(id)}.getOrNull()?.takeUnless{it==Long.MIN_VALUE}
-        val level=intent.getIntExtra(BatteryManager.EXTRA_LEVEL,-1)
-        val scale=intent.getIntExtra(BatteryManager.EXTRA_SCALE,-1)
         val status=when(intent.getIntExtra(BatteryManager.EXTRA_STATUS,-1)) {
             BatteryManager.BATTERY_STATUS_CHARGING -> BatteryLabStatus.CHARGING
             BatteryManager.BATTERY_STATUS_DISCHARGING -> BatteryLabStatus.DISCHARGING
@@ -31,8 +27,8 @@ internal object BatteryLabSource {
             -1 -> BatteryLabPlug.UNKNOWN
             else -> BatteryLabPlug.OTHER
         }
-        return BatteryLabPoint(elapsed,if(level>=0 && scale>0 && level<=scale) (level.toLong()*100/scale).toInt() else null,
-            intent.getIntExtra(BatteryManager.EXTRA_TEMPERATURE,Int.MIN_VALUE).takeIf{it in -400..1200},
+        return BatteryLabPoint(elapsed,ResourceTelemetryBackend.batteryPercent(intent),
+            ResourceTelemetryBackend.batteryTemperatureDeciC(intent),
             intProp(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW)?.takeIf{it in -50_000_000..50_000_000},
             intent.getIntExtra(BatteryManager.EXTRA_VOLTAGE,-1).takeIf{it in 500..20_000},
             intProp(BatteryManager.BATTERY_PROPERTY_CHARGE_COUNTER)?.takeIf{it in 0..100_000_000},
