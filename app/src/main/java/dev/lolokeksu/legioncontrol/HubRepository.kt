@@ -79,7 +79,7 @@ class HubRepository(context: Context) {
             emptyList()
         }
         val clips = runCatching {
-            CaptureClipLibrary.listOwn(app).size
+            CaptureMediaLibrary.page(app, format = CaptureMediaFormat.MP4).items.size
         }.getOrElse {
             warnings += "Библиотека клипов недоступна: " + it.javaClass.simpleName
             0

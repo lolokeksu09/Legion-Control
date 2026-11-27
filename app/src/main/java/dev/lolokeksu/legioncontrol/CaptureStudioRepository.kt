@@ -118,47 +118,33 @@ class CaptureStudioRepository(context: Context, private val requestedGame: Strin
         return profiles.restoreJson(text)
     }
 
-    fun status(): String {
-        val running = CaptureRecordingService.recording
-        val last = prefs.getString(CaptureRecordingService.LAST_RESULT,
-            "Клипов ещё нет. Для первой записи нажмите «Начать» и подтвердите запрос Android.")
-        val header = when {
-            running && CaptureRecordingService.paused -> "ЗАПИСЬ НА ПАУЗЕ\n"
-            running -> "ЗАПИСЬ АКТИВНА\n"
-            ReplayCaptureService.active -> "REPLAY АКТИВЕН\n"
-            CaptureScreenshotService.active -> "СНИМОК ВЫПОЛНЯЕТСЯ\n"
-            else -> "Нет активного захвата\n"
-        }
-        return header + last
+    fun lastCaptureResult(): String =
+        prefs.getString(CaptureRecordingService.LAST_RESULT, "").orEmpty()
+
+    internal fun mediaPage(query: String, format: CaptureMediaFormat?, after: CaptureMediaKey?): CaptureMediaPage =
+        CaptureMediaLibrary.page(app, query, format, after)
+
+    internal fun requireReadableMedia(item: CaptureMedia): Uri {
+        val uri = CaptureMediaLibrary.requirePublished(app, item)
+        requireNotNull(app.contentResolver.openFileDescriptor(uri, "r")) {
+            "Файл недоступен. Обновите медиатеку."
+        }.close()
+        return uri
     }
 
-    fun clips(page: Int = 0): List<CaptureClip> = CaptureClipLibrary.listOwn(app, page)
-
-    /** Editing is strictly scoped to a published item from the app-owned MediaStore query. */
-    fun trimOwnClip(
-        clip: CaptureClip, range: ClipTrimSelection, cancelled: () -> Boolean
-    ) = ClipWorkshop.trim(app, requireOwnClip(clip).uri, range, cancelled)
-
-    fun exportOwnClipFrame(
-        clip: CaptureClip, atMs: Long?, cancelled: () -> Boolean
-    ) = ClipWorkshop.exportFrame(app, requireOwnClip(clip).uri, atMs, cancelled)
-
-    private fun requireOwnClip(clip: CaptureClip): CaptureClip =
-        clip.takeIf { CaptureClipLibrary.isOwnPublished(app, it.uri) }
-            ?: throw IllegalArgumentException("Selected clip is not in own library")
-
-    fun screenshots(page: Int = 0): List<CaptureScreenshot> = CaptureScreenshotLibrary.listOwn(app, page)
-
-    fun deleteOwnScreenshot(screenshot: CaptureScreenshot): Boolean {
-        require(CaptureScreenshotLibrary.isOwnPublished(app, screenshot.uri)) {
-            "Selected screenshot is not in own library"
-        }
-        return CaptureScreenshotLibrary.delete(app, screenshot.uri)
+    /** Editing is strictly scoped to a published MP4 from the app-owned MediaStore query. */
+    internal fun trimOwnClip(
+        clip: CaptureMedia, range: ClipTrimSelection, cancelled: () -> Boolean
+    ): Uri {
+        require(clip.format == CaptureMediaFormat.MP4)
+        return ClipWorkshop.trim(app, CaptureMediaLibrary.requirePublished(app, clip), range, cancelled)
     }
 
-    /** The dialog-confirmed URI comes only from this app's own MediaStore query. */
-    fun deleteOwnClip(clip: CaptureClip): Boolean {
-        require(CaptureClipLibrary.isOwnPublished(app, clip.uri)) { "Selected clip is not in own library" }
-        return CaptureClipLibrary.delete(app, clip.uri)
+    internal fun exportOwnClipFrame(clip: CaptureMedia, atMs: Long?, cancelled: () -> Boolean): Uri {
+        require(clip.format == CaptureMediaFormat.MP4)
+        return ClipWorkshop.exportFrame(app, CaptureMediaLibrary.requirePublished(app, clip), atMs, cancelled)
     }
+
+    internal fun deleteOwnMedia(item: CaptureMedia): Boolean =
+        CaptureMediaLibrary.deletePublished(app, item)
 }

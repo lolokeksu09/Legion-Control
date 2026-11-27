@@ -11,15 +11,18 @@ assert "CapturePhase.STOPPING" in ui
 assert "uiHandler.removeCallbacks(stateTick)" in ui[ui.index("override fun onPause()"):]
 assert "if (paused) CaptureRecordingService.resume(this)" in ui
 assert "else CaptureRecordingService.pause(this)" in ui
-assert 'action("ОБНОВИТЬ МЕДИАТЕКУ", "capture.clips")' in ui
-assert "browseClips()\n            viewModel.refreshScreenshots()" in ui
-assert "clipState.text = if (clips.isEmpty())" in ui
-assert "shotState.text = if (shots.isEmpty())" in ui
-for view, items in (("clipState", "clips"), ("shotState", "shots")):
-    for kind in ("LOADING", "ERROR"):
-        assert f"LegionUiSupport.notice({view}, LegionUiSupport.Notice.{kind})" in ui
-    assert f"LegionUiSupport.notice({view}, if ({items}.isEmpty()) LegionUiSupport.Notice.EMPTY else LegionUiSupport.Notice.INFO)" in ui
+repo = (src / "CaptureStudioRepository.kt").read_text()
+media = (src / "CaptureMediaLibrary.kt").read_text()
+vm = (src / "CaptureStudioViewModel.kt").read_text()
+assert "CaptureStudioPane.initial(" in ui and "FeatureReveal.fromActivity(" in ui
+assert "viewModel.library.observe(this, ::renderMedia)" in ui
+assert "CaptureLibraryState.Loading" in ui and "CaptureLibraryState.Error" in ui
+assert "CaptureMediaLibrary.requirePublished(app, item)" in repo
+assert 'openFileDescriptor(uri, "r")' in repo
+assert 'LIKE ? ESCAPE' in media and "IS_TRASHED" in media
+assert "putStringArray(ContentResolver.QUERY_ARG_SQL_SELECTION_ARGS" in media
+assert "token != revision.get()" in vm and "request != accessGeneration" in vm
 assert "Intent(requireContext(), CaptureStudioActivity::class.java)" in toolbox
 for mode in ("RECORDING", "REPLAY", "SCREENSHOT"):
     assert f"reserveConsent(CaptureMode.{mode})" in ui
-print("PASS: shared capture controls and separate library states; fresh consent retained")
+print("PASS: separate media destinations, owned paged results, cancellable consent and file access")

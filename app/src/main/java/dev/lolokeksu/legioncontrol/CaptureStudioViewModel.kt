@@ -1,6 +1,8 @@
 package dev.lolokeksu.legioncontrol
 
 import android.app.Application
+import android.os.Handler
+import android.os.Looper
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -9,19 +11,14 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
-sealed interface CaptureLibraryState {
+internal sealed interface CaptureLibraryState {
     data object Idle : CaptureLibraryState
     data object Loading : CaptureLibraryState
-    data class Ready(val clips: List<CaptureClip>) : CaptureLibraryState
+    data class Ready(val page: CaptureMediaPage, val hasPrevious: Boolean) : CaptureLibraryState
     data class Error(val message: String) : CaptureLibraryState
 }
 
-sealed interface CaptureScreenshotsState {
-    data object Idle : CaptureScreenshotsState
-    data object Loading : CaptureScreenshotsState
-    data class Ready(val shots: List<CaptureScreenshot>) : CaptureScreenshotsState
-    data class Error(val message: String) : CaptureScreenshotsState
-}
+internal data class CaptureMediaAccess(val item: CaptureMedia, val share: Boolean)
 
 /**
  * Owns MediaStore library I/O across Activity recreation.
@@ -42,6 +39,24 @@ class CaptureStudioViewModel(
     private var pendingCaptureConsent: ActiveGameCaptureSettings? = null
     private var pendingReplayConsent: ReplayConsentSettings? = null
     private var pendingReplayAudioPermission: Int? = null
+    private var reservedConsent: CaptureMode? = null
+
+    fun reserveConsent(mode: CaptureMode): Boolean {
+        if (reservedConsent != null || !CaptureCoordinator.reserveConsent(mode)) return false
+        reservedConsent = mode
+        return true
+    }
+
+    fun takeReservedConsent(mode: CaptureMode): Boolean {
+        if (reservedConsent != mode) return false
+        reservedConsent = null
+        return CaptureCoordinator.isPending(mode)
+    }
+
+    fun cancelReservedConsent() {
+        reservedConsent?.let(CaptureCoordinator::releasePending)
+        reservedConsent = null
+    }
 
     fun rememberReplayAudioPermission(seconds: Int) {
         require(seconds in setOf(30, 60, 120))
@@ -65,24 +80,25 @@ class CaptureStudioViewModel(
     fun clearReplayConsent() { pendingReplayConsent = null }
 
     private val worker = Executors.newSingleThreadExecutor()
+    private val main = Handler(Looper.getMainLooper())
     private val revision = AtomicInteger(0)
-    private val screenshotRevision = AtomicInteger(0)
-    @Volatile private var clipsPage = 0
-    @Volatile private var shotsPage = 0
-
-    fun clipsPageNumber(): Int = clipsPage + 1
-    fun screenshotsPageNumber(): Int = shotsPage + 1
-
-    fun nextClipPage() { clipsPage = (clipsPage + 1).coerceAtMost(50_000); refresh() }
-    fun previousClipPage() { clipsPage = (clipsPage - 1).coerceAtLeast(0); refresh() }
-    fun nextScreenshotPage() { shotsPage = (shotsPage + 1).coerceAtMost(50_000); refreshScreenshots() }
-    fun previousScreenshotPage() { shotsPage = (shotsPage - 1).coerceAtLeast(0); refreshScreenshots() }
+    private var accessGeneration = 0L
+    private var libraryVisible = false
+    private var libraryRestored = false
+    private var closed = false
+    private var cursor: CaptureMediaKey? = null
+    private val previous = mutableListOf<CaptureMediaKey?>()
+    internal var libraryQuery = ""
+        private set
+    internal var libraryFormat: CaptureMediaFormat? = null
+        private set
+    private val deferredSearch = Runnable { refreshLibrary() }
     private val currentEdit = AtomicReference<AtomicBoolean?>(null)
     private val libraryMutable = MutableLiveData<CaptureLibraryState>(CaptureLibraryState.Idle)
-    val library: LiveData<CaptureLibraryState> = libraryMutable
-
-    private val screenshotsMutable = MutableLiveData<CaptureScreenshotsState>(CaptureScreenshotsState.Idle)
-    val screenshots: LiveData<CaptureScreenshotsState> = screenshotsMutable
+    internal val library: LiveData<CaptureLibraryState> = libraryMutable
+    private val accessMutable = MutableLiveData<CaptureMediaAccess>()
+    internal val mediaAccess: LiveData<CaptureMediaAccess> = accessMutable
+    private var pendingMediaAccess: CaptureMediaAccess? = null
 
     private val messageMutable = MutableLiveData<String>()
     val message: LiveData<String> = messageMutable
@@ -168,7 +184,7 @@ class CaptureStudioViewModel(
             }
     }
 
-    fun status(): String = repository.status()
+    fun lastCaptureResult(): String = repository.lastCaptureResult()
 
     fun setOption(name: String, value: Int) {
         val result = runCatching { repository.updateOption(name, value) }
@@ -176,29 +192,108 @@ class CaptureStudioViewModel(
             .onFailure { messageMutable.value = "Не удалось сохранить параметр: " + it.javaClass.simpleName }
     }
 
-    fun refresh() {
-        val token = revision.incrementAndGet()
-        libraryMutable.value = CaptureLibraryState.Loading
-        val requestedPage = clipsPage
-        worker.execute {
-            val result = runCatching { repository.clips(requestedPage) }
-            if (token != revision.get()) return@execute
-            libraryMutable.postValue(result.fold(
-                { CaptureLibraryState.Ready(it) },
-                { CaptureLibraryState.Error("Не удалось прочитать библиотеку: " + it.javaClass.simpleName) }
-            ))
+    internal fun restoreLibrary(query: String?, format: String?) {
+        if (libraryRestored) return
+        libraryRestored = true
+        libraryQuery = query.orEmpty().take(CaptureMediaLibrary.MAX_SEARCH_LENGTH)
+        libraryFormat = CaptureMediaFormat.entries.firstOrNull { it.name == format }
+    }
+
+    fun setLibraryVisible(visible: Boolean) {
+        if (libraryVisible == visible) return
+        libraryVisible = visible
+        if (visible) refreshLibrary() else {
+            revision.incrementAndGet()
+            accessGeneration++
+            pendingMediaAccess = null
+            main.removeCallbacks(deferredSearch)
         }
     }
 
+    internal fun filterLibrary(query: String, format: CaptureMediaFormat?) {
+        if (query == libraryQuery && format == libraryFormat) return
+        val formatChanged = format != libraryFormat
+        libraryQuery = query.take(CaptureMediaLibrary.MAX_SEARCH_LENGTH)
+        libraryFormat = format
+        cursor = null
+        previous.clear()
+        revision.incrementAndGet()
+        main.removeCallbacks(deferredSearch)
+        if (!libraryVisible) return
+        if (formatChanged) refreshLibrary() else {
+            libraryMutable.value = CaptureLibraryState.Loading
+            main.postDelayed(deferredSearch, 250L)
+        }
+    }
+
+    fun refreshLibrary() {
+        if (!libraryVisible || closed) return
+        main.removeCallbacks(deferredSearch)
+        val token = revision.incrementAndGet()
+        val query = libraryQuery
+        val format = libraryFormat
+        val after = cursor
+        val hasPrevious = previous.isNotEmpty()
+        libraryMutable.value = CaptureLibraryState.Loading
+        worker.execute {
+            if (token != revision.get()) return@execute
+            val result = runCatching { repository.mediaPage(query, format, after) }
+            main.post {
+                if (token != revision.get()) return@post
+                libraryMutable.value = result.fold(
+                    { CaptureLibraryState.Ready(it, hasPrevious) },
+                    { CaptureLibraryState.Error("Не удалось прочитать медиатеку: " + it.javaClass.simpleName) }
+                )
+            }
+        }
+    }
+
+    fun nextMediaPage() {
+        val current = libraryMutable.value as? CaptureLibraryState.Ready ?: return
+        val next = current.page.next ?: return
+        previous.add(cursor)
+        cursor = next
+        refreshLibrary()
+    }
+
+    fun previousMediaPage() {
+        if (previous.isEmpty()) return
+        cursor = previous.removeAt(previous.lastIndex)
+        refreshLibrary()
+    }
+
+    internal fun accessMedia(item: CaptureMedia, share: Boolean) {
+        val request = ++accessGeneration
+        worker.execute {
+            val result = runCatching { repository.requireReadableMedia(item) }
+            main.post {
+                if (request != accessGeneration || !libraryVisible || closed) return@post
+                result.onSuccess {
+                    val access = CaptureMediaAccess(item, share)
+                    pendingMediaAccess = access
+                    accessMutable.value = access
+                }.onFailure {
+                    messageMutable.value = "Файл недоступен. Обновите медиатеку."
+                    refreshLibrary()
+                }
+            }
+        }
+    }
+
+    internal fun takeMediaAccess(event: CaptureMediaAccess): CaptureMediaAccess? =
+        pendingMediaAccess?.takeIf { it === event }.also {
+            if (it != null) pendingMediaAccess = null
+        }
+
     /** The immutable source clip is never overwritten; each export creates a separate row. */
-    fun saveClipExcerpt(clip: CaptureClip, selection: ClipTrimSelection) {
+    internal fun saveClipExcerpt(clip: CaptureMedia, selection: ClipTrimSelection) {
         runClipEdit(
             success = "Фрагмент MP4 сохранён отдельно. Исходный клип не изменён.",
             screenshot = false
         ) { cancelled -> repository.trimOwnClip(clip, selection, cancelled) }
     }
 
-    fun saveClipFrame(clip: CaptureClip, atMs: Long?) {
+    internal fun saveClipFrame(clip: CaptureMedia, atMs: Long?) {
         runClipEdit(
             success = "Кадр PNG сохранён в Pictures/LegionControl/.",
             screenshot = true
@@ -238,21 +333,7 @@ class CaptureStudioViewModel(
                 }
             )
             messageMutable.postValue(message)
-            if (result.isSuccess) {
-                if (screenshot) {
-                    val updated = runCatching { repository.screenshots(shotsPage) }
-                    screenshotsMutable.postValue(updated.fold(
-                        { CaptureScreenshotsState.Ready(it) },
-                        { CaptureScreenshotsState.Error("Не удалось открыть PNG: " + it.javaClass.simpleName) }
-                    ))
-                } else {
-                    val updated = runCatching { repository.clips(clipsPage) }
-                    libraryMutable.postValue(updated.fold(
-                        { CaptureLibraryState.Ready(it) },
-                        { CaptureLibraryState.Error("Не удалось открыть MP4: " + it.javaClass.simpleName) }
-                    ))
-                }
-            }
+            if (result.isSuccess) main.post { refreshLibrary() }
         }
     }
 
@@ -351,64 +432,31 @@ class CaptureStudioViewModel(
         }
     }
 
-    fun refreshScreenshots() {
-        val token = screenshotRevision.incrementAndGet()
-        screenshotsMutable.value = CaptureScreenshotsState.Loading
-        val requestedPage = shotsPage
+    /** Only invoked after confirmation in the Activity. */
+    internal fun deleteConfirmed(item: CaptureMedia) {
         worker.execute {
-            val result = runCatching { repository.screenshots(requestedPage) }
-            if (token != screenshotRevision.get()) return@execute
-            screenshotsMutable.postValue(result.fold(
-                { CaptureScreenshotsState.Ready(it) },
-                { CaptureScreenshotsState.Error("Не удалось прочитать снимки: " + it.javaClass.simpleName) }
-            ))
-        }
-    }
-
-    fun deleteConfirmedScreenshot(shot: CaptureScreenshot) {
-        val token = screenshotRevision.incrementAndGet()
-        screenshotsMutable.value = CaptureScreenshotsState.Loading
-        worker.execute {
-            val deleted = runCatching { repository.deleteOwnScreenshot(shot) }
-            if (token != screenshotRevision.get()) return@execute
-            messageMutable.postValue(deleted.fold(
-                { if (it) "Снимок удалён." else "Снимок не удалось удалить." },
-                { "Удаление PNG отклонено: " + it.javaClass.simpleName }
-            ))
-            val shots = runCatching { repository.screenshots(shotsPage) }
-            if (token != screenshotRevision.get()) return@execute
-            screenshotsMutable.postValue(shots.fold(
-                { CaptureScreenshotsState.Ready(it) },
-                { CaptureScreenshotsState.Error("Не удалось обновить снимки: " + it.javaClass.simpleName) }
-            ))
-        }
-    }
-
-    /** Only invoked after a confirmation in the Activity. */
-    fun deleteConfirmed(clip: CaptureClip) {
-        revision.incrementAndGet() // invalidate any earlier browsing result
-        libraryMutable.value = CaptureLibraryState.Loading
-        worker.execute {
-            val result = runCatching { repository.deleteOwnClip(clip) }
-            messageMutable.postValue(result.fold(
-                { if (it) "Видео удалено." else "Файл уже отсутствует или не удалён." },
-                { "Удаление не удалось: " + it.javaClass.simpleName }
-            ))
-            val clips = runCatching { repository.clips(clipsPage) }
-            libraryMutable.postValue(clips.fold(
-                { CaptureLibraryState.Ready(it) },
-                { CaptureLibraryState.Error("Не удалось обновить библиотеку: " + it.javaClass.simpleName) }
-            ))
+            val result = runCatching { repository.deleteOwnMedia(item) }
+            main.post {
+                if (closed) return@post
+                messageMutable.value = result.fold(
+                    { if (it) "Файл удалён." else "Файл уже отсутствует или недоступен." },
+                    { "Не удалось удалить файл: " + it.javaClass.simpleName }
+                )
+                refreshLibrary()
+            }
         }
     }
 
     override fun onCleared() {
+        closed = true
+        cancelReservedConsent()
         pendingCaptureConsent = null
         pendingReplayConsent = null
         pendingReplayAudioPermission = null
+        pendingMediaAccess = null
         currentEdit.get()?.set(true)
+        main.removeCallbacks(deferredSearch)
         revision.incrementAndGet()
-        screenshotRevision.incrementAndGet()
         worker.shutdown()
         super.onCleared()
     }
