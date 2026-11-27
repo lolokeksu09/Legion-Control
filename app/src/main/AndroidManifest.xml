@@ -76,6 +76,7 @@
             <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE" /></intent-filter>
         </service>
         <activity android:name=".CaptureStudioActivity" android:exported="false" />
+        <activity android:name=".DataArchiveActivity" android:exported="false" />
         <activity android:name=".GameToolboxActivity" android:exported="false" />
         <activity android:name=".HapticLabActivity" android:exported="false" />
         <activity android:name=".AudioLabActivity" android:exported="false" />

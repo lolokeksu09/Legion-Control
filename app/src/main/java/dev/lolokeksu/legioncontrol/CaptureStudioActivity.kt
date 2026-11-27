@@ -39,7 +39,7 @@ internal enum class CaptureStudioPane(val label: String) {
             entries.firstOrNull { it.name == saved }?.let { return it }
             return when (FeatureFinder.resolve(featureId, FeatureModule.CAPTURE)?.id) {
                 "capture.clips" -> LIBRARY
-                "capture.quality", "capture.audio", "capture.backup", "capture.restore", "capture.resume" -> SETTINGS
+                "capture.quality", "capture.audio" -> SETTINGS
                 "capture.record", "capture.replay", "capture.screenshot" -> CAPTURE
                 else -> entries.firstOrNull { it.name == requested } ?: CAPTURE
             }
@@ -65,8 +65,6 @@ class CaptureStudioActivity : ComponentActivity() {
         private const val REQUEST_IMPORT_GAME_PROFILES = 25005
         private const val REQUEST_REPLAY = 25006
         private const val REQUEST_REPLAY_AUDIO_PERMISSION = 25007
-        private const val REQUEST_EXPORT_FULL_BACKUP = 25008
-        private const val REQUEST_IMPORT_FULL_BACKUP = 25009
     }
 
     private val requestedGame by lazy { intent.getStringExtra(EXTRA_GAME_PACKAGE) }
@@ -104,6 +102,14 @@ class CaptureStudioActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Preserve legacy explicit Studio intents carrying a stable archive feature ID.
+        val archiveFeature = FeatureFinder.resolve(intent.getStringExtra(FeatureFinder.EXTRA_FEATURE_ID), FeatureModule.DATA)
+        if (archiveFeature != null) {
+            startActivity(Intent(this, DataArchiveActivity::class.java)
+                .putExtra(FeatureFinder.EXTRA_FEATURE_ID, archiveFeature.id))
+            finish()
+            return
+        }
         window.statusBarColor = Color.BLACK
         window.navigationBarColor = Color.BLACK
         window.decorView.systemUiVisibility = 0
@@ -308,36 +314,6 @@ class CaptureStudioActivity : ComponentActivity() {
         mediaItems = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         section.addView(mediaItems)
 
-        section = panes.getValue(CaptureStudioPane.SETTINGS)
-        heading("Полная локальная резервная копия")
-        note("История SQLite и настройки Legion Control в одном ZIP через SAF. " +
-            "Архив содержит сведения о ваших приложениях и сессиях — храните его приватно. " +
-            "Сохранённые MP4 и PNG остаются доступными отдельно в медиатеке.")
-        action("ЭКСПОРТ ИСТОРИИ И НАСТРОЕК", "capture.backup") {
-            val choose = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
-                addCategory(Intent.CATEGORY_OPENABLE)
-                type = "application/zip"
-                putExtra(Intent.EXTRA_TITLE, "LegionControl-Data-Backup.zip")
-            }
-            runCatching { startActivityForResult(choose, REQUEST_EXPORT_FULL_BACKUP) }
-                .onFailure { status.text = "SAF недоступен: " + it.javaClass.simpleName }
-        }
-        action("ПРОВЕРИТЬ И ВОССТАНОВИТЬ ИЗ ZIP", "capture.restore") {
-            val choose = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-                addCategory(Intent.CATEGORY_OPENABLE)
-                type = "application/zip"
-            }
-            runCatching { startActivityForResult(choose, REQUEST_IMPORT_FULL_BACKUP) }
-                .onFailure { status.text = "SAF недоступен: " + it.javaClass.simpleName }
-        }
-
-        action("ЗАВЕРШИТЬ ПРЕРВАННОЕ ВОССТАНОВЛЕНИЕ", "capture.resume") {
-            viewModel.retryInterruptedRestore()
-        }
-        note("Если Android остановил приложение во время импорта ZIP, этот пункт " +
-            "проверит сохранённое намерение и безопасно завершит настройку. " +
-            "Существующие записи и настройки не стираются без проверенного импорта.")
-
         section = panes.getValue(CaptureStudioPane.LIBRARY)
         heading("Незавершённые файлы")
         note("Только ваши временные MP4/PNG с IS_PENDING=1 старше 24 часов. " +
@@ -374,28 +350,6 @@ class CaptureStudioActivity : ComponentActivity() {
         viewModel.settings.observe(this) { refreshChoices() }
         viewModel.playbackAudio.observe(this) { refreshChoices() }
         viewModel.message.observe(this) { status.text = it; LegionUiSupport.notice(status, LegionUiSupport.Notice.INFO) }
-        viewModel.backupReady.observe(this) {
-            val inspected = viewModel.takeBackupPreview() ?: return@observe
-            LegionDialogs.builder(this)
-                .setTitle("Восстановить локальные данные?")
-                .setMessage("Архив проверен: SQLite v${inspected.preview.schema}, " +
-                    "таблиц ${inspected.preview.tables}, записей ${inspected.preview.rows}, " +
-                    "параметров ${inspected.preview.settings}.\n" +
-                    "Сетевых тестов: ${inspected.preview.networkRuns}; батарейных: ${inspected.preview.batteryRuns}.\n\n" +
-                    "Импорт разрешён только в ПУСТУЮ базу и не удаляет существующую " +
-                    "историю. Настройки, включённые в архив, будут заменены. " +
-                    (if(inspected.preview.archiveVersion == 1)
-                        "ZIP v1 не содержит Game Preflight: текущие требования игр сохранятся. "
-                    else if(inspected.preview.archiveVersion==2) "ZIP v2 включает Game Preflight, но не новые архивы диагностики. "
-                    else "ZIP v3 включает новые архивы диагностики; оба должны быть пустыми. ") +
-                    "MP4/PNG и ключ подписи не импортируются.")
-                .setPositiveButton("Восстановить") { _, _ ->
-                    val confirmed = inspected.preview.identity
-                    if(confirmed == null) status.text = "Архив нужно проверить заново."
-                    else viewModel.restoreFullBackup(inspected.uri, confirmed)
-                }
-                .setNegativeButton("Отмена", null).show()
-        }
         viewModel.library.observe(this, ::renderMedia)
         viewModel.mediaAccess.observe(this) { event ->
             viewModel.takeMediaAccess(event)?.let(::openMedia)
@@ -435,7 +389,7 @@ class CaptureStudioActivity : ComponentActivity() {
     }
 
     override fun onPause() {
-        viewModel.setLibraryVisible(false)
+        if (::status.isInitialized) viewModel.setLibraryVisible(false)
         uiHandler.removeCallbacks(stateTick)
         super.onPause()
     }
@@ -642,16 +596,6 @@ class CaptureStudioActivity : ComponentActivity() {
     @Deprecated("Legacy Activity result API works without introducing AndroidX dependencies")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == REQUEST_EXPORT_FULL_BACKUP) {
-            if (resultCode == RESULT_OK && data?.data != null)
-                viewModel.exportFullBackup(data.data!!)
-            return
-        }
-        if (requestCode == REQUEST_IMPORT_FULL_BACKUP) {
-            if (resultCode == RESULT_OK && data?.data != null)
-                viewModel.inspectFullBackup(data.data!!)
-            return
-        }
         if (requestCode == REQUEST_EXPORT_GAME_PROFILES) {
             if (resultCode == RESULT_OK && data?.data != null) {
                 viewModel.exportGameProfiles(data.data!!)

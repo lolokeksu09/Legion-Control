@@ -66,11 +66,16 @@ assert backup.index("savePending(context, marker, staged.preferenceBytes, staged
 assert "private fun restoreCore" in backup and "restoreInterruptedForTest" in backup
 assert "readBounded(it, MAX_PREFS * 2 + MAX_META)" in backup
 assert backup.index("check(identity(staged.manifest) == confirmed)") < backup.index("target.beginTransaction()")
-assert "restoreOnEmptyDatabase(app, uri, confirmed)" in vm
-assert "startupRecovery?.markRecovered()" in vm
+archive_vm = read("DataArchiveViewModel.kt")
+archive_ui = read("DataArchiveActivity.kt")
+assert "restoreOnEmptyDatabase(app, approved.uri, confirmed)" in archive_vm
+assert "startupRecovery?.markRecovered()" in archive_vm
+assert "retryPendingRestore(app)" in archive_vm
 assert "refusesAnyExistingUserRows" in test("BackupRestorePolicyTest.kt")
-assert "viewModel.exportFullBackup(" in ui and "viewModel.inspectFullBackup(" in ui
-assert "viewModel.restoreFullBackup(" in ui and "setPositiveButton(\"Восстановить\")" in ui
+assert "ActivityResultContracts.CreateDocument" in archive_ui and "ActivityResultContracts.OpenDocument" in archive_ui
+assert "viewModel.export(uri)" in archive_ui and "viewModel.inspect(uri)" in archive_ui
+assert "viewModel.restore(checked)" in archive_ui and 'setPositiveButton("Восстановить")' in archive_ui
+assert "LegionDataBackup." not in vm
 assert "MediaStore.MediaColumns.IS_PENDING" not in backup
 
 csv = read("CsvEscaper.kt")

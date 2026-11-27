@@ -10,9 +10,9 @@
 | `capture.quality` | CAPTURE | Разрешение записи | Медиацентр | `CaptureStudioActivity` |
 | `capture.audio` | CAPTURE | Звук игры в записи | Медиацентр | `CaptureStudioActivity` |
 | `capture.clips` | CAPTURE | Медиатека MP4 и PNG | Медиацентр | `CaptureStudioActivity` |
-| `capture.backup` | CAPTURE | Резервная копия ZIP | Медиацентр | `CaptureStudioActivity` |
-| `capture.restore` | CAPTURE | Восстановление из ZIP | Медиацентр | `CaptureStudioActivity` |
-| `capture.resume` | CAPTURE | Завершить прерванный импорт | Медиацентр | `CaptureStudioActivity` |
+| `capture.backup` | DATA | Резервная копия ZIP | Настройки → Данные | `DataArchiveActivity` |
+| `capture.restore` | DATA | Восстановление из ZIP | Настройки → Данные | `DataArchiveActivity` |
+| `capture.resume` | DATA | Завершить прерванный импорт | Настройки → Данные | `DataArchiveActivity` |
 | `audio.stereo` | AUDIO | Проверка стерео | Периферия | `MainActivity / AudioLabFragment` |
 | `audio.sweep` | AUDIO | Проверка частот | Периферия | `MainActivity / AudioLabFragment` |
 | `audio.routes` | AUDIO | Подключённые аудиовыходы | Периферия | `MainActivity / AudioLabFragment` |

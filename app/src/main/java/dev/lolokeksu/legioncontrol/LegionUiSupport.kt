@@ -445,6 +445,7 @@ object LegionUiSupport {
             is GameToolboxActivity, is GameSessionActivity,
             is SmartProfilesActivity, is ApplicationCenterActivity, is GamePreflightActivity -> 1
             is SessionLibraryActivity, is ExperimentLabActivity -> 3
+            is DataArchiveActivity -> HubTab.SETTINGS.ordinal
             else -> 2
         }
         for (index in labels.indices) {

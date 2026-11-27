@@ -8,7 +8,7 @@ src = root / "app/src/main/java/dev/lolokeksu/legioncontrol"
 registry = (src / "FeatureFinder.kt").read_text()
 helper = (src / "FeatureReveal.kt").read_text()
 files = {
-    "CAPTURE": "CaptureStudioActivity.kt", "AUDIO": "AudioLabFragment.kt",
+    "CAPTURE": "CaptureStudioActivity.kt", "DATA": "DataArchiveActivity.kt", "AUDIO": "AudioLabFragment.kt",
     "HAPTIC": "HapticLabFragment.kt", "NETWORK": "ConnectivityLabFragment.kt",
     "PROFILE": "SmartProfilesFragment.kt", "APPS": "ApplicationCenterFragment.kt",
     "SESSION": "GameSessionFragment.kt", "TOOLBOX": "GameToolboxFragment.kt",

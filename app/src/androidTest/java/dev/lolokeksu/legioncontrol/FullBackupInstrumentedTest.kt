@@ -303,6 +303,11 @@ class FullBackupInstrumentedTest {
             assertNull("Preference replay has not yet occurred",
                 prefs.getString("ci_restore_sentinel", null))
             assertEquals(PreflightPreset(), PreflightPresets.read(app, pkgA))
+            assertTrue("Starting another import must leave the pending journal in place", runCatching {
+                LegionDataBackup.restoreOnEmptyDatabase(app, backup, confirmed)
+            }.isFailure)
+            assertTrue(LegionDataBackup.hasPendingRestore(app))
+            assertNull(prefs.getString("ci_restore_sentinel", null))
             // Pending journal blocks ordinary mutations. Simulate replay of one archive before a second crash.
             assertTrue(runCatching{LiveNetworkArchive(app).use{it.save(net)}}.isFailure)
             val profilePrefs=app.getSharedPreferences("legion-launch-profiles-v1",Context.MODE_PRIVATE)
@@ -324,7 +329,7 @@ class FullBackupInstrumentedTest {
             }
             LiveNetworkArchive(app).use{it.restoreSnapshot(listOf(net.redacted()))}
             assertTrue("Recovery replays committed preferences",
-                LegionDataBackup.recoverPendingRestore(app))
+                LegionDataBackup.retryPendingRestore(app))
             assertEquals("restored", prefs.getString("ci_restore_sentinel", null))
             assertEquals(presetA, PreflightPresets.read(app, pkgA))
             assertEquals(presetB, PreflightPresets.read(app, pkgB))

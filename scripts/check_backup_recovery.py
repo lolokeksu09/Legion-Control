@@ -10,6 +10,10 @@ core = body[body.index("private fun restoreCore"):body.index("private fun <T> wi
 assert "afterJournalWrite: (() -> Unit)? = null" in core
 assert core.index("savePending(context") < core.index("afterJournalWrite?.invoke()") < core.index("target.insertOrThrow")
 assert "afterDbCommit?.invoke()" in core
+assert core.index("checkArchiveWritesAllowed(context)") < core.index("withStaged(context, uri)")
+retry = body[body.index("fun retryPendingRestore"):body.index("fun export(")]
+assert retry.index("reserveConsent(CaptureMode.MAINTENANCE)") < retry.index("recoverPendingRestore(context)")
+assert "CaptureCoordinator.release(CaptureMode.MAINTENANCE)" in retry
 assert "restoreInterruptedBeforeDbCommitForTest" in body
 assert "restoreInterruptedForTest" in body
 assert "sqliteMarker(helper.readableDatabase) == marker" in body

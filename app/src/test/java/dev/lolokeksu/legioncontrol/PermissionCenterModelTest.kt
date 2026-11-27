@@ -4,24 +4,32 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class PermissionCenterModelTest {
-    @Test fun allUserManagedCapabilitiesHaveOneEntry() {
-        val rows = PermissionCenterModel.permissions(CapabilityAccessSnapshot(emptyMap()))
-        assertEquals(6, rows.size)
-        assertEquals(6, rows.map { it.capability }.distinct().size)
+    private fun permissions(states: Map<CapabilityAccess, AccessState>) =
+        PermissionCenterModel.groups(CapabilityAccessSnapshot(states)).flatMap { it.items }
+
+    @Test fun eachUserManagedCapabilityBelongsToItsPurpose() {
+        val groups = PermissionCenterModel.groups(CapabilityAccessSnapshot(emptyMap()))
+        val expected = setOf(
+            setOf(CapabilityAccess.OVERLAY, CapabilityAccess.USAGE, CapabilityAccess.NOTIFICATIONS),
+            setOf(CapabilityAccess.PLAYBACK_AUDIO),
+            setOf(CapabilityAccess.DND, CapabilityAccess.WRITE_SETTINGS)
+        )
+        assertEquals(expected, groups.map { group -> group.items.map { it.capability }.toSet() }.toSet())
+        val rows = groups.flatMap { it.items }
+        assertEquals(rows.size, rows.map { it.capability }.distinct().size)
         assertTrue(rows.all { it.canOpenSettings && it.state == AccessState.UNKNOWN })
     }
 
     @Test fun missingAccessIsNeverReportedReady() {
-        val rows = PermissionCenterModel.permissions(CapabilityAccessSnapshot(
-            mapOf(CapabilityAccess.OVERLAY to AccessState.READY,
-                CapabilityAccess.NOTIFICATIONS to AccessState.DISABLED)))
-        assertEquals("Доступно: 1 из 6 · требуют внимания: 5", PermissionCenterModel.summary(rows))
+        val rows = permissions(mapOf(
+            CapabilityAccess.OVERLAY to AccessState.READY,
+            CapabilityAccess.NOTIFICATIONS to AccessState.DISABLED))
+        assertEquals(listOf(CapabilityAccess.OVERLAY), rows.filter { it.state == AccessState.READY }.map { it.capability })
         assertEquals(AccessState.DISABLED, rows.single { it.capability == CapabilityAccess.NOTIFICATIONS }.state)
     }
 
     @Test fun unsupportedPermissionCannotOfferSettings() {
-        val rows = PermissionCenterModel.permissions(CapabilityAccessSnapshot(
-            mapOf(CapabilityAccess.USAGE to AccessState.UNSUPPORTED)))
+        val rows = permissions(mapOf(CapabilityAccess.USAGE to AccessState.UNSUPPORTED))
         assertFalse(rows.single { it.capability == CapabilityAccess.USAGE }.canOpenSettings)
     }
 
