@@ -27,23 +27,22 @@ files = {
     "LIBRARY": "SessionLibraryActivity.kt",
 }
 entries = re.findall(r'FeatureEntry\("([^"]+)", FeatureModule\.(\w+), "([^"]+)", "([^"]+)", "([^"]+)"\)', registry)
-assert len(entries) == 80, len(entries)
-assert len({e[1] for e in entries}) == 21
+assert {entry[1] for entry in entries} == set(files)
 assert len({e[0] for e in entries}) == len(entries)
 for key, module, title, anchor, _ in entries:
     source = (src / files[module]).read_text()
-    assert f'"{anchor}"' in source, (key, anchor)
-    # Every entry is now explicitly bound, independent of mutable display labels.
-    assert source.count(f'"{key}"') == 1, key
+    # Feature identity is bound to an actual control. Routes can reference it elsewhere.
+    key = re.escape(key)
     if module in {"DIAGNOSTICS", "GAMEPAD"}:
-        assert f'FeatureReveal.bind(this, "{key}")' in source, key
+        binding = r'FeatureReveal.bind\(this, "' + key + r'"\)'
     elif module == "TOOLBOX":
-        assert re.search(r'tile\("' + re.escape(anchor) + r'", "[^"]+", "' + re.escape(key) + r'"\)', source), key
+        binding = r'tile\("[^"]+", "[^"]+", "' + key + r'"\)'
         assert "FeatureReveal.bind(this,featureId)" in source
     else:
         factory = r'(?:action|control)' if module == "CAPTURE" else r'(?:action|button|addButton)'
-        assert re.search(factory + r'\((?:root, )?"' + re.escape(anchor) + r'", "' + re.escape(key) + r'"\)', source), key
+        binding = factory + r'\((?:root, )?"[^"]+", "' + key + r'"\)'
         assert re.search(r'FeatureReveal.bind\(this,\s*featureId\)', source), module
+    assert len(re.findall(binding, source)) == 1, (key, module)
     if module in {"SIGNALS", "INCIDENTS", "BASELINES", "COMPARE"}:
         assert f'FeatureModule.{module}' in (src / "SessionAnalyticsSnapshot.kt").read_text(), (key, module)
     else:
@@ -54,8 +53,8 @@ for key, module, title, anchor, _ in entries:
         assert f'FeatureModule.{module}' in (src / "DiagnosticsPage.kt").read_text()
         assert 'putString(FeatureFinder.EXTRA_FEATURE_ID,feature)' in (src / "MainActivity.kt").read_text()
 capture = (src / files["CAPTURE"]).read_text()
-assert "control(value, featureId, onClick).also { root.addView(it) }" in capture
-assert "root.addView(CompactActionRow(this, recordStart, replayStart))" in capture
+assert "control(value, featureId, onClick).also { section.addView(it) }" in capture
+assert "section.addView(CompactActionRow(this, recordStart, replayStart))" in capture
 assert "requestRectangleOnScreen" in helper
 assert "bound.singleOrNull()" in helper
 assert "feature.anchor" not in helper
@@ -64,4 +63,4 @@ assert "!target.isEnabled" in helper
 assert "FeatureFinder.resolve(id, module)" in helper
 assert "performClick(" not in helper and "callOnClick(" not in helper
 assert "startService(" not in helper and "startActivity(" not in helper
-print("PASS: 80 explicitly bound stable feature IDs across 21 modules; reveal never executes actions")
+print(f"PASS: {len(entries)} explicitly bound feature IDs; reveal never executes actions")

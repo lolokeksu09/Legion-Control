@@ -57,8 +57,8 @@ assert "if (resultCode != RESULT_OK || data == null)" in activity
 assert activity.index("createScreenCaptureIntent()") < activity.index("onActivityResult(")
 assert "startForegroundService(intent)" in activity
 assert "CaptureConfig.fromOptions(" in reader
-assert "CaptureClipLibrary.listOwn(" in reader
-assert "viewModel.refresh()" in activity and "viewModel.library.observe(this)" in activity
+assert "CaptureMediaLibrary.page(app, query, format, after)" in reader
+assert "viewModel.refreshLibrary()" in activity and "viewModel.library.observe(this, ::renderMedia)" in activity
 assert "ACTION_VIEW" in activity and "ACTION_SEND" in activity
 assert "FLAG_GRANT_READ_URI_PERMISSION" in activity
 assert "confirmDelete(clip)" in activity and "setPositiveButton" in activity
@@ -86,19 +86,20 @@ assert "MediaRecorder.OutputFormat.MPEG_4" in service
 assert "CaptureClipLibrary.createPending(this" in service
 assert "CaptureClipLibrary.publish(this" in service
 assert "CaptureClipLibrary.delete(this" in service
-assert "CaptureClipLibrary.delete(app, clip.uri)" in reader
-assert "repository.deleteOwnClip(clip)" in vm
+assert "CaptureMediaLibrary.deletePublished(app, item)" in reader
+assert "repository.deleteOwnMedia(item)" in vm
 assert "stopForeground(STOP_FOREGROUND_REMOVE)" in service
 assert "stopSelf()" in service and "recorderStarted && elapsed >= 1000" in service
 assert "registerReceiver(" not in service and "BOOT_COMPLETED" not in service
 assert "AudioSource" not in service and "getAudioRecord" not in service
 assert "MediaProjection" not in (src / "GameToolboxService.kt").read_text(encoding="utf-8")
 
-assert "OWNER_PACKAGE_NAME" in store and "RELATIVE_PATH" in store
+media = (src / "CaptureMediaLibrary.kt").read_text()
+assert "OWNER_PACKAGE_NAME" in media and "RELATIVE_PATH" in store
 assert "IS_PENDING" in store and "createPending" in store and "publish" in store
 assert 'const val RELATIVE_DIR = "Movies/LegionControl/"' in store
 assert "contentResolver.delete(uri, null, null)" in store
-assert "context.packageName, RELATIVE_DIR" in store
+assert "arrayOf(context.packageName, *formatArgs(item.format)" in media
 assert "video/mp4" in store
 assert "CaptureConfigTest" in unit and unit.count("@Test") >= 6
 assert "scaledSize" in config and "require(screenWidth > 0 && screenHeight > 0)" in config

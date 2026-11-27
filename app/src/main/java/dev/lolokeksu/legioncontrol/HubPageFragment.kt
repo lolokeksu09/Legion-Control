@@ -891,7 +891,11 @@ class HubPageFragment : Fragment() {
                 historyPackage?.let { putString(ExperimentLabActivity.EXTRA_PACKAGE, it) }
             })
         }
-        tile("Медиатека", "Локальные MP4 и PNG") { open(CaptureStudioActivity::class.java) }
+        tile("Медиатека", "Локальные MP4 и PNG") {
+            open(CaptureStudioActivity::class.java, Bundle().apply {
+                putString(CaptureStudioActivity.EXTRA_PANE, CaptureStudioPane.LIBRARY.name)
+            })
+        }
         group("Данные устройства и приложений")
         tile("Измерения устройства", "История Kotlin + Rust, тесты батареи, тепло и CSV/ZIP") {
             openDevicePage(DiagnosticsPage.HISTORY)

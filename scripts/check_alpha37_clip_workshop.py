@@ -31,12 +31,12 @@ assert unit.count("@Test") >= 12
 assert "nonSyncFrameIsRejected" in unit
 assert "outOfBoundsEndIsRejected" in unit
 
-assert "requireOwnClip(clip).uri" in repo
-assert "CaptureClipLibrary.isOwnPublished(app, it.uri)" in repo
+assert "CaptureMediaLibrary.requirePublished(app, clip)" in repo
+assert "require(clip.format == CaptureMediaFormat.MP4)" in repo
 assert "ClipWorkshop.trim(" in repo and "ClipWorkshop.exportFrame(" in repo
-assert "CaptureClipLibrary.delete(app, clip.uri)" in repo
-assert "CaptureClipLibrary.listOwn(app, page)" in repo
-assert "OWNER_PACKAGE_NAME" in video_store and "OWNER_PACKAGE_NAME" in image_store
+assert "CaptureMediaLibrary.deletePublished(app, item)" in repo
+assert "CaptureMediaLibrary.page(app, query, format, after)" in repo
+assert "OWNER_PACKAGE_NAME" in read("CaptureMediaLibrary.kt")
 assert 'const val RELATIVE_DIR = "Movies/LegionControl/"' in video_store
 assert 'const val RELATIVE_DIR = "Pictures/LegionControl/"' in image_store
 

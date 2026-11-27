@@ -50,15 +50,16 @@ assert "MediaProjectionManager" in activity and "createScreenCaptureIntent()" in
 assert "CaptureScreenshotService.ACTION_START" in activity
 assert "startForegroundService(screenshot)" in activity
 assert "CaptureScreenshotService.cancel(this)" in activity
-assert "viewModel.refreshScreenshots()" in activity
-assert "viewModel.deleteConfirmedScreenshot(shot)" in activity
-assert "CaptureScreenshotLibrary.listOwn(app, page)" in repo
-assert "CaptureScreenshotLibrary.isOwnPublished(app, screenshot.uri)" in repo
-assert "repository.deleteOwnScreenshot(shot)" in vm
+assert "viewModel.refreshLibrary()" in activity
+assert "viewModel.deleteConfirmed(item)" in activity
+assert "CaptureMediaLibrary.page(app, query, format, after)" in repo
+assert "CaptureMediaLibrary.requirePublished(app, item)" in repo
+assert "repository.deleteOwnMedia(item)" in vm
 assert "Pictures/LegionControl/" in library
-assert "OWNER_PACKAGE_NAME" in library and "IS_PENDING" in library
-assert "ContentUris.withAppendedId" in library
-assert "image/png" in library and "setDataAndType(shot.uri, \"image/png\")" in activity
+media = read("CaptureMediaLibrary.kt")
+assert "OWNER_PACKAGE_NAME" in media and "IS_PENDING" in library
+assert "ContentUris.withAppendedId" in media
+assert "image/png" in media and "setDataAndType(item.uri, item.format.mimeType)" in activity
 assert "assertEquals(872 to 1920" in unit and unit.count("@Test") >= 7
 assert "TIMEOUT_MS = 12_000L" in policy
 assert "MAX_EDGE = 1920" in policy

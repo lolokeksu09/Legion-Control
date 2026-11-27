@@ -9,7 +9,6 @@ read=lambda name: (src/name).read_text(encoding="utf-8")
 service=read("CaptureRecordingService.kt")
 clock=read("CaptureRecordingClock.kt")
 ui=read("CaptureStudioActivity.kt")
-repo=read("CaptureStudioRepository.kt")
 screenshot=read("CaptureScreenshotService.kt")
 unit=(root/"app/src/test/java/dev/lolokeksu/legioncontrol/CaptureRecordingClockTest.kt").read_text()
 manifest=ET.parse(root/"app/src/main/AndroidManifest.xml").getroot()
@@ -45,7 +44,7 @@ assert "PendingIntent.getService(" in service and "NotificationManager" in servi
 assert "CaptureRecordingService.pause(this)" in ui
 assert "CaptureRecordingService.resume(this)" in ui
 assert "CaptureRecordingService.stop(this)" in ui
-assert "CaptureRecordingService.paused" in repo
+assert "CaptureRecordingService.paused" in ui
 assert "CaptureScreenshotService.active" in service
 assert "CaptureRecordingService.recording" in screenshot
 for token in ("fun pause(nowMs: Long)", "fun resume(nowMs: Long)",

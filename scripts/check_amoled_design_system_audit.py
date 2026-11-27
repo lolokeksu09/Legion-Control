@@ -30,14 +30,10 @@ assert "LegionUiSupport.reportSurface(info)" in detail
 assert "LegionUiSupport.actionTile(requireContext(), title, desc, callback)" in detail
 assert "getApplicationIcon(pkg)" in detail
 
-for kind, start, end, accessibility in (
-    ("MP4", "for (clip in clips)", "private fun clipActions(", 'contentDescription = "Клип:'),
-    ("PNG", "for (shot in shots)", "private fun screenshotActions(", 'contentDescription = "Снимок:'),
-):
-    block = studio[studio.index(start):studio.index(end)]
-    assert "LegionUiSupport.styleAction(this)" in block, kind
-    assert accessibility in block, kind
-    assert "setOnClickListener {" in block, kind
+library = studio[studio.index("private fun renderMedia("):studio.index("private fun clipActions(")]
+assert "LegionUiSupport.actionTile(this, item.name," in library
+assert "item.format.name" in library
+assert "clipActions(item) else screenshotActions(item)" in library
 
 assert "accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE" in session
 assert "GameSessionRecorderService.start(requireContext(),pkg,label,tcpOption.isChecked)" in session

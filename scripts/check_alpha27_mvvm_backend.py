@@ -70,9 +70,9 @@ assert "cleared.set(true)" in diagnostic_vm
 
 assert "class CaptureStudioActivity : ComponentActivity()" in capture
 assert "ViewModelProvider(this, factory)[CaptureStudioViewModel::class.java]" in capture
-assert "viewModel.library.observe(this)" in capture
-assert "viewModel.refresh()" in capture
-assert "viewModel.deleteConfirmed(clip)" in capture
+assert "viewModel.library.observe(this, ::renderMedia)" in capture
+assert "viewModel.refreshLibrary()" in capture
+assert "viewModel.deleteConfirmed(item)" in capture
 assert "viewModel.setOption(name, values[index])" in capture
 assert "CaptureClipLibrary.delete(" not in capture
 assert "CaptureClipLibrary.listOwn(" not in capture
@@ -85,13 +85,13 @@ assert "Intent.ACTION_VIEW" in capture and "Intent.ACTION_SEND" in capture
 
 assert "class CaptureStudioRepository(" in capture_repo
 assert "CapturePresetRules.requireSupported(name, value)" in capture_repo
-assert "CaptureClipLibrary.listOwn(app, page)" in capture_repo
-assert "CaptureClipLibrary.delete(app, clip.uri)" in capture_repo
-assert "CaptureClipLibrary.isOwnPublished(app, clip.uri)" in capture_repo
+assert "CaptureMediaLibrary.page(app, query, format, after)" in capture_repo
+assert "CaptureMediaLibrary.deletePublished(app, item)" in capture_repo
+assert "CaptureMediaLibrary.requirePublished(app, item)" in capture_repo
 assert "getSharedPreferences(CaptureRecordingService.PREFS" in capture_repo
 assert "class CaptureStudioViewModel(" in capture_vm
 assert "Executors.newSingleThreadExecutor()" in capture_vm
-assert "repository.deleteOwnClip(clip)" in capture_vm
+assert "repository.deleteOwnMedia(item)" in capture_vm
 assert "revision.incrementAndGet()" in capture_vm
 assert "onCleared()" in capture_vm
 for forbidden_api in ("getMediaProjection(", "createScreenCaptureIntent(", "MediaProjectionManager", "startForegroundService("):

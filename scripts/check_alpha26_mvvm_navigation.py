@@ -163,7 +163,7 @@ assert "worker.execute" in vm and "onCleared()" in vm
 assert "ApplicationCenterRepository(app).use" in repo
 assert "SmartProfilesRepository(app).use" in repo
 assert "GameSessionRepository(app).use" in repo
-assert "CaptureClipLibrary.listOwn(app)" in repo
+assert "CaptureMediaLibrary.page(app, format = CaptureMediaFormat.MP4)" in repo
 assert "ApplicationInventory.launchable(app)" in repo
 assert "HubFavoriteRules.toggle(" in repo
 assert "repository.save(pkg, fields.alias, fields.category, fields.note, fields.favorite)" in repo

@@ -29,19 +29,16 @@ for mode in ("RECORDING", "REPLAY", "SCREENSHOT"):
 assert "CapturePhase.CONSENT_PENDING" in coord and "CapturePhase.STOPPING" in coord
 assert "releasePending" in coord and "invalidConsentCannotReleaseActiveProjection" in test("CaptureCoordinatorTest.kt")
 
-for collection in ("CaptureClipLibrary.kt", "CaptureScreenshotLibrary.kt"):
-    code = read(collection)
-    assert "QUERY_ARG_LIMIT" in code and "QUERY_ARG_OFFSET" in code
-    assert "fun listOwn(context: Context, page: Int = 0)" in code
-    assert "fun isOwnPublished(context: Context, uri: Uri)" in code
-    assert "OWNER_PACKAGE_NAME" in code and "IS_PENDING" in code
+media = read("CaptureMediaLibrary.kt")
+assert "QUERY_ARG_LIMIT" in media and "MediaColumns.DATE_ADDED" in media
+assert "OWNER_PACKAGE_NAME" in media and "IS_PENDING" in media
+assert "fun requirePublished(" in media and "fun deletePublished(" in media
 repo = read("CaptureStudioRepository.kt")
-assert "CaptureClipLibrary.isOwnPublished(app, clip.uri)" in repo
-assert "CaptureScreenshotLibrary.isOwnPublished(app, screenshot.uri)" in repo
+assert "CaptureMediaLibrary.requirePublished(app, item)" in repo
+assert "CaptureMediaLibrary.deletePublished(app, item)" in repo
 vm = read("CaptureStudioViewModel.kt")
-assert "nextClipPage()" in vm and "previousClipPage()" in vm
-assert "nextScreenshotPage()" in vm and "previousScreenshotPage()" in vm
-assert "viewModel.nextClipPage()" in ui and "viewModel.nextScreenshotPage()" in ui
+assert "nextMediaPage()" in vm and "previousMediaPage()" in vm
+assert "viewModel::nextMediaPage" in ui and "viewModel::previousMediaPage" in ui
 
 cleanup = read("CapturePendingRecovery.kt")
 assert "MediaStore.setIncludePending" in cleanup
