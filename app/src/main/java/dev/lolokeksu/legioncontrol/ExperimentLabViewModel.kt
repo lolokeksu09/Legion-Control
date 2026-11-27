@@ -20,9 +20,14 @@ data class ExperimentLabUiState(
     val packages:List<Pair<String,String>>?=null,
     val sessions:List<GameSessionHeader>?=null,
     val experiments:List<SessionExperiment>?=null,
-    val annotationFor:String?=null,
-    val annotation:SessionAnnotation?=null,
     val share:String?=null
+)
+
+data class ExperimentSessionSelection(
+    val message: String,
+    val header: GameSessionHeader? = null,
+    val annotation: SessionAnnotation? = null,
+    val fillDraft: Boolean = false
 )
 
 /** Local-only annotations, A/B reports, pickers and SAF export. Never replaces game telemetry. */
@@ -35,8 +40,14 @@ class ExperimentLabViewModel(app:Application):AndroidViewModel(app) {
     val state:LiveData<ExperimentLabUiState> = live
     var selectedExperiment:String?=null
         private set
-    var selectedSession:String?=null
+    private val sessionGeneration = AtomicInteger()
+    private val sessionSelection = MutableLiveData<ExperimentSessionSelection?>()
+    val selection: LiveData<ExperimentSessionSelection?> = sessionSelection
+    private var initialSessionRead = false
+    private var requestedSessionPackage: String? = null
+    var requestedSessionId: String? = null
         private set
+    val selectedSession: String? get() = sessionSelection.value?.header?.id
     fun selectExperiment(id:String){selectedExperiment=id}
 
     fun pickPackages()=submit { n ->
@@ -49,14 +60,57 @@ class ExperimentLabViewModel(app:Application):AndroidViewModel(app) {
         val items=repo { it.recentSessions(pkg,60) }
         ExperimentLabUiState("Найдено сессий: ${items.size}",n,sessions=items)
     }
-    fun selectSession(id:String,label:String) {
-        selectedSession=id
-        submit { n ->
-            val annotation=repo { it.getAnnotation(id) }
-            ExperimentLabUiState("Сессия выбрана: $label / $id",n,
-                annotationFor=id,annotation=annotation)
+    fun initializeSession(packageName: String?, id: String?, restoreDraft: Boolean) {
+        if (initialSessionRead) return
+        initialSessionRead = true
+        if (packageName != null && !id.isNullOrBlank()) selectSession(packageName, id, !restoreDraft)
+    }
+
+    fun selectSession(packageName: String, id: String, fillDraft: Boolean = true) {
+        if (closed.get()) return
+        val request = sessionGeneration.incrementAndGet()
+        requestedSessionPackage = packageName
+        requestedSessionId = id
+        sessionSelection.value = ExperimentSessionSelection("Читаю выбранную запись…")
+        worker.execute {
+            val result = runCatching {
+                repo { repository ->
+                    val header = repository.sessionForPackage(packageName, id)
+                    if (header == null) {
+                        ExperimentSessionSelection("Запись недоступна для выбранной игры.")
+                    } else {
+                        ExperimentSessionSelection(
+                            message = if (header.endedAtMs == null) "Без отметки завершения" else "Завершена",
+                            header = header,
+                            annotation = if (fillDraft) repository.getAnnotation(id) else null,
+                            fillDraft = fillDraft
+                        )
+                    }
+                }
+            }.getOrElse {
+                ExperimentSessionSelection("Не удалось прочитать запись: " + it.javaClass.simpleName)
+            }
+            main.post {
+                if (!closed.get() && sessionGeneration.get() == request) {
+                    sessionSelection.value = result
+                }
+            }
         }
     }
+
+    fun clearSessionForPackage(packageName: String?) {
+        if (requestedSessionId == null || requestedSessionPackage == packageName) return
+        sessionGeneration.incrementAndGet()
+        requestedSessionPackage = null
+        requestedSessionId = null
+        sessionSelection.value = null
+    }
+
+    fun finishFillingDraft() {
+        val session = sessionSelection.value ?: return
+        sessionSelection.value = session.copy(annotation = null, fillDraft = false)
+    }
+
     fun saveAnnotation(id:String,tag:String,note:String)=simple {
         repo { it.annotate(id,tag,note) }
         "Метка и заметка сохранены для $id. Исходные измерения не изменены."
@@ -172,11 +226,12 @@ class ExperimentLabViewModel(app:Application):AndroidViewModel(app) {
     fun consume(nonce:Int) {
         val s=live.value ?: return
         if(s.nonce==nonce) live.value=s.copy(packages=null,sessions=null,
-            experiments=null,annotationFor=null,annotation=null,share=null)
+            experiments=null,share=null)
     }
     override fun onCleared() {
         closed.set(true)
         generation.incrementAndGet()
+        sessionGeneration.incrementAndGet()
         worker.shutdown()
         super.onCleared()
     }

@@ -2,6 +2,9 @@
 <resources>
     <item name="hub_nav_host_container" type="id" />
     <item name="device_lab_container" type="id" />
+    <item name="report_experiment_container" type="id" />
+    <item name="experiment_selected_session" type="id" />
+    <item name="analytics_experiment_action" type="id" />
     <item name="hub_tab_home" type="id" />
     <item name="hub_tab_games" type="id" />
     <item name="hub_tab_tools" type="id" />

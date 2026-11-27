@@ -12,7 +12,9 @@ hub = read("HubPageFragment.kt")
 toolbox = read("GameToolboxFragment.kt")
 assert "fun styleModuleTree(root: View)" in skin
 assert "fun styleFragmentButtons(root: View) = styleModuleTree(root)" in skin
-assert "fun setModuleActivityContent(activity: Activity, content: ScrollView, subtitle: String)" in skin
+assert "shell.addView(content," in skin
+assert "activity.setContentView(shell)" in skin
+assert "setOnClickListener { activity.finish() }" in skin
 assert all(v in skin for v in ("PANEL", "BORDER", "ACCENT", "MUTED",
     "RippleDrawable", "state_enabled", "state_focused", "styleCheck", "styleInput"))
 assert all(v in hub and v in toolbox for v in ("LegionUiSupport.MUTED",

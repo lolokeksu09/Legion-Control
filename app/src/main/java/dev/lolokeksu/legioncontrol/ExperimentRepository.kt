@@ -50,6 +50,9 @@ class ExperimentRepository(context: Context) : AutoCloseable {
         return out
     }
 
+    internal fun sessionForPackage(packageName: String, id: String): GameSessionHeader? =
+        GameSessionRepository(app).use { it.header(id) }?.takeIf { it.packageName == packageName }
+
     fun getAnnotation(sessionId: String): SessionAnnotation? =
         helper.readableDatabase.rawQuery("""
             SELECT session_id,tag,note,updated_at_ms FROM session_annotations

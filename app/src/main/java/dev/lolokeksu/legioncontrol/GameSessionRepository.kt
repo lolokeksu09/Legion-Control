@@ -145,15 +145,15 @@ class GameSessionRepository(context: Context) : AutoCloseable {
         return out
     }
 
-    /** Unique historical package IDs; no PACKAGE_USAGE_STATS or broad package permission. */
-    fun knownSessionPackages(limit:Int=40):List<String> {
-        val out=mutableListOf<String>()
+    /** Historical package IDs and labels from their most recent records. */
+    fun knownSessionPackages(limit: Int = 40): Map<String, String> {
+        val out = linkedMapOf<String, String>()
         dbHelper.readableDatabase.rawQuery(
-            "SELECT package_name FROM game_sessions GROUP BY package_name " +
-                "ORDER BY MAX(started_at_ms) DESC LIMIT ?",
+            "SELECT package_name,app_label,MAX(started_at_ms) FROM game_sessions GROUP BY package_name " +
+                "ORDER BY MAX(started_at_ms) DESC,package_name LIMIT ?",
             arrayOf(limit.coerceIn(1,40).toString())
         ).use { c ->
-            while(c.moveToNext()) out += c.getString(0)
+            while (c.moveToNext()) out[c.getString(0)] = c.getString(1)
         }
         return out
     }
