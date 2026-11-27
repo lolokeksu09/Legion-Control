@@ -190,7 +190,8 @@ class ExperimentLabFragment : Fragment() {
         }
         val id = if (savedInstanceState == null) arguments?.getString(ExperimentLabActivity.EXTRA_SESSION)
             else savedInstanceState.getString("selected_session")
-        vm.initializeSession(currentPackage(), id, restoreDraft = savedInstanceState != null)
+        val draftReady = savedInstanceState?.getBoolean("annotation_draft_ready") == true
+        vm.initializeSession(currentPackage(), id, restoreDraft = draftReady)
     }
 
     private fun display(t:String) { if(::status.isInitialized) status.text=t }
@@ -350,6 +351,8 @@ class ExperimentLabFragment : Fragment() {
     override fun onSaveInstanceState(outState:Bundle) {
         outState.putString("package",appInput.text.toString())
         outState.putString("selected_session",vm.requestedSessionId)
+        val selection = vm.selection.value
+        outState.putBoolean("annotation_draft_ready", selection?.header != null && !selection.fillDraft)
         outState.putString("name",experimentName.text.toString())
         outState.putString("hypothesis",hypothesis.text.toString())
         outState.putString("a",labelA.text.toString())

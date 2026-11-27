@@ -273,7 +273,10 @@ class SessionLibraryActivity:FragmentActivity() {
         }
         lastDetail=vm.state.value?.detail
         vm.state.observe(this,::render)
-        vm.initialize(intent.getStringExtra(EXTRA_PACKAGE),intent.getStringExtra(EXTRA_SESSION))
+        val restoredSession = savedInstanceState?.getString(EXTRA_SESSION)
+        val initialPackage = if (restoredSession != null) savedInstanceState?.getString(EXTRA_PACKAGE)
+            else intent.getStringExtra(EXTRA_PACKAGE)
+        vm.initialize(initialPackage, restoredSession ?: intent.getStringExtra(EXTRA_SESSION))
         if(featureModule!=null)FeatureReveal.fromActivity(this,root,featureModule)
         else FeatureReveal.fromActivity(this,root,FeatureModule.LIBRARY)
     }
@@ -405,6 +408,10 @@ class SessionLibraryActivity:FragmentActivity() {
     }
 
     override fun onSaveInstanceState(outState:Bundle) {
+        vm.state.value?.detail?.header?.let { session ->
+            outState.putString(EXTRA_PACKAGE, session.packageName)
+            outState.putString(EXTRA_SESSION, session.id)
+        }
         outState.putString("analytics_page",page.name)
         outState.putString("analytics_return_page", returnToReport?.name)
         outState.putString("analytics_compare_id",compareId)
