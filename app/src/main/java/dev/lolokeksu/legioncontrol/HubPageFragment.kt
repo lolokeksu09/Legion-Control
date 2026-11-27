@@ -55,15 +55,23 @@ class HubPageFragment : Fragment() {
     private var pendingSearch:Runnable?=null
     private var observedSnapshot:HubLoadState?=null
     private var systemSummary: TextView? = null
+    private var permissionSummary: TextView? = null
+    private var permissionsPanel: LinearLayout? = null
+    private var permissionToggle: Button? = null
+    private var recoveryNote: TextView? = null
     private var shizukuStatusView: TextView? = null
+    private var shizukuReportView: TextView? = null
+    private var shizukuSetup: Button? = null
+    private var shizukuInspect: Button? = null
+    private var shizukuBackground: Button? = null
     private var systemAudit: ShizukuSystemAudit? = null
     private var shizukuProbeEpoch = 0
     private var shizukuProbeRunning = false
     private var shizukuListening = false
-    private val binderReceived = Shizuku.OnBinderReceivedListener { invalidateShizuku() }
-    private val binderDead = Shizuku.OnBinderDeadListener { invalidateShizuku() }
+    private val binderReceived = Shizuku.OnBinderReceivedListener { onShizukuChanged() }
+    private val binderDead = Shizuku.OnBinderDeadListener { onShizukuChanged() }
     private val permissionResult = Shizuku.OnRequestPermissionResultListener { code, _ ->
-        if (code == ShizukuAccessBackend.REQUEST_CODE) invalidateShizuku()
+        if (code == ShizukuAccessBackend.REQUEST_CODE) onShizukuChanged()
     }
     private val Int.dp get() = (this * resources.displayMetrics.density).toInt()
 
@@ -111,6 +119,10 @@ class HubPageFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        if (page() == HubTab.SETTINGS) {
+            showSettings()
+            return
+        }
         if (page() == HubTab.HISTORY) {
             val model = ViewModelProvider(this)[SessionLibraryViewModel::class.java]
             historyModel = model
@@ -137,10 +149,10 @@ class HubPageFragment : Fragment() {
     override fun onStart() {
         super.onStart()
         if (page() == HubTab.SETTINGS) {
+            shizukuListening = true
             Shizuku.addBinderReceivedListener(binderReceived)
             Shizuku.addBinderDeadListener(binderDead)
             Shizuku.addRequestPermissionResultListener(permissionResult)
-            shizukuListening = true
             refreshShizuku()
         }
     }
@@ -152,6 +164,7 @@ class HubPageFragment : Fragment() {
             Shizuku.removeRequestPermissionResultListener(permissionResult)
             shizukuListening = false
         }
+        if (shizukuProbeRunning || systemAudit != null) showShizukuReport(null)
         systemAudit?.cancel()
         systemAudit = null
         shizukuProbeEpoch++
@@ -159,17 +172,40 @@ class HubPageFragment : Fragment() {
         super.onStop()
     }
 
-    private fun refreshShizuku() {
-        val ctx = context ?: return
-        shizukuStatusView?.text = ShizukuAccessBackend.snapshot(ctx).report()
+    private fun showShizukuReport(message: String?) {
+        shizukuReportView?.apply {
+            text = message.orEmpty()
+            visibility = if (message == null) View.GONE else View.VISIBLE
+        }
     }
 
-    private fun invalidateShizuku() {
-        systemAudit?.cancel()
-        systemAudit = null
-        shizukuProbeEpoch++
-        shizukuProbeRunning = false
-        refreshShizuku()
+    private fun refreshShizuku() {
+        val status = shizukuStatusView ?: return
+        val ctx = context ?: return
+        val snapshot = ShizukuAccessBackend.snapshot(ctx)
+        val ready = snapshot.connection == ShizukuConnection.SHELL_READY
+        val busy = shizukuProbeRunning || systemAudit != null
+        status.text = snapshot.report()
+        shizukuSetup?.apply {
+            visibility = if (ready) View.GONE else View.VISIBLE
+            text = if (snapshot.connection == ShizukuConnection.PERMISSION_REQUIRED)
+                "Разрешить доступ Shizuku" else "Открыть Shizuku"
+        }
+        shizukuInspect?.isEnabled = ready && !busy
+        shizukuBackground?.isEnabled = ready && !busy
+        if (!ready) showShizukuReport(null)
+    }
+
+    private fun onShizukuChanged() {
+        searchHandler.post {
+            if (!shizukuListening) return@post
+            systemAudit?.cancel()
+            systemAudit = null
+            shizukuProbeEpoch++
+            shizukuProbeRunning = false
+            showShizukuReport(null)
+            refreshShizuku()
+        }
     }
 
     private fun configureShizuku() {
@@ -192,15 +228,21 @@ class HubPageFragment : Fragment() {
     private fun inspectShizuku() {
         if (shizukuProbeRunning || systemAudit != null) return
         val ctx = requireContext().applicationContext
+        if (ShizukuAccessBackend.snapshot(ctx).connection != ShizukuConnection.SHELL_READY) {
+            refreshShizuku()
+            return
+        }
         val epoch = ++shizukuProbeEpoch
         shizukuProbeRunning = true
-        shizukuStatusView?.text = "Проверка прав ADB shell…"
+        showShizukuReport("Проверяю права ADB shell…")
+        refreshShizuku()
         Thread({
             val report = ShizukuAccessBackend.inspectShell(ctx)
             searchHandler.post {
                 if (epoch == shizukuProbeEpoch && shizukuListening) {
                     shizukuProbeRunning = false
-                    shizukuStatusView?.text = report
+                    showShizukuReport(report)
+                    refreshShizuku()
                 }
             }
         }, "legion-shizuku-inspect").start()
@@ -209,14 +251,20 @@ class HubPageFragment : Fragment() {
     private fun inspectBackgroundPolicy() {
         if (shizukuProbeRunning || systemAudit != null) return
         val ctx = requireContext()
+        if (ShizukuAccessBackend.snapshot(ctx).connection != ShizukuConnection.SHELL_READY) {
+            refreshShizuku()
+            return
+        }
         val epoch = ++shizukuProbeEpoch
         val audit = ShizukuSystemAudit(ctx)
         systemAudit = audit
-        shizukuStatusView?.text = "Чтение конфигурации фоновых процессов…"
+        showShizukuReport("Читаю состояние фоновых процессов…")
+        refreshShizuku()
         audit.run { report ->
             if (epoch == shizukuProbeEpoch && shizukuListening) {
                 systemAudit = null
-                shizukuStatusView?.text = report
+                showShizukuReport(report)
+                refreshShizuku()
             }
         }
     }
@@ -227,8 +275,10 @@ class HubPageFragment : Fragment() {
             it.refresh(LibraryFilter(historyPackage))
             return
         }
-        if (::viewModel.isInitialized) {
-            if(page()==HubTab.SETTINGS) render(viewModel.state.value ?: HubLoadState.Loading)
+        if (page() == HubTab.SETTINGS) {
+            refreshPermissions()
+            refreshShizuku()
+        } else if (::viewModel.isInitialized) {
             viewModel.refresh()
         }
     }
@@ -329,18 +379,6 @@ class HubPageFragment : Fragment() {
         column.removeAllViews()
         systemSummary = null
         shizukuStatusView = null
-        if (page() == HubTab.SETTINGS) {
-            showSettings((state as? HubLoadState.Ready)?.snapshot)
-            LegionDataBackup.recoveryWarning()?.let(::info)
-            if(state is HubLoadState.Failed) {
-                notice(state.message, LegionUiSupport.Notice.ERROR)
-                tile("Повторить чтение сводки", "Настройки и восстановление доступны независимо") {
-                    viewModel.refresh(force=true)
-                }
-            }
-            if(state is HubLoadState.Ready) state.snapshot.warnings.forEach { notice(it, LegionUiSupport.Notice.WARNING) }
-            return
-        }
         when (state) {
             HubLoadState.Loading -> {
                 if (page() == HubTab.TOOLS) {
@@ -369,8 +407,7 @@ class HubPageFragment : Fragment() {
                     HubTab.HOME -> showHome(state.snapshot)
                     HubTab.GAMES -> showGames(state.snapshot)
                     HubTab.TOOLS -> showTools(state)
-                    HubTab.HISTORY -> Unit
-                    HubTab.SETTINGS -> showSettings(state.snapshot)
+                    HubTab.HISTORY, HubTab.SETTINGS -> Unit
                 }
                 if (state.snapshot.warnings.isNotEmpty()) {
                     group("Ограничения доступа")
@@ -649,6 +686,14 @@ class HubPageFragment : Fragment() {
     }
     override fun onDestroyView() {
         shizukuStatusView = null
+        shizukuReportView = null
+        shizukuSetup = null
+        shizukuInspect = null
+        shizukuBackground = null
+        permissionSummary = null
+        permissionsPanel = null
+        permissionToggle = null
+        recoveryNote = null
         historyModel = null
         systemSummary = null
         cancelSearch()
@@ -669,6 +714,7 @@ class HubPageFragment : Fragment() {
         val args = Bundle().apply { putString(FeatureFinder.EXTRA_FEATURE_ID, entry.id) }
         when (entry.module) {
             FeatureModule.CAPTURE -> openStandaloneFeature(CaptureStudioActivity::class.java, args)
+            FeatureModule.DATA -> openStandaloneFeature(DataArchiveActivity::class.java, args)
             FeatureModule.AUDIO -> openStandaloneFeature(MainActivity::class.java, args)
             FeatureModule.HAPTIC -> openStandaloneFeature(MainActivity::class.java, args)
             FeatureModule.NETWORK -> openStandaloneFeature(MainActivity::class.java, args)
@@ -949,51 +995,76 @@ class HubPageFragment : Fragment() {
         }
     }
 
-    private fun showSettings(s: HubSnapshot?) {
-        section("Настройки", "Разрешения, локальные данные и параметры модулей.")
-        group("Центр разрешений")
-        val access = CapabilityAccessBackend.read(requireContext())
-        val permissions = PermissionCenterModel.permissions(access)
-        info(PermissionCenterModel.summary(permissions) + ". Доступы выдаются только в Android; " +
-            "не все нужны для каждой функции.")
-        val permissionPanel=LinearLayout(requireContext()).apply { orientation=LinearLayout.VERTICAL }
-        val permissionToggle=Button(requireContext()).apply { LegionUiSupport.styleAction(this) }
-        fun refreshPermissionPanel() {
-            permissionPanel.visibility=if(permissionsExpanded)View.VISIBLE else View.GONE
-            permissionToggle.text=if(permissionsExpanded)"Скрыть список разрешений" else "Управление разрешениями"
+    private fun refreshPermissions() {
+        val panel = permissionsPanel ?: return
+        val ctx = requireContext()
+        val access = CapabilityAccessBackend.read(ctx)
+        val groups = PermissionCenterModel.groups(access)
+        permissionSummary?.text = PermissionCenterModel.summary(groups.flatMap { it.items })
+        permissionToggle?.text = if (permissionsExpanded) "Скрыть разрешения" else "Управление разрешениями"
+        permissionToggle?.stateDescription = if (permissionsExpanded) "Развёрнуто" else "Свёрнуто"
+        panel.removeAllViews()
+        panel.visibility = if (permissionsExpanded) View.VISIBLE else View.GONE
+        if (permissionsExpanded) {
+            fun row(item: PermissionItem) {
+                panel.addView(LegionUiSupport.permissionRow(ctx, item) {
+                    openCapabilitySettings(item.capability)
+                }, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 6.dp })
+            }
+            groups.forEach { group ->
+                panel.addView(LegionUiSupport.sectionLabel(ctx, group.title))
+                group.items.forEach(::row)
+            }
+            panel.addView(LegionUiSupport.sectionLabel(ctx, "Возможности и ограничения"))
+            PermissionCenterModel.limitations(access).forEach(::row)
         }
-        permissionToggle.setOnClickListener { permissionsExpanded=!permissionsExpanded;refreshPermissionPanel() }
-        column.addView(permissionToggle)
-        for (item in permissions) {
-            permissionPanel.addView(LegionUiSupport.permissionRow(requireContext(), item) {
-                openCapabilitySettings(item.capability)
-            }, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 6.dp })
+        recoveryNote?.apply {
+            val warning = LegionDataBackup.recoveryWarning()
+            text = warning.orEmpty()
+            visibility = if (warning == null) View.GONE else View.VISIBLE
         }
-        column.addView(permissionPanel)
-        refreshPermissionPanel()
+    }
+
+    private fun showSettings() {
+        val ctx = requireContext()
+        section("Настройки")
+        column.addView(LegionUiSupport.actionTile(ctx, "Данные", "Резервный ZIP, проверка и восстановление") {
+            open(DataArchiveActivity::class.java)
+        }.apply { id = R.id.settings_data })
+        recoveryNote = LegionUiSupport.noticeView(ctx, "", LegionUiSupport.Notice.WARNING)
+            .also { column.addView(it) }
+
+        group("Разрешения")
+        permissionSummary = text("", 13f, muted).also { column.addView(it) }
+        fun button(label: String, action: () -> Unit) = Button(ctx).apply {
+            text = label
+            isAllCaps = false
+            LegionUiSupport.styleAction(this)
+            setOnClickListener { action() }
+            column.addView(this)
+        }
+        permissionToggle = button("Управление разрешениями") {
+            permissionsExpanded = !permissionsExpanded
+            refreshPermissions()
+        }
+        permissionsPanel = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
+            .also { column.addView(it) }
         group("Системное управление")
         tile("Параметры Android", "Громкость, яркость, DND, тайм-аут и возврат") {
-            SystemControlPanel.show(requireContext())
+            SystemControlPanel.show(ctx)
         }
-        group("Расширенный доступ")
-        shizukuStatusView = LegionUiSupport.noticeView(requireContext(),
-            ShizukuAccessBackend.snapshot(requireContext()).report(), LegionUiSupport.Notice.INFO)
-        column.addView(requireNotNull(shizukuStatusView))
-        tile("Настроить Shizuku", "Подключить ADB shell или открыть менеджер Shizuku") { configureShizuku() }
-        tile("Проверить права ADB shell", "Только чтение · доступ к системным возможностям") { inspectShizuku() }
-        tile("Фоновые процессы", "Freezer, App Standby, энергосбережение · чтение через Shizuku") {
-            inspectBackgroundPolicy()
-        }
-        group("Возможности и ограничения")
-        for (item in PermissionCenterModel.limitations(access)) {
-            column.addView(LegionUiSupport.permissionRow(requireContext(), item) {},
-                LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 6.dp })
-        }
-        group("Резервное копирование и файлы")
-        for (id in listOf("capture.backup", "capture.restore", "capture.resume")) {
-            val entry = FeatureFinder.resolve(id, FeatureModule.CAPTURE) ?: continue
-            tile(entry.title, "Capture Studio · локальные данные") { openFeature(entry) }
-        }
+        group("Shizuku")
+        shizukuStatusView = LegionUiSupport.noticeView(ctx, "", LegionUiSupport.Notice.INFO)
+            .also { column.addView(it) }
+        shizukuSetup = button("Открыть Shizuku", ::configureShizuku)
+        shizukuInspect = button("Проверить права ADB shell", ::inspectShizuku)
+        shizukuBackground = button("Проверить фоновые процессы", ::inspectBackgroundPolicy)
+        shizukuReportView = LegionUiSupport.noticeView(ctx, "", LegionUiSupport.Notice.INFO).apply {
+            visibility = View.GONE
+            accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+        }.also { column.addView(it) }
+        refreshPermissions()
+        refreshShizuku()
         group("Модули")
         tile("Каталог инструментов", "Все модули и поиск конкретных функций") {
             NavHostFragment.findNavController(this).navigate(R.id.toolsFragment)

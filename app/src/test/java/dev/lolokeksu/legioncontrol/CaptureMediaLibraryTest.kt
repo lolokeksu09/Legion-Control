@@ -20,7 +20,8 @@ class CaptureMediaLibraryTest {
     @Test fun mediaDestinationsRevealTheRelevantPanel() {
         assertEquals(CaptureStudioPane.LIBRARY, CaptureStudioPane.initial(null, "LIBRARY", null))
         assertEquals(CaptureStudioPane.SETTINGS, CaptureStudioPane.initial(null, null, "capture.audio"))
-        assertEquals(CaptureStudioPane.SETTINGS, CaptureStudioPane.initial(null, null, "capture.restore"))
+        assertNull(FeatureFinder.resolve("capture.restore", FeatureModule.CAPTURE))
+        assertNotNull(FeatureFinder.resolve("capture.restore", FeatureModule.DATA))
         assertEquals(CaptureStudioPane.CAPTURE, CaptureStudioPane.initial(null, "LIBRARY", "capture.replay"))
         assertEquals(CaptureStudioPane.LIBRARY, CaptureStudioPane.initial("LIBRARY", null, "capture.replay"))
     }

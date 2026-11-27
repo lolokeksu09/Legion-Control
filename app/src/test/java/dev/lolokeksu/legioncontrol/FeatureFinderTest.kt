@@ -23,7 +23,7 @@ class FeatureFinderTest {
         assertEquals("ОБНОВИТЬ МЕДИАТЕКУ", FeatureFinder.resolve("capture.clips", FeatureModule.CAPTURE)?.anchor)
     }
     @Test fun onlyKnownIdsForTheOwningModuleResolve() {
-        assertNotNull(FeatureFinder.resolve("capture.backup", FeatureModule.CAPTURE))
+        assertNotNull(FeatureFinder.resolve("capture.backup", FeatureModule.DATA))
         assertNull(FeatureFinder.resolve("capture.backup", FeatureModule.AUDIO))
         assertNull(FeatureFinder.resolve("unknown", FeatureModule.CAPTURE))
         assertNull(FeatureFinder.resolve(null, FeatureModule.CAPTURE))

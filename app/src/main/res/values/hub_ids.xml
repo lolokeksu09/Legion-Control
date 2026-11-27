@@ -16,4 +16,5 @@
     <item name="hub_center_peripherals" type="id" />
     <item name="hub_center_analytics" type="id" />
     <item name="hub_feature_search" type="id" />
+    <item name="settings_data" type="id" />
 </resources>

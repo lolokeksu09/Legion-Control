@@ -26,17 +26,25 @@ internal data class PermissionItem(
     val canOpenSettings: Boolean
 )
 
+internal data class PermissionGroup(val title: String, val items: List<PermissionItem>)
+
 internal object PermissionCenterModel {
     private data class Definition(val capability: CapabilityAccess, val title: String,
                                   val purpose: String, val settings: Boolean)
 
-    private val permissions = listOf(
-        Definition(CapabilityAccess.OVERLAY, "Поверх других окон", "Плавающая панель Game Toolbox.", true),
-        Definition(CapabilityAccess.USAGE, "Использование приложений", "Наблюдаемые события запуска и выхода из игры.", true),
-        Definition(CapabilityAccess.NOTIFICATIONS, "Уведомления", "Управление активными сессиями и предупреждения.", true),
-        Definition(CapabilityAccess.DND, "Режим «Не беспокоить»", "Право управления DND, не состояние самого режима.", true),
-        Definition(CapabilityAccess.WRITE_SETTINGS, "Изменение системных настроек", "Яркость и тайм-аут экрана.", true),
-        Definition(CapabilityAccess.PLAYBACK_AUDIO, "Захват игрового звука", "RECORD_AUDIO; без микрофона. Игра может запретить захват.", true)
+    private val permissions = linkedMapOf(
+        "Игры и сессии" to listOf(
+            Definition(CapabilityAccess.OVERLAY, "Поверх других окон", "Плавающая панель Game Toolbox.", true),
+            Definition(CapabilityAccess.USAGE, "Использование приложений", "Наблюдаемые события запуска и выхода из игры.", true),
+            Definition(CapabilityAccess.NOTIFICATIONS, "Уведомления", "Управление активными сессиями и предупреждения.", true)
+        ),
+        "Запись экрана" to listOf(
+            Definition(CapabilityAccess.PLAYBACK_AUDIO, "Захват игрового звука", "RECORD_AUDIO; без микрофона. Игра может запретить захват.", true)
+        ),
+        "Профили и параметры Android" to listOf(
+            Definition(CapabilityAccess.DND, "Режим «Не беспокоить»", "Право управления DND, не состояние самого режима.", true),
+            Definition(CapabilityAccess.WRITE_SETTINGS, "Изменение системных настроек", "Яркость и тайм-аут экрана.", true)
+        )
     )
     private val limitations = listOf(
         Definition(CapabilityAccess.MEDIA_VOLUME, "Громкость мультимедиа", "Зависит от политики аудиоустройства.", false),
@@ -48,7 +56,8 @@ internal object PermissionCenterModel {
         definitions.map { PermissionItem(it.capability, it.title, it.purpose,
             snapshot[it.capability], it.settings && snapshot[it.capability] != AccessState.UNSUPPORTED) }
 
-    fun permissions(snapshot: CapabilityAccessSnapshot): List<PermissionItem> = rows(permissions, snapshot)
+    fun groups(snapshot: CapabilityAccessSnapshot): List<PermissionGroup> =
+        permissions.map { (title, definitions) -> PermissionGroup(title, rows(definitions, snapshot)) }
     fun limitations(snapshot: CapabilityAccessSnapshot): List<PermissionItem> = rows(limitations, snapshot)
 
     fun summary(items: List<PermissionItem>): String =

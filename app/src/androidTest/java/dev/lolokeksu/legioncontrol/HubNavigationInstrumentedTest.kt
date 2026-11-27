@@ -24,6 +24,44 @@ class HubNavigationInstrumentedTest {
         assertFalse(ReplayCaptureService.active)
     }
 
+    @Test fun settingsOpensDataAndRevealsBackupWithoutLaunchingThePicker() {
+        ActivityScenario.launch(LegionHubActivity::class.java).use { scenario ->
+            scenario.onActivity { hub ->
+                assertTrue(hub.findViewById<View>(R.id.hub_tab_settings).performClick())
+            }
+            val monitor = instrumentation.addMonitor(DataArchiveActivity::class.java.name, null, false)
+            try {
+                await {
+                    var clicked = false
+                    scenario.onActivity { hub ->
+                        clicked = hub.findViewById<View>(R.id.settings_data)?.performClick() == true
+                    }
+                    clicked
+                }
+                val opened = requireNotNull(instrumentation.waitForMonitorWithTimeout(monitor, 10_000L)) as DataArchiveActivity
+                try {
+                    val backup = requireNotNull(FeatureFinder.resolve("capture.backup", FeatureModule.DATA))
+                    await {
+                        var ready = false
+                        instrumentation.runOnMainSync {
+                            val vm = ViewModelProvider(opened)[DataArchiveViewModel::class.java]
+                            val state = vm.state.value
+                            val button = FeatureReveal.findTarget(opened.window.decorView, backup)
+                            ready = button?.isShown == true && state != null &&
+                                !state.running && !state.choosing && state.checked == null
+                        }
+                        ready
+                    }
+                } finally {
+                    instrumentation.runOnMainSync { opened.finish() }
+                }
+            } finally {
+                instrumentation.removeMonitor(monitor)
+            }
+        }
+        assertFeatureRoute("резервная ZIP", "capture.backup", FeatureModule.DATA, DataArchiveActivity::class.java)
+    }
+
     @Test fun deviceSectionsReplaceThePreviousForegroundLab() {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
             scenario.onActivity { host ->

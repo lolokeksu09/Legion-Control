@@ -44,7 +44,7 @@ object LegionDataBackup {
 
     /** A failed recovery is visible in the hub rather than being silently ignored. */
     fun recoveryWarning(): String? = lastRecoveryFailure?.let {
-        "Восстановление локальных данных из ZIP не завершено ($it). Откройте Capture Studio → «Завершить прерванное восстановление». Не удаляйте данные приложения."
+        "Восстановление локальных данных из ZIP не завершено ($it). Откройте «Настройки → Данные → Завершить восстановление». Не удаляйте данные приложения."
     }
     private val legacyNames = listOf(
         "legion-game-capture-profiles", "legion-capture-studio",
@@ -75,7 +75,7 @@ object LegionDataBackup {
     }
     internal fun checkArchiveWritesAllowed(context:Context) {
         check(!hasPendingRestore(context)) {
-            "Сначала завершите прерванное восстановление в Capture Studio."
+            "Сначала завершите восстановление в разделе «Настройки → Данные»."
         }
     }
 
@@ -185,6 +185,21 @@ object LegionDataBackup {
         }
     }
 
+    /** Explicit retry may replay settings, but it must not compete with running capture or a session. */
+    @Synchronized internal fun retryPendingRestore(context: Context): Boolean {
+        check(!GameToolboxService.isPanelActive()) { "Остановите Game Toolbox перед восстановлением." }
+        check(!GameSessionRecorderService.sessionActive) { "Остановите запись игровой сессии." }
+        check(CaptureCoordinator.reserveConsent(CaptureMode.MAINTENANCE)) {
+            "Завершите захват и повторите восстановление."
+        }
+        return try {
+            check(!GameSessionRecorderService.sessionActive) { "Остановите запись игровой сессии." }
+            recoverPendingRestore(context)
+        } finally {
+            CaptureCoordinator.release(CaptureMode.MAINTENANCE)
+        }
+    }
+
     @Synchronized fun export(context: Context, uri: Uri): LegionBackupPreview =
         ProfileMaintenanceGate.tryRun({error("Завершите изменение игрового профиля и повторите экспорт ZIP.")}) {
         checkArchiveWritesAllowed(context)
@@ -269,7 +284,7 @@ object LegionDataBackup {
                                           afterJournalWrite: (() -> Unit)? = null): LegionBackupPreview =
         ProfileMaintenanceGate.tryRun({error("Завершите изменение игрового профиля и повторите восстановление.")}) {
         check(!GameToolboxService.isPanelActive()) { "Остановите Game Toolbox перед восстановлением." }
-        recoverPendingRestore(context) // complete or discard a prior interrupted attempt
+        checkArchiveWritesAllowed(context)
         check(!GameSessionRecorderService.sessionActive) {
             "Сначала остановите запись игровой сессии."
         }

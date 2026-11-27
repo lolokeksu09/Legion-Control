@@ -4,7 +4,7 @@ import java.util.Locale
 
 /** Stable identifiers for real visible controls; no executable action is stored here. */
 enum class FeatureModule(val displayName: String) {
-    CAPTURE("Capture Studio"), AUDIO("Audio Lab"), HAPTIC("Haptic Lab"),
+    CAPTURE("Capture Studio"), DATA("Данные"), AUDIO("Audio Lab"), HAPTIC("Haptic Lab"),
     NETWORK("Connectivity Observatory"), PROFILE("Smart Profiles"),
     APPS("Application Center"), SESSION("Game Session"), TOOLBOX("Game Toolbox"),
     GAMING("Gaming Lab"),
@@ -44,9 +44,9 @@ object FeatureFinder {
         FeatureEntry("capture.quality", FeatureModule.CAPTURE, "Разрешение записи", "Разрешение · 720p / 1080p", "качество 720p 1080p"),
         FeatureEntry("capture.audio", FeatureModule.CAPTURE, "Звук игры в записи", "Звук игры · включить / выключить", "aac playback audio внутренний звук"),
         FeatureEntry("capture.clips", FeatureModule.CAPTURE, "Медиатека MP4 и PNG", "ОБНОВИТЬ МЕДИАТЕКУ", "clip workshop видео библиотека клипов снимков скриншоты галерея"),
-        FeatureEntry("capture.backup", FeatureModule.CAPTURE, "Резервная копия ZIP", "ЭКСПОРТ ИСТОРИИ И НАСТРОЕК", "backup экспорт sqlite архив"),
-        FeatureEntry("capture.restore", FeatureModule.CAPTURE, "Восстановление из ZIP", "ПРОВЕРИТЬ И ВОССТАНОВИТЬ ИЗ ZIP", "restore импорт backup sqlite"),
-        FeatureEntry("capture.resume", FeatureModule.CAPTURE, "Завершить прерванный импорт", "ЗАВЕРШИТЬ ПРЕРВАННОЕ ВОССТАНОВЛЕНИЕ", "restore журнал восстановление zip"),
+        FeatureEntry("capture.backup", FeatureModule.DATA, "Резервная копия ZIP", "Экспортировать ZIP", "backup экспорт sqlite архив"),
+        FeatureEntry("capture.restore", FeatureModule.DATA, "Восстановление из ZIP", "Проверить ZIP", "restore импорт backup sqlite"),
+        FeatureEntry("capture.resume", FeatureModule.DATA, "Завершить прерванный импорт", "Завершить восстановление", "restore журнал восстановление zip"),
         FeatureEntry("audio.stereo", FeatureModule.AUDIO, "Проверка стерео", "Стерео · 440 Гц", "sound audio звук stereo динамики"),
         FeatureEntry("audio.sweep", FeatureModule.AUDIO, "Проверка частот", "Частотный sweep: 220 → 1760 Гц", "audio частота sweep hz"),
         FeatureEntry("audio.routes", FeatureModule.AUDIO, "Подключённые аудиовыходы", "Обновить подключённые аудиовыходы", "audio bluetooth наушники маршруты"),
