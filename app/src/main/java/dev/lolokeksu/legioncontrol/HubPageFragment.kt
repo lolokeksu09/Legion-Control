@@ -40,6 +40,8 @@ class HubPageFragment : Fragment() {
     private val border = LegionUiSupport.BORDER
     private val panel = LegionUiSupport.PANEL
     private lateinit var viewModel: HubViewModel
+    private var historyModel: SessionLibraryViewModel? = null
+    private var historyPackage: String? = null
     private lateinit var column: LinearLayout
     private var query = ""
     private var libraryFilter = HubGameFilter.GAMES
@@ -67,6 +69,7 @@ class HubPageFragment : Fragment() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val saved = savedInstanceState ?: return
+        historyPackage = saved.getString("historyPackage")
         query = saved.getString("libraryQuery").orEmpty()
         libraryFilter = HubLibraryPolicy.restore(HubGameFilter.entries, saved.getString("libraryFilter"), HubGameFilter.GAMES)
         librarySort = HubLibraryPolicy.restore(HubGameSort.entries, saved.getString("librarySort"), HubGameSort.PRIORITY)
@@ -79,6 +82,7 @@ class HubPageFragment : Fragment() {
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
+        outState.putString("historyPackage", historyPackage)
         outState.putString("libraryQuery", query)
         outState.putString("libraryFilter", libraryFilter.name)
         outState.putString("librarySort", librarySort.name)
@@ -106,6 +110,13 @@ class HubPageFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        if (page() == HubTab.HISTORY) {
+            val model = ViewModelProvider(this)[SessionLibraryViewModel::class.java]
+            historyModel = model
+            model.state.observe(viewLifecycleOwner, ::showHistory)
+            model.initialize(historyPackage)
+            return
+        }
         viewModel = ViewModelProvider(requireActivity())[HubViewModel::class.java]
         observedSnapshot=null
         viewModel.state.observe(viewLifecycleOwner) { state ->
@@ -210,6 +221,10 @@ class HubPageFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
+        historyModel?.let {
+            it.refresh(LibraryFilter(historyPackage))
+            return
+        }
         if (::viewModel.isInitialized) {
             if(page()==HubTab.SETTINGS) render(viewModel.state.value ?: HubLoadState.Loading)
             viewModel.refresh()
@@ -359,7 +374,7 @@ class HubPageFragment : Fragment() {
                     HubTab.HOME -> showHome(state.snapshot)
                     HubTab.GAMES -> showGames(state.snapshot)
                     HubTab.TOOLS -> showTools()
-                    HubTab.HISTORY -> showHistory(state.snapshot)
+                    HubTab.HISTORY -> Unit
                     HubTab.SETTINGS -> showSettings(state.snapshot)
                 }
                 if (state.snapshot.warnings.isNotEmpty()) {
@@ -635,6 +650,7 @@ class HubPageFragment : Fragment() {
     }
     override fun onDestroyView() {
         shizukuStatusView = null
+        historyModel = null
         cancelSearch()
         observedSnapshot=null
         super.onDestroyView()
@@ -797,11 +813,48 @@ class HubPageFragment : Fragment() {
         redraw()
     }
 
-    private fun showHistory(s: HubSnapshot) {
-        section("Аналитика", "История игр и измерений.")
-        column.addView(centerCard(HubCenter.ANALYTICS),LinearLayout.LayoutParams(-1,-2).apply { bottomMargin=10.dp })
-        tile("Текущая игровая сессия", "Управление записью и анализ незавершённых сессий") { open(GameSessionActivity::class.java) }
-        tile("Эксперименты A/B", "Создание экспериментов, группы и заметки") { open(ExperimentLabActivity::class.java) }
+    private fun showHistory(state: LibraryState) {
+        column.removeAllViews()
+        section("Аналитика")
+        group("Последние записи")
+        val filterLabel = state.gameLabel(historyPackage)
+        tile("Игра", filterLabel) { pickHistoryGame(state) }
+        when {
+            state.queryFailed -> {
+                notice(state.message, LegionUiSupport.Notice.ERROR)
+                tile("Повторить чтение", filterLabel) { historyModel?.refresh(LibraryFilter(historyPackage)) }
+            }
+            state.busy -> notice("Читаю локальные записи…", LegionUiSupport.Notice.LOADING)
+            state.rows.isEmpty() -> notice(
+                if (historyPackage == null) "Записей пока нет. Начните игровую сессию вручную."
+                else "У выбранной игры пока нет записей.",
+                LegionUiSupport.Notice.EMPTY
+            )
+            else -> {
+                val dates = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT)
+                for (session in state.rows.take(8)) {
+                    val time = dates.format(Date(session.startedAtMs))
+                    val completion = when {
+                        session.endedAtMs == null -> "Без отметки завершения"
+                        session.endReason == "INTERRUPTED" -> "Прервана"
+                        else -> "Завершена"
+                    }
+                    tile(session.appLabel, "$time · $completion") { openRecentSession(session) }
+                }
+            }
+        }
+        tile("Все сессии", "Библиотека, сравнение и экспорт") {
+            startActivity(SessionLibraryActivity.intent(requireContext(), historyPackage))
+        }
+        group("Инструменты")
+        tile("Текущая игровая сессия", "Управление записью и анализ незавершённых сессий") {
+            open(GameSessionActivity::class.java)
+        }
+        tile("Эксперименты A/B", "Создание экспериментов, группы и заметки") {
+            open(ExperimentLabActivity::class.java, Bundle().apply {
+                historyPackage?.let { putString(ExperimentLabActivity.EXTRA_PACKAGE, it) }
+            })
+        }
         tile("Медиатека", "Локальные MP4 и PNG") { open(CaptureStudioActivity::class.java) }
         group("Данные устройства и приложений")
         tile("Измерения устройства", "История Kotlin + Rust, тесты батареи, тепло и CSV/ZIP") {
@@ -810,18 +863,21 @@ class HubPageFragment : Fragment() {
             })
         }
         tile("История приложений", "Отслеживаемые версии и события") { open(ApplicationCenterActivity::class.java) }
-        group("Последние записи")
-        if (s.recentSessions.isEmpty()) {
-            info("Пока нет игровых сессий. Начните запись вручную через Game Session.")
-        } else s.recentSessions.forEach { session ->
-            val whenRecorded = DateFormat.getDateTimeInstance(DateFormat.SHORT,
-                DateFormat.SHORT).format(Date(session.startedAtMs))
-            val state = if (session.endedAtMs == null) "Нет записи завершения"
-                else "Завершена: " + (session.endReason ?: "нет причины")
-            tile(session.appLabel, "${whenRecorded} · ${state}") {
-                openRecentSession(session)
-            }
-        }
+    }
+
+    private fun pickHistoryGame(state: LibraryState) {
+        if (state.busy) return
+        val packages = listOf(null) + (state.packages.keys + listOfNotNull(historyPackage))
+        LegionDialogs.builder(requireContext()).setTitle("Игра")
+            .setSingleChoiceItems(packages.map(state::gameLabel).toTypedArray(),
+                packages.indexOf(historyPackage)) { dialog, index ->
+                val target = packages[index]
+                if (historyPackage != target) {
+                    historyPackage = target
+                    historyModel?.refresh(LibraryFilter(target))
+                }
+                dialog.dismiss()
+            }.setNegativeButton("Отмена", null).show()
     }
 
     private fun systemSettings(action: String, scoped: Boolean = false) {

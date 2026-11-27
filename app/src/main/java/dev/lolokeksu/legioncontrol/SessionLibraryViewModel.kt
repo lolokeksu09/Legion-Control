@@ -12,7 +12,7 @@ import java.util.concurrent.atomic.AtomicLong
 
 data class LibraryState(
     val filter:LibraryFilter=LibraryFilter(),
-    val packages:List<String> = emptyList(),
+    val packages:Map<String,String> = emptyMap(),
     val rows:List<GameSessionHeader> = emptyList(),
     val next:LibraryCursor?=null,
     val previous:List<LibraryCursor?> = emptyList(),
@@ -25,8 +25,15 @@ data class LibraryState(
     val baseline:SessionBaselinesResult?=null,
     val selecting:Boolean=false,
     val busy:Boolean=false,
+    val queryFailed:Boolean=false,
     val message:String="Загрузка истории…"
-)
+) {
+    fun gameLabel(packageName: String?): String = when (packageName) {
+        null -> "Все игры"
+        else -> packages[packageName]?.takeIf { it.isNotBlank() && it != packageName }
+            ?.let { "$it\n$packageName" } ?: packageName
+    }
+}
 
 class SessionLibraryViewModel(app:Application):AndroidViewModel(app) {
     private val worker=Executors.newSingleThreadExecutor()
@@ -43,10 +50,10 @@ class SessionLibraryViewModel(app:Application):AndroidViewModel(app) {
     private fun submit(work:()->LibraryState) {
         if(closed || current().busy || pendingDocument.hasPending || pendingCsv.hasPending)return
         val before=current()
-        update(before.copy(busy=true,message="Читаю локальные записи…"))
+        update(before.copy(busy=true,queryFailed=false,message="Читаю локальные записи…"))
         worker.execute {
             val result=runCatching(work).getOrElse {
-                before.copy(message="Операция не завершена: "+it.javaClass.simpleName)
+                before.copy(queryFailed=true,message="Операция не завершена: "+it.javaClass.simpleName)
             }
             main.post { if(!closed)update(result.copy(busy=false)) }
         }

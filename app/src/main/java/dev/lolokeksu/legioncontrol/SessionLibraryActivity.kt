@@ -67,6 +67,7 @@ class SessionLibraryActivity:FragmentActivity() {
     private var minutes=10
     private var incidentKind:SessionIncidents.Kind?=null
     private var graph=CompareGraph.TEMP
+    private lateinit var experimentAction: Button
     private var page=AnalyticsPage.LIBRARY
     private val csvDocument=registerForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
         if(!::vm.isInitialized)return@registerForActivityResult
@@ -247,12 +248,10 @@ class SessionLibraryActivity:FragmentActivity() {
             vm.state.value?.baseline?.let { shareText(SessionBaselines.render(it)) }
         }.also { shareBaseline = it }
         target=panels.getValue(AnalyticsPage.OVERVIEW)
-        button("Эксперименты A/B и заметки") {
-            val pkg=vm.state.value?.detail?.header?.packageName ?: vm.state.value?.filter?.packageName
-            startActivity(Intent(this,ExperimentLabActivity::class.java).apply {
-                pkg?.let { putExtra("experiment_package",it) }
-            })
-        }
+        experimentAction = button("Эксперименты A/B и заметки") {
+            val session = vm.state.value?.takeUnless { it.busy }?.detail?.header
+            if (session != null) startActivity(ExperimentLabActivity.fromReport(this, session))
+        }.apply { id = R.id.analytics_experiment_action }
         LegionUiSupport.setModuleActivityContent(this,ScrollView(this).apply { addView(root) },"ИГРОВАЯ АНАЛИТИКА")
         val featureId=intent.getStringExtra(FeatureFinder.EXTRA_FEATURE_ID)
         val featureModule=FeatureFinder.entries.firstOrNull { it.id==featureId }?.module
@@ -283,6 +282,7 @@ class SessionLibraryActivity:FragmentActivity() {
         LegionUiSupport.notice(status, if(s.busy) LegionUiSupport.Notice.LOADING else LegionUiSupport.Notice.INFO)
         filters.text="${s.filter.packageName ?: "Все игры"} · ${s.filter.period.label} · ${s.filter.status.label}\nСтраница ${s.previous.size+1}"
         val available=!s.busy && !vm.pendingCsv.hasPending && !vm.pendingDocument.hasPending
+        experimentAction.isEnabled = available && s.detail != null
         game.isEnabled=available;period.isEnabled=available;stateButton.isEnabled=available;refresh.isEnabled=available
         previous.isEnabled=available && s.previous.isNotEmpty()
         next.isEnabled=available && s.next!=null && s.previous.size<499
@@ -333,11 +333,16 @@ class SessionLibraryActivity:FragmentActivity() {
     private fun chooseGame() {
         val s=vm.state.value ?: return
         if(s.busy || vm.pendingCsv.hasPending || vm.pendingDocument.hasPending)return
-        val packages=(s.packages+listOfNotNull(s.filter.packageName)).distinct()
+        val packages = listOf(null) + (s.packages.keys + listOfNotNull(s.filter.packageName))
         LegionDialogs.builder(this).setTitle("Игра")
-            .setItems((listOf("Все игры")+packages).toTypedArray()) { _,i ->
-                showPage(AnalyticsPage.LIBRARY)
-                vm.refresh(s.filter.copy(packageName=packages.getOrNull(i-1)))
+            .setSingleChoiceItems(packages.map(s::gameLabel).toTypedArray(),
+                packages.indexOf(s.filter.packageName)) { dialog, index ->
+                val target = packages[index]
+                if (target != s.filter.packageName) {
+                    showPage(AnalyticsPage.LIBRARY)
+                    vm.refresh(s.filter.copy(packageName = target))
+                }
+                dialog.dismiss()
             }.setNegativeButton("Отмена",null).show()
     }
 

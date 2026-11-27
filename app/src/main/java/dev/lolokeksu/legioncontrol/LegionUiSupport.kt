@@ -379,7 +379,7 @@ object LegionUiSupport {
      * (MediaProjection, Rust diagnostics, controller key events).
      * Navigation goes back to the canonical NavHost; no duplicate tab data is stored.
      */
-    fun setModuleActivityContent(activity: Activity, content: ScrollView, subtitle: String) {
+    fun setModuleActivityContent(activity: Activity, content: ViewGroup, subtitle: String) {
         styleModuleTree(content)
         content.setBackgroundColor(Color.BLACK)
         content.clipToPadding = false
@@ -444,7 +444,7 @@ object LegionUiSupport {
         val selectedIndex = when (activity) {
             is GameToolboxActivity, is GameSessionActivity,
             is SmartProfilesActivity, is ApplicationCenterActivity, is GamePreflightActivity -> 1
-            is SessionLibraryActivity -> 3
+            is SessionLibraryActivity, is ExperimentLabActivity -> 3
             else -> 2
         }
         for (index in labels.indices) {

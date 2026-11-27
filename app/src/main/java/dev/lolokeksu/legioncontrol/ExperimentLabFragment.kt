@@ -4,6 +4,7 @@ import android.app.Activity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.widget.doAfterTextChanged
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import android.content.Intent
@@ -37,6 +38,7 @@ class ExperimentLabFragment : Fragment() {
     private lateinit var tagInput:EditText
     private lateinit var noteInput:EditText
     private lateinit var status:TextView
+    private lateinit var sessionContext:TextView
     private val Int.dp:Int get()=(this*resources.displayMetrics.density).toInt()
 
     override fun onCreateView(inflater:LayoutInflater,container:ViewGroup?,savedInstanceState:Bundle?):View {
@@ -85,6 +87,15 @@ class ExperimentLabFragment : Fragment() {
         title("1 · История и метки")
         appInput=input("Пакет приложения (необязательно для списка)")
         action("Выбрать приложение из истории") { pickPackage() }
+        sessionContext = TextView(requireContext()).apply {
+            id = R.id.experiment_selected_session
+            setTextColor(LegionUiSupport.MUTED)
+            textSize = 14f
+            setPadding(0, 8.dp, 0, 8.dp)
+            accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+            text = "Сессия не выбрана."
+        }
+        layout.addView(sessionContext)
         action("Выбрать записанную сессию") { pickSession() }
         tagInput=input("Тег сессии · до 40 символов")
         noteInput=EditText(requireContext()).apply {
@@ -139,13 +150,6 @@ class ExperimentLabFragment : Fragment() {
             state.packages?.let { vm.consume(state.nonce); showPackagePicker(it) }
             state.sessions?.let { vm.consume(state.nonce); showSessionPicker(it) }
             state.experiments?.let { vm.consume(state.nonce); showExperimentPicker(it) }
-            state.annotationFor?.let { sid ->
-                vm.consume(state.nonce)
-                if(vm.selectedSession==sid) {
-                    tagInput.setText(state.annotation?.tag.orEmpty())
-                    noteInput.setText(state.annotation?.note.orEmpty())
-                }
-            }
             state.share?.let { text ->
                 vm.consume(state.nonce)
                 runCatching {
@@ -163,10 +167,30 @@ class ExperimentLabFragment : Fragment() {
             labelB.setText(savedInstanceState.getString("b","B"))
             tagInput.setText(savedInstanceState.getString("tag").orEmpty())
             noteInput.setText(savedInstanceState.getString("note").orEmpty())
+        } else {
+            arguments?.getString(ExperimentLabActivity.EXTRA_PACKAGE)?.takeIf {
+                SmartProfilesRepository.validatePackage(it)
+            }?.let { appInput.setText(it) }
         }
-        arguments?.getString("experiment_package")?.takeIf {
-            SmartProfilesRepository.validatePackage(it)
-        }?.let { appInput.setText(it) }
+
+        appInput.doAfterTextChanged {
+            vm.clearSessionForPackage(currentPackage())
+        }
+        vm.selection.observe(viewLifecycleOwner) { selected ->
+            sessionContext.text = selected?.header?.let { header ->
+                val time = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT)
+                    .format(Date(header.startedAtMs))
+                "${header.appLabel} · $time · ${header.id.take(8)}\n${selected.message}"
+            } ?: selected?.message ?: "Сессия не выбрана."
+            if (selected?.fillDraft == true) {
+                tagInput.setText(selected.annotation?.tag.orEmpty())
+                noteInput.setText(selected.annotation?.note.orEmpty())
+                vm.finishFillingDraft()
+            }
+        }
+        val id = if (savedInstanceState == null) arguments?.getString(ExperimentLabActivity.EXTRA_SESSION)
+            else savedInstanceState.getString("selected_session")
+        vm.initializeSession(currentPackage(), id, restoreDraft = savedInstanceState != null)
     }
 
     private fun display(t:String) { if(::status.isInitialized) status.text=t }
@@ -204,7 +228,7 @@ class ExperimentLabFragment : Fragment() {
                 appInput.setText(session.packageName)
                 tagInput.setText("")
                 noteInput.setText("")
-                vm.selectSession(session.id,session.appLabel)
+                vm.selectSession(session.packageName, session.id)
             }.setNegativeButton("Отмена",null).show()
     }
 
@@ -325,6 +349,7 @@ class ExperimentLabFragment : Fragment() {
 
     override fun onSaveInstanceState(outState:Bundle) {
         outState.putString("package",appInput.text.toString())
+        outState.putString("selected_session",vm.requestedSessionId)
         outState.putString("name",experimentName.text.toString())
         outState.putString("hypothesis",hypothesis.text.toString())
         outState.putString("a",labelA.text.toString())

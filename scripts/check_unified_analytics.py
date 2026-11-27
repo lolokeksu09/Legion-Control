@@ -32,6 +32,10 @@ assert "detail.header.endedAtMs==null" in vm
 assert "Only ended records can be archived" in read("SessionLibraryExport.kt")
 assert "accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE" in ui
 assert "returnToReport ?: AnalyticsPage.OVERVIEW" in ui
-assert "experiment_package" in ui
+assert "ExperimentLabActivity.fromReport(this, session)" in ui
+experiment = read("ExperimentLabActivity.kt")
+assert ".putExtra(EXTRA_PACKAGE, session.packageName)" in experiment
+assert ".putExtra(EXTRA_SESSION, session.id)" in experiment
+assert "sessionForPackage(packageName, id)" in read("ExperimentLabViewModel.kt")
 assert "FeatureReveal.fromActivity(this,root,featureModule)" in ui
 print("PASS: shared session analytics, bounded comparisons, exact snapshot CSV and stable search routes")
