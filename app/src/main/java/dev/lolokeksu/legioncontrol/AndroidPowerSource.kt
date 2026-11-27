@@ -43,10 +43,7 @@ object AndroidPowerSource {
         // Android BatteryManager reports CURRENT_NOW in microamperes.
         // Values and direction depend on the manufacturer, so do NOT infer
         // true charging efficiency, Bypass, health or instantaneous wattage.
-        val current = runCatching {
-            (context.getSystemService(Context.BATTERY_SERVICE) as? BatteryManager)
-                ?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW)
-        }.getOrNull()?.takeIf { it != Int.MIN_VALUE && it in -50_000_000..50_000_000 }
+        val current = TelemetryValidation.currentMicroAmps(ResourceTelemetryBackend.readCurrentNow(context))
 
         val powerSaving = runCatching {
             (context.getSystemService(Context.POWER_SERVICE) as? PowerManager)

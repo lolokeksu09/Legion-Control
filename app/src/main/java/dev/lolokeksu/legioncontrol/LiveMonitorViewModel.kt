@@ -61,6 +61,7 @@ class LiveMonitorViewModel(app: Application) : AndroidViewModel(app) {
             val elapsed = (SystemClock.elapsedRealtime() - runStart).coerceAtLeast(0)
             val app = getApplication<Application>()
             val telemetry = runCatching { GameSessionTelemetry.snapshot(app) }.getOrNull()
+            if (Thread.currentThread().isInterrupted) return@submit
             val resources = runCatching { ResourceTelemetryBackend.readForMonitor(app) }.getOrNull()
             val memory = resources?.systemMemory?.value
             val point = MonitorPoint(

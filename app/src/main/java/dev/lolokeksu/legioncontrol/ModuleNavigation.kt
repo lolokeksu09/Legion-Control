@@ -20,6 +20,8 @@ object ModuleNavigation {
         HapticLabActivity::class.java to DiagnosticsPage.HAPTIC
     )
 
+    internal fun devicePageFor(target: Class<*>): DiagnosticsPage? = devicePages[target]
+
     const val EXTRA_MODULE_ROUTE = "legion_module_route"
     const val EXTRA_MODULE_ARGS = "legion_module_args"
 
@@ -28,7 +30,7 @@ object ModuleNavigation {
      * diagnostics and display Activities remain separate by design.
      */
     fun forwardLegacyEntry(activity: android.app.Activity) {
-        val page = devicePages[activity.javaClass]
+        val page = devicePageFor(activity.javaClass)
         if (page != null) {
             activity.startActivity(deviceIntent(activity, page, activity.intent?.extras))
             activity.finish()
@@ -46,7 +48,7 @@ object ModuleNavigation {
     }
 
     fun open(from:Fragment, target:Class<*>, args:Bundle?=null) {
-        val page = devicePages[target]
+        val page = devicePageFor(target)
         if (page != null) {
             val host = from.activity as? MainActivity
             if (host?.openPage(page) != true) {
@@ -65,7 +67,7 @@ object ModuleNavigation {
         }
     }
 
-    private fun deviceIntent(context: android.content.Context, page: DiagnosticsPage, args: Bundle?): Intent =
+    internal fun deviceIntent(context: android.content.Context, page: DiagnosticsPage, args: Bundle? = null): Intent =
         Intent(context, MainActivity::class.java).apply {
             args?.let { putExtras(it) }
             putExtra(MainActivity.EXTRA_PAGE, page.name)

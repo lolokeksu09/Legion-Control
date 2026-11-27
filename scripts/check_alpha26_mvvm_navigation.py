@@ -144,7 +144,10 @@ assert "R.id.gameDetailFragment" in view and "gamePackage" in view
 assert "ApplicationCenterActivity::class.java" in view
 assert "MainActivity::class.java" in view and "CaptureStudioActivity::class.java" in view
 assert "GameSessionActivity::class.java" in view and "GameToolboxActivity::class.java" in view
-assert "HapticLabActivity::class.java" in view and "AudioLabActivity::class.java" in view
+navigation = (src/"ModuleNavigation.kt").read_text()
+assert "HapticLabActivity::class.java to DiagnosticsPage.HAPTIC" in navigation
+assert "AudioLabActivity::class.java to DiagnosticsPage.AUDIO" in navigation
+assert "DiagnosticsPage.HAPTIC" in view and "DiagnosticsPage.AUDIO" in view
 assert "setOnClickListener" in view and "onResume()" in view
 
 assert "toggleFavorite(pkg, app.label)" in detail

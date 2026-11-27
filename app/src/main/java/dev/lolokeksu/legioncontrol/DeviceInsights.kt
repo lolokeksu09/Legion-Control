@@ -1,8 +1,6 @@
 package dev.lolokeksu.legioncontrol
 
 import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.wifi.WifiInfo
@@ -87,7 +85,7 @@ object DeviceInsights {
         runCatching { Debug.getPss() }.getOrNull()?.takeIf { it > 0L }?.div(1024L)
 
     private fun displayHz(display: Display?): Float? =
-        runCatching { display?.mode?.refreshRate }.getOrNull()?.takeIf { it.isFinite() && it > 0f }
+        ResourceTelemetryBackend.refreshRate(runCatching { display?.mode }.getOrNull())
 
     fun system(context: Context, display: Display?): String = DeviceOverviewPresentation.system(
         ResourceTelemetryBackend.readSystemMemory(context),
@@ -107,15 +105,12 @@ data class ChargeReading(
 
 object ChargingDiagnostics {
     fun read(context: Context): ChargeReading {
-        val manager = context.getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
-        val intent = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        val intent = ResourceTelemetryBackend.readBatteryIntent(context)
         val status = intent?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
-        val current = runCatching {
-            manager?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW)
-        }.getOrNull().let(TelemetryValidation::currentMicroAmps)
-        val temp = intent?.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, Int.MIN_VALUE)?.takeIf { it in -400..1200 }
+        val current = TelemetryValidation.currentMicroAmps(ResourceTelemetryBackend.readCurrentNow(context))
+        val temp = ResourceTelemetryBackend.batteryTemperatureDeciC(intent)
         val voltage = intent?.getIntExtra(BatteryManager.EXTRA_VOLTAGE, -1)?.takeIf { it > 0 }
-        val level = intent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)?.takeIf { it in 0..100 }
+        val level = ResourceTelemetryBackend.batteryPercent(intent)
         val state = when (status) {
             BatteryManager.BATTERY_STATUS_CHARGING -> "Заряжается"
             BatteryManager.BATTERY_STATUS_DISCHARGING -> "Разряжается"

@@ -115,7 +115,7 @@ for term in ("startForegroundService(i)","ACTION_STOP","START_NOT_STICKY",
  "scheduleWithFixedDelay","GameSessionRepository","record(id,point)",
  "tcpAllowed &&","NetworkDiagnostics.probe()","stopSelf()"):
     assert term in service,term
-for term in ("BatteryManager.EXTRA_TEMPERATURE","BATTERY_PROPERTY_CURRENT_NOW",
+for term in ("ResourceTelemetryBackend.batteryTemperatureDeciC(battery)","ResourceTelemetryBackend.readCurrentNow(context)",
  "currentThermalStatus","isPowerSaveMode","NET_CAPABILITY_VALIDATED"):
     assert term in capture,term
 for term in ("ACTION_MAIN","CATEGORY_LAUNCHER","startRecording()","stopRecording()",

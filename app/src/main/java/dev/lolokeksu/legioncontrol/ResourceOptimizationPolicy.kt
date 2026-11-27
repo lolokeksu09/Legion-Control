@@ -46,8 +46,8 @@ internal object MonotonicProbePolicy {
         now>=0 && period>0 && (last==null || (now>=last && now-last>=period))
 }
 
-/** Tools and Games don't consume battery/refresh/session counts; avoid rebuilding
- * their search fields and rows when only unrelated measurements change. */
+/** Keep Tools search and Games rows mounted when their content has not changed.
+ * The Tools summary has its own in-place update. */
 internal object HubRenderPolicy {
     fun equivalent(tab:HubTab,previous:HubLoadState?,next:HubLoadState):Boolean {
         if(previous !is HubLoadState.Ready || next !is HubLoadState.Ready)return false

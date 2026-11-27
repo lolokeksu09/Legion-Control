@@ -100,6 +100,9 @@ data class ResourceTelemetrySnapshot(
 
 /** Pure OEM-value validation, suitable for direct JVM testing. */
 object TelemetryValidation {
+    fun batteryPercent(level: Int, scale: Int): Int? =
+        if (scale > 0 && level in 0..scale) (level.toLong() * 100L / scale).toInt() else null
+
     fun memory(
         totalBytes: Long,
         availableBytes: Long,

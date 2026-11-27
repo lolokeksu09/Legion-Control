@@ -54,6 +54,7 @@ class HubPageFragment : Fragment() {
     private val searchHandler=Handler(Looper.getMainLooper())
     private var pendingSearch:Runnable?=null
     private var observedSnapshot:HubLoadState?=null
+    private var systemSummary: TextView? = null
     private var shizukuStatusView: TextView? = null
     private var systemAudit: ShizukuSystemAudit? = null
     private var shizukuProbeEpoch = 0
@@ -123,6 +124,7 @@ class HubPageFragment : Fragment() {
             val previous=observedSnapshot
             observedSnapshot=state
             if(!HubRenderPolicy.equivalent(page(),previous,state)) render(state)
+            else if (state is HubLoadState.Ready) systemSummary?.text = deviceSummaryText(state.snapshot)
         }
         viewModel.actionResult.observe(viewLifecycleOwner) { message ->
             if (message.isNotBlank() && isAdded && viewModel.state.value is HubLoadState.Failed) {
@@ -284,19 +286,9 @@ class HubPageFragment : Fragment() {
 
     private fun <T> open(cls: Class<T>, extras: Bundle? = null) {
         // Old catalog aliases resolve to the actual pages of the unified host.
-        val diagnosticPage = when(cls) {
-            GamingDiagnosticsActivity::class.java -> DiagnosticsPage.GAMING
-            HardwareLabActivity::class.java -> DiagnosticsPage.HARDWARE
-            ConnectivityLabActivity::class.java -> DiagnosticsPage.NETWORK
-            CompatibilityLabActivity::class.java -> DiagnosticsPage.COMPAT
-            AudioLabActivity::class.java -> DiagnosticsPage.AUDIO
-            HapticLabActivity::class.java -> DiagnosticsPage.HAPTIC
-            else -> null
-        }
-        if(diagnosticPage!=null) {
-            openStandaloneFeature(MainActivity::class.java,Bundle(extras ?: Bundle()).apply {
-                putString(MainActivity.EXTRA_PAGE,diagnosticPage.name)
-            })
+        val diagnosticPage = ModuleNavigation.devicePageFor(cls)
+        if (diagnosticPage != null) {
+            openDevicePage(diagnosticPage, extras)
             return
         }
         if (cls == GameSessionActivity::class.java) {
@@ -325,12 +317,17 @@ class HubPageFragment : Fragment() {
         }
     }
 
+    private fun openDevicePage(page: DiagnosticsPage, extras: Bundle? = null) {
+        startActivity(ModuleNavigation.deviceIntent(requireContext(), page, extras))
+    }
+
     private fun page() = HubTab.parse(arguments?.getString("page"))
 
     private fun render(state: HubLoadState) {
         if (!isAdded || !::column.isInitialized) return
         cancelSearch()
         column.removeAllViews()
+        systemSummary = null
         shizukuStatusView = null
         if (page() == HubTab.SETTINGS) {
             showSettings((state as? HubLoadState.Ready)?.snapshot)
@@ -347,9 +344,7 @@ class HubPageFragment : Fragment() {
         when (state) {
             HubLoadState.Loading -> {
                 if (page() == HubTab.TOOLS) {
-                    showTools()
-                    group("Сводка устройства")
-                    notice("Чтение локальных данных продолжается. Инструменты доступны.", LegionUiSupport.Notice.LOADING)
+                    showTools(state)
                 } else {
                     section("LEGION · GAME HUB", "Чтение локальной библиотеки и системных данных")
                     notice("Загружаю данные устройства…", LegionUiSupport.Notice.LOADING)
@@ -357,7 +352,7 @@ class HubPageFragment : Fragment() {
             }
             is HubLoadState.Failed -> {
                 if (page() == HubTab.TOOLS) {
-                    showTools()
+                    showTools(state)
                     group("Не удалось прочитать сводку")
                     notice(state.message, LegionUiSupport.Notice.ERROR)
                 } else {
@@ -373,7 +368,7 @@ class HubPageFragment : Fragment() {
                 when (page()) {
                     HubTab.HOME -> showHome(state.snapshot)
                     HubTab.GAMES -> showGames(state.snapshot)
-                    HubTab.TOOLS -> showTools()
+                    HubTab.TOOLS -> showTools(state)
                     HubTab.HISTORY -> Unit
                     HubTab.SETTINGS -> showSettings(state.snapshot)
                 }
@@ -389,11 +384,9 @@ class HubPageFragment : Fragment() {
     private fun openCenter(center: HubCenter) {
         when (center) {
             HubCenter.GAMES -> NavHostFragment.findNavController(this).navigate(R.id.gamesFragment)
-            HubCenter.DEVICE -> openStandaloneFeature(MainActivity::class.java, Bundle())
+            HubCenter.DEVICE -> openDevicePage(DiagnosticsPage.OVERVIEW)
             HubCenter.MEDIA -> openStandaloneFeature(CaptureStudioActivity::class.java, Bundle())
-            HubCenter.PERIPHERALS -> openStandaloneFeature(MainActivity::class.java, Bundle().apply {
-                putString(MainActivity.EXTRA_PAGE, DiagnosticsPage.DISPLAY.name)
-            })
+            HubCenter.PERIPHERALS -> openDevicePage(DiagnosticsPage.DISPLAY)
             HubCenter.ANALYTICS -> openStandaloneFeature(SessionLibraryActivity::class.java, Bundle())
         }
     }
@@ -448,24 +441,30 @@ class HubPageFragment : Fragment() {
         }
     }
 
-    private fun deviceSummary(s: HubSnapshot?) {
-        val stats=LinearLayout(requireContext()).apply {
-            orientation=LinearLayout.HORIZONTAL
-            background=outline()
-            setPadding(10.dp,14.dp,10.dp,14.dp)
-        }
-        fun metric(value:String, label:String) {
-            val block=LinearLayout(requireContext()).apply {
-                orientation=LinearLayout.VERTICAL
-                gravity=Gravity.CENTER
+    private fun deviceSummaryText(snapshot: HubSnapshot?): String {
+        if (snapshot == null) return "Сводка устройства недоступна. Инструменты можно открыть ниже."
+        val defaults = Locale.getDefault()
+        val level = snapshot.batteryPercent?.let { "$it%" } ?: "н/д"
+        val temperature = snapshot.batteryTemperatureDeciC?.let {
+            String.format(defaults, "%.1f °C", it / 10.0)
+        } ?: "н/д"
+        val refresh = snapshot.refreshHz?.let { String.format(defaults, "%.1f Гц", it) } ?: "н/д"
+        val available = snapshot.memory?.let {
+            String.format(defaults, "%.1f из %.1f ГиБ", it.availableBytes / 1073741824.0, it.totalBytes / 1073741824.0)
+        } ?: "н/д"
+        return buildString {
+            append("Заряд ").append(level).append(" · Батарея ").append(temperature)
+            append("\nRAM доступно ").append(available).append(" · Дисплей ").append(refresh)
+            snapshot.resourcesReadAtMs?.let {
+                append("\nПоказания на ").append(DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(it)))
             }
-            block.addView(text(value,22f,accent,true).apply { gravity=Gravity.CENTER })
-            block.addView(text(label,12f,muted).apply { gravity=Gravity.CENTER;setPadding(0,4.dp,0,0) })
-            stats.addView(block,LinearLayout.LayoutParams(0,-2,1f))
         }
-        metric(s?.batteryPercent?.let { "$it%" } ?: "—","Заряд")
-        metric(s?.refreshHz?.let { String.format(Locale.US,"%.0f",it) } ?: "—","Дисплей · Гц")
-        column.addView(stats,LinearLayout.LayoutParams(-1,-2).apply { bottomMargin=8.dp })
+    }
+
+    private fun deviceSummary(snapshot: HubSnapshot?): TextView = text(deviceSummaryText(snapshot)).apply {
+        background = outline()
+        setPadding(12.dp, 12.dp, 12.dp, 12.dp)
+        column.addView(this, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 8.dp })
     }
 
     private fun showHome(s: HubSnapshot) {
@@ -651,6 +650,7 @@ class HubPageFragment : Fragment() {
     override fun onDestroyView() {
         shizukuStatusView = null
         historyModel = null
+        systemSummary = null
         cancelSearch()
         observedSnapshot=null
         super.onDestroyView()
@@ -692,11 +692,47 @@ class HubPageFragment : Fragment() {
         }
     }
 
+    private fun quickToolRows(items: List<View>) {
+        val pairSize = if (resources.configuration.screenWidthDp >= 360 &&
+            resources.configuration.fontScale < 1.3f) 2 else 1
+        for (pair in items.chunked(pairSize)) {
+            val row = LinearLayout(requireContext()).apply { orientation = LinearLayout.HORIZONTAL }
+            pair.forEachIndexed { index, item ->
+                row.addView(item, LinearLayout.LayoutParams(0, -2, 1f).apply {
+                    if (index > 0) marginStart = 8.dp
+                })
+            }
+            column.addView(row, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 6.dp })
+        }
+    }
+
     /** Searchable feature catalog; launches the existing real modules without migrating their data. */
-    private fun showTools() {
-        section("Система", "Ресурсы, аппаратные возможности и настройки Android.")
-        deviceSummary((viewModel.state.value as? HubLoadState.Ready)?.snapshot)
-        centerGrid(listOf(HubCenter.DEVICE,HubCenter.PERIPHERALS,HubCenter.MEDIA))
+    private fun showTools(state: HubLoadState) {
+        section("Система")
+        fun destination(title: String, page: DiagnosticsPage): View =
+            LegionUiSupport.actionTile(requireContext(), title, "") { openDevicePage(page) }.apply { tag = page }
+        systemSummary = deviceSummary((state as? HubLoadState.Ready)?.snapshot).apply {
+            if (state == HubLoadState.Loading) text = "Читаю состояние устройства…"
+        }
+        group("Устройство")
+        quickToolRows(listOf(
+            destination("Ресурсы", DiagnosticsPage.MONITOR),
+            destination("Сеть", DiagnosticsPage.NETWORK),
+            destination("Аппаратные тесты", DiagnosticsPage.HARDWARE),
+            destination("Датчики", DiagnosticsPage.SENSORS),
+            destination("Батарея", DiagnosticsPage.OVERVIEW),
+            destination("Совместимость", DiagnosticsPage.COMPAT)
+        ))
+        group("Периферия")
+        quickToolRows(listOf(
+            destination("Звук", DiagnosticsPage.AUDIO),
+            destination("Вибрация", DiagnosticsPage.HAPTIC),
+            LegionUiSupport.actionTile(requireContext(), "Экран", "") { open(DisplayPatternActivity::class.java) },
+            LegionUiSupport.actionTile(requireContext(), "Геймпад", "") { open(GamepadLiveActivity::class.java) }
+        ))
+        tile("История и экспорт", "Сохранённые замеры и отчёты устройства") {
+            openDevicePage(DiagnosticsPage.HISTORY)
+        }
         tile("Параметры Android", "Громкость, яркость, DND и тайм-аут") {
             SystemControlPanel.show(requireContext())
         }
@@ -858,9 +894,7 @@ class HubPageFragment : Fragment() {
         tile("Медиатека", "Локальные MP4 и PNG") { open(CaptureStudioActivity::class.java) }
         group("Данные устройства и приложений")
         tile("Измерения устройства", "История Kotlin + Rust, тесты батареи, тепло и CSV/ZIP") {
-            openStandaloneFeature(MainActivity::class.java, Bundle().apply {
-                putString(MainActivity.EXTRA_PAGE, DiagnosticsPage.HISTORY.name)
-            })
+            openDevicePage(DiagnosticsPage.HISTORY)
         }
         tile("История приложений", "Отслеживаемые версии и события") { open(ApplicationCenterActivity::class.java) }
     }

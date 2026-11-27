@@ -36,9 +36,15 @@ class ResourceOptimizationInstrumentedTest {
     }
     @Test fun hubSignalsAndLauncherResultsRemainBounded() {
         val app=InstrumentationRegistry.getInstrumentation().targetContext
-        val (percent,hz)=GameSessionTelemetry.hubSignals(app)
-        assertTrue(percent==null || percent in 0..100)
-        assertTrue(hz==null || hz in 1f..500f)
+        val snapshot = HubRepository(app).read()
+        val percent = snapshot.batteryPercent
+        val hz = snapshot.refreshHz
+        val temperature = snapshot.batteryTemperatureDeciC
+        assertTrue(percent == null || percent in 0..100)
+        assertTrue(hz == null || hz in 1f..500f)
+        assertTrue(temperature == null || temperature in -400..1200)
+        snapshot.memory?.let { assertTrue(it.availableBytes in 0L..it.totalBytes) }
+        assertTrue(requireNotNull(snapshot.resourcesReadAtMs) > 0L)
         val launchable=ApplicationInventory.launchable(app)
         assertTrue(launchable.size<=600)
         assertEquals(launchable.size,launchable.map{it.packageName}.distinct().size)

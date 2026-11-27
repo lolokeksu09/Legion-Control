@@ -126,7 +126,7 @@ for expected in (
 for expected in (
     "timedTest?.stop(TimedBatteryStopReason.APP_BACKGROUND)",
     "history.recordTimedBatteryTest(completed)",
-    "private fun sample(): TimedBatteryPoint?",
+    "sample = sampleController::sample",
     "timedTest?.isActive == true",
 ):
     assert expected in activity, expected

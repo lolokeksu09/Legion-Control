@@ -6,6 +6,16 @@ import org.junit.Test
 
 /** No fake Android readings: validates only pure contracts and source values. */
 class ResourceTelemetryTest {
+    @Test fun batteryPercentageRespectsAndroidScaleAndMissingReadings() {
+        assertEquals(50, TelemetryValidation.batteryPercent(1, 2))
+        assertEquals(66, TelemetryValidation.batteryPercent(2, 3))
+        assertEquals(100, TelemetryValidation.batteryPercent(Int.MAX_VALUE, Int.MAX_VALUE))
+        assertEquals(0, TelemetryValidation.batteryPercent(0, 100))
+        assertNull(TelemetryValidation.batteryPercent(-1, 100))
+        assertNull(TelemetryValidation.batteryPercent(1, 0))
+        assertNull(TelemetryValidation.batteryPercent(101, 100))
+    }
+
     @Test fun probeResultsDistinguishReadingsFromFailures() {
         val reported = ProbeResult.available(42)
         assertEquals(ProbeState.AVAILABLE, reported.state)

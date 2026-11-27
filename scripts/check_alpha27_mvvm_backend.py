@@ -33,7 +33,7 @@ assert "historyModel.report.observe(this)" in main
 assert "diagnosticsExecutor.execute { historyModel.request(DiagnosticsReadKind.HISTORY) }" in main
 for kind in ("HISTORY","SENSOR_QUALITY","SESSION_PROFILE","THERMAL","TIMED_BATTERY","SENSOR_READINGS"):
     assert "DiagnosticsReadKind."+kind in main
-assert "private fun sample(): TimedBatteryPoint?" in main
+assert "sample = sampleController::sample" in main
 assert "sampleController.sample()" in main
 assert "fun sample(): TimedBatteryPoint?" in controller
 assert "engine.record(percent, temp, elapsedMs)" in controller

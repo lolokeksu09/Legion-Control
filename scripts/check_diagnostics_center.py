@@ -17,12 +17,13 @@ assert "monitorPanel.setVisible(foreground && next == DiagnosticsPage.MONITOR)" 
 assert "monitorPanel.setVisible(false)" in host[host.index("override fun onStop()"):]
 assert "timedTest?.stop(TimedBatteryStopReason.APP_BACKGROUND)" in host[host.index("private fun selectPage"):host.index("override fun onStart()")]
 assert "if (currentPage == DiagnosticsPage.SENSORS) cancelSensorCapture()" in host
-assert "startActivity(Intent(this, MainActivity::class.java)" in monitor
+assert "ModuleNavigation.deviceIntent(this, DiagnosticsPage.MONITOR" in monitor
 assert "finish()" in monitor[:monitor.index("internal class LiveMonitorPanel")]
 assert "model.state.observe(activity, ::render)" in monitor
 assert "FeatureReveal.fromActivity(activity, root, FeatureModule.MONITOR)" in monitor
 assert "FeatureModule.MONITOR -> openStandaloneFeature(MainActivity::class.java, args)" in hub
-assert "putString(MainActivity.EXTRA_PAGE, DiagnosticsPage.HISTORY.name)" in hub
+assert "openDevicePage(DiagnosticsPage.HISTORY)" in hub
+assert "systemSummary?.text = deviceSummaryText(state.snapshot)" in hub
 assert "LiveMonitorActivity::class.java" not in catalog
 assert "MainActivity::class.java" in catalog
 assert '"timed" -> timedHistoryView.text = reading.content' in host
@@ -42,7 +43,11 @@ for action in (
 assert "host?.openPage(page)" in read("ModuleNavigation.kt")
 assert "mountLab(next)" in host and "transaction.commitNow()" in host
 assert host.index("if (currentPage == DiagnosticsPage.MONITOR) monitorPanel.setVisible(false)") < host.index("mountLab(next)")
-assert "putString(MainActivity.EXTRA_PAGE,diagnosticPage.name)" in hub
+assert "ModuleNavigation.devicePageFor(cls)" in hub
+assert "ModuleNavigation.deviceIntent(requireContext(), page, extras)" in hub
+assert "putExtra(MainActivity.EXTRA_PAGE, page.name)" in read("ModuleNavigation.kt")
+assert "sample = sampleController::sample" in host
+assert "generation == timedResultGeneration" in host
 assert "transaction.remove(old)" in host and "transaction.replace(R.id.device_lab_container,fragment,tag)" in host
 for name in ("GamingDiagnostics","HardwareLab","ConnectivityLab","CompatibilityLab","AudioLab","HapticLab"):
     assert name+"Fragment()" in host

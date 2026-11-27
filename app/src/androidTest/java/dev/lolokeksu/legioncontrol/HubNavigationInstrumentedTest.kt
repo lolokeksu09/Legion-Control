@@ -4,6 +4,8 @@ import android.app.Activity
 import android.os.SystemClock
 import android.view.View
 import android.widget.EditText
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.ViewModelProvider
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -39,6 +41,66 @@ class HubNavigationInstrumentedTest {
                 assertTrue(host.openPage(DiagnosticsPage.MONITOR))
                 assertNull(host.supportFragmentManager.findFragmentById(R.id.device_lab_container))
                 assertFalse(host.openPage(DiagnosticsPage.AUDIO))
+            }
+        }
+    }
+
+    @Test fun systemShortcutOpensNetworkPage() {
+        ActivityScenario.launch(LegionHubActivity::class.java).use { scenario ->
+            scenario.onActivity { hub ->
+                assertTrue(hub.findViewById<View>(R.id.hub_tab_tools).performClick())
+            }
+            val monitor = instrumentation.addMonitor(MainActivity::class.java.name, null, false)
+            try {
+                await {
+                    var clicked = false
+                    scenario.onActivity { hub ->
+                        val shortcut = hub.window.decorView.findViewWithTag<View>(DiagnosticsPage.NETWORK)
+                        clicked = shortcut?.isShown == true && shortcut.performClick()
+                    }
+                    clicked
+                }
+                val host = requireNotNull(instrumentation.waitForMonitorWithTimeout(monitor, 10_000L)) as MainActivity
+                try {
+                    assertEquals(DiagnosticsPage.NETWORK.name, host.intent.getStringExtra(MainActivity.EXTRA_PAGE))
+                    await {
+                        var mounted = false
+                        instrumentation.runOnMainSync {
+                            val lab = host.supportFragmentManager.findFragmentById(R.id.device_lab_container)
+                            mounted = lab is ConnectivityLabFragment
+                        }
+                        mounted
+                    }
+                } finally {
+                    instrumentation.runOnMainSync { host.finish() }
+                }
+            } finally {
+                instrumentation.removeMonitor(monitor)
+            }
+        }
+    }
+
+    @Test fun switchingPagesAndLeavingTheCenterStopsTheMonitor() {
+        val intent = ModuleNavigation.deviceIntent(instrumentation.targetContext, DiagnosticsPage.MONITOR)
+        ActivityScenario.launch<MainActivity>(intent).use { scenario ->
+            scenario.onActivity { host ->
+                val model = ViewModelProvider(host)[LiveMonitorViewModel::class.java]
+                val feature = requireNotNull(FeatureFinder.resolve("monitor.start", FeatureModule.MONITOR))
+                val start = requireNotNull(FeatureReveal.findTarget(host.window.decorView, feature))
+                assertFalse(requireNotNull(model.state.value).running)
+                assertTrue(start.isShown && start.isEnabled && start.performClick())
+                assertTrue(requireNotNull(model.state.value).running)
+                assertTrue(host.openPage(DiagnosticsPage.HARDWARE))
+                assertFalse(requireNotNull(model.state.value).running)
+                assertTrue(host.openPage(DiagnosticsPage.MONITOR))
+                model.start()
+                assertTrue(requireNotNull(model.state.value).running)
+            }
+            scenario.moveToState(Lifecycle.State.CREATED)
+            scenario.moveToState(Lifecycle.State.RESUMED)
+            scenario.onActivity { host ->
+                val model = ViewModelProvider(host)[LiveMonitorViewModel::class.java]
+                assertFalse(requireNotNull(model.state.value).running)
             }
         }
     }
